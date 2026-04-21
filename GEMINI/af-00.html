@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX ENGINE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --surface-active: #1a1a1a;
+            --border: #222222;
+            --text: #ffffff;
+            --muted: #666666;
+            --accent: #ff0000;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            overflow: hidden;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea,
+        input[type="text"] {
+            user-select: text;
+            -webkit-user-select: text;
+            outline: none;
+        }
+
+        .op-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 52px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.05s;
+        }
+
+        .op-btn:active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .op-btn-accent {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .gear-btn {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 900;
+            color: var(--muted);
+            border-right: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .gear-btn.active {
+            color: var(--text);
+            background: var(--surface-active);
+        }
+
+        #viewport {
+            flex: 0 0 40%;
+            background: #050505;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 2px solid var(--border);
+            overflow: hidden;
+        }
+
+        #canvas-frame {
+            position: relative;
+            line-height: 0;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            touch-action: none;
+        }
+
+        .hud-text {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--accent);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 8px;
+            z-index: 20;
+            letter-spacing: 0.1em;
+        }
+
+        #pos-hud {
+            top: 10px;
+            left: 10px;
+            color: var(--muted);
+        }
+
+        #idx-hud {
+            top: 10px;
+            right: 10px;
+        }
+
+        #deck {
+            flex: 1;
+            position: relative;
+            background: var(--bg);
+            min-height: 0;
+        }
+
+        .channel {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            padding: 12px;
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .channel.active {
+            display: flex;
+        }
+
+        #transport {
+            height: 52px;
+            flex-shrink: 0;
+            display: flex;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        #play-toggle {
+            flex: 0 0 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 11px;
+            cursor: pointer;
+            border-right: 1px solid var(--border);
+        }
+
+        #play-toggle.active {
+            background: var(--accent);
+            color: white;
+            border-right-color: var(--accent);
+        }
+
+        #nav {
+            height: calc(64px + var(--safe-bottom));
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding-bottom: var(--safe-bottom);
+            background: #000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            border-top: 2px solid transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            border-top-color: var(--text);
+            color: var(--text);
+            background: var(--surface);
+        }
+
+        .nav-item span {
+            font-size: 9px;
+            font-weight: 900;
+        }
+
+        .swatch {
+            flex: 1;
+            aspect-ratio: 1;
+            cursor: pointer;
+            border: 1px solid var(--border);
+        }
+
+        .swatch.active {
+            border: 2px solid #fff;
+            z-index: 10;
+            transform: scale(1.1);
+        }
+
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            color: #000;
+            padding: 8px 16px;
+            font-weight: bold;
+            font-size: 11px;
+            opacity: 0;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        #toast.visible {
+            opacity: 1;
+        }
+
+        .tool-bar-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .tool-bar-btn.active {
+            border-color: var(--text);
+            color: var(--text);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 32px;
+            background: var(--text);
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="toast">NOTIFY</div>
+
+    <section id="viewport">
+        <div id="pos-hud" class="hud-text">X:00 Y:00</div>
+        <div id="idx-hud" class="hud-text">001/001</div>
+        <div id="canvas-frame">
+            <canvas id="main-canvas" style="position:relative; z-index:10;"></canvas>
+        </div>
+    </section>
+
+    <div id="transport">
+        <div id="play-toggle" onclick="togglePlay()">RUN</div>
+        <div class="gear-btn" onclick="setSpeed(0.25)" id="sp-025">1/4X</div>
+        <div class="gear-btn" onclick="setSpeed(0.5)" id="sp-05">1/2X</div>
+        <div class="gear-btn active" onclick="setSpeed(1)" id="sp-1">1X</div>
+        <div class="gear-btn" onclick="setSpeed(2)" id="sp-2">2X</div>
+        <div class="flex items-center px-2 gap-2">
+            <button onclick="jumpFrame(-1)" class="p-2 text-zinc-500"><svg width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="4">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg></button>
+            <button onclick="jumpFrame(1)" class="p-2 text-zinc-500"><svg width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="4">
+                    <polyline points="9 18 15 12 9 6" />
+                </svg></button>
+        </div>
+    </div>
+
+    <section id="deck">
+        <div id="ch-A" class="channel active">
+            <span class="text-[9px] font-bold text-zinc-600">A: ACQUIRE</span>
+            <div class="flex gap-2">
+                <button class="op-btn flex-1" onclick="document.getElementById('file-input').click()">LOCAL
+                    FILE</button>
+                <button class="op-btn flex-1" onclick="toggleCamera()">OPTIC FEED</button>
+            </div>
+            <div class="flex flex-col gap-1 mt-2">
+                <input type="text" id="uri-in" placeholder="INGEST URI (DIRECT MP4/JPG)"
+                    class="bg-black border border-zinc-800 p-3 text-[10px] text-white font-mono">
+                <button class="op-btn op-btn-accent" onclick="fetchURI()">FETCH URI</button>
+            </div>
+            <button class="op-btn mt-2" onclick="loadTestPattern()">TEST PATTERN</button>
+            <div id="media-info"
+                class="mt-auto p-3 border border-zinc-900 text-center text-[9px] text-zinc-600 font-bold uppercase">
+                Ready</div>
+        </div>
+
+        <div id="ch-B" class="channel">
+            <span class="text-[9px] font-bold text-zinc-600">B: BEFLIX</span>
+            <textarea id="code-in"
+                class="flex-1 bg-black border border-zinc-800 p-3 font-mono text-[10px] text-emerald-500 leading-tight resize-none"
+                spellcheck="false">
+C INITIALIZE
+CLR 0
+PNT 10 10 10 10 2
+REC 1
+SHF 2 1 12</textarea>
+            <button class="op-btn op-btn-accent" onclick="executeBeflix()">COMPILE MACRO</button>
+        </div>
+
+        <div id="ch-C" class="channel">
+            <span class="text-[9px] font-bold text-zinc-600">C: CANVAS</span>
+            <div class="grid grid-cols-4 gap-1">
+                <div class="tool-bar-btn active" data-tool="pen" onclick="setTool('pen')">PEN</div>
+                <div class="tool-bar-btn" data-tool="rect" onclick="setTool('rect')">BOX</div>
+                <div class="tool-bar-btn" data-tool="fill" onclick="setTool('fill')">FILL</div>
+                <div class="tool-bar-btn" data-tool="erase" onclick="setTool('erase')">WIPE</div>
+            </div>
+            <div class="flex items-center gap-4 py-1">
+                <span class="text-[8px] font-bold text-zinc-500">SZ</span>
+                <input type="range" id="size-range" min="1" max="25" value="5" oninput="state.size=this.value">
+            </div>
+            <div id="swatch-grid" class="flex gap-1 h-8"></div>
+            <div class="grid grid-cols-2 gap-2 mt-auto">
+                <button class="op-btn" onclick="addFrame()">+ FRM</button>
+                <button class="op-btn" onclick="cloneFrame()">CLONE</button>
+            </div>
+        </div>
+
+        <div id="ch-D" class="channel">
+            <span class="text-[9px] font-bold text-zinc-600">D: DELIVERY</span>
+            <div class="flex flex-col gap-2 justify-center flex-1">
+                <button class="op-btn" onclick="exportFile('png')">PRINT STILL (PNG)</button>
+                <button class="op-btn op-btn-accent" onclick="exportFile('gif')">PRINT MOTION (GIF)</button>
+                <button class="op-btn" onclick="exportFile('webm')">BURN VIDEO (WEBM)</button>
+            </div>
+        </div>
+    </section>
+
+    <nav id="nav">
+        <div class="nav-item active" onclick="setChannel('A')"><span>A</span><span>ACQUIRE</span></div>
+        <div class="nav-item" onclick="setChannel('B')"><span>B</span><span>BEFLIX</span></div>
+        <div class="nav-item" onclick="setChannel('C')"><span>C</span><span>CANVAS</span></div>
+        <div class="nav-item" onclick="setChannel('D')"><span>D</span><span>DELIVERY</span></div>
+    </nav>
+
+    <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="ingestMedia(event)">
+    <div id="camera-gate" class="fixed inset-0 bg-black z-[100] hidden flex-col items-center justify-center p-6 gap-6">
+        <video id="cam-v" autoplay playsinline class="w-full max-h-[60vh] border border-zinc-800"></video>
+        <button id="cam-rec" class="op-btn op-btn-accent" onclick="recordCam()">START REC</button>
+        <button class="op-btn" onclick="toggleCamera()">ABORT</button>
+    </div>
+
+    <script>
+        const W = 320, H = 180, COLS = 64, ROWS = 36, BS = 5, FPS_BASE = 12;
+        const PAL = [
+            { id: 0, c: [0, 0, 0, 0], hex: 'transparent' }, { id: 1, c: [0, 0, 0, 255], hex: '#000000' },
+            { id: 2, c: [255, 0, 0, 255], hex: '#ff0000' }, { id: 3, c: [0, 255, 0, 255], hex: '#00ff00' },
+            { id: 4, c: [0, 0, 255, 255], hex: '#0000ff' }, { id: 5, c: [255, 255, 0, 255], hex: '#ffff00' },
+            { id: 6, c: [255, 255, 255, 255], hex: '#ffffff' }
+        ];
+
+        let state = { frames: [], cur: 0, playing: false, speed: 1, tool: 'pen', color: 2, size: 5, drag: false, d0: [0, 0], d1: [0, 0], channel: 'A' };
+        const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const inkBuffer = document.createElement('canvas'); inkBuffer.width = W; inkBuffer.height = H;
+        const inkCtx = inkBuffer.getContext('2d');
+
+        function notify(msg) {
+            const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('visible');
+            setTimeout(() => t.classList.remove('visible'), 1200);
+        }
+
+        function setChannel(id) {
+            state.channel = id;
+            document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`ch-${id}`).classList.add('active');
+            document.querySelectorAll('.nav-item')[['A', 'B', 'C', 'D'].indexOf(id)].classList.add('active');
+        }
+
+        function setSpeed(s) {
+            state.speed = s;
+            document.querySelectorAll('.gear-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`sp-${String(s).replace('.', '')}`).classList.add('active');
+            haptic(10);
+        }
+
+        function haptic(d = 15) { if (navigator.vibrate) try { navigator.vibrate(d); } catch (e) { } }
+
+        function init() {
+            addFrame(true); buildSwatches(); resize();
+            window.addEventListener('resize', resize);
+        }
+
+        function resize() {
+            const box = document.getElementById('viewport');
+            const scale = Math.min((box.clientWidth - 40) / W, (box.clientHeight - 40) / H);
+            canvas.width = W; canvas.height = H;
+            canvas.style.width = Math.floor(W * scale) + 'px'; canvas.style.height = Math.floor(H * scale) + 'px';
+            render();
+        }
+
+        function buildSwatches() {
+            const g = document.getElementById('swatch-grid');
+            PAL.slice(1).forEach(p => {
+                const s = document.createElement('div'); s.className = `swatch ${p.id === state.color ? 'active' : ''}`;
+                s.style.backgroundColor = p.hex; s.onclick = () => {
+                    state.color = p.id; document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+                    s.classList.add('active');
+                };
+                g.appendChild(s);
+            });
+        }
+
+        function setTool(t) {
+            state.tool = t;
+            document.querySelectorAll('.tool-bar-btn').forEach(s => s.classList.toggle('active', s.dataset.tool === t));
+        }
+
+        function render() {
+            if (!state.frames.length) return;
+            const f = state.frames[state.cur];
+            ctx.clearRect(0, 0, W, H);
+            if (f.base) ctx.drawImage(f.base, 0, 0); else { ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H); }
+            inkCtx.clearRect(0, 0, W, H);
+            inkCtx.putImageData(new ImageData(f.codeInk, W, H), 0, 0);
+            const draw = document.createElement('canvas'); draw.width = W; draw.height = H;
+            draw.getContext('2d').putImageData(new ImageData(f.drawInk, W, H), 0, 0);
+            inkCtx.drawImage(draw, 0, 0);
+            ctx.drawImage(inkBuffer, 0, 0);
+            document.getElementById('idx-hud').textContent = `${String(state.cur + 1).padStart(3, '0')}/${String(state.frames.length).padStart(3, '0')}`;
+        }
+
+        function setPix(data, x, y, c) {
+            if (x < 0 || x >= W || y < 0 || y >= H) return;
+            const i = (y * W + x) * 4;
+            if (c[3] === 0) { data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0; }
+            else { data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = c[3]; }
+        }
+
+        function drawLine(data, p0, p1, c, sz) {
+            let x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1];
+            let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
+            const r = sz / 2;
+            while (true) {
+                for (let iy = -r; iy <= r; iy++) for (let ix = -r; ix <= r; ix++)
+                    if (ix * ix + iy * iy <= r * r) setPix(data, Math.round(x0 + ix), Math.round(y0 + iy), c);
+                if (x0 === x1 && y0 === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function getCoord(e) {
+            const r = canvas.getBoundingClientRect();
+            const tx = e.touches ? e.touches[0].clientX : e.clientX;
+            const ty = e.touches ? e.touches[0].clientY : e.clientY;
+            return [Math.floor((tx - r.left) * (W / r.width)), Math.floor((ty - r.top) * (H / r.height))];
+        }
+
+        canvas.addEventListener('pointerdown', e => {
+            if (state.channel !== 'C') return;
+            state.drag = true; canvas.setPointerCapture(e.pointerId);
+            state.d0 = getCoord(e); state.d1 = state.d0;
+        });
+
+        canvas.addEventListener('pointermove', e => {
+            const p = getCoord(e);
+            document.getElementById('pos-hud').textContent = `X:${String(p[0]).padStart(2, '0')} Y:${String(p[1]).padStart(2, '0')}`;
+            if (!state.drag || state.channel !== 'C') return;
+            const prev = state.d1; state.d1 = p;
+            const c = state.tool === 'erase' ? [0, 0, 0, 0] : PAL.find(p => p.id === state.color).c;
+            drawLine(state.frames[state.cur].drawInk, prev, state.d1, c, state.size);
+            if (!state.playing) render();
+        });
+
+        canvas.addEventListener('pointerup', () => { state.drag = false; render(); });
+
+        function addFrame(silence = false) {
+            state.frames.push({ base: null, codeInk: new Uint8ClampedArray(W * H * 4), drawInk: new Uint8ClampedArray(W * H * 4) });
+            if (!silence) { state.cur = state.frames.length - 1; render(); notify('FRAME ADDED'); updateMediaStatus(); }
+        }
+
+        function cloneFrame() {
+            const src = state.frames[state.cur];
+            state.frames.splice(state.cur + 1, 0, {
+                base: src.base, codeInk: new Uint8ClampedArray(src.codeInk), drawInk: new Uint8ClampedArray(src.drawInk)
+            });
+            state.cur++; render(); notify('FRAME CLONED'); updateMediaStatus();
+        }
+
+        function jumpFrame(d) {
+            if (state.playing) return;
+            state.cur = (state.cur + d + state.frames.length) % state.frames.length;
+            render();
+        }
+
+        async function ingestMedia(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const url = URL.createObjectURL(file);
+            if (file.type.startsWith('image/')) {
+                const img = new Image(); img.src = url;
+                img.onload = () => {
+                    state.frames[state.cur].base = drawToViewport(img, img.width, img.height);
+                    render(); notify('IMAGE MOUNTED'); URL.revokeObjectURL(url);
+                }
+            } else {
+                processVideo(url);
+            }
+        }
+
+        async function fetchURI() {
+            const val = document.getElementById('uri-in').value;
+            if (!val) return;
+            notify('ATTEMPTING FETCH...');
+            processVideo(val);
+        }
+
+        async function processVideo(url) {
+            notify('INGESTING REEL...');
+            const v = document.createElement('video'); v.src = url; v.muted = true; v.playsInline = true; v.crossOrigin = "anonymous";
+            try {
+                await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = rej; setTimeout(rej, 5000); });
+                state.frames = []; let count = 0, last = -1; v.play();
+                while (!v.ended && count < 60) {
+                    if (v.currentTime - last >= 1 / FPS_BASE) {
+                        last = v.currentTime;
+                        state.frames.push({ base: drawToViewport(v, v.videoWidth, v.videoHeight), codeInk: new Uint8ClampedArray(W * H * 4), drawInk: new Uint8ClampedArray(W * H * 4) });
+                        count++;
+                    }
+                    await new Promise(r => requestAnimationFrame(r));
+                }
+                v.pause(); state.cur = 0; render(); updateMediaStatus(); notify(`ATE ${count} FRAMES`);
+            } catch (e) { notify('FETCH FAILED (CORS)'); }
+        }
+
+        function loadTestPattern() {
+            state.frames = [];
+            for (let i = 0; i < 12; i++) {
+                const c = document.createElement('canvas'); c.width = W; c.height = H;
+                const x = c.getContext('2d');
+                x.fillStyle = '#111'; x.fillRect(0, 0, W, H);
+
+                // Target scope graphic
+                x.strokeStyle = '#333'; x.lineWidth = 2;
+                x.beginPath(); x.arc(W / 2, H / 2, 40, 0, Math.PI * 2); x.stroke();
+                x.beginPath(); x.moveTo(W / 2 - 50, H / 2); x.lineTo(W / 2 + 50, H / 2); x.stroke();
+                x.beginPath(); x.moveTo(W / 2, H / 2 - 50); x.lineTo(W / 2, H / 2 + 50); x.stroke();
+
+                // Moving block
+                x.fillStyle = `hsl(${i * 30}, 80%, 50%)`;
+                x.fillRect((W / 2 - 20) + Math.cos(i * 0.5) * 40, (H / 2 - 20) + Math.sin(i * 0.5) * 40, 40, 40);
+
+                state.frames.push({
+                    base: c,
+                    codeInk: new Uint8ClampedArray(W * H * 4),
+                    drawInk: new Uint8ClampedArray(W * H * 4)
+                });
+            }
+            state.cur = 0; render(); updateMediaStatus(); notify('PATTERN INJECTED');
+        }
+
+        function drawToViewport(src, sw, sh) {
+            const c = document.createElement('canvas'); c.width = W; c.height = H;
+            const x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+            const r = sw / sh; let dW = W, dH = H, sX = 0, sY = 0;
+            if (r > W / H) { dW = dH * r; sX = (W - dW) / 2; } else { dH = dW / r; sY = (H - dH) / 2; }
+            x.drawImage(src, sX, sY, dW, dH); return c;
+        }
+
+        function updateMediaStatus() {
+            const el = document.getElementById('media-info');
+            if (el) el.textContent = `MEMORY: ${state.frames.length} FRAMES`;
+        }
+
+        let playRef;
+        function togglePlay() {
+            state.playing = !state.playing;
+            const b = document.getElementById('play-toggle');
+            if (state.playing) {
+                b.classList.add('active'); b.textContent = 'HALT';
+                let last = 0;
+                const loop = t => {
+                    if (!state.playing) return;
+                    if (t - last >= 1000 / (FPS_BASE * state.speed)) {
+                        state.cur = (state.cur + 1) % state.frames.length;
+                        render(); last = t;
+                    }
+                    playRef = requestAnimationFrame(loop);
+                };
+                playRef = requestAnimationFrame(loop);
+            } else {
+                b.classList.remove('active'); b.textContent = 'RUN';
+                cancelAnimationFrame(playRef); render();
+            }
+        }
+
+        function executeBeflix() {
+            const lines = document.getElementById('code-in').value.toUpperCase().split('\n');
+            let m = Array(ROWS).fill().map(() => Array(COLS).fill(0)), roll = [];
+            try {
+                lines.forEach(l => {
+                    l = l.trim(); if (!l || l.startsWith('C')) return;
+                    const p = l.split(/\s+/), cmd = p[0], a = p.slice(1).map(Number);
+                    if (cmd === 'CLR') m.forEach(r => r.fill(a[0]));
+                    if (cmd === 'PNT') for (let y = Math.max(0, a[1]); y < Math.min(ROWS, a[1] + a[3]); y++) for (let x = Math.max(0, a[0]); x < Math.min(COLS, a[0] + a[2]); x++) m[y][x] = a[4];
+                    if (cmd === 'REC') for (let i = 0; i < a[0]; i++) roll.push(m.map(r => [...r]));
+                    if (cmd === 'SHF') for (let i = 0; i < a[2]; i++) {
+                        let nm = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+                        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+                            let nx = x - a[0], ny = y - a[1]; if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) nm[y][x] = m[ny][nx];
+                        }
+                        m = nm; roll.push(m.map(r => [...r]));
+                    }
+                });
+                if (!roll.length) roll.push(m);
+                while (state.frames.length < roll.length) addFrame(true);
+                roll.forEach((mtx, i) => {
+                    const ink = state.frames[i].codeInk; ink.fill(0);
+                    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+                        if (!mtx[y][x]) continue;
+                        const c = PAL.find(p => p.id === mtx[y][x]).c;
+                        for (let by = 0; by < BS; by++) for (let bx = 0; bx < BS; bx++) {
+                            const px = x * BS + bx, py = y * BS + by;
+                            const idx = (py * W + px) * 4; ink[idx] = c[0]; ink[idx + 1] = c[1]; ink[idx + 2] = c[2]; ink[idx + 3] = c[3];
+                        }
+                    }
+                });
+                updateMediaStatus(); render(); notify('MACRO EXECUTED');
+            } catch (e) { notify('SYNTAX ERR'); }
+        }
+
+        function exportFile(type) {
+            if (!state.frames.length) return;
+            const out = document.createElement('canvas'); out.width = W * 2; out.height = H * 2;
+            const ox = out.getContext('2d'); ox.imageSmoothingEnabled = false;
+            const drawToOut = (f) => {
+                const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; const tx = tmp.getContext('2d');
+                if (f.base) tx.drawImage(f.base, 0, 0); else { tx.fillStyle = '#000'; tx.fillRect(0, 0, W, H); }
+                const cInk = document.createElement('canvas'); cInk.width = W; cInk.height = H; cInk.getContext('2d').putImageData(new ImageData(f.codeInk, W, H), 0, 0);
+                const dInk = document.createElement('canvas'); dInk.width = W; dInk.height = H; dInk.getContext('2d').putImageData(new ImageData(f.drawInk, W, H), 0, 0);
+                tx.drawImage(cInk, 0, 0); tx.drawImage(dInk, 0, 0); ox.drawImage(tmp, 0, 0, W * 2, H * 2);
+            };
+            if (type === 'png') {
+                drawToOut(state.frames[state.cur]);
+                const a = document.createElement('a'); a.download = 'STILL.png'; a.href = out.toDataURL(); a.click();
+            } else if (type === 'gif') {
+                notify('FUSING GIF...');
+                const gif = new GIF({ workers: 2, quality: 10, width: W * 2, height: H * 2, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js' });
+                state.frames.forEach(f => { drawToOut(f); gif.addFrame(out, { copy: true, delay: 1000 / FPS_BASE }); });
+                gif.on('finished', b => { const a = document.createElement('a'); a.download = 'MOTION.gif'; a.href = URL.createObjectURL(b); a.click(); notify('GIF READY'); });
+                gif.render();
+            }
+        }
+
+        /* ── CAMERA ── */
+        let cStream;
+        async function toggleCamera() {
+            const g = document.getElementById('camera-gate');
+            if (!g.classList.contains('hidden')) {
+                g.classList.add('hidden'); if (cStream) cStream.getTracks().forEach(t => t.stop());
+                return;
+            }
+            try {
+                cStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                document.getElementById('cam-v').srcObject = cStream;
+                g.classList.remove('hidden');
+            } catch (e) { notify('OPTIC DENIED'); }
+        }
+
+        function recordCam() {
+            const btn = document.getElementById('cam-rec');
+            const chunks = [];
+            const rec = new MediaRecorder(cStream);
+            rec.ondataavailable = e => chunks.push(e.data);
+            rec.onstop = () => {
+                const b = new Blob(chunks, { type: 'video/webm' });
+                processVideo(URL.createObjectURL(b));
+                toggleCamera();
+            };
+            rec.start(); btn.textContent = 'STOP REC';
+            btn.onclick = () => { rec.stop(); btn.textContent = 'START REC'; btn.onclick = recordCam; };
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

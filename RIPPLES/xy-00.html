@@ -1,0 +1,733 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Target, XSquare, Shuffle, Activity, Database, Fingerprint, Terminal, Maximize, Play, Square, Zap } from
+'lucide-react';
+
+// --- AUDIO & HAPTIC ASMR ENGINE ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const playTick = (freq, type = 'sine', duration = 0.05, vol = 0.05) => {
+if (audioCtx.state === 'suspended') audioCtx.resume();
+try {
+const osc = audioCtx.createOscillator();
+const gain = audioCtx.createGain();
+osc.type = type;
+osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+osc.connect(gain);
+gain.connect(audioCtx.destination);
+osc.start();
+osc.stop(audioCtx.currentTime + duration);
+} catch (e) { /* ignore audio errors if locked */ }
+};
+
+const triggerHaptic = (ms = 10) => {
+if (navigator.vibrate) {
+try { navigator.vibrate(ms); } catch (e) { /* ignore */ }
+}
+};
+
+// --- ONTOLOGY & CONTENT LIBRARIES ---
+const ENTITIES = [
+{ id: 'physarum', name: 'Physarum (Network)' },
+{ id: 'corvid', name: 'Corvid Grid' },
+{ id: 'litho', name: 'Lithospheric Micro' }
+];
+
+const SCENARIOS = [
+{ id: 'resource_drop', name: 'Resource Depletion' },
+{ id: 'thermal_spike', name: 'Thermal Spike' },
+{ id: 'toxin', name: 'Toxic Contamination' }
+];
+
+const VECTORS = {
+GOAL: { id: 'GOAL', icon: Target, color: 'var(--blue)', desc: 'Inject [ATT]ractor Code' },
+OBSTACLE: { id: 'OBSTACLE', icon: XSquare, color: 'var(--red)', desc: 'Inject [REP]ulsor Code' },
+SHIFT: { id: 'SHIFT', icon: Shuffle, color: 'var(--yellow)', desc: 'Inject [MUT]ator Code' }
+};
+
+const BIOMES = ['substrate', 'mycelial', 'fluid', 'mineral'];
+
+// Second-order instruction dictionary
+const INSTRUCTIONS = ['NOP', 'SYN', 'HLT', 'RND', 'ERR', 'CAL', 'JMP', 'XOR'];
+
+const generateWorldtext = (entity, vector, semanticHits, spatialHits) => {
+const prefixes = ["[SYS]", "[LOG]", "[WARN]", "[OK]"];
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+let text = `${pick(prefixes)} Execution cycle settled. `;
+if (semanticHits > spatialHits) {
+text += `Non-local memory overwrite detected. Semantic resonance bridging established. `;
+} else if (spatialHits > 0) {
+text += `Proximal cells assimilated active instruction set. `;
+}
+text += `Entropy states normalized.`;
+return text;
+};
+
+const STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+--safe-top: env(safe-area-inset-top, 0px);
+--safe-bottom: env(safe-area-inset-bottom, 0px);
+--bg: #f4f4f0;
+--black: #000000;
+--white: #ffffff;
+--blue: #0033cc;
+--yellow: #ffcc00;
+--red: #e60000;
+--gray: #e0e0e0;
+--shadow: 4px 4px 0 var(--black);
+--stroke: 4px solid var(--black);
+--font-ui: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+--font-code: 'Space Mono', monospace;
+}
+
+* { box-sizing: border-box; border-radius: 0 !important; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+width: 100%; height: 100%; margin: 0; background: var(--bg); color: var(--black);
+overflow: hidden; font-family: var(--font-ui); user-select: none; -webkit-user-select: none;
+}
+
+.app { width: 100%; height: 100dvh; display: flex; gap: 4px; padding: 4px; overflow: hidden; }
+
+.nav-rail { width: 120px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; z-index: 50; }
+
+.nav-btn, .btn-op, .tl-btn {
+background: var(--white); color: var(--black); border: var(--stroke); box-shadow: var(--shadow);
+cursor: pointer; transition: transform 0.05s, box-shadow 0.05s, background 0.05s, color 0.05s;
+text-transform: uppercase; font-weight: 900; letter-spacing: 0.08em;
+}
+
+.nav-btn:active, .btn-op:active, .tl-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--black); }
+.nav-btn:disabled, .btn-op:disabled, .tl-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow:
+var(--shadow); }
+
+.nav-btn { flex: 1; min-height: 88px; display: flex; flex-direction: column; align-items: center; justify-content:
+center; font-size: 12px; }
+.nav-letter { font-size: 34px; line-height: 1; margin-bottom: 4px; }
+
+.nav-btn.on-a { background: var(--blue); color: var(--white); transform: translate(4px, 4px); box-shadow: 0 0 0
+var(--black); }
+.nav-btn.on-b { background: var(--yellow); color: var(--black); transform: translate(4px, 4px); box-shadow: 0 0 0
+var(--black); }
+.nav-btn.on-c { background: var(--red); color: var(--white); transform: translate(4px, 4px); box-shadow: 0 0 0
+var(--black); }
+.nav-btn.on-d { background: var(--black); color: var(--white); transform: translate(4px, 4px); box-shadow: 0 0 0
+var(--black); }
+
+.control-deck {
+width: 360px; flex-shrink: 0; min-height: 0; transition: width 0.2s, opacity 0.2s;
+display: flex; flex-direction: column; z-index: 40;
+}
+.control-deck.hidden { width: 0; overflow: hidden; opacity: 0; margin-left: -4px; border: none; }
+
+.op-panel {
+display: none; flex-direction: column; height: 100%; gap: 14px; padding: 18px;
+background: var(--white); border: var(--stroke); overflow: auto; min-width: 360px;
+}
+.op-panel.on { display: flex; }
+
+.panel-header { padding-bottom: 8px; border-bottom: var(--stroke); font-size: 14px; font-weight: 900; letter-spacing:
+0.1em; text-transform: uppercase; }
+.panel-sub { font-size: 12px; font-weight: 900; line-height: 1.35; text-transform: uppercase; letter-spacing: 0.04em;
+padding: 10px 12px; background: var(--bg); border: var(--stroke); }
+
+.btn-op { width: 100%; min-height: 56px; padding: 12px 16px; display: flex; align-items: center; justify-content:
+flex-start; gap: 12px; font-size: 13px; text-align: left; }
+.btn-op.active { background: var(--black); color: var(--white); transform: translate(4px, 4px); box-shadow: 0 0 0
+var(--black); }
+.btn-op.btn-hot { background: var(--red); color: var(--white); }
+
+select {
+width: 100%; appearance: none; background: var(--white); border: var(--stroke); padding: 12px;
+font-size: 13px; font-weight: 900; text-transform: uppercase; box-shadow: var(--shadow); cursor: pointer;
+}
+
+.codebox {
+flex: 1; min-height: 200px; width: 100%; resize: none; border: var(--stroke); background: var(--bg);
+color: var(--black); font-family: var(--font-code); font-size: 13px; font-weight: 700; line-height: 1.5; padding: 16px;
+box-shadow: inset 4px 4px 0 rgba(0,0,0,0.08); overflow-y: auto;
+}
+
+.console { border: var(--stroke); background: var(--white); padding: 12px; min-height: 52px; font-size: 12px;
+font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center;
+justify-content: space-between; }
+
+.workspace { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 4px; position: relative;
+z-index: 10; }
+
+.gate { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center;
+background: var(--white); border: var(--stroke); overflow: hidden; }
+
+.grid-wrap {
+display: grid; border: var(--stroke); background: var(--black); box-shadow: 16px 16px 0 var(--black); gap: 2px; padding:
+2px;
+}
+
+.grid-cell {
+width: clamp(30px, 6vw, 54px); aspect-ratio: 1; cursor: pointer; display: flex; align-items: center; justify-content:
+center;
+transition: background-color 0.1s, opacity 0.1s; position: relative; border: 2px solid transparent;
+font-family: var(--font-code); font-size: clamp(8px, 2vw, 12px); font-weight: bold; overflow: hidden;
+}
+.grid-cell:hover { border-color: var(--white); z-index: 10; transform: scale(1.05); }
+.grid-cell.mutating { animation: glitch 0.2s linear infinite; }
+
+@keyframes glitch {
+0% { transform: translate(0) }
+20% { transform: translate(-1px, 1px) }
+40% { transform: translate(-1px, -1px) }
+60% { transform: translate(1px, 1px) }
+80% { transform: translate(1px, -1px) }
+100% { transform: translate(0) }
+}
+
+.badge { position: absolute; z-index: 10; padding: 10px 12px; background: var(--white); border: var(--stroke);
+box-shadow: var(--shadow); font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.overlay-pulse { position: absolute; inset: 0; pointer-events: none; z-index: 20; display: flex; align-items: center;
+justify-content: center; background: rgba(0,0,0,0.1); }
+.overlay-msg { background: var(--yellow); color: var(--black); padding: 14px 24px; font-size: 16px; font-weight: 900;
+text-transform: uppercase; border: var(--stroke); box-shadow: var(--shadow); animation: pulse 1.5s infinite; text-align:
+center; }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+.timeline { height: 110px; display: flex; flex-direction: column; background: var(--white); border: var(--stroke);
+flex-shrink: 0; min-height: 0; z-index: 10; }
+.timeline-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: var(--stroke);
+background: var(--bg); flex-shrink: 0; }
+.timeline-strip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 12px;
+scrollbar-width: none; }
+.timeline-strip::-webkit-scrollbar { display: none; }
+
+.tl-btn { min-height: 36px; padding: 6px 14px; font-size: 12px; border-width: 2px; box-shadow: 2px 2px 0 var(--black);
+display: flex; align-items: center; gap: 6px; }
+
+.thumb { position: relative; width: 44px; height: 50px; flex-shrink: 0; background: var(--black); border: var(--stroke);
+cursor: pointer; display: grid; gap: 1px; padding: 1px; transition: outline 0.1s; }
+.thumb.on { outline: 4px solid var(--red); outline-offset: 4px; }
+.thumb-num { position: absolute; right: -4px; bottom: -4px; background: var(--white); border: 2px solid var(--black);
+padding: 2px 5px; font-size: 10px; font-weight: 900; }
+
+.log-entry { font-family: var(--font-code); font-size: 11px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px
+dashed var(--gray); }
+.log-entry:last-child { border-bottom: none; }
+
+/* --- MOBILE REFACTOR --- */
+@media (max-width: 900px) {
+.app { flex-direction: column; gap: 6px; padding: 6px; position: relative; }
+.workspace { flex: 1; height: 100%; }
+
+.nav-rail {
+position: absolute; bottom: 6px; left: 6px; right: 6px; width: auto; height: 80px;
+flex-direction: row; gap: 6px; padding-bottom: var(--safe-bottom);
+}
+.nav-btn { min-height: 0; font-size: 11px; }
+.nav-letter { font-size: 24px; }
+
+.control-deck {
+position: absolute; bottom: 92px; left: 6px; right: 6px; width: auto;
+max-height: 40vh; z-index: 40; box-shadow: 0 -8px 24px rgba(0,0,0,0.2);
+}
+.control-deck.hidden { display: none; }
+.op-panel { min-width: 0; }
+
+.timeline { position: absolute; top: 6px; left: 6px; right: 6px; height: 90px; }
+.gate { margin-top: 100px; margin-bottom: 92px; } /* Leave room for timeline top, nav rail bottom */
+}
+`;
+
+export default function App() {
+const ROWS = 8;
+const COLS = 6;
+
+// -- STATE --
+const [activeNav, setActiveNav] = useState('B'); // Allow null to collapse
+const [grid, setGrid] = useState([]);
+const [entity, setEntity] = useState(ENTITIES[0].id);
+const [scenario, setScenario] = useState(SCENARIOS[0].id);
+const [selectedVector, setSelectedVector] = useState(VECTORS.GOAL.id);
+const [phase, setPhase] = useState('IDLE');
+const [logs, setLogs] = useState([]);
+const [worldtext, setWorldtext] = useState("Awaiting machine initialization...");
+
+// Timeline State
+const [history, setHistory] = useState([]);
+const [viewHistoryIdx, setViewHistoryIdx] = useState(-1);
+const [isPlayingHistory, setIsPlayingHistory] = useState(false);
+
+const logsEndRef = useRef(null);
+const timelineStripRef = useRef(null);
+
+// -- INITIALIZATION --
+useEffect(() => {
+initializeGrid();
+appendLog("SYSTEM", "Machine initialized. BFLIX DNA allocated to grid.");
+}, []);
+
+useEffect(() => {
+if (logsEndRef.current && activeNav === 'C') {
+logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+}
+}, [logs, activeNav]);
+
+useEffect(() => {
+let interval;
+if (isPlayingHistory && history.length > 0) {
+if (viewHistoryIdx === history.length - 1) setViewHistoryIdx(0);
+interval = setInterval(() => {
+setViewHistoryIdx(prev => {
+if (prev >= history.length - 1) {
+setIsPlayingHistory(false);
+return prev;
+}
+if (timelineStripRef.current) {
+const thumbWidth = 50;
+timelineStripRef.current.scrollLeft = (prev + 1) * thumbWidth;
+}
+// Haptic + sound during playback
+triggerHaptic(5);
+playTick(400 + Math.random()*200, 'square', 0.02, 0.02);
+return prev + 1;
+});
+}, 300);
+}
+return () => clearInterval(interval);
+}, [isPlayingHistory, history.length, viewHistoryIdx]);
+
+const getRandomCode = () => INSTRUCTIONS[Math.floor(Math.random() * INSTRUCTIONS.length)];
+
+const initializeGrid = () => {
+const newGrid = [];
+for (let r = 0; r < ROWS; r++) { const row=[]; for (let c=0; c < COLS; c++) { row.push({ id: `r${r}c${c}`, r, c, biome:
+    BIOMES[Math.floor(Math.random() * BIOMES.length)], activation: 0, vectorLock: null, isEpicenter: false, code:
+    getRandomCode(), // Second-order DNA isMutating: false }); } newGrid.push(row); } setGrid(newGrid); }; const
+    appendLog=(type, message)=> {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+    setLogs(prev => [...prev, { id: Math.random().toString(), timestamp, type, message }]);
+    };
+
+    const handleNavClick = (id) => {
+    triggerHaptic(10);
+    playTick(800, 'sine', 0.05, 0.05);
+    setActiveNav(prev => prev === id ? null : id);
+    };
+
+    const handleRandomInject = () => {
+    if (phase !== 'IDLE') return;
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    handleCellClick(r, c);
+    };
+
+    // -- 2ND ORDER ENGINE EXECUTION --
+    const handleCellClick = async (r, c) => {
+    if (phase !== 'IDLE') return;
+
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    setIsPlayingHistory(false);
+    setPhase('IMPACT');
+    setViewHistoryIdx(-1);
+
+    const targetCell = grid[r][c];
+    const injectCode = selectedVector === 'GOAL' ? 'ATT' : selectedVector === 'OBSTACLE' ? 'REP' : 'MUT';
+
+    appendLog("INJECT", `Submitting [${injectCode}] instruction at (${r},${c}).`);
+    triggerHaptic(20);
+    playTick(200, 'square', 0.1, 0.1);
+
+    let currentGrid = JSON.parse(JSON.stringify(grid));
+    currentGrid[r][c].activation = 1.0;
+    currentGrid[r][c].vectorLock = selectedVector;
+    currentGrid[r][c].isEpicenter = true;
+    currentGrid[r][c].code = injectCode;
+    currentGrid[r][c].isMutating = true;
+    setGrid([...currentGrid]);
+
+    setHistory(prev => [...prev, {
+    id: Date.now(),
+    grid: JSON.parse(JSON.stringify(currentGrid)),
+    text: "Instruction injected. Machine parsing...",
+    vector: selectedVector
+    }]);
+
+    await new Promise(res => setTimeout(res, 400));
+    setPhase('PROPAGATING');
+    appendLog("EXEC", "Instruction cascade initialized...");
+
+    let queue = [{ r, c, depth: 0 }];
+    let processed = new Set([`${r},${c}`]);
+    let semanticHits = 0;
+    let spatialHits = 0;
+
+    while (queue.length > 0) {
+    const currentBatch = [...queue];
+    queue = [];
+    let batchMutated = false;
+
+    // Un-mutate previous batch visually
+    currentGrid = currentGrid.map(row => row.map(cell => ({ ...cell, isMutating: false })));
+
+    for (const node of currentBatch) {
+    if (node.depth > 2) continue;
+
+    // Spatial Neighbors
+    const neighbors = [[node.r - 1, node.c], [node.r + 1, node.c], [node.r, node.c - 1], [node.r, node.c + 1]];
+    for (const [nr, nc] of neighbors) {
+    if (nr >= 0 && nr < ROWS && nc>= 0 && nc < COLS) { const key=`${nr},${nc}`; if (!processed.has(key) &&
+            Math.random()> 0.3) {
+            processed.add(key);
+            spatialHits++;
+            currentGrid[nr][nc].activation = Math.max(0.2, 1.0 - (node.depth + 1) * 0.3);
+            currentGrid[nr][nc].vectorLock = selectedVector;
+            currentGrid[nr][nc].code = injectCode === 'MUT' ? getRandomCode() : injectCode;
+            currentGrid[nr][nc].isMutating = true;
+            queue.push({ r: nr, c: nc, depth: node.depth + 1 });
+            batchMutated = true;
+
+            // Sonic / Haptic micro-tick per cell
+            triggerHaptic(5);
+            playTick(600 + Math.random() * 400, 'triangle', 0.03, 0.02);
+            }
+            }
+            }
+
+            // Semantic Neighbors (Same biome memory overwrite)
+            const sourceBiome = targetCell.biome;
+            for (let ir = 0; ir < ROWS; ir++) { for (let ic=0; ic < COLS; ic++) { const key=`${ir},${ic}`; if
+                (currentGrid[ir][ic].biome===sourceBiome && !processed.has(key) && Math.random()> 0.8) {
+                processed.add(key);
+                semanticHits++;
+                currentGrid[ir][ic].activation = Math.max(0.2, 0.8 - (node.depth + 1) * 0.2);
+                currentGrid[ir][ic].vectorLock = selectedVector;
+                currentGrid[ir][ic].code = 'SYN'; // Synced code
+                currentGrid[ir][ic].isMutating = true;
+                queue.push({ r: ir, c: ic, depth: node.depth + 1 });
+                batchMutated = true;
+
+                triggerHaptic(10);
+                playTick(300, 'sawtooth', 0.08, 0.04);
+                }
+                }
+                }
+                }
+
+                if (batchMutated) {
+                setGrid([...currentGrid]);
+                setHistory(prev => [...prev, {
+                id: Date.now() + Math.random(),
+                grid: JSON.parse(JSON.stringify(currentGrid)),
+                text: `Executing instruction tree... (Local: ${spatialHits}, Non-local: ${semanticHits})`,
+                vector: selectedVector
+                }]);
+                await new Promise(res => setTimeout(res, 400));
+                }
+                }
+
+                // Un-mutate everything for final frame
+                currentGrid = currentGrid.map(row => row.map(cell => ({ ...cell, isMutating: false })));
+                setGrid([...currentGrid]);
+
+                setPhase('SETTLED');
+                appendLog("HALT", `Cycle halted. Overwrites: ${spatialHits + semanticHits}.`);
+                playTick(150, 'sine', 0.3, 0.1);
+                triggerHaptic([15, 30, 15]);
+
+                const newText = generateWorldtext(entity, selectedVector, semanticHits, spatialHits);
+                setWorldtext(newText);
+
+                setHistory(prev => [...prev, {
+                id: Date.now() + Math.random(),
+                grid: JSON.parse(JSON.stringify(currentGrid)),
+                text: newText,
+                vector: selectedVector
+                }]);
+
+                setTimeout(() => {
+                const decayedGrid = currentGrid.map(row =>
+                row.map(cell => ({ ...cell, activation: Math.max(0, cell.activation - 0.5), isEpicenter: false }))
+                );
+                setGrid(decayedGrid);
+                setPhase('IDLE');
+                }, 1500);
+                };
+
+                // -- RENDER HELPERS --
+                const getCellStyles = (cell) => {
+                let bg = 'var(--white)';
+                let color = 'var(--black)';
+
+                if (cell.biome === 'substrate') bg = 'var(--white)';
+                if (cell.biome === 'mycelial') bg = 'var(--gray)';
+                if (cell.biome === 'fluid') bg = 'var(--bg)';
+                if (cell.biome === 'mineral') { bg = 'var(--black)'; color = 'var(--gray)'; }
+
+                if (cell.activation > 0) {
+                if (cell.vectorLock === 'GOAL') { bg = 'var(--blue)'; color = 'var(--white)'; }
+                if (cell.vectorLock === 'OBSTACLE') { bg = 'var(--red)'; color = 'var(--white)'; }
+                if (cell.vectorLock === 'SHIFT') { bg = 'var(--yellow)'; color = 'var(--black)'; }
+                }
+
+                return {
+                background: bg,
+                color: color,
+                opacity: cell.activation > 0 ? 0.6 + (cell.activation * 0.4) : 1
+                };
+                };
+
+                const getMiniCellStyles = (cell) => {
+                if (cell.activation > 0) {
+                if (cell.vectorLock === 'GOAL') return 'var(--blue)';
+                if (cell.vectorLock === 'OBSTACLE') return 'var(--red)';
+                if (cell.vectorLock === 'SHIFT') return 'var(--yellow)';
+                }
+                return cell.biome === 'mineral' ? '#333' : 'var(--white)';
+                };
+
+                const currentDisplayGrid = viewHistoryIdx >= 0 && history[viewHistoryIdx] ? history[viewHistoryIdx].grid
+                : grid;
+                const currentDisplayText = viewHistoryIdx >= 0 && history[viewHistoryIdx] ? history[viewHistoryIdx].text
+                : worldtext;
+
+                return (
+                <>
+                    <style dangerouslySetInnerHTML={{ __html: STYLES }} />
+                    <div className="app">
+
+                        {/* NAV RAIL */}
+                        <nav className="nav-rail">
+                            <button className={`nav-btn ${activeNav==='A' ? 'on-a' : '' }`} onClick={()=>
+                                handleNavClick('A')}>
+                                <span className="nav-letter">A</span>World
+                            </button>
+                            <button className={`nav-btn ${activeNav==='B' ? 'on-b' : '' }`} onClick={()=>
+                                handleNavClick('B')}>
+                                <span className="nav-letter">B</span>Code
+                            </button>
+                            <button className={`nav-btn ${activeNav==='C' ? 'on-c' : '' }`} onClick={()=>
+                                handleNavClick('C')}>
+                                <span className="nav-letter">C</span>Audit
+                            </button>
+                            <button className={`nav-btn ${activeNav==='D' ? 'on-d' : '' }`} onClick={()=>
+                                handleNavClick('D')}>
+                                <span className="nav-letter">D</span>Text
+                            </button>
+                        </nav>
+
+                        {/* CONTROL DECK (Collapsible) */}
+                        <aside className={`control-deck ${activeNav===null ? 'hidden' : '' }`}>
+
+                            {/* PANEL A: WORLD SETUP */}
+                            <section className={`op-panel ${activeNav==='A' ? 'on' : '' }`} style={{
+                                borderColor: 'var(--blue)' }}>
+                                <div className="panel-header" style={{ color: 'var(--blue)' }}>A. Machine State</div>
+                                <div className="panel-sub">Configure base environmental architecture before code
+                                    injection.</div>
+
+                                <div style={{ marginTop: '8px' , marginBottom: '4px' , fontSize: '12px' , fontWeight:
+                                    900 }}>Substrate Engine</div>
+                                <select value={entity} onChange={(e)=> setEntity(e.target.value)} disabled={phase !==
+                                    'IDLE'}>
+                                    {ENTITIES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                </select>
+
+                                <div style={{ marginTop: '12px' , marginBottom: '4px' , fontSize: '12px' , fontWeight:
+                                    900 }}>Stress Condition</div>
+                                <select value={scenario} onChange={(e)=> setScenario(e.target.value)} disabled={phase
+                                    !== 'IDLE'}>
+                                    {SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+
+                                <div style={{ flex: 1 }}></div>
+                                <div className="console">
+                                    <span>Status</span>
+                                    <span style={{ color: phase==='IDLE' ? 'var(--blue)' : 'var(--red)'
+                                        }}>{phase}</span>
+                                </div>
+                            </section>
+
+                            {/* PANEL B: VECTOR DECK */}
+                            <section className={`op-panel ${activeNav==='B' ? 'on' : '' }`} style={{ padding: '18px' ,
+                                borderColor: 'var(--yellow)' }}>
+                                <div className="panel-header" style={{ color: 'var(--yellow)' ,
+                                    WebkitTextStroke: '1px black' }}>B. Injection Core</div>
+                                <div className="panel-sub">Prime a viral instruction set. Click workspace to execute.
+                                </div>
+
+                                <div style={{ display: 'flex' , flexDirection: 'column' , gap: '10px' , marginTop: '8px'
+                                    }}>
+                                    {Object.values(VECTORS).map(v => {
+                                    const Icon = v.icon;
+                                    return (
+                                    <button key={v.id} className={`btn-op ${selectedVector===v.id ? 'active' : '' }`}
+                                        onClick={()=> { triggerHaptic(10); playTick(900, 'sine', 0.05, 0.05);
+                                        setSelectedVector(v.id); }}
+                                        disabled={phase !== 'IDLE'}
+                                        >
+                                        <Icon size={24} style={{ color: selectedVector===v.id ? 'var(--white)' : v.color
+                                            }} />
+                                        <div style={{ display: 'flex' , flexDirection: 'column' , gap: '2px' }}>
+                                            <span style={{ fontSize: '16px' }}>{v.id}</span>
+                                            <span style={{ fontSize: '10px' , opacity: 0.8 }}>{v.desc}</span>
+                                        </div>
+                                    </button>
+                                    );
+                                    })}
+                                </div>
+
+                                <div style={{ flex: 1 }}></div>
+                                <button className="btn-op btn-hot" style={{ justifyContent: 'center' }}
+                                    onClick={handleRandomInject} disabled={phase !=='IDLE' }>
+                                    <Zap size={18} /> AUTO EXECUTE
+                                </button>
+                            </section>
+
+                            {/* PANEL C: AUDIT LOG */}
+                            <section className={`op-panel ${activeNav==='C' ? 'on' : '' }`} style={{
+                                borderColor: 'var(--red)' }}>
+                                <div className="panel-header" style={{ color: 'var(--red)' }}>C. Kernel Log</div>
+                                <div className="panel-sub">System-level readout of non-local logic jumps and resonance.
+                                </div>
+
+                                <div className="codebox" style={{ background: 'var(--white)' }}>
+                                    {logs.map((log) => (
+                                    <div key={log.id} className="log-entry">
+                                        <strong style={{ display: 'inline-block' , width: '60px' , color:
+                                            log.type==='SYSTEM' || log.type==='HALT' ? 'var(--gray)' : 'var(--black)'
+                                            }}>
+                                            {log.type}
+                                        </strong>
+                                        <span>{log.message}</span>
+                                    </div>
+                                    ))}
+                                    <div ref={logsEndRef} />
+                                </div>
+                            </section>
+
+                            {/* PANEL D: READOUT */}
+                            <section className={`op-panel ${activeNav==='D' ? 'on' : '' }`} style={{
+                                borderColor: 'var(--black)' }}>
+                                <div className="panel-header">D. Translation</div>
+                                <div className="panel-sub">Second-order DNA translated into physical world state.</div>
+
+                                <div className="codebox" style={{ fontSize: '14px' , background: 'var(--bg)' }}>
+                                    {currentDisplayText}
+                                    {phase === 'PROPAGATING' && (
+                                    <div style={{ marginTop: '16px' , color: 'var(--red)' ,
+                                        animation: 'pulse 1s infinite' }}>[ COMPILING EXECUTABLE ]</div>
+                                    )}
+                                </div>
+
+                                <div style={{ flex: 1 }}></div>
+                                <button className="btn-op" onClick={()=> setViewHistoryIdx(-1)} disabled={viewHistoryIdx
+                                    === -1}>
+                                    <Maximize size={20} /> Exit Memory
+                                </button>
+                            </section>
+
+                        </aside>
+
+                        {/* WORKSPACE */}
+                        <main className="workspace">
+
+                            <section className="gate">
+                                <div className="badge" style={{ top: '12px' , left: '12px' }}>
+                                    RIPPLES: OS
+                                </div>
+
+                                {viewHistoryIdx >= 0 && (
+                                <div className="badge" style={{ top: '12px' , right: '12px' ,
+                                    background: 'var(--yellow)' }}>
+                                    MEMORY REPLAY: {viewHistoryIdx + 1}
+                                </div>
+                                )}
+
+                                {phase === 'IDLE' && history.length === 0 && (
+                                <div className="overlay-pulse">
+                                    <div className="overlay-msg">
+                                        Tap grid to inject code<br />
+                                        <span style={{ fontSize: '11px' , letterSpacing: 'normal' }}>(Turn on volume for
+                                            haptic/audio sync)</span>
+                                    </div>
+                                </div>
+                                )}
+
+                                <div className="grid-wrap" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+                                    {currentDisplayGrid.map((row, r) =>
+                                    row.map((cell, c) => (
+                                    <div key={cell.id} className={`grid-cell ${cell.isMutating ? 'mutating' : '' }`}
+                                        style={getCellStyles(cell)} onClick={()=> handleCellClick(r, c)}
+                                        title={`Biome: ${cell.biome} | Coords: ${r},${c}`}
+                                        >
+                                        {cell.code}
+                                        {cell.isEpicenter && (
+                                        <div style={{ position: 'absolute' , inset: '4px' ,
+                                            border: '2px solid var(--black)' }}></div>
+                                        )}
+                                    </div>
+                                    ))
+                                    )}
+                                </div>
+                            </section>
+
+                            {/* TIMELINE */}
+                            <section className="timeline">
+                                <div className="timeline-top">
+                                    <Database size={16} />
+                                    <span style={{ fontSize: '12px' , fontWeight: 900, textTransform: 'uppercase' ,
+                                        letterSpacing: '0.1em' }}>
+                                        Event Tape
+                                    </span>
+                                    <div style={{ flex: 1 }}></div>
+
+                                    <button className="tl-btn" style={{ background: 'var(--yellow)' }}
+                                        onClick={handleRandomInject} disabled={phase !=='IDLE' }>
+                                        <Zap size={14} /> EX
+                                    </button>
+
+                                    <button className="tl-btn" style={{ background: isPlayingHistory ? 'var(--red)'
+                                        : 'var(--white)' , color: isPlayingHistory ? 'var(--white)' : 'var(--black)' }}
+                                        onClick={()=> { triggerHaptic(15); setIsPlayingHistory(!isPlayingHistory); }}
+                                        disabled={history.length === 0 || phase !== 'IDLE'}
+                                        >
+                                        {isPlayingHistory ?
+                                        <Square size={14} /> :
+                                        <Play size={14} />}
+                                        {isPlayingHistory ? "STP" : "PLY"}
+                                    </button>
+                                </div>
+
+                                <div className="timeline-strip" ref={timelineStripRef}>
+                                    {history.map((hist, idx) => (
+                                    <div key={hist.id} className={`thumb ${viewHistoryIdx===idx ? 'on' : '' }`}
+                                        onClick={()=> {
+                                        triggerHaptic(5);
+                                        setIsPlayingHistory(false);
+                                        setViewHistoryIdx(idx);
+                                        }}
+                                        style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
+                                        >
+                                        {hist.grid.flat().map((c, i) => (
+                                        <div key={i} style={{ background: getMiniCellStyles(c) }}></div>
+                                        ))}
+                                        <div className="thumb-num">{idx + 1}</div>
+                                    </div>
+                                    ))}
+                                    {history.length === 0 && (
+                                    <div style={{ fontSize: '12px' , fontWeight: 900, color: 'var(--gray)' ,
+                                        fontStyle: 'italic' , marginLeft: '12px' }}>
+                                        Tape Empty.
+                                    </div>
+                                    )}
+                                </div>
+                            </section>
+
+                        </main>
+                    </div>
+                </>
+                );
+                }

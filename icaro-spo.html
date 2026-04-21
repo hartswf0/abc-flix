@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EDL FORGE Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 2px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+        }
+    </style>
+</head>
+
+<body class="bg-[#020202] text-[#c4c4c4] font-mono uppercase selection:bg-red-900 overflow-hidden">
+
+    <div class="h-[100dvh] w-screen p-1 sm:p-2 flex flex-col lg:flex-row gap-1 sm:gap-2">
+
+        <!-- LEFT SECTION: THE SPOOL & FILM STRIP -->
+        <div
+            class="flex-[0.8] lg:flex-[1.5] border border-zinc-800 bg-[#050505] relative flex flex-col items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,1)] min-h-0 overflow-hidden">
+            <div
+                class="absolute top-2 left-2 z-20 text-[8px] sm:text-[10px] lg:text-xs tracking-widest text-zinc-500 bg-black/50 px-2 py-1 backdrop-blur-sm border border-zinc-900">
+                [ PRIMARY SPOOL ASSEMBLY ]
+            </div>
+
+            <!-- Animated Spool SVG -->
+            <div class="w-full h-full flex items-center justify-center p-4 pb-16 sm:pb-20 relative min-h-0">
+                <div id="spool-rotator"
+                    class="relative w-[50vh] max-w-[80vw] lg:w-[70%] aspect-square opacity-80 transition-transform duration-75"
+                    style="transform: rotate(0deg)">
+                    <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+                        <defs>
+                            <radialGradient id="spool-glow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#111" />
+                                <stop offset="100%" stopColor="#000" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="49" fill="url(#spool-glow)" />
+                        <g id="spool-rings"></g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Film strip pulling away -->
+            <div
+                class="absolute bottom-0 left-0 right-0 h-16 sm:h-20 lg:h-28 border-t border-zinc-800 bg-black/95 flex items-center overflow-hidden z-10 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+                <div class="absolute w-full flex justify-between px-2 top-0.5 opacity-40 sprocket-row"></div>
+
+                <div class="flex gap-1 lg:gap-2 items-center w-full px-2 sm:px-8 relative overflow-hidden">
+                    <div
+                        class="absolute bg-gradient-to-r from-red-500/20 to-transparent w-24 sm:w-32 lg:w-48 h-full z-0 left-0 animate-pulse pointer-events-none">
+                    </div>
+                    <div id="film-strip" class="flex gap-1 lg:gap-2 z-10"></div>
+                </div>
+
+                <div class="absolute w-full flex justify-between px-2 bottom-0.5 opacity-40 sprocket-row"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT SECTION: TERMINAL READOUTS -->
+        <div
+            class="flex-[1.2] lg:flex-none lg:w-[360px] xl:w-[440px] flex flex-col gap-1 sm:gap-2 z-20 shrink-0 min-h-0">
+
+            <!-- PANEL 1: RIPPING ARRAY -->
+            <div class="shrink-0 border border-zinc-700 bg-[#050505] flex flex-col shadow-xl">
+                <div class="border-b border-zinc-700 px-2 py-1 flex justify-between items-center bg-zinc-900/40">
+                    <span class="text-[8px] lg:text-[10px] font-bold tracking-[0.2em] text-zinc-300">RIPPING
+                        ARRAY</span>
+                    <span class="text-[6px] lg:text-[8px] text-zinc-600">- - X</span>
+                </div>
+                <div class="p-2 flex gap-2 lg:gap-4 items-center justify-between">
+                    <!-- Left side: Aperture -->
+                    <div
+                        class="shrink-0 w-16 h-16 lg:w-24 lg:h-24 border border-zinc-800 bg-black relative flex items-center justify-center shadow-inner">
+                        <div class="absolute w-full h-[1px] bg-zinc-800"></div>
+                        <div class="absolute h-full w-[1px] bg-zinc-800"></div>
+                        <div id="aperture-core"
+                            class="w-12 h-12 lg:w-16 lg:h-16 rounded-full border border-zinc-600 relative flex items-center justify-center transition-transform duration-75">
+                            <div class="absolute w-full h-[1px] bg-zinc-600" style="transform: rotate(0deg)"></div>
+                            <div class="absolute w-full h-[1px] bg-zinc-600" style="transform: rotate(45deg)"></div>
+                            <div class="absolute w-full h-[1px] bg-zinc-600" style="transform: rotate(90deg)"></div>
+                            <div class="absolute w-full h-[1px] bg-zinc-600" style="transform: rotate(135deg)"></div>
+                            <div
+                                class="w-4 h-4 lg:w-6 lg:h-6 bg-zinc-900 rounded-full border border-zinc-500 z-10 flex items-center justify-center shadow-lg">
+                                <div id="aperture-pulse"
+                                    class="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-red-600 rounded-full transition-all duration-75 opacity-50">
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="absolute w-full h-3 lg:h-4 bg-zinc-900/90 border-y border-zinc-700 flex items-center justify-center gap-1 opacity-60">
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                            <div class="w-1 h-0.5 bg-black rounded-sm border border-zinc-800"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right side: Schematic Diagram -->
+                    <div class="flex-1 flex flex-col gap-1 lg:gap-2 justify-center min-w-0">
+                        <div
+                            class="h-8 lg:h-16 border border-zinc-800 bg-black relative overflow-hidden p-1 hidden sm:block">
+                            <svg viewBox="0 0 100 50" class="w-full h-full stroke-zinc-500 fill-none"
+                                stroke-width="0.5">
+                                <rect x="10" y="10" width="45" height="30" />
+                                <rect x="55" y="15" width="20" height="20" />
+                                <path d="M 5 25 L 10 25 M 75 25 L 90 25 M 90 20 L 90 30 L 100 25 Z" />
+                                <line x1="20" y1="10" x2="20" y2="0" stroke-dasharray="1 1" />
+                                <line x1="45" y1="40" x2="45" y2="50" stroke-dasharray="1 1" />
+                            </svg>
+                        </div>
+                        <div
+                            class="text-[5px] lg:text-[7px] text-zinc-500 leading-tight font-mono tracking-widest flex flex-col gap-[2px]">
+                            <p class="flex justify-between"><span>OPTICAL ENCODER</span><span
+                                    id="status-enc">[OK]</span></p>
+                            <p class="flex justify-between"><span>INTERLOCKING</span><span
+                                    id="status-int">[LOCKED]</span></p>
+                            <p class="flex justify-between"><span>SPATIAL MACRO</span><span
+                                    id="status-mac">[SYNC]</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 2: TEMPORAL QUEUEING -->
+            <div class="flex-1 min-h-0 border border-zinc-700 bg-[#050505] flex flex-col shadow-xl">
+                <div
+                    class="shrink-0 border-b border-zinc-700 px-2 py-1 flex justify-between items-center bg-zinc-900/40">
+                    <span class="text-[8px] lg:text-[10px] font-bold tracking-[0.2em] text-zinc-300">TEMPORAL
+                        QUEUEING</span>
+                    <span class="text-[6px] lg:text-[8px] text-zinc-600">- - X</span>
+                </div>
+                <div class="flex-1 min-h-0 p-2 lg:p-3 flex flex-col gap-1 lg:gap-2">
+                    <div class="shrink-0 flex items-center gap-2">
+                        <span class="text-[6px] lg:text-[8px] w-20 lg:w-28 text-zinc-500 tracking-wider">PROCESSED
+                            FRAMES</span>
+                        <div class="flex-1 h-1 lg:h-1.5 border border-zinc-700 p-[1px]">
+                            <div id="progress-bar" class="h-full bg-zinc-500 transition-all duration-300 ease-out"
+                                style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex items-center gap-2 mb-1 lg:mb-2">
+                        <span class="text-[6px] lg:text-[8px] w-20 lg:w-28 text-zinc-500 tracking-wider">QUEUE
+                            VELOCITY</span>
+                        <div class="flex-1 h-1 lg:h-1.5 border border-zinc-700 p-[1px]">
+                            <div id="velocity-bar" class="h-full bg-red-800 transition-all duration-75 w-[5%]"></div>
+                        </div>
+                    </div>
+
+                    <div id="registers-list-main"
+                        class="flex-1 min-h-0 text-[7px] lg:text-[9px] leading-tight lg:leading-[1.3] text-zinc-400 overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 3 & 4 CONTAINER -->
+            <div class="shrink-0 flex gap-1 sm:gap-2 h-[100px] lg:h-[130px]">
+
+                <!-- PANEL 3: RIPPING STATUS & CONTROLS -->
+                <div class="flex-[1.5] flex flex-col justify-between bg-[#050505] border border-zinc-700 p-2 shadow-xl">
+                    <div class="flex justify-between items-end mb-1">
+                        <span
+                            class="text-[8px] lg:text-[10px] font-bold text-zinc-200 tracking-widest drop-shadow-md">RIPPING
+                            STATUS</span>
+                        <span class="text-[5px] lg:text-[6px] text-zinc-500">SPACE &rarr; TIME</span>
+                    </div>
+
+                    <div
+                        class="flex items-baseline justify-center sm:justify-start gap-2 text-red-600 font-bold drop-shadow-[0_0_12px_rgba(220,38,38,0.6)]">
+                        <span class="text-2xl lg:text-3xl opacity-80" id="start-count-display">180+</span>
+                        <span id="frame-count-display"
+                            class="text-4xl lg:text-5xl tabular-nums tracking-tighter transition-transform duration-75 scale-100">
+                            180
+                        </span>
+                    </div>
+
+                    <div class="mt-auto flex gap-1 pt-1">
+                        <button id="btn-engage"
+                            class="flex-1 border py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold tracking-[0.2em] transition-all duration-100 active:scale-[0.97] border-zinc-500 text-zinc-200 bg-zinc-900 hover:bg-zinc-800 flex items-center justify-center gap-1">
+                            <span id="btn-engage-icon"></span>
+                            <span id="btn-engage-text">ENGAGE</span>
+                        </button>
+                        <button id="btn-step"
+                            class="border border-zinc-500 px-3 lg:px-4 hover:bg-zinc-800 bg-zinc-900 flex items-center justify-center transition-all duration-100 active:scale-[0.95] active:bg-zinc-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="w-3 h-3 text-zinc-300">
+                                <line x1="18" y1="5" x2="18" y2="19"></line>
+                                <polygon points="6 3 14 12 6 21 6 3"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PANEL 4: REGISTER QUEUE -->
+                <div class="flex-1 w-[110px] lg:w-[140px] border border-zinc-700 bg-[#050505] flex flex-col shadow-xl">
+                    <div
+                        class="shrink-0 border-b border-zinc-700 px-2 py-1 text-[6px] lg:text-[8px] font-bold tracking-widest text-zinc-300 bg-zinc-900/40">
+                        QUEUE
+                    </div>
+                    <div id="registers-list-side"
+                        class="flex-1 min-h-0 p-1.5 lg:p-2 text-[6px] lg:text-[7px] flex flex-col gap-0.5 text-zinc-400 font-mono overflow-y-auto custom-scrollbar">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const STARTING_FRAME = 180;
+        const REGISTERS = [
+            { id: 'I', name: 'THE DANCE' },
+            { id: 'II', name: 'THE HARVEST' },
+            { id: 'III', name: 'THE SIEGE' },
+            { id: 'IV', name: 'THE CITY AT PEACE' },
+            { id: 'V', name: 'THE PLOWING' },
+            { id: 'VI', name: 'THE KING\'S ESTATE' },
+            { id: 'VII', name: 'THE VINEYARD' },
+            { id: 'VIII', name: 'THE HERD' },
+            { id: 'IX', name: 'THE SHEEPFOLD' },
+            { id: 'X', name: 'THE OCEAN' },
+            { id: 'XI', name: 'THE COSMOS' },
+            { id: 'XII', name: 'THE FORGE' },
+        ];
+
+        const ICONS = {
+            PLAY: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 lg:w-3 lg:h-3"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
+            PAUSE: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-2.5 h-2.5 lg:w-3 lg:h-3"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'
+        };
+
+        // --- STATE ---
+        let isRunning = false;
+        let angle = 0;
+        let frameCount = STARTING_FRAME;
+        let activeRegisterIndex = 8;
+        let frames = [];
+        let pulseTimeout = null;
+        let animationFrameId = null;
+        let lastTime = 0;
+
+        // --- DOM ELEMENTS ---
+        const dom = {
+            spoolRotator: document.getElementById('spool-rotator'),
+            spoolRings: document.getElementById('spool-rings'),
+            filmStrip: document.getElementById('film-strip'),
+            registersMain: document.getElementById('registers-list-main'),
+            registersSide: document.getElementById('registers-list-side'),
+            frameCountDisplay: document.getElementById('frame-count-display'),
+            btnEngage: document.getElementById('btn-engage'),
+            btnEngageText: document.getElementById('btn-engage-text'),
+            btnEngageIcon: document.getElementById('btn-engage-icon'),
+            btnStep: document.getElementById('btn-step'),
+            progressBar: document.getElementById('progress-bar'),
+            velocityBar: document.getElementById('velocity-bar'),
+            apertureCore: document.getElementById('aperture-core'),
+            aperturePulse: document.getElementById('aperture-pulse'),
+            statusEnc: document.getElementById('status-enc'),
+            statusInt: document.getElementById('status-int'),
+            statusMac: document.getElementById('status-mac')
+        };
+
+        // --- INITIALIZATION ---
+        function init() {
+            // Generate sprockets
+            const sprocketHTML = Array(60).fill('<div class="w-1.5 h-1 lg:w-3 lg:h-1.5 bg-zinc-600 rounded-[1px]"></div>').join('');
+            document.querySelectorAll('.sprocket-row').forEach(el => el.innerHTML = sprocketHTML);
+
+            dom.btnEngageIcon.innerHTML = ICONS.PLAY;
+
+            renderSpoolRings();
+            renderRegisters();
+            renderFilmStrip();
+
+            dom.btnEngage.addEventListener('click', toggleEngine);
+            dom.btnStep.addEventListener('click', () => {
+                triggerHaptic(15);
+                stepForward();
+            });
+        }
+
+        // --- CORE LOGIC ---
+        function triggerHaptic(pattern) {
+            if (typeof window !== 'undefined' && navigator.vibrate) {
+                try { navigator.vibrate(pattern); } catch (e) { }
+            }
+        }
+
+        function toggleEngine() {
+            triggerHaptic(isRunning ? [30, 50, 20] : [40, 30, 40]);
+            isRunning = !isRunning;
+            updateUIState();
+
+            if (isRunning) {
+                lastTime = performance.now();
+                animationFrameId = requestAnimationFrame(loop);
+            } else {
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        function ripFrame(manual = false) {
+            frameCount++;
+            const currentReg = REGISTERS[activeRegisterIndex];
+
+            triggerHaptic(manual ? 25 : 10);
+
+            // Visual Pulse
+            dom.frameCountDisplay.classList.add('scale-105', 'brightness-150', 'text-red-400');
+            dom.apertureCore.classList.add('scale-105');
+            dom.aperturePulse.classList.add('scale-150', 'brightness-150');
+
+            if (pulseTimeout) clearTimeout(pulseTimeout);
+            pulseTimeout = setTimeout(() => {
+                dom.frameCountDisplay.classList.remove('scale-105', 'brightness-150', 'text-red-400');
+                dom.apertureCore.classList.remove('scale-105');
+                dom.aperturePulse.classList.remove('scale-150', 'brightness-150');
+            }, 50);
+
+            // Append Frame
+            frames.unshift({
+                id: frameCount,
+                register: currentReg.id,
+                name: currentReg.name,
+                timestamp: Date.now()
+            });
+            if (frames.length > 10) frames.pop();
+
+            // Update DOM numbers immediately
+            dom.frameCountDisplay.innerText = frameCount;
+            dom.progressBar.style.width = Math.min(100, (frameCount - STARTING_FRAME) / 2) + '%';
+
+            renderFilmStrip();
+        }
+
+        function stepForward() {
+            angle += (360 / 12);
+            dom.spoolRotator.style.transform = `rotate(${angle}deg)`;
+            ripFrame(true);
+
+            // Check manual register boundary shift
+            if (Math.floor(angle / 360) > Math.floor((angle - (360 / 12)) / 360)) {
+                activeRegisterIndex = (activeRegisterIndex + 1) % REGISTERS.length;
+                renderSpoolRings();
+                renderRegisters();
+            }
+        }
+
+        function loop(time) {
+            if (!isRunning) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            const rotationSpeed = 0.045;
+
+            const prevAngle = angle;
+            angle += (deltaTime * rotationSpeed);
+
+            // Rip check
+            if (Math.floor(angle / 30) > Math.floor(prevAngle / 30)) {
+                ripFrame();
+            }
+
+            // Register advance check
+            if (Math.floor(angle / 360) > Math.floor(prevAngle / 360)) {
+                activeRegisterIndex = (activeRegisterIndex + 1) % REGISTERS.length;
+                renderSpoolRings();
+                renderRegisters();
+            }
+
+            dom.spoolRotator.style.transform = `rotate(${angle}deg)`;
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        // --- RENDERING ---
+        function updateUIState() {
+            // Engage Button
+            if (isRunning) {
+                dom.btnEngage.className = 'flex-1 border py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold tracking-[0.2em] transition-all duration-100 active:scale-[0.97] active:brightness-150 flex items-center justify-center gap-1 border-red-600 text-red-500 bg-red-900/20 shadow-[0_0_20px_rgba(220,38,38,0.2)]';
+                dom.btnEngageText.innerText = 'HALT';
+                dom.btnEngageIcon.innerHTML = ICONS.PAUSE;
+
+                dom.velocityBar.className = 'h-full bg-red-800 transition-all duration-75 w-[65%] animate-pulse';
+                dom.aperturePulse.className = 'w-1 h-1 lg:w-1.5 lg:h-1.5 bg-red-600 rounded-full transition-all duration-75 shadow-[0_0_12px_#ef4444] animate-pulse';
+
+                dom.statusEnc.className = 'text-green-500';
+                dom.statusInt.className = 'text-green-500';
+                dom.statusMac.className = 'text-blue-400';
+            } else {
+                dom.btnEngage.className = 'flex-1 border py-1.5 lg:py-2 text-[8px] lg:text-[10px] font-bold tracking-[0.2em] transition-all duration-100 active:scale-[0.97] active:brightness-150 flex items-center justify-center gap-1 border-zinc-500 text-zinc-200 bg-zinc-900 hover:bg-zinc-800';
+                dom.btnEngageText.innerText = 'ENGAGE';
+                dom.btnEngageIcon.innerHTML = ICONS.PLAY;
+
+                dom.velocityBar.className = 'h-full bg-red-800 transition-all duration-75 w-[5%]';
+                dom.aperturePulse.className = 'w-1 h-1 lg:w-1.5 lg:h-1.5 bg-red-600 rounded-full transition-all duration-75 opacity-50';
+
+                dom.statusEnc.className = '';
+                dom.statusInt.className = '';
+                dom.statusMac.className = '';
+            }
+        }
+
+        function renderSpoolRings() {
+            let svgContent = '';
+            for (let i = 0; i < 25; i++) {
+                const isTarget = (i === 24 - activeRegisterIndex);
+                svgContent += `
+                    <circle 
+                        cx="50" cy="50" r="${48 - (i * 1.8)}" 
+                        fill="none" 
+                        stroke="${isTarget ? '#ef4444' : '#2a2a2a'}" 
+                        stroke-width="${isTarget ? '1.5' : '0.8'}"
+                        stroke-dasharray="${i % 3 === 0 ? '4 1' : 'none'}"
+                        class="transition-colors duration-300"
+                    ></circle>
+                `;
+            }
+            dom.spoolRings.innerHTML = svgContent;
+        }
+
+        function renderRegisters() {
+            // Main Panel List
+            dom.registersMain.innerHTML = REGISTERS.map((r, i) => `
+                <div class="flex gap-2 font-mono transition-colors duration-300 py-[1px] ${i === activeRegisterIndex ? 'text-red-500 bg-red-900/10 font-bold' : ''}">
+                    <span class="opacity-60 shrink-0">0E02 ${r.id.padStart(2, ' ')}:</span>
+                    <span class="tracking-widest truncate">${r.name}</span>
+                </div>
+            `).join('');
+
+            // Side Panel List (Max 9 elements based on layout)
+            dom.registersSide.innerHTML = REGISTERS.slice(0, 9).map((r, idx) => `
+                <div class="flex justify-between tracking-wider py-[1px] ${idx === activeRegisterIndex ? 'text-red-500 font-bold bg-red-900/10 px-1 -mx-1' : ''}">
+                    <span>${r.id.padEnd(3, ' ')}</span>
+                    <span>${idx < activeRegisterIndex ? 'DONE' : idx === activeRegisterIndex ? 'ACTIVE' : 'WAIT'}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderFilmStrip() {
+            if (frames.length === 0) {
+                dom.filmStrip.innerHTML = '<div class="w-full text-center text-zinc-700 tracking-widest text-[6px] lg:text-[10px] animate-pulse py-2">AWAITING EXTRACTION</div>';
+                return;
+            }
+
+            dom.filmStrip.innerHTML = frames.map((f, i) => `
+                <div class="h-10 w-14 sm:h-14 sm:w-20 lg:h-20 lg:w-28 border ${i === 0 ? 'border-red-500 shadow-[0_0_15px_rgba(220,38,38,0.3)] bg-[#1a0505]' : 'border-zinc-800 bg-[#0a0a0a]'} flex-shrink-0 flex flex-col justify-between p-0.5 lg:p-1 z-10 transition-all">
+                   <div class="flex justify-between items-center text-[4px] lg:text-[7px] text-zinc-500 leading-none">
+                      <span>REG ${f.register}</span>
+                      <span class="${i === 0 ? 'text-red-500 font-bold' : ''}">#${f.id}</span>
+                   </div>
+                   <div class="w-full flex-1 my-0.5 border border-zinc-900 bg-black overflow-hidden relative">
+                     <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-800/50 to-black opacity-50"></div>
+                     <div class="w-full h-[1px] bg-zinc-600 absolute transition-all duration-300" style="top: ${(f.id * 17) % 100}%; transform: rotate(${(f.id * 3) % 20}deg)"></div>
+                   </div>
+                   <div class="text-[4px] lg:text-[6px] text-zinc-400 truncate tracking-wider leading-none">${f.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // Boot
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>

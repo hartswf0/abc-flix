@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ABC FLIX</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap');
+
+        :root {
+            --bg: #f4f4f0;
+            --black: #000;
+            --white: #fff;
+            --blue: #0033cc;
+            --yel: #ffcc00;
+            --red: #e60000;
+            --gray: #d8d8d4;
+            --border: 3px solid var(--black);
+            --touch-min: 44px;
+            /* Fitts Law minimum */
+        }
+
+        * {
+            box-sizing: border-box;
+            border-radius: 0 !important;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100vw;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            background: var(--black);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        /* ── VIEWPORT with Film Strip Onion Skin ── */
+        #viewport {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: calc(100dvh - 200px);
+            /* Slightly taller bottom for bigger buttons */
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            z-index: 10;
+            padding: 8px;
+        }
+
+        /* Film Strip Stack: Before | Current | After */
+        #film-stack {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Ghost frames (before/after) */
+        .ghost-frame {
+            width: 60%;
+            height: auto;
+            aspect-ratio: 16/9;
+            opacity: 0.4;
+            background: var(--gray);
+            border: 2px solid var(--black);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ghost-frame canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated
+        }
+
+        .ghost-label {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 9px;
+            font-weight: 900;
+            color: var(--black);
+            background: var(--white);
+            padding: 1px 4px;
+            border: 1px solid var(--black);
+        }
+
+        /* Main current frame */
+        #main-frame {
+            width: 100%;
+            max-width: 320px;
+            aspect-ratio: 16/9;
+            background: var(--gray);
+            border: var(--border);
+            box-shadow: 6px 6px 0 var(--black);
+            position: relative;
+            z-index: 20;
+            overflow: hidden;
+        }
+
+        #main-frame canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated
+        }
+
+        /* HUD overlays on main frame */
+        .hud {
+            position: absolute;
+            padding: 8px 12px;
+            background: var(--white);
+            border: 2px solid var(--black);
+            font-size: 12px;
+            font-weight: 900;
+            box-shadow: 3px 3px 0 var(--black);
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        #hud-coord {
+            top: 8px;
+            left: 8px
+        }
+
+        #hud-count {
+            top: 8px;
+            right: 8px;
+            font-size: 16px
+        }
+
+        #hud-speed {
+            bottom: 8px;
+            left: 8px;
+            font-size: 10px;
+            color: var(--blue)
+        }
+
+        #hud-rec {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--red);
+            color: var(--white);
+            font-size: 14px;
+            display: none;
+            pointer-events: none;
+        }
+
+        #hud-rec.on {
+            display: block
+        }
+
+        /* ── BOTTOM CONTROL DECK (200px) ── */
+        #deck {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: var(--bg);
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            border-top: var(--border);
+        }
+
+        /* Timeline - Horizontal Film Strip */
+        #timeline {
+            height: 80px;
+            background: var(--black);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        #timeline::-webkit-scrollbar {
+            display: none
+        }
+
+        .thumb {
+            flex: 0 0 140px;
+            height: 78px;
+            background: var(--gray);
+            border: 2px solid var(--white);
+            position: relative;
+            scroll-snap-align: center;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .thumb.on {
+            border-color: var(--red);
+            outline: 3px solid var(--red);
+            outline-offset: -3px
+        }
+
+        .thumb:active {
+            transform: scale(0.98)
+        }
+
+        .thumb canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated
+        }
+
+        .thumb-num {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: var(--white);
+            color: var(--black);
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-left: 2px solid var(--black);
+            border-top: 2px solid var(--black);
+        }
+
+        /* TRANSPORT - Bigger buttons (Fitts Law) */
+        #transport {
+            height: 56px;
+            /* Increased from 46px */
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            background: var(--black);
+        }
+
+        .btn {
+            flex: 1;
+            min-width: var(--touch-min);
+            height: 100%;
+            background: var(--white);
+            border: none;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 4px;
+        }
+
+        .btn:active {
+            background: var(--gray);
+            transform: translateY(2px)
+        }
+
+        .btn.red {
+            background: var(--red);
+            color: var(--white)
+        }
+
+        .btn.black {
+            background: var(--black);
+            color: var(--white)
+        }
+
+        .btn .sym {
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 900
+        }
+
+        /* Bigger icons */
+
+        /* Gap between critical controls (Fitts Law - prevent accidental hits) */
+        .btn-danger {
+            margin-left: 8px;
+            background: var(--red);
+            color: var(--white)
+        }
+
+        /* ELEMENTS - ABCD Verbs */
+        #elements {
+            height: 56px;
+            /* Increased */
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+            padding: 4px;
+            background: var(--black);
+        }
+
+        .cell {
+            min-height: var(--touch-min);
+            background: var(--white);
+            border: none;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            padding: 2px;
+        }
+
+        .cell .letter {
+            font-size: 22px;
+            line-height: 1;
+            font-weight: 900;
+            font-family: 'Space Mono', monospace
+        }
+
+        .cell .verb {
+            font-size: 8px;
+            opacity: 0.8
+        }
+
+        .cell:active {
+            transform: scale(0.96)
+        }
+
+        /* Active states */
+        .cell.on-a {
+            background: var(--blue);
+            color: var(--white
+            }
+        }
+
+        .cell.on-b {
+            background:var(--yel); color:var(--black
+            }
+        }
+
+        .cell.on-c {
+            background:var(--black); color:var(--white
+            }
+        }
+
+        .cell.on-d {
+            background:var(--red); color:var(--white
+            }
+        }
+
+        /* ── DRAWER (Tool Panel) ── */
+        #drawer {
+            position:absolute; bottom:0; left:0; right:0;
+            height:0; background:var(--white); z-index:50;
+            border-top:var(--border);
+            transition:height 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            display:flex; flex-direction:column; overflow:hidden;
+        }
+
+        #drawer.open {
+            height:200px
+        }
+
+        .drawer-head {
+            height:48px; background:var(--black); color:var(--white);
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0 16px; font-size:13px; font-weight:900; letter-spacing:0.1em;
+            cursor:pointer; flex-shrink:0;
+        }
+
+        .drawer-body {
+            flex:1; padding:16px; overflow-y:auto;
+            display:flex; flex-direction:column; gap:12px;
+        }
+
+        /* CODE EDITOR - Bigger, better layout */
+        .code-area {
+            width:100%; height:120px;
+            border:var(--border);
+            font-family:'Space Mono', monospace;
+            font-size:14px; font-weight:700;
+            padding:12px; resize:none;
+            background:var(--bg);
+        }
+
+        .run-btn {
+            width:100%; height:56px;
+            /* Big easy target */
+            background:var(--blue); color:var(--white);
+            border:var(--border); font-size:14px; font-weight:900;
+            text-transform:uppercase; letter-spacing:0.1em;
+            cursor:pointer; margin-top:8px;
+            box-shadow:4px 4px 0 var(--black);
+        }
+
+        .run-btn:active {
+            transform:translate(2px, 2px);
+            box-shadow:2px 2px 0 var(--black);
+        }
+
+        /* Tool buttons */
+        .tool-row {
+            display:flex; gap:8px
+        }
+
+        .tool-btn {
+            flex:1; min-height:48px;
+            /* Fitts law */
+            background:var(--white); border:var(--border);
+            font-size:12px; font-weight:900; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+        }
+
+        .tool-btn.on {
+            background:var(--black); color:var(--white)
+        }
+
+        .tool-btn.red {
+            background:var(--red); color:var(--white)
+        }
+
+        .swatch-row {
+            display:flex; gap:8px; justify-content:center
+        }
+
+        .swatch {
+            width:48px; height:27px;
+            /* 16:9 */
+            border:var(--border); cursor:pointer;
+            position:relative;
+        }
+
+        .swatch.on {
+            outline:3px solid var(--red); outline-offset:2px
+        }
+
+        input[type=range] {
+            width:100%; height:32px;
+            /* Bigger thumb target */
+            accent-color:var(--black);
+        }
+
+        /* Camera */
+        #cam-overlay {
+            position:fixed; inset:0; z-index:100; background:rgba(0, 0, 0, 0.95);
+            display:none; flex-direction:column; align-items:center; justify-content:center;
+            padding:20px;
+        }
+
+        #cam-overlay.on {
+            display:flex
+        }
+
+        #cam-video {
+            max-width:100%; max-height:70vh; border:var(--border)
+        }
+
+        .cam-btns {
+            display:flex; gap:16px; margin-top:20px
+        }
+
+        /* Toast/Lock */
+        #toast {
+            position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+            z-index:9999; pointer-events:none; opacity:0; background:var(--yel);
+            border:var(--border); padding:20px 32px; font-size:16px; font-weight:900;
+            text-transform:uppercase; box-shadow:4px 4px 0 var(--black);
+            transition:opacity 0.15s;
+        }
+
+        #toast.on {
+            opacity:1
+        }
+
+        #lock {
+            position:fixed; inset:0; z-index:9998; background:var(--bg);
+            display:none; flex-direction:column; align-items:center; justify-content:center;
+            gap:20px;
+        }
+
+        #lock.on {
+            display:flex
+        }
+
+        #lock-msg {
+            font-size:24px; font-weight:900; text-align:center; padding:0 20px
+        }
+
+        #lock-bar {
+            width:280px; height:16px; border:var(--border); background:var(--white); box-shadow:3px 3px 0 var(--black)
+        }
+
+        #lock-progress {
+            height:100%; background:var(--blue); width:0%; transition:width 0.1s
+        }
+
+        .hidden {
+            display:none !important
+        }
+    </style>
+    <base target="_blank">
+</head>
+
+<body>
+
+    <!-- VIEWPORT with Film Strip Onion Skin -->
+    <div id="viewport">
+        <div id="film-stack">
+            <!-- Previous Frame (Ghost) -->
+            <div class="ghost-frame" id="ghost-prev">
+                <canvas id="cvs-prev" width="320" height="180"></canvas>
+                <div class="ghost-label">◀ PREV</div>
+            </div>
+
+            <!-- Current Frame (Main) -->
+            <div id="main-frame">
+                <canvas id="cvs" width="320" height="180"></canvas>
+                <div class="hud" id="hud-coord">X:-- Y:--</div>
+                <div class="hud" id="hud-count">00/00</div>
+                <div class="hud" id="hud-speed">1×</div>
+                <div class="hud" id="hud-rec">● REC</div>
+            </div>
+
+            <!-- Next Frame (Ghost) -->
+            <div class="ghost-frame" id="ghost-next">
+                <canvas id="cvs-next" width="320" height="180"></canvas>
+                <div class="ghost-label">NEXT ▶</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM DECK -->
+    <div id="deck">
+
+        <!-- Timeline -->
+        <div id="timeline"></div>
+
+        <!-- Transport: 6 buttons with better spacing -->
+        <div id="transport">
+            <button class="btn red" id="btn-play" onclick="togglePlay()">
+                <span class="sym">▶</span>
+                <span>PLAY</span>
+            </button>
+            <button class="btn" onclick="cycleSpeed()">
+                <span class="sym" id="speed-sym">1×</span>
+                <span>SPEED</span>
+            </button>
+            <button class="btn" onclick="stepFrame(-1)">
+                <span class="sym">◀</span>
+                <span>BACK</span>
+            </button>
+            <button class="btn" onclick="stepFrame(1)">
+                <span class="sym">▶</span>
+                <span>FWD</span>
+            </button>
+            <button class="btn" onclick="dupeFrame()">
+                <span class="sym">⧉</span>
+                <span>DUPE</span>
+            </button>
+            <button class="btn btn-danger" onclick="delFrame()">
+                <span class="sym">🗑</span>
+                <span>DEL</span>
+            </button>
+        </div>
+
+        <!-- ABCD with Verbs -->
+        <div id="elements">
+            <button class="cell on-a" onclick="addFrame()">
+                <span class="letter">A</span>
+                <span class="verb">ADD</span>
+            </button>
+            <button class="cell" id="cell-b" onclick="setPanel('b')">
+                <span class="letter">B</span>
+                <span class="verb">BUILD</span>
+            </button>
+            <button class="cell" id="cell-c" onclick="setPanel('c')">
+                <span class="letter">C</span>
+                <span class="verb">CREATE</span>
+            </button>
+            <button class="cell" id="cell-d" onclick="setPanel('d')">
+                <span class="letter">D</span>
+                <span class="verb">DRAW</span>
+            </button>
+            <button class="cell" onclick="exportVid()">
+                <span class="letter">E</span>
+                <span class="verb">EXPORT</span>
+            </button>
+        </div>
+
+        <!-- DRAWER -->
+        <div id="drawer">
+            <div class="drawer-head" onclick="closeDrawer()">
+                <span id="drawer-title">TOOLS</span>
+                <span style="font-size:20px">✕</span>
+            </div>
+            <div class="drawer-body" id="drawer-content"></div>
+        </div>
+    </div>
+
+    <!-- Camera -->
+    <div id="cam-overlay">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <div class="cam-btns">
+            <button class="btn red" style="min-width:100px;height:56px;font-size:14px" id="cam-rec"
+                onclick="toggleRecord()">RECORD</button>
+            <button class="btn" style="min-width:100px;height:56px" onclick="closeCamera()">CLOSE</button>
+        </div>
+    </div>
+
+    <input type="file" id="file-in" accept="image/*,video/*" style="display:none" onchange="handleFile(event)">
+    <div id="toast">SYSTEM READY</div>
+    <div id="lock" class="on">
+        <div id="lock-msg">LOADING FILM LEADER</div>
+        <div id="lock-bar">
+            <div id="lock-progress"></div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+        const W = 320, H = 180, BLOCK = 5, BASE_FPS = 12, MAX_FRAMES = 240;
+        const INKS = [{ id: 0, hex: '#e0e0e0', rgb: [0, 0, 0, 0] }, { id: 1, hex: '#000', rgb: [0, 0, 0, 255] }, { id: 2, hex: '#e60000', rgb: [230, 0, 0, 255] }, { id: 3, hex: '#0033cc', rgb: [0, 51, 204, 255] }, { id: 4, hex: '#ffcc00', rgb: [255, 204, 0, 255] }, { id: 5, hex: '#fff', rgb: [255, 255, 255, 255] }];
+
+        // Extended speeds including ultra-slow for study
+        const SPEEDS = [0.125, 0.25, 0.5, 1, 2, 4, 8];
+
+        const state = { frames: [], cur: 0, playing: false, speedIdx: 3, tool: 'pen', color: 2, size: 5, drag: false, p0: [0, 0], p1: [0, 0] };
+
+        // Canvas contexts
+        const cvs = document.getElementById('cvs');
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        const cvsPrev = document.getElementById('cvs-prev');
+        const ctxPrev = cvsPrev.getContext('2d');
+        const cvsNext = document.getElementById('cvs-next');
+        const ctxNext = cvsNext.getContext('2d');
+
+        const blank = () => new Uint8ClampedArray(W * H * 4);
+        const newFrame = (src = null) => ({ src, sc: blank(), hand: blank() });
+
+        // Pixel Ops
+        function setPix(arr, x, y, c) { if (x < 0 || x >= W || y < 0 || y >= H) return; const i = (y * W + x) * 4; arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3]; }
+        function plotDot(arr, x, y, c, sz) { const r = sz / 2; for (let iy = -Math.ceil(r); iy <= Math.ceil(r); iy++)for (let ix = -Math.ceil(r); ix <= Math.ceil(r); ix++)if (ix * ix + iy * iy <= r * r) setPix(arr, Math.round(x + ix), Math.round(y + iy), c); }
+        function plotLine(arr, x0, y0, x1, y1, c, sz) { let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy; while (true) { plotDot(arr, x0, y0, c, sz); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 > -dy) { err -= dy; x0 += sx; } if (e2 < dx) { err += dx; y0 += sy; } } }
+        function plotRect(arr, x0, y0, x1, y1, c, sz) { plotLine(arr, x0, y0, x1, y0, c, sz); plotLine(arr, x1, y0, x1, y1, c, sz); plotLine(arr, x1, y1, x0, y1, c, sz); plotLine(arr, x0, y1, x0, y0, c, sz); }
+
+        // Film Leader
+        function loadLeader() {
+            state.frames = [];
+            for (let i = 8; i >= 1; i--) {
+                const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+                x.fillStyle = '#666'; x.fillRect(0, 0, W, H);
+                x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.moveTo(W / 2, 0); x.lineTo(W / 2, H); x.stroke();
+                x.beginPath(); x.moveTo(0, H / 2); x.lineTo(W, H / 2); x.stroke();
+                x.beginPath(); x.arc(W / 2, H / 2, H / 2.2, 0, Math.PI * 2); x.stroke();
+                x.beginPath(); x.arc(W / 2, H / 2, H / 3.5, 0, Math.PI * 2); x.fillStyle = '#ccc'; x.fill(); x.stroke();
+                x.fillStyle = '#000'; x.font = `900 ${H / 2.5}px Helvetica`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(i, W / 2, H / 2 + 5);
+                state.frames.push({ src: c, sc: blank(), hand: blank() });
+            }
+            state.cur = 0; render(); buildTimeline();
+            setTimeout(() => { document.getElementById('lock').classList.remove('on'); toast('FILM LEADER READY'); }, 300);
+        }
+
+        // Render with Onion Skin
+        function render() {
+            if (!state.frames.length) return;
+            const cur = state.frames[state.cur];
+
+            // Main frame
+            drawFrameToCtx(cur, ctx);
+
+            // Prev ghost (if exists)
+            if (state.cur > 0) {
+                drawFrameToCtx(state.frames[state.cur - 1], ctxPrev);
+                document.getElementById('ghost-prev').style.opacity = '0.35';
+            } else {
+                ctxPrev.clearRect(0, 0, W, H);
+                document.getElementById('ghost-prev').style.opacity = '0.1';
+            }
+
+            // Next ghost (if exists)
+            if (state.cur < state.frames.length - 1) {
+                drawFrameToCtx(state.frames[state.cur + 1], ctxNext);
+                document.getElementById('ghost-next').style.opacity = '0.35';
+            } else {
+                ctxNext.clearRect(0, 0, W, H);
+                document.getElementById('ghost-next').style.opacity = '0.1';
+            }
+
+            // Live rect preview
+            if (state.drag && state.tool === 'rect') {
+                ctx.strokeStyle = INKS[state.color].hex;
+                ctx.lineWidth = state.size;
+                const x = Math.min(state.p0[0], state.p1[0]), y = Math.min(state.p0[1], state.p1[1]);
+                const w = Math.abs(state.p1[0] - state.p0[0]), h = Math.abs(state.p1[1] - state.p0[1]);
+                ctx.strokeRect(x, y, w, h);
+            }
+
+            document.getElementById('hud-count').textContent = `${String(state.cur + 1).padStart(2, '0')}/${String(state.frames.length).padStart(2, '0')}`;
+            document.getElementById('hud-speed').textContent = SPEEDS[state.speedIdx] + '×';
+        }
+
+        function drawFrameToCtx(frame, targetCtx) {
+            targetCtx.clearRect(0, 0, W, H);
+            if (!frame) return;
+            if (frame.src) targetCtx.drawImage(frame.src, 0, 0, W, H);
+            else { targetCtx.fillStyle = '#000'; targetCtx.fillRect(0, 0, W, H); }
+
+            const t1 = document.createElement('canvas'); t1.width = W; t1.height = H;
+            t1.getContext('2d').putImageData(new ImageData(frame.sc, W, H), 0, 0);
+            targetCtx.drawImage(t1, 0, 0);
+
+            const t2 = document.createElement('canvas'); t2.width = W; t2.height = H;
+            t2.getContext('2d').putImageData(new ImageData(frame.hand, W, H), 0, 0);
+            targetCtx.drawImage(t2, 0, 0);
+        }
+
+        // Touch handling
+        function getPos(e) {
+            const r = cvs.getBoundingClientRect();
+            const cl = e.touches ? e.touches[0].clientX : e.clientX;
+            const ct = e.touches ? e.touches[0].clientY : e.clientY;
+            return [Math.max(0, Math.min(W - 1, Math.floor(((cl - r.left) / r.width) * W))), Math.max(0, Math.min(H - 1, Math.floor(((ct - r.top) / r.height) * H)))];
+        }
+
+        function onStart(e) {
+            if (e.target !== cvs) return;
+            e.preventDefault(); e.stopPropagation();
+            state.drag = true; state.p0 = getPos(e); state.p1 = [...state.p0];
+            document.getElementById('hud-coord').textContent = `X:${Math.floor(state.p0[0] / BLOCK)} Y:${Math.floor(state.p0[1] / BLOCK)}`;
+            if (state.tool !== 'rect') commitStroke();
+        }
+
+        function onMove(e) {
+            if (!state.drag) return;
+            e.preventDefault(); e.stopPropagation();
+            state.p1 = getPos(e);
+            document.getElementById('hud-coord').textContent = `X:${Math.floor(state.p1[0] / BLOCK)} Y:${Math.floor(state.p1[1] / BLOCK)}`;
+            if (state.tool !== 'rect') { commitStroke(); state.p0 = [...state.p1]; }
+            render();
+        }
+
+        function onEnd(e) {
+            if (!state.drag) return;
+            e.preventDefault();
+            state.drag = false;
+            if (state.tool === 'rect' && state.frames[state.cur]) {
+                const c = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb;
+                plotRect(state.frames[state.cur].hand, state.p0[0], state.p0[1], state.p1[0], state.p1[1], c, state.size);
+            }
+            render(); buildTimeline();
+        }
+
+        function commitStroke() {
+            const f = state.frames[state.cur]; if (!f) return;
+            const c = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb;
+            plotLine(f.hand, state.p0[0], state.p0[1], state.p1[0], state.p1[1], c, state.size);
+        }
+
+        cvs.addEventListener('pointerdown', onStart, { passive: false });
+        cvs.addEventListener('pointermove', onMove, { passive: false });
+        window.addEventListener('pointerup', onEnd, { passive: false });
+        cvs.addEventListener('touchstart', onStart, { passive: false });
+        cvs.addEventListener('touchmove', onMove, { passive: false });
+        cvs.addEventListener('touchend', onEnd, { passive: false });
+
+        // Playback
+        let raf = null, lastT = 0;
+
+        function togglePlay() {
+            state.playing = !state.playing;
+            const b = document.getElementById('btn-play');
+            const r = document.getElementById('hud-rec');
+            if (state.playing) {
+                b.className = 'btn black';
+                b.innerHTML = '<span class="sym">■</span><span>STOP</span>';
+                r.classList.add('on');
+                lastT = performance.now();
+                loop();
+            } else {
+                b.className = 'btn red';
+                b.innerHTML = '<span class="sym">▶</span><span>PLAY</span>';
+                r.classList.remove('on');
+                cancelAnimationFrame(raf);
+            }
+        }
+
+        function loop() {
+            if (!state.playing) return;
+            raf = requestAnimationFrame(loop);
+            const n = performance.now();
+            const elapsed = n - lastT;
+            const dur = 1000 / (BASE_FPS * SPEEDS[state.speedIdx]);
+
+            if (elapsed >= dur) {
+                lastT = n - (elapsed % dur);
+                state.cur = (state.cur + 1) % state.frames.length;
+                render();
+                buildTimeline();
+            }
+        }
+
+        function cycleSpeed() {
+            state.speedIdx = (state.speedIdx + 1) % SPEEDS.length;
+            const s = SPEEDS[state.speedIdx];
+            document.getElementById('speed-sym').textContent = s + '×';
+            document.getElementById('hud-speed').textContent = s + '×';
+            toast(s + '× SPEED');
+        }
+
+        function stepFrame(dir) {
+            if (state.playing) return;
+            state.cur = Math.max(0, Math.min(state.frames.length - 1, state.cur + dir));
+            render();
+            buildTimeline();
+        }
+
+        // Frame Ops
+        function addFrame() {
+            state.frames.push(newFrame());
+            state.cur = state.frames.length - 1;
+            buildTimeline(); render();
+            toast('FRAME ADDED');
+        }
+
+        function dupeFrame() {
+            if (!state.frames.length) return;
+            const f = state.frames[state.cur];
+            state.frames.splice(state.cur + 1, 0, {
+                src: f.src,
+                sc: new Uint8ClampedArray(f.sc),
+                hand: new Uint8ClampedArray(f.hand)
+            });
+            state.cur++;
+            buildTimeline(); render();
+            toast('FRAME DUPLICATED');
+        }
+
+        function delFrame() {
+            if (state.frames.length <= 1) {
+                state.frames[0] = newFrame();
+                render(); buildTimeline();
+                toast('CLEARED');
+                return;
+            }
+            state.frames.splice(state.cur, 1);
+            if (state.cur >= state.frames.length) state.cur = state.frames.length - 1;
+            buildTimeline(); render();
+            toast('DELETED');
+        }
+
+        function clearInk() {
+            state.frames[state.cur].hand = blank();
+            render(); buildTimeline();
+            toast('INK CLEARED');
+        }
+
+        // Timeline
+        function buildTimeline() {
+            const tl = document.getElementById('timeline');
+            tl.innerHTML = '';
+            state.frames.forEach((f, i) => {
+                const d = document.createElement('div');
+                d.className = 'thumb' + (i === state.cur ? ' on' : '');
+                d.onclick = () => { if (!state.playing) { state.cur = i; render(); buildTimeline(); } };
+
+                const c = document.createElement('canvas');
+                c.width = W; c.height = H;
+                drawFrameToCtx(f, c.getContext('2d'));
+
+                const n = document.createElement('div');
+                n.className = 'thumb-num';
+                n.textContent = i + 1;
+
+                d.appendChild(c);
+                d.appendChild(n);
+                tl.appendChild(d);
+
+                if (i === state.cur) d.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+            });
+        }
+
+        // Drawer System
+        const PANELS = {
+            d: `
+    <div class="tool-row">
+      <button class="tool-btn on" id="t-pen" onclick="setTool('pen')">PEN</button>
+      <button class="tool-btn" id="t-rect" onclick="setTool('rect')">BOX</button>
+      <button class="tool-btn" id="t-erase" onclick="setTool('erase')">ERASE</button>
+    </div>
+    <div class="swatch-row" id="swatches"></div>
+    <input type="range" min="1" max="24" value="5" oninput="state.size=+this.value">
+    <button class="tool-btn red" onclick="clearInk()" style="margin-top:8px">CLEAR INK</button>
+  `,
+            b: `
+    <textarea class="code-area" id="code-box">CLR 5
+PNT 10 10 20 20 2
+REC 1</textarea>
+    <button class="run-btn" onclick="runCode()">▶ RUN CODE</button>
+  `,
+            c: `
+    <div style="text-align:center;padding:20px">
+      <button class="tool-btn" onclick="document.getElementById('file-in').click()" style="width:100%;height:60px;margin-bottom:12px">LOAD IMAGE/VIDEO</button>
+      <button class="tool-btn" onclick="openCamera()" style="width:100%;height:60px">OPEN CAMERA</button>
+    </div>
+  `
+        };
+
+        function setPanel(p) {
+            closeDrawer();
+            document.querySelectorAll('.cell').forEach(c => c.className = 'cell');
+
+            if (p === 'd') {
+                document.getElementById('cell-d').className = 'cell on-d';
+                document.getElementById('drawer-title').textContent = 'CREATE TOOLS';
+                document.getElementById('drawer-content').innerHTML = PANELS.d;
+                initSwatches();
+                setTool(state.tool);
+                document.getElementById('drawer').classList.add('open');
+            } else if (p === 'b') {
+                document.getElementById('cell-b').className = 'cell on-b';
+                document.getElementById('drawer-title').textContent = 'BUILD CODE';
+                document.getElementById('drawer-content').innerHTML = PANELS.b;
+                document.getElementById('drawer').classList.add('open');
+            } else if (p === 'c') {
+                document.getElementById('cell-c').className = 'cell on-c';
+                document.getElementById('drawer-title').textContent = 'IMPORT MEDIA';
+                document.getElementById('drawer-content').innerHTML = PANELS.c;
+                document.getElementById('drawer').classList.add('open');
+            }
+        }
+
+        function closeDrawer() {
+            document.getElementById('drawer').classList.remove('open');
+        }
+
+        function setTool(t) {
+            state.tool = t;
+            ['pen', 'rect', 'erase'].forEach(x => {
+                const b = document.getElementById('t-' + x);
+                if (b) b.className = x === t ? 'tool-btn on' : 'tool-btn';
+            });
+        }
+
+        function initSwatches() {
+            const sw = document.getElementById('swatches');
+            if (!sw) return;
+            sw.innerHTML = '';
+            INKS.slice(1).forEach(ink => {
+                const d = document.createElement('div');
+                d.className = 'swatch' + (ink.id === state.color ? ' on' : '');
+                d.style.background = ink.hex;
+                d.onclick = () => {
+                    state.color = ink.id;
+                    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+                    d.classList.add('on');
+                    if (state.tool === 'erase') setTool('pen');
+                };
+                sw.appendChild(d);
+            });
+        }
+
+        function runCode() {
+            const code = document.getElementById('code-box').value.toUpperCase().split('\n');
+            const f = state.frames[state.cur];
+            let ran = false;
+
+            code.forEach(line => {
+                const p = line.trim().split(/\s+/);
+                if (p[0] === 'CLR') {
+                    f.sc.fill(0); ran = true;
+                } else if (p[0] === 'PNT') {
+                    const [x, y, w, h, col] = p.slice(1).map(Number);
+                    if (!isNaN(x)) {
+                        const c = INKS[col]?.rgb || [0, 0, 0, 255];
+                        for (let iy = y; iy < y + h; iy++)for (let ix = x; ix < x + w; ix++)if (ix < 64 && iy < 36) for (let by = 0; by < 5; by++)for (let bx = 0; bx < 5; bx++)setPix(f.sc, ix * 5 + bx, iy * 5 + by, c);
+                        ran = true;
+                    }
+                }
+            });
+
+            if (ran) {
+                render(); buildTimeline();
+                toast('CODE EXECUTED');
+                closeDrawer();
+            }
+        }
+
+        // Media Import
+        function handleFile(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            if (f.type.startsWith('video/')) importVid(f);
+            else importImg(f);
+            e.target.value = '';
+        }
+
+        function importImg(file) {
+            const u = URL.createObjectURL(file);
+            const i = new Image();
+            i.src = u;
+            i.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = W; c.height = H;
+                c.getContext('2d').drawImage(i, 0, 0, W, H);
+                state.frames[state.cur].src = c;
+                render(); buildTimeline();
+                toast('IMAGE LOADED');
+                URL.revokeObjectURL(u);
+            };
+        }
+
+        async function importVid(file) {
+            lock('RIPPING FRAMES', 0.1);
+            const u = URL.createObjectURL(file);
+            const v = document.createElement('video');
+            v.muted = true;
+            v.playsInline = true;
+            v.src = u;
+
+            await new Promise(r => {
+                v.onloadedmetadata = r;
+                setTimeout(r, 3000);
+            });
+
+            const fr = [];
+            const step = 1 / BASE_FPS;
+            let t = 0;
+
+            await new Promise(res => {
+                v.onseeked = () => {
+                    const c = document.createElement('canvas');
+                    c.width = W; c.height = H;
+                    c.getContext('2d').drawImage(v, 0, 0, W, H);
+                    fr.push({ src: c, sc: blank(), hand: blank() });
+                    lock('RIPPING', t / v.duration);
+                    t += step;
+                    if (t < v.duration && fr.length < MAX_FRAMES) v.currentTime = t;
+                    else res();
+                };
+                v.currentTime = 0;
+            });
+
+            if (fr.length) {
+                state.frames = fr;
+                state.cur = 0;
+                buildTimeline(); render();
+                toast(fr.length + ' FRAMES RIPPED');
+            }
+            unlock();
+            URL.revokeObjectURL(u);
+        }
+
+        // Camera
+        let camStream = null, camRec = null, camChunks = [], camRecing = false;
+
+        async function openCamera() {
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+                document.getElementById('cam-video').srcObject = camStream;
+                document.getElementById('cam-overlay').classList.add('on');
+            } catch (e) {
+                toast('CAMERA DENIED');
+            }
+        }
+
+        function closeCamera() {
+            if (camRecing) toggleRecord();
+            if (camStream) {
+                camStream.getTracks().forEach(t => t.stop());
+                camStream = null;
+            }
+            document.getElementById('cam-overlay').classList.remove('on');
+        }
+
+        function toggleRecord() {
+            const b = document.getElementById('cam-rec');
+            if (!camRecing) {
+                camChunks = [];
+                camRec = new MediaRecorder(camStream);
+                camRec.ondataavailable = e => camChunks.push(e.data);
+                camRec.start(100);
+                camRecing = true;
+                b.textContent = 'STOP';
+                b.className = 'btn black';
+            } else {
+                camRecing = false;
+                b.textContent = 'RECORD';
+                b.className = 'btn red';
+                camRec.onstop = () => {
+                    importVid(new Blob(camChunks, { type: 'video/webm' }));
+                    closeCamera();
+                };
+                camRec.stop();
+            }
+        }
+
+        // Export
+        function exportVid() {
+            if (!state.frames.length) return;
+            if (state.playing) togglePlay();
+            lock('ENCODING VIDEO', 0);
+
+            const s = cvs.captureStream(BASE_FPS);
+            const r = new MediaRecorder(s);
+            const ch = [];
+
+            r.ondataavailable = e => ch.push(e.data);
+            r.onstop = () => {
+                const b = new Blob(ch, { type: 'video/webm' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(b);
+                a.download = 'abc-flix.webm';
+                a.click();
+                unlock();
+                toast('VIDEO EXPORTED');
+            };
+
+            r.start();
+            let i = 0;
+            const step = () => {
+                if (i >= state.frames.length) {
+                    r.stop();
+                    return;
+                }
+                state.cur = i;
+                render();
+                lock('ENCODING', i / state.frames.length);
+                i++;
+                setTimeout(step, 1000 / BASE_FPS);
+            };
+            step();
+        }
+
+        function exportGIF() {
+            toast('GIF EXPORT READY');
+        }
+
+        // Utils
+        function lock(m, p) {
+            document.getElementById('lock').classList.add('on');
+            document.getElementById('lock-msg').textContent = m;
+            document.getElementById('lock-progress').style.width = (p * 100) + '%';
+        }
+
+        function unlock() {
+            document.getElementById('lock').classList.remove('on');
+        }
+
+        function toast(m) {
+            const t = document.getElementById('toast');
+            t.textContent = m;
+            t.classList.add('on');
+            setTimeout(() => t.classList.remove('on'), 1500);
+        }
+
+        // Boot
+        loadLeader();
+    </script>
+</body>
+
+</html>

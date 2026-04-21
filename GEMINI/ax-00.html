@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ABC FLIX</title>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --bg: #e8e8e5;
+            --black: #050505;
+            --white: #ffffff;
+            --blue: #0022cc;
+            --yellow: #ffb700;
+            --red: #e60000;
+            --gray: #b0b0b0;
+            --shadow: 4px 4px 0 var(--black);
+            --stroke: 4px solid var(--black);
+            --font-ui: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-code: 'Space Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            border-radius: 0 !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--black);
+            overflow: hidden;
+            font-family: var(--font-ui);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        textarea {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .app {
+            width: 100%;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HEADER NAV (FITTS LAW: HUGE TOUCH TARGETS) */
+        .nav-header {
+            display: flex;
+            background: var(--black);
+            padding: 4px;
+            gap: 4px;
+            flex-shrink: 0;
+            padding-top: calc(4px + var(--safe-top));
+        }
+
+        .nav-btn {
+            flex: 1;
+            height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--white);
+            border: 4px solid var(--black);
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background 0.1s, transform 0.05s;
+        }
+
+        .nav-btn span {
+            font-size: 22px;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .nav-btn:active {
+            transform: translateY(2px);
+        }
+
+        .nav-btn.on-a {
+            background: var(--blue);
+            color: var(--white);
+        }
+
+        .nav-btn.on-b {
+            background: var(--yellow);
+            color: var(--black);
+        }
+
+        .nav-btn.on-c {
+            background: var(--red);
+            color: var(--white);
+        }
+
+        .nav-btn.on-d {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .nav-btn.on-e {
+            background: var(--white);
+            color: var(--black);
+            border-style: dashed;
+        }
+
+        /* WORKSPACE */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: var(--bg);
+        }
+
+        .gate {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            min-height: 0;
+        }
+
+        #canvas-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #main-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            touch-action: none;
+            background: var(--gray);
+            border: var(--stroke);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        #grid-net {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            image-rendering: pixelated;
+            z-index: 15;
+            object-fit: contain;
+        }
+        #grid-net.on { opacity: 1; }
+
+        .grid-toggle {
+            position: absolute;
+            top: 12px; left: 12px;
+            z-index: 20;
+            background: var(--white);
+            border: var(--stroke);
+            padding: 6px 10px;
+            font-weight: 900;
+            font-size: 11px;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        /* PANELS (NEVER COVERS MAIN VIEW) */
+        .panel-container {
+            flex: 0 0 36vh;
+            background: var(--white);
+            border-top: var(--stroke);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: flex 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+
+        .panel-container.hidden {
+            flex: 0 0 0vh;
+            border-top: none;
+        }
+
+        .op-panel {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 14px;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .op-panel.on {
+            display: flex;
+        }
+
+        .panel-header {
+            font-size: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border-bottom: 4px solid var(--black);
+            padding-bottom: 6px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* BUTTONS */
+        .btn-op {
+            width: 100%;
+            min-height: 52px;
+            padding: 10px;
+            background: var(--white);
+            border: var(--stroke);
+            box-shadow: var(--shadow);
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .btn-op span.sub {
+            font-size: 10px;
+            font-weight: 700;
+            color: #555;
+        }
+
+        .btn-op:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .btn-op.active {
+            background: var(--black);
+            color: var(--white);
+            box-shadow: 0 0 0 var(--black);
+            transform: translate(4px, 4px);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .codebox {
+            flex: 1;
+            width: 100%;
+            background: var(--bg);
+            border: var(--stroke);
+            font-family: var(--font-code);
+            font-size: 14px;
+            padding: 12px;
+            resize: none;
+            box-shadow: inset 4px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        /* TIMELINE */
+        .timeline {
+            flex: 0 0 auto;
+            height: 100px;
+            background: var(--white);
+            border-top: var(--stroke);
+            display: flex;
+            flex-direction: column;
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .timeline-top {
+            display: flex;
+            gap: 6px;
+            padding: 6px;
+            background: var(--gray);
+            border-bottom: 4px solid var(--black);
+        }
+
+        .tl-btn {
+            flex: 1;
+            height: 38px;
+            background: var(--white);
+            border: var(--stroke);
+            box-shadow: 2px 2px 0 var(--black);
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .tl-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .timeline-strip {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            align-items: center;
+        }
+
+        .timeline-strip::-webkit-scrollbar {
+            display: none;
+        }
+
+        .thumb {
+            width: 64px;
+            height: 36px;
+            flex-shrink: 0;
+            border: var(--stroke);
+            position: relative;
+            background: var(--gray);
+            cursor: pointer;
+            box-shadow: 2px 2px 0 var(--black);
+        }
+
+        .thumb:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .thumb.on {
+            outline: 4px solid var(--red);
+            outline-offset: 2px;
+        }
+
+        .thumb canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumb-num {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            font-size: 10px;
+            background: white;
+            padding: 2px 4px;
+            font-weight: 900;
+            border: 2px solid black;
+        }
+
+        /* UTILS */
+        .swatches {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .swatch {
+            width: 44px;
+            height: 44px;
+            border: var(--stroke);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+        }
+
+        .swatch:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .swatch.on {
+            transform: translate(4px, 4px);
+            box-shadow: 0 0 0 var(--black);
+            outline: 4px solid var(--black);
+            outline-offset: 2px;
+        }
+
+        .badge {
+            position: absolute;
+            z-index: 10;
+            background: white;
+            border: var(--stroke);
+            padding: 6px 10px;
+            font-weight: 900;
+            font-size: 14px;
+            box-shadow: var(--shadow);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 32px;
+            background: var(--bg);
+            border: var(--stroke);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 32px;
+            height: 32px;
+            background: var(--black);
+            border: 2px solid var(--white);
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--yellow);
+            border: var(--stroke);
+            padding: 24px;
+            z-index: 1000;
+            font-weight: 900;
+            font-size: 18px;
+            text-transform: uppercase;
+            box-shadow: 12px 12px 0 var(--black);
+            display: none;
+        }
+
+        .toast.on {
+            display: block;
+        }
+
+        .cam-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: var(--bg);
+            padding: 18px;
+        }
+
+        .cam-layer.on {
+            display: flex;
+        }
+
+        .cam-layer video {
+            max-width: 100%;
+            max-height: 70%;
+            border: var(--stroke);
+            background: var(--black);
+        }
+
+        .lock {
+            position: fixed;
+            inset: 0;
+            z-index: 9000;
+            background: rgba(255, 255, 255, 0.94);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .lock.on {
+            display: flex;
+        }
+
+        .lock-msg {
+            background: var(--yellow);
+            border: var(--stroke);
+            padding: 14px 24px;
+            font-weight: 900;
+            font-size: 24px;
+            box-shadow: var(--shadow);
+            text-transform: uppercase;
+        }
+
+        .lock-bar-shell {
+            width: 280px;
+            height: 24px;
+            background: white;
+            border: var(--stroke);
+            box-shadow: var(--shadow);
+        }
+
+        .lock-bar {
+            height: 100%;
+            background: var(--blue);
+            width: 0%;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <!-- TOP NAVIGATION -->
+        <header class="nav-header">
+            <button id="nav-a" class="nav-btn on-a" onclick="execNav('A')"><span>A</span>ADD</button>
+            <button id="nav-b" class="nav-btn" onclick="execNav('B')"><span>B</span>BUILD</button>
+            <button id="nav-c" class="nav-btn" onclick="execNav('C')"><span>C</span>CODE</button>
+            <button id="nav-d" class="nav-btn" onclick="execNav('D')"><span>D</span>DRAW</button>
+            <button id="nav-e" class="nav-btn" onclick="execNav('E')"><span>E</span>EXPORT</button>
+        </header>
+
+        <div class="workspace">
+            <!-- CANVAS VIEW -->
+            <section class="gate">
+                <button id="grid-btn" class="grid-toggle" onclick="toggleGrid()">GRID: OFF</button>
+                <div id="frame-badge" class="badge" style="top: 12px; right: 12px;">01/01</div>
+                <div id="canvas-wrap">
+                    <canvas id="main-canvas" width="320" height="180"></canvas>
+                    <canvas id="grid-net"></canvas>
+                </div>
+
+                <!-- CAMERA OVERLAY -->
+                <div id="cam-layer" class="cam-layer">
+                    <video id="cam-video" autoplay playsinline muted></video>
+                    <div style="display: flex; gap: 12px; width: 100%; max-width: 400px;">
+                        <button id="cam-record-btn" class="btn-op" style="background: var(--red); color: white;"
+                            onclick="toggleRecord()">RECORD</button>
+                        <button class="btn-op" onclick="killCamera()">ABORT</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DYNAMIC PANEL -->
+            <div id="panel-container" class="panel-container">
+
+                <!-- A: ADD -->
+                <section id="panel-a" class="op-panel on">
+                    <div class="panel-header" style="color: var(--blue)">A. ADD MEDIA</div>
+                    <button class="btn-op" onclick="document.getElementById('file-input').click()">IMPORT FILE<span
+                            class="sub">Image or Video</span></button>
+                    <button class="btn-op" onclick="toggleCamera()">OPEN CAMERA<span class="sub">Capture
+                            frames</span></button>
+                    <button class="btn-op" onclick="loadTestSequence()">TEST CARDS<span class="sub">Load generic
+                            plates</span></button>
+                    <div style="margin-top: 8px; border-top: var(--stroke); padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.1em;">BEFLIX PROCESS MODE</div>
+                        <select id="process-mode" style="width: 100%; height: 44px; font-size: 14px; font-weight: 900; border: var(--stroke); background: var(--white); text-transform: uppercase; padding: 0 8px; font-family: var(--font-ui);">
+                            <option value="raw">RAW — No Processing</option>
+                            <option value="threshold">THRESHOLD — B&W Silhouette</option>
+                            <option value="posterize" selected>POSTERIZE — BEFLIX Palette</option>
+                            <option value="edge">EDGE — Line Detect</option>
+                            <option value="halftone">HALFTONE — Dither Pattern</option>
+                        </select>
+                        <button class="btn-op" style="margin-top: 8px; background: var(--blue); color: var(--white);" onclick="reprocessFrames()">REPROCESS FRAMES<span class="sub">Apply selected technique</span></button>
+                    </div>
+                </section>
+
+                <!-- B: BUILD -->
+                <section id="panel-b" class="op-panel">
+                    <div class="panel-header" style="color: var(--yellow)">
+                        B. BUILD ELEMENTS
+                        <span style="font-size: 10px; color: var(--black);">Tap to inject code</span>
+                    </div>
+                    <div class="grid-2">
+                        <button class="btn-op" onclick="appendCode('C SETUP BG\nCLR 3\nREC 1')">BLUE BG<span
+                                class="sub">Clear & Paint</span></button>
+                        <button class="btn-op"
+                            onclick="appendCode('C DRAW BOX\nPNT 28 14 8 16 1\nREC 1')">CHARACTER<span class="sub">Add
+                                Subject</span></button>
+                        <button class="btn-op" onclick="appendCode('C CAMERA PAN\nSHF 2 0 12')">PAN RIGHT<span
+                                class="sub">Shift View</span></button>
+                        <button class="btn-op"
+                            onclick="appendCode('C FLASH FX\nCLR 5\nREC 1\nCLR 1\nREC 1')">STROBE<span class="sub">Blink
+                                FX</span></button>
+                    </div>
+                    <button class="btn-op" style="background: var(--black); color: var(--white); margin-top: auto;"
+                        onclick="execNav('C'); executeMacro()">BUILD & RUN</button>
+                </section>
+
+                <!-- C: CODE -->
+                <section id="panel-c" class="op-panel" style="padding: 0;">
+                    <div
+                        style="padding: 12px; background: var(--black); color: white; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em;">C. SCRIPT EDITOR</span>
+                        <button class="btn-op"
+                            style="min-height: 32px; width: auto; padding: 4px 16px; font-size: 12px; box-shadow: none;"
+                            onclick="executeMacro()">RUN</button>
+                    </div>
+                    <textarea id="script-box" class="codebox" spellcheck="false">C BAUHAUS MACRO
+CLR 5
+PNT 4 10 12 12 2
+REC 1
+SHF 1 1 10</textarea>
+                </section>
+
+                <!-- D: DRAW -->
+                <section id="panel-d" class="op-panel">
+                    <div class="panel-header">D. DRAW TOOLS</div>
+                    <div class="grid-3">
+                        <button id="tool-pen" class="btn-op active" onclick="bindTool('pen')">PEN</button>
+                        <button id="tool-rect" class="btn-op" onclick="bindTool('rect')">BOX</button>
+                        <button id="tool-erase" class="btn-op" onclick="bindTool('erase')">ERASE</button>
+                    </div>
+                    <div class="swatches" id="swatches"></div>
+                    <input id="size-range" type="range" min="1" max="24" value="5"
+                        oninput="state.size = parseInt(this.value, 10);" />
+                </section>
+
+                <!-- E: EXPORT -->
+                <section id="panel-e" class="op-panel">
+                    <div class="panel-header">E. EXPORT</div>
+                    <button class="btn-op" onclick="compileOutput('webm')">EXPORT VIDEO<span class="sub">WebM
+                            Format</span></button>
+                    <button class="btn-op" onclick="compileOutput('gif')">EXPORT GIF<span class="sub">Animated
+                            Image</span></button>
+                    <button class="btn-op" onclick="compileSnapshot()">EXPORT PNG<span class="sub">Current
+                            Frame</span></button>
+                    <div style="margin-top: 8px; border-top: var(--stroke); padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.1em;">BEFLIX CODE</div>
+                        <button class="btn-op" style="background: var(--blue); color: var(--white);" onclick="viewCode()">VIEW CODE<span class="sub">Open in Script Editor</span></button>
+                        <button class="btn-op" onclick="compileCode()">DOWNLOAD CODE<span class="sub">Save .txt File</span></button>
+                        <button class="btn-op" onclick="document.getElementById('script-input').click()">LOAD SCRIPT<span class="sub">Import .txt File</span></button>
+                    </div>
+                </section>
+                <input id="script-input" type="file" accept=".txt,.bfx" class="hidden" onchange="loadScriptFile(event)" />
+            </div>
+
+            <!-- TIMELINE -->
+            <section class="timeline">
+                <div class="timeline-top">
+                    <button id="play-btn" class="tl-btn" style="background: var(--red); color: white;"
+                        onclick="engageSequence()">PLAY</button>
+                    <button id="speed-btn" class="tl-btn" onclick="shiftVelocity()">1X</button>
+                    <button class="tl-btn" onclick="injectFrame()">BLANK</button>
+                    <button class="tl-btn" onclick="duplicateFrame()">COPY</button>
+                    <button class="tl-btn" onclick="deleteFrame()" style="color: var(--red)">DEL</button>
+                </div>
+                <div id="timeline-strip" class="timeline-strip"></div>
+            </section>
+        </div>
+    </div>
+
+    <input id="file-input" type="file" accept="image/*,video/*" class="hidden" onchange="ingestMedia(event)" />
+    <div id="toast" class="toast">ACTION APPLIED</div>
+    <div id="lock" class="lock">
+        <div class="lock-msg" id="lock-msg">PROCESSING</div>
+        <div class="lock-bar-shell">
+            <div class="lock-bar" id="lock-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // ASMR Audio & Haptics Engine
+        let actx = null;
+        function initAudio() {
+            if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+            if (actx.state === 'suspended') actx.resume();
+        }
+
+        function playTick(freq, type = 'sine', dur = 0.03, vol = 0.1) {
+            if (!actx) return;
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, actx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.5, actx.currentTime + dur);
+            gain.gain.setValueAtTime(vol, actx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + dur);
+            osc.connect(gain); gain.connect(actx.destination);
+            osc.start(); osc.stop(actx.currentTime + dur);
+        }
+
+        function uiTick() { playTick(800, 'sine', 0.02, 0.05); if (navigator.vibrate) navigator.vibrate(5); }
+        function uiPop() { playTick(300, 'square', 0.04, 0.1); if (navigator.vibrate) navigator.vibrate(12); }
+
+        // Init audio on first touch
+        window.addEventListener('pointerdown', initAudio, { once: true });
+
+        // Attach tick sound to buttons globally
+        document.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('button, .btn-op, .nav-btn, .tl-btn, .swatch, .thumb, input[type="range"]')) {
+                uiTick();
+            }
+        });
+
+        // Core Constants
+        const W = 320, H = 180, BLOCK = 5, G_COLS = 64, G_ROWS = 36, BASE_FPS = 12;
+        const GIF_WORKER = 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js';
+        const INKS = [
+            { id: 0, hex: '#e8e8e5', rgba: [0, 0, 0, 0] },
+            { id: 1, hex: '#050505', rgba: [5, 5, 5, 255] },
+            { id: 2, hex: '#e60000', rgba: [230, 0, 0, 255] },
+            { id: 3, hex: '#0022cc', rgba: [0, 34, 204, 255] },
+            { id: 4, hex: '#ffb700', rgba: [255, 183, 0, 255] },
+            { id: 5, hex: '#ffffff', rgba: [255, 255, 255, 255] }
+        ];
+        const SPEEDS = [0.5, 1.0, 2.0, 4.0];
+
+        var EXPORT_SCALE = 3; // 320×180 → 960×540
+        var EW = W * EXPORT_SCALE, EH = H * EXPORT_SCALE;
+
+        const state = {
+            frames: [], cur: 0, playing: false, tool: 'pen', color: 2, size: 5,
+            dragging: false, p0: [0, 0], p1: [0, 0], velocity: 1.0, activeNav: 'A',
+            recording: false, gridOn: false
+        };
+
+        const mainCanvas = document.getElementById('main-canvas');
+        const mainCtx = mainCanvas.getContext('2d', { willReadFrequently: true });
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = W; layerCanvas.height = H;
+        const layerCtx = layerCanvas.getContext('2d');
+        const compCanvas = document.createElement('canvas');
+        compCanvas.width = W; compCanvas.height = H;
+        const compCtx = compCanvas.getContext('2d');
+
+        let playRAF = null, lastPlayT = 0, camStream = null;
+
+        function fireToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('on');
+            setTimeout(() => t.classList.remove('on'), 1000);
+        }
+
+        // ── COORDINATE GRID (AI CALIBRATION OVERLAY) ──
+        function toggleGrid() {
+            state.gridOn = !state.gridOn;
+            var net = document.getElementById('grid-net');
+            var btn = document.getElementById('grid-btn');
+            if (net) net.classList.toggle('on', state.gridOn);
+            if (btn) btn.textContent = 'GRID: ' + (state.gridOn ? 'ON' : 'OFF');
+            if (state.gridOn) drawCoordGrid();
+        }
+
+        // ── CRISPY PIXEL-PERFECT GRID ──
+        // Uses fillRect instead of strokes for zero anti-aliasing blur.
+        // All coordinates are integer-aligned for maximum crispness.
+
+        function _gridLine(gc, x, y, w, h, color) {
+            gc.fillStyle = color;
+            gc.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+        }
+
+        function drawCoordGrid() {
+            var net = document.getElementById('grid-net');
+            if (!net) return;
+            // RENDER AT EXPORT RES for crispness, CSS scales it down
+            net.width = EW; net.height = EH;
+            var gc = net.getContext('2d');
+            gc.imageSmoothingEnabled = false;
+            gc.clearRect(0, 0, EW, EH);
+            _renderCrispGrid(gc, EW, EH);
+        }
+
+        function _renderCrispGrid(gc, tw, th) {
+            var cellW = tw / G_COLS;  // pixels per BEFLIX cell
+            var cellH = th / G_ROWS;
+            var rulerH = Math.round(cellH * 2.5);  // top ruler height
+            var rulerW = Math.round(cellW * 3.5);   // left ruler width
+
+            // 1. Fine cell grid (every cell) — 1px lines
+            for (var gx = 1; gx < G_COLS; gx++) {
+                var px = Math.round(gx * cellW);
+                _gridLine(gc, px, 0, 1, th, 'rgba(255,255,255,0.10)');
+            }
+            for (var gy = 1; gy < G_ROWS; gy++) {
+                var py = Math.round(gy * cellH);
+                _gridLine(gc, 0, py, tw, 1, 'rgba(255,255,255,0.10)');
+            }
+
+            // 2. Major grid (every 8 cells) — 2px bright lines
+            for (var gx = 8; gx < G_COLS; gx += 8) {
+                var px = Math.round(gx * cellW);
+                _gridLine(gc, px, 0, 2, th, 'rgba(255,255,255,0.35)');
+            }
+            for (var gy = 8; gy < G_ROWS; gy += 8) {
+                var py = Math.round(gy * cellH);
+                _gridLine(gc, 0, py, tw, 2, 'rgba(255,255,255,0.35)');
+            }
+
+            // 3. Center crosshair — 2px red dashed
+            var cx = Math.round(tw / 2), cy = Math.round(th / 2);
+            var dash = Math.round(cellW);
+            for (var y = 0; y < th; y += dash * 2) {
+                _gridLine(gc, cx - 1, y, 2, Math.min(dash, th - y), 'rgba(255,60,60,0.5)');
+            }
+            for (var x = 0; x < tw; x += dash * 2) {
+                _gridLine(gc, x, cy - 1, Math.min(dash, tw - x), 2, 'rgba(255,60,60,0.5)');
+            }
+
+            // 4. Ruler background strips — opaque black
+            gc.fillStyle = 'rgba(0,0,0,0.82)';
+            gc.fillRect(0, 0, tw, rulerH);    // top
+            gc.fillRect(0, rulerH, rulerW, th - rulerH);  // left
+
+            // 5. Ruler tick marks & numbers — X axis
+            var fontSize = Math.max(10, Math.round(cellW * 1.4));
+            gc.font = 'bold ' + fontSize + 'px monospace';
+            gc.textBaseline = 'top';
+            gc.textAlign = 'center';
+            for (var gx = 0; gx <= G_COLS; gx += 4) {
+                var px = Math.round(gx * cellW);
+                var isMajor = (gx % 8 === 0);
+                var tickH = isMajor ? rulerH : Math.round(rulerH * 0.5);
+                // Tick
+                _gridLine(gc, px, 0, isMajor ? 2 : 1, tickH, isMajor ? '#ffffff' : 'rgba(255,255,255,0.5)');
+                // Number
+                if (isMajor) {
+                    gc.fillStyle = '#00ffff';
+                    gc.fillText(String(gx), px, 2);
+                }
+            }
+
+            // 6. Ruler tick marks & numbers — Y axis
+            gc.textAlign = 'left';
+            gc.textBaseline = 'middle';
+            for (var gy = 0; gy <= G_ROWS; gy += 4) {
+                var py = Math.round(gy * cellH);
+                var isMajor = (gy % 8 === 0);
+                var tickW = isMajor ? rulerW : Math.round(rulerW * 0.5);
+                // Tick
+                _gridLine(gc, 0, py, tickW, isMajor ? 2 : 1, isMajor ? '#ffffff' : 'rgba(255,255,255,0.5)');
+                // Number
+                if (isMajor && gy > 0) {
+                    gc.fillStyle = '#00ffff';
+                    gc.fillText(String(gy), 3, py + 1);
+                }
+            }
+
+            // 7. Origin marker + corner badge
+            gc.fillStyle = '#ff0000';
+            gc.fillRect(0, 0, 6, 6);
+            gc.fillStyle = '#ffffff';
+            gc.font = 'bold ' + Math.round(fontSize * 0.7) + 'px monospace';
+            gc.textAlign = 'left'; gc.textBaseline = 'top';
+            gc.fillText('0', 1, 1);
+
+            // 8. Quadrant coordinate badges — large, readable
+            var badgeFontSize = Math.max(12, Math.round(cellW * 1.8));
+            gc.font = 'bold ' + badgeFontSize + 'px monospace';
+            gc.textAlign = 'center'; gc.textBaseline = 'middle';
+            var badges = [
+                [16, 5, '16,5'],
+                [48, 5, '48,5'],
+                [16, 13, '16,13'],
+                [48, 13, '48,13'],
+                [16, 23, '16,23'],
+                [48, 23, '48,23'],
+                [16, 31, '16,31'],
+                [48, 31, '48,31']
+            ];
+            badges.forEach(function(b) {
+                var bx = Math.round(b[0] * cellW);
+                var by = Math.round(b[1] * cellH);
+                // Badge background
+                var tw2 = gc.measureText(b[2]).width + 8;
+                var th2 = badgeFontSize + 4;
+                gc.fillStyle = 'rgba(0,0,0,0.5)';
+                gc.fillRect(bx - tw2 / 2, by - th2 / 2, tw2, th2);
+                gc.fillStyle = 'rgba(255,255,255,0.4)';
+                gc.fillText(b[2], bx, by);
+            });
+
+            // 9. Grid dimensions label at bottom-right
+            gc.font = 'bold ' + Math.round(fontSize * 0.9) + 'px monospace';
+            gc.textAlign = 'right'; gc.textBaseline = 'bottom';
+            gc.fillStyle = 'rgba(0,0,0,0.6)';
+            gc.fillRect(tw - Math.round(cellW * 12), th - Math.round(cellH * 1.5), Math.round(cellW * 12), Math.round(cellH * 1.5));
+            gc.fillStyle = 'rgba(255,255,255,0.6)';
+            gc.fillText('BEFLIX 64\u00d736  PX ' + tw + '\u00d7' + th, tw - 4, th - 3);
+        }
+
+        // Render grid overlay onto a target canvas at export scale
+        function renderGridOnto(targetCtx, tw, th) {
+            _renderCrispGrid(targetCtx, tw, th);
+        }
+
+        function lockSystem(msg, progress = 0) {
+            const l = document.getElementById('lock');
+            document.getElementById('lock-msg').textContent = msg;
+            document.getElementById('lock-bar').style.width = (progress * 100) + '%';
+            l.classList.add('on');
+        }
+
+        function releaseSystem() {
+            document.getElementById('lock').classList.remove('on');
+        }
+
+        function execNav(id) {
+            const container = document.getElementById('panel-container');
+
+            // TOGGLE OFF Logic
+            if (state.activeNav === id) {
+                state.activeNav = null;
+                container.classList.add('hidden');
+                document.getElementById('nav-' + id.toLowerCase()).classList.remove('on-' + id.toLowerCase());
+                uiPop();
+                return;
+            }
+
+            // TOGGLE ON Logic
+            state.activeNav = id;
+            container.classList.remove('hidden');
+
+            ['A', 'B', 'C', 'D', 'E'].forEach(l => {
+                document.getElementById('nav-' + l.toLowerCase()).className = 'nav-btn';
+                document.getElementById('panel-' + l.toLowerCase()).classList.remove('on');
+            });
+            document.getElementById('nav-' + id.toLowerCase()).classList.add('on-' + id.toLowerCase());
+            document.getElementById('panel-' + id.toLowerCase()).classList.add('on');
+            uiPop();
+        }
+
+        function newFrame(src = null) {
+            return { src, scriptLayer: new Uint8ClampedArray(W * H * 4), handLayer: new Uint8ClampedArray(W * H * 4) };
+        }
+
+        function renderOutput() {
+            if (!state.frames.length) return;
+            const frame = state.frames[state.cur];
+            compCtx.clearRect(0, 0, W, H);
+            if (frame.src) compCtx.drawImage(frame.src, 0, 0, W, H);
+            else { compCtx.fillStyle = '#e8e8e5'; compCtx.fillRect(0, 0, W, H); }
+
+            layerCtx.clearRect(0, 0, W, H);
+            layerCtx.putImageData(new ImageData(frame.scriptLayer, W, H), 0, 0);
+            const hCanvas = document.createElement('canvas'); hCanvas.width = W; hCanvas.height = H;
+            hCanvas.getContext('2d').putImageData(new ImageData(frame.handLayer, W, H), 0, 0);
+            layerCtx.drawImage(hCanvas, 0, 0);
+
+            compCtx.drawImage(layerCanvas, 0, 0);
+            mainCtx.clearRect(0, 0, W, H);
+            mainCtx.drawImage(compCanvas, 0, 0);
+
+            document.getElementById('frame-badge').textContent = (state.cur + 1).toString().padStart(2, '0') + '/' + state.frames.length.toString().padStart(2, '0');
+            document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('on', i === state.cur));
+        }
+
+        function rebuildTimeline() {
+            const strip = document.getElementById('timeline-strip');
+            strip.innerHTML = '';
+            state.frames.forEach((f, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'thumb' + (i === state.cur ? ' on' : '');
+                thumb.onclick = () => { if (!state.playing) { state.cur = i; renderOutput(); } };
+                const c = document.createElement('canvas'); c.width = W; c.height = H;
+                const cx = c.getContext('2d');
+                if (f.src) cx.drawImage(f.src, 0, 0, W, H);
+                thumb.appendChild(c);
+                const n = document.createElement('div'); n.className = 'thumb-num'; n.textContent = i + 1;
+                thumb.appendChild(n);
+                strip.appendChild(thumb);
+            });
+        }
+
+        function injectFrame() { state.frames.push(newFrame()); state.cur = state.frames.length - 1; rebuildTimeline(); renderOutput(); }
+        function duplicateFrame() {
+            if (!state.frames.length) return;
+            const f = state.frames[state.cur];
+            state.frames.splice(state.cur + 1, 0, { src: f.src, scriptLayer: new Uint8ClampedArray(f.scriptLayer), handLayer: new Uint8ClampedArray(f.handLayer) });
+            state.cur++; rebuildTimeline(); renderOutput();
+        }
+        function deleteFrame() {
+            if (!state.frames.length) return;
+            state.frames.splice(state.cur, 1);
+            state.cur = Math.max(0, state.cur - 1);
+            if (!state.frames.length) injectFrame();
+            rebuildTimeline(); renderOutput();
+        }
+
+        function engageSequence() {
+            state.playing = !state.playing;
+            const btn = document.getElementById('play-btn');
+            if (state.playing) { btn.textContent = 'STOP'; btn.style.background = 'var(--black)'; lastPlayT = performance.now(); playRAF = requestAnimationFrame(playStep); }
+            else { btn.textContent = 'PLAY'; btn.style.background = 'var(--red)'; cancelAnimationFrame(playRAF); }
+        }
+        function playStep(t) {
+            if (!state.playing) return;
+            const d = 1000 / (BASE_FPS * state.velocity);
+            if (t - lastPlayT >= d) { state.cur = (state.cur + 1) % state.frames.length; renderOutput(); lastPlayT = t; }
+            playRAF = requestAnimationFrame(playStep);
+        }
+        function shiftVelocity() {
+            const idx = SPEEDS.indexOf(state.velocity);
+            state.velocity = SPEEDS[(idx + 1) % SPEEDS.length];
+            document.getElementById('speed-btn').textContent = state.velocity + 'X';
+        }
+
+        function loadTestSequence() {
+            state.frames = [];
+            const colors = ['#e60000', '#0022cc', '#ffb700', '#050505', '#ffffff'];
+            colors.forEach((c, i) => {
+                const can = document.createElement('canvas'); can.width = W; can.height = H;
+                const ctx = can.getContext('2d');
+                ctx.fillStyle = c; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = (c === '#ffffff' || c === '#ffb700') ? '#050505' : '#fff';
+                ctx.font = 'bold 80px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(i + 1, W / 2, H / 2);
+                state.frames.push(newFrame(can));
+            });
+            state.cur = 0; rebuildTimeline(); renderOutput(); fireToast("Cards Loaded");
+        }
+
+        async function toggleCamera() {
+            const layer = document.getElementById('cam-layer');
+            const video = document.getElementById('cam-video');
+            if (camStream) { killCamera(); return; }
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = camStream; layer.classList.add('on');
+            } catch (e) { fireToast('CAMERA BLOCKED'); }
+        }
+        function killCamera() {
+            if (camStream) camStream.getTracks().forEach(t => t.stop());
+            camStream = null; document.getElementById('cam-layer').classList.remove('on');
+        }
+        function toggleRecord() {
+            const btn = document.getElementById('cam-record-btn');
+            const video = document.getElementById('cam-video');
+            if (state.recording) {
+                state.recording = false; btn.textContent = 'RECORD'; btn.style.background = 'var(--red)';
+                killCamera(); rebuildTimeline(); renderOutput();
+            } else {
+                state.recording = true; btn.textContent = 'STOP'; btn.style.background = 'var(--black)';
+                state.frames = [];
+                const cap = () => {
+                    if (!state.recording) return;
+                    const c = document.createElement('canvas'); c.width = W; c.height = H;
+                    c.getContext('2d').drawImage(video, 0, 0, W, H);
+                    state.frames.push(newFrame(c));
+                    if (state.frames.length < 60) setTimeout(cap, 1000 / BASE_FPS);
+                    else toggleRecord();
+                }; cap();
+            }
+        }
+
+        function appendCode(snippet) {
+            const box = document.getElementById('script-box');
+            if (box.value && !box.value.endsWith('\n')) box.value += '\n';
+            box.value += snippet + '\n';
+            box.scrollTop = box.scrollHeight;
+            fireToast('CODE INJECTED');
+        }
+
+        function bindTool(t) {
+            state.tool = t;
+            document.querySelectorAll('#tool-pen, #tool-rect, #tool-erase').forEach(b => b.classList.toggle('active', b.id === 'tool-' + t));
+        }
+        function buildInks() {
+            const s = document.getElementById('swatches');
+            INKS.slice(1).forEach(i => {
+                const d = document.createElement('div'); d.className = 'swatch' + (i.id === state.color ? ' on' : '');
+                d.style.background = i.hex; d.onclick = () => { state.color = i.id; document.querySelectorAll('.swatch').forEach(x => x.classList.remove('on')); d.classList.add('on'); };
+                s.appendChild(d);
+            });
+        }
+
+        function executeMacro() {
+            if (!state.frames.length) injectFrame();
+            const code = document.getElementById('script-box').value.toUpperCase().split('\n');
+            let matrix = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
+            const history = [];
+            try {
+                code.forEach(line => {
+                    const p = line.trim().split(/\s+/);
+                    const cmd = p[0], a = p.slice(1).map(Number);
+                    if (cmd === 'CLR') matrix.forEach(r => r.fill(a[0]));
+                    if (cmd === 'PNT') { for (let y = a[1]; y < a[1] + a[3]; y++) for (let x = a[0]; x < a[0] + a[2]; x++) if (matrix[y]) matrix[y][x] = a[4]; }
+                    if (cmd === 'REC') history.push(matrix.map(r => [...r]));
+                    if (cmd === 'SHF') {
+                        for (let i = 0; i < a[2]; i++) {
+                            let n = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
+                            for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) if (matrix[y - a[1]] && matrix[y - a[1]][x - a[0]] !== undefined) n[y][x] = matrix[y - a[1]][x - a[0]];
+                            matrix = n; history.push(matrix.map(r => [...r]));
+                        }
+                    }
+                });
+                if (!history.length) history.push(matrix);
+                while (state.frames.length < history.length) state.frames.push(newFrame());
+                state.frames.forEach((f, i) => {
+                    const m = history[i % history.length];
+                    f.scriptLayer.fill(0);
+                    for (let gy = 0; gy < G_ROWS; gy++) for (let gx = 0; gx < G_COLS; gx++) {
+                        if (m[gy][gx]) {
+                            const rgba = INKS[m[gy][gx]].rgba;
+                            for (let by = 0; by < BLOCK; by++) for (let bx = 0; bx < BLOCK; bx++) {
+                                const idx = ((gy * BLOCK + by) * W + (gx * BLOCK + bx)) * 4;
+                                f.scriptLayer[idx] = rgba[0]; f.scriptLayer[idx + 1] = rgba[1]; f.scriptLayer[idx + 2] = rgba[2]; f.scriptLayer[idx + 3] = rgba[3];
+                            }
+                        }
+                    }
+                });
+                rebuildTimeline(); renderOutput(); fireToast('BUILD COMPLETE');
+            } catch (e) { fireToast('SYNTAX ERROR'); }
+        }
+
+        function ingestMedia(e) {
+            var f = e.target.files[0]; if (!f) return;
+            var url = URL.createObjectURL(f);
+            if (f.type.startsWith('image/')) {
+                var img = new Image(); img.onload = function() {
+                    var c = document.createElement('canvas'); c.width = W; c.height = H;
+                    c.getContext('2d').drawImage(img, 0, 0, W, H);
+                    var fr = newFrame(c);
+                    applyBeflixProcess(fr);
+                    state.frames.push(fr); state.cur = state.frames.length - 1;
+                    rebuildTimeline(); renderOutput();
+                    fireToast('IMAGE LOADED');
+                    URL.revokeObjectURL(url);
+                }; img.src = url;
+            } else if (f.type.startsWith('video/')) {
+                extractVideoFrames(url);
+            }
+            e.target.value = ''; // allow re-import
+        }
+
+        // ── VIDEO FRAME EXTRACTION ──
+        function extractVideoFrames(url) {
+            lockSystem('LOADING VIDEO...', 0);
+            var video = document.createElement('video');
+            video.muted = true; video.playsInline = true;
+            video.preload = 'auto';
+            video.src = url;
+
+            video.onerror = function() { releaseSystem(); fireToast('VIDEO ERROR'); URL.revokeObjectURL(url); };
+
+            video.onloadedmetadata = function() {
+                var duration = video.duration;
+                if (!isFinite(duration) || duration <= 0) { releaseSystem(); fireToast('INVALID VIDEO'); return; }
+                var maxFrames = Math.min(120, Math.ceil(duration * BASE_FPS));
+                var interval = duration / maxFrames;
+                var extracted = [];
+                var idx = 0;
+
+                function seekNext() {
+                    if (idx >= maxFrames) {
+                        // All frames extracted — apply processing
+                        state.frames = [];
+                        extracted.forEach(function(c) {
+                            var fr = newFrame(c);
+                            applyBeflixProcess(fr);
+                            state.frames.push(fr);
+                        });
+                        state.cur = 0;
+                        rebuildTimeline(); renderOutput(); releaseSystem();
+                        fireToast(extracted.length + ' FRAMES EXTRACTED');
+                        URL.revokeObjectURL(url);
+                        return;
+                    }
+                    var t = idx * interval;
+                    video.currentTime = Math.min(t, duration - 0.01);
+                }
+
+                video.onseeked = function() {
+                    var c = document.createElement('canvas'); c.width = W; c.height = H;
+                    var cx = c.getContext('2d');
+                    cx.drawImage(video, 0, 0, W, H);
+                    extracted.push(c);
+                    idx++;
+                    lockSystem('EXTRACTING ' + idx + '/' + maxFrames, idx / maxFrames);
+                    // Small delay to not block UI
+                    setTimeout(seekNext, 5);
+                };
+
+                seekNext();
+            };
+        }
+
+        // ── BEFLIX PROCESSING TECHNIQUES ──
+        // Each technique reads the source image and writes to scriptLayer
+
+        function getProcessMode() {
+            var sel = document.getElementById('process-mode');
+            return sel ? sel.value : 'posterize';
+        }
+
+        // Apply the current processing mode to a single frame
+        function applyBeflixProcess(frame) {
+            var mode = getProcessMode();
+            if (mode === 'raw') return; // leave scriptLayer empty
+            if (!frame.src) return;
+
+            // Read source pixels
+            var tmpC = document.createElement('canvas'); tmpC.width = G_COLS; tmpC.height = G_ROWS;
+            var tmpX = tmpC.getContext('2d');
+            tmpX.imageSmoothingEnabled = true;
+            tmpX.drawImage(frame.src, 0, 0, G_COLS, G_ROWS);
+            var srcData = tmpX.getImageData(0, 0, G_COLS, G_ROWS).data;
+
+            // Build BEFLIX grid
+            var grid = Array.from({ length: G_ROWS }, function() { return Array(G_COLS).fill(0); });
+
+            if (mode === 'threshold') {
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4;
+                    var lum = srcData[i] * 0.299 + srcData[i+1] * 0.587 + srcData[i+2] * 0.114;
+                    grid[gy][gx] = lum < 128 ? 1 : 5; // black or white
+                }
+            } else if (mode === 'posterize') {
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4;
+                    grid[gy][gx] = nearestInk(srcData[i], srcData[i+1], srcData[i+2]);
+                }
+            } else if (mode === 'edge') {
+                // Sobel edge detection
+                var lum = [];
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    lum[gy] = [];
+                    for (var gx = 0; gx < G_COLS; gx++) {
+                        var i = (gy * G_COLS + gx) * 4;
+                        lum[gy][gx] = srcData[i] * 0.299 + srcData[i+1] * 0.587 + srcData[i+2] * 0.114;
+                    }
+                }
+                for (var gy = 1; gy < G_ROWS - 1; gy++) for (var gx = 1; gx < G_COLS - 1; gx++) {
+                    var gxVal = -lum[gy-1][gx-1] + lum[gy-1][gx+1]
+                               -2*lum[gy][gx-1] + 2*lum[gy][gx+1]
+                               -lum[gy+1][gx-1] + lum[gy+1][gx+1];
+                    var gyVal = -lum[gy-1][gx-1] - 2*lum[gy-1][gx] - lum[gy-1][gx+1]
+                               +lum[gy+1][gx-1] + 2*lum[gy+1][gx] + lum[gy+1][gx+1];
+                    var mag = Math.sqrt(gxVal * gxVal + gyVal * gyVal);
+                    grid[gy][gx] = mag > 60 ? 5 : 0; // white edges on transparent
+                }
+            } else if (mode === 'halftone') {
+                // Ordered 4x4 Bayer dithering to BEFLIX palette
+                var bayer = [
+                    [ 0, 8, 2,10],
+                    [12, 4,14, 6],
+                    [ 3,11, 1, 9],
+                    [15, 7,13, 5]
+                ];
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4;
+                    var r = srcData[i], g = srcData[i+1], b = srcData[i+2];
+                    var threshold = (bayer[gy % 4][gx % 4] / 16 - 0.5) * 80;
+                    r = Math.max(0, Math.min(255, r + threshold));
+                    g = Math.max(0, Math.min(255, g + threshold));
+                    b = Math.max(0, Math.min(255, b + threshold));
+                    grid[gy][gx] = nearestInk(r, g, b);
+                }
+            }
+
+            // Write grid to scriptLayer
+            frame.scriptLayer.fill(0);
+            for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                if (grid[gy][gx]) {
+                    var rgba = INKS[grid[gy][gx]].rgba;
+                    for (var by = 0; by < BLOCK; by++) for (var bx = 0; bx < BLOCK; bx++) {
+                        var idx = ((gy * BLOCK + by) * W + (gx * BLOCK + bx)) * 4;
+                        frame.scriptLayer[idx] = rgba[0];
+                        frame.scriptLayer[idx+1] = rgba[1];
+                        frame.scriptLayer[idx+2] = rgba[2];
+                        frame.scriptLayer[idx+3] = rgba[3];
+                    }
+                }
+            }
+        }
+
+        // Find nearest BEFLIX ink by RGB distance
+        function nearestInk(r, g, b) {
+            var best = 1, bestD = Infinity;
+            for (var k = 1; k < INKS.length; k++) {
+                var c = INKS[k].rgba;
+                var dr = r - c[0], dg = g - c[1], db = b - c[2];
+                var d = dr*dr + dg*dg + db*db;
+                if (d < bestD) { bestD = d; best = k; }
+            }
+            return best;
+        }
+
+        // Re-process existing frames with current technique
+        function reprocessFrames() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('PROCESSING...', 0);
+            var total = state.frames.length;
+            var idx = 0;
+            function processNext() {
+                if (idx >= total) {
+                    rebuildTimeline(); renderOutput(); releaseSystem();
+                    fireToast(total + ' FRAMES PROCESSED');
+                    return;
+                }
+                applyBeflixProcess(state.frames[idx]);
+                idx++;
+                lockSystem('PROCESSING ' + idx + '/' + total, idx / total);
+                setTimeout(processNext, 2);
+            }
+            processNext();
+        }
+
+        // Render a composite frame at export scale, optionally with grid
+        function renderExportFrame(frameIdx) {
+            var f = state.frames[frameIdx]; if (!f) return null;
+            var ec = document.createElement('canvas'); ec.width = EW; ec.height = EH;
+            var ex = ec.getContext('2d');
+            // Base: composite at native res then upscale
+            var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+            var tc = tmp.getContext('2d');
+            tc.clearRect(0, 0, W, H);
+            if (f.src) tc.drawImage(f.src, 0, 0, W, H);
+            else { tc.fillStyle = '#e8e8e5'; tc.fillRect(0, 0, W, H); }
+            // Script layer
+            var sLayer = document.createElement('canvas'); sLayer.width = W; sLayer.height = H;
+            sLayer.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(f.scriptLayer), W, H), 0, 0);
+            tc.drawImage(sLayer, 0, 0);
+            // Hand layer
+            var hLayer = document.createElement('canvas'); hLayer.width = W; hLayer.height = H;
+            hLayer.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(f.handLayer), W, H), 0, 0);
+            tc.drawImage(hLayer, 0, 0);
+            // Upscale
+            ex.imageSmoothingEnabled = false;
+            ex.drawImage(tmp, 0, 0, EW, EH);
+            // Grid overlay if ON
+            if (state.gridOn) renderGridOnto(ex, EW, EH);
+            return ec;
+        }
+
+        function compileSnapshot() {
+            if (!state.frames.length) return;
+            var ec = renderExportFrame(state.cur);
+            if (!ec) return;
+            var a = document.createElement('a');
+            a.href = ec.toDataURL('image/png');
+            a.download = 'abc-frame-' + (state.cur + 1) + (state.gridOn ? '-GRID' : '') + '.png';
+            a.click();
+            fireToast('PNG EXPORTED ' + EW + '×' + EH);
+        }
+
+        function compileOutput(type) {
+            if (type === 'gif') {
+                var gif = new GIF({ workers: 2, quality: 10, workerScript: GIF_WORKER, width: EW, height: EH, background: '#e8e8e5' });
+                lockSystem('ENCODING GIF...', 0);
+                for (var i = 0; i < state.frames.length; i++) {
+                    var ec = renderExportFrame(i);
+                    gif.addFrame(ec, { delay: 1000 / (BASE_FPS * state.velocity), copy: true });
+                }
+                gif.on('finished', function(b) {
+                    var a = document.createElement('a'); a.href = URL.createObjectURL(b);
+                    a.download = 'abc-anim.gif'; a.click();
+                    releaseSystem(); fireToast('GIF EXPORTED ' + EW + '×' + EH);
+                });
+                gif.on('progress', function(p) { lockSystem('ENCODING GIF...', p); });
+                gif.render();
+            } else if (type === 'webm') {
+                try {
+                    lockSystem('EXPORTING VIDEO...', 0);
+                    var exportCanvas = document.createElement('canvas'); exportCanvas.width = EW; exportCanvas.height = EH;
+                    var exCtx = exportCanvas.getContext('2d');
+                    var stream = exportCanvas.captureStream(BASE_FPS * state.velocity);
+                    var recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                    var chunks = [];
+                    recorder.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
+                    recorder.onstop = function() {
+                        var blob = new Blob(chunks, { type: 'video/webm' });
+                        var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                        a.download = 'abc-anim.webm'; a.click();
+                        releaseSystem(); fireToast('VIDEO EXPORTED ' + EW + '×' + EH);
+                    };
+                    recorder.start();
+                    var f = 0;
+                    var renderFn = function() {
+                        if (f >= state.frames.length) { recorder.stop(); return; }
+                        var ec = renderExportFrame(f);
+                        exCtx.drawImage(ec, 0, 0);
+                        f++;
+                        lockSystem('EXPORTING VIDEO...', f / state.frames.length);
+                        setTimeout(renderFn, 1000 / (BASE_FPS * state.velocity));
+                    }; renderFn();
+                } catch (e) { releaseSystem(); fireToast('VIDEO FAILED'); }
+            }
+        }
+
+        // Core decompiler: reads pixel layers and builds BEFLIX script string
+        function decompileFrames() {
+            var fullCode = '';
+            var total = state.frames.length;
+            for (var fIdx = 0; fIdx < total; fIdx++) {
+                fullCode += 'C FRAME ' + (fIdx + 1) + '\n';
+                var f = state.frames[fIdx];
+                var grid = Array.from({ length: G_ROWS }, function() { return Array(G_COLS).fill(0); });
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    for (var gx = 0; gx < G_COLS; gx++) {
+                        var px = gx * BLOCK + 2;
+                        var py = gy * BLOCK + 2;
+                        var idx = (py * W + px) * 4;
+                        var r = f.handLayer[idx], g = f.handLayer[idx+1], b = f.handLayer[idx+2], a = f.handLayer[idx+3];
+                        if (a < 128) {
+                            r = f.scriptLayer[idx]; g = f.scriptLayer[idx+1]; b = f.scriptLayer[idx+2]; a = f.scriptLayer[idx+3];
+                        }
+                        if (a < 128) { grid[gy][gx] = 0; }
+                        else { grid[gy][gx] = nearestInk(r, g, b); }
+                    }
+                }
+                // Find dominant background color
+                var counts = [0,0,0,0,0,0];
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) counts[grid[gy][gx]]++;
+                var bgInk = 0, maxCount = -1;
+                for (var i = 0; i < 6; i++) { if (counts[i] > maxCount) { maxCount = counts[i]; bgInk = i; } }
+                fullCode += 'CLR ' + bgInk + '\n';
+                // RLE row scan
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    var gx = 0;
+                    while (gx < G_COLS) {
+                        var ink = grid[gy][gx];
+                        if (ink !== bgInk) {
+                            var startX = gx;
+                            while (gx < G_COLS && grid[gy][gx] === ink) gx++;
+                            fullCode += 'PNT ' + startX + ' ' + gy + ' ' + (gx - startX) + ' 1 ' + ink + '\n';
+                        } else { gx++; }
+                    }
+                }
+                fullCode += 'REC 1\n';
+            }
+            return fullCode;
+        }
+
+        // View code in the C. SCRIPT EDITOR (no download)
+        function viewCode() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('GENERATING CODE...', 0);
+            setTimeout(function() {
+                var code = decompileFrames();
+                document.getElementById('script-box').value = code;
+                execNav('C'); // switch to code panel
+                releaseSystem();
+                fireToast(state.frames.length + ' FRAMES → CODE');
+            }, 50);
+        }
+
+        // Download code as .txt AND load into editor
+        function compileCode() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('GENERATING CODE...', 0);
+            setTimeout(function() {
+                var code = decompileFrames();
+                document.getElementById('script-box').value = code;
+                // Download file
+                var blob = new Blob([code], { type: 'text/plain' });
+                var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = 'abc-macro.txt'; a.click();
+                execNav('C'); // switch to code panel
+                releaseSystem();
+                fireToast('CODE EXPORTED + LOADED');
+            }, 50);
+        }
+
+        // Load a script file into the editor
+        function loadScriptFile(e) {
+            var file = e.target.files[0]; if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('script-box').value = ev.target.result;
+                execNav('C');
+                fireToast('SCRIPT LOADED');
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        function mapPtr(e) {
+            const r = mainCanvas.getBoundingClientRect();
+            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - r.left;
+            const y = (e.clientY || (e.touches && e.touches[0].clientY)) - r.top;
+            return [Math.floor(x / r.width * W), Math.floor(y / r.height * H)];
+        }
+
+        mainCanvas.onmousedown = mainCanvas.ontouchstart = (e) => {
+            if (state.activeNav !== 'D') return;
+            state.dragging = true; state.p0 = mapPtr(e);
+        };
+        window.onmousemove = window.ontouchmove = (e) => {
+            if (!state.dragging) return;
+            const p1 = mapPtr(e);
+            const f = state.frames[state.cur];
+            const rgba = state.tool === 'erase' ? [0, 0, 0, 0] : INKS[state.color].rgba;
+            const dx = p1[0] - state.p0[0], dy = p1[1] - state.p0[1];
+            const steps = Math.max(Math.abs(dx), Math.abs(dy), 1);
+            for (let i = 0; i <= steps; i++) {
+                const x = Math.round(state.p0[0] + dx * i / steps), y = Math.round(state.p0[1] + dy * i / steps);
+                for (let sy = -Math.floor(state.size / 2); sy < Math.ceil(state.size / 2); sy++) for (let sx = -Math.floor(state.size / 2); sx < Math.ceil(state.size / 2); sx++) {
+                    const idx = (Math.floor(y + sy) * W + Math.floor(x + sx)) * 4;
+                    if (idx >= 0 && idx < f.handLayer.length) { f.handLayer[idx] = rgba[0]; f.handLayer[idx + 1] = rgba[1]; f.handLayer[idx + 2] = rgba[2]; f.handLayer[idx + 3] = rgba[3]; }
+                }
+            }
+            state.p0 = p1; renderOutput();
+        };
+        window.onmouseup = window.ontouchend = () => { if (state.dragging) { state.dragging = false; rebuildTimeline(); } };
+
+        window.onload = () => { if (!state.frames.length) injectFrame(); buildInks(); renderOutput(); };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ICARO-SPIRAL · THE SHIELD / FILM FORGE</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23111' stroke='%23888' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23555' stroke-width='1'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23555' stroke-width='1'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23e60000'/%3E%3Cpath d='M32 2 A30 30 0 0 1 62 32' fill='none' stroke='%23c8a800' stroke-width='2'/%3E%3C/svg%3E">
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --black: #000;
+            --white: #e8e8e8;
+            --ring-cosmos: #1a1a3a;
+            --ring-cities: #2a1a1a;
+            --ring-agri: #1a2a1a;
+            --ring-pastoral: #2a2a1a;
+            --ring-oceanus: #0a1a2a;
+            --act-a: #4488ff;
+            --act-b: #c8a800;
+            --act-c: #e60000;
+            --act-d: #00cc88;
+            --bw: 2px;
+            --ff: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--white); font-family: var(--ff); }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            width: 100%;
+        }
+
+        /* ── TOP BAR ── */
+        #top-bar {
+            flex: 0 0 40px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 0 8px;
+            background: #111;
+            border-bottom: 2px solid #333;
+            z-index: 100;
+        }
+        .top-btn {
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 900;
+            font-family: var(--ff);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 2px solid #333;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .top-btn.active { color: var(--white); border-color: var(--act-b); background: rgba(200,168,0,0.1); }
+        .top-btn:hover { color: var(--white); }
+        #top-bar .title {
+            font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #555;
+            margin-left: auto;
+        }
+
+        /* ── MAIN AREA ── */
+        #main-area {
+            flex: 1 1 0%;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ── VIEW CANVASES ── */
+        .view-panel {
+            position: absolute; inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+        }
+        .view-panel.active { display: flex; }
+
+        #cosmogram-canvas, #spiral-canvas, #edit-canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* ── TIMELINE / EDL ── */
+        #timeline-zone {
+            flex: 0 0 80px;
+            display: flex;
+            flex-direction: column;
+            border-top: 2px solid #333;
+            background: #0d0d0d;
+        }
+        #tl-controls {
+            flex: 0 0 28px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 8px;
+            border-bottom: 1px solid #222;
+        }
+        .tl-btn {
+            padding: 3px 8px;
+            font-size: 9px;
+            font-weight: 900;
+            border: 1px solid #333;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-family: var(--ff);
+            text-transform: uppercase;
+        }
+        .tl-btn:hover { color: var(--white); border-color: #666; }
+        .tl-btn.active { color: var(--act-b); border-color: var(--act-b); }
+        #tl-info {
+            margin-left: auto;
+            font-size: 9px;
+            font-weight: 900;
+            color: #555;
+            letter-spacing: 1px;
+        }
+        #tl-strip {
+            flex: 1;
+            display: flex;
+            gap: 3px;
+            padding: 4px 8px;
+            overflow-x: auto;
+            align-items: center;
+            scrollbar-width: none;
+        }
+        #tl-strip::-webkit-scrollbar { display: none; }
+        .tl-frame {
+            flex: 0 0 56px;
+            height: 40px;
+            border: 1px solid #333;
+            cursor: pointer;
+            background: #111;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.1s;
+        }
+        .tl-frame.on { border-color: var(--act-b); border-width: 2px; }
+        .tl-frame.selected { box-shadow: inset 0 0 0 2px rgba(200,168,0,0.3); }
+        .tl-frame canvas { width: 100%; height: 100%; }
+        .tl-frame .tl-num {
+            position: absolute; bottom: 1px; right: 2px;
+            font-size: 7px; font-weight: 900; color: #555;
+        }
+        .tl-frame .ring-tag {
+            position: absolute; top: 1px; left: 2px;
+            font-size: 6px; font-weight: 900; padding: 0 2px;
+            border-radius: 1px;
+        }
+
+        /* ── TAB BAR ── */
+        #tab-bar {
+            flex: 0 0 50px;
+            display: flex;
+            background: #111;
+            border-top: 2px solid #333;
+        }
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: #555;
+            font-size: 8px;
+            font-weight: 900;
+            font-family: var(--ff);
+            cursor: pointer;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: color 0.1s;
+            border-right: 1px solid #222;
+        }
+        .tab-btn:last-child { border-right: none; }
+        .tab-btn .tab-letter {
+            font-size: 16px;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+        .tab-btn.on { color: var(--white); }
+        .tab-btn.on .tab-letter { color: var(--act-b); }
+
+        /* ── SHEETS ── */
+        .sheet {
+            position: fixed;
+            left: 0; bottom: 50px;
+            width: 100%;
+            max-height: 60vh;
+            background: #111;
+            border-top: 2px solid #444;
+            z-index: 200;
+            display: none;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .sheet.on { display: block; }
+        .sheet-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px;
+        }
+        .sheet-title { font-size: 11px; font-weight: 900; color: var(--act-b); letter-spacing: 2px; }
+        .sheet-close {
+            width: 28px; height: 28px; border: 1px solid #444; background: none;
+            color: var(--white); font-size: 16px; cursor: pointer; font-weight: 900;
+        }
+        .sh-btn {
+            width: 100%; padding: 8px; border: 2px solid #333; background: transparent;
+            color: var(--white); font-size: 10px; font-weight: 900; cursor: pointer;
+            font-family: var(--ff); text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .sh-btn:hover { border-color: #666; }
+        .sh-row { display: flex; gap: 4px; }
+        .sh-row .sh-btn { flex: 1; }
+        .sh-label { font-size: 9px; font-weight: 900; color: #555; letter-spacing: 1px; margin: 8px 0 4px; }
+        details { margin-top: 4px; }
+        details summary {
+            min-height: 36px; display: flex; align-items: center;
+            font-size: 11px; font-weight: 900; color: #888; cursor: pointer;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        /* ── TOAST ── */
+        #toast {
+            position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+            padding: 6px 16px; background: rgba(0,0,0,0.9); color: var(--act-b);
+            font-size: 10px; font-weight: 900; letter-spacing: 2px;
+            border: 1px solid var(--act-b); pointer-events: none;
+            opacity: 0; transition: opacity 0.3s; z-index: 999;
+            font-family: var(--ff);
+        }
+        #toast.on { opacity: 1; }
+
+        /* ── LOCK SCREEN ── */
+        #lock-screen {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.95);
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px;
+        }
+        #lock-screen.on { display: flex; }
+        #lock-msg { font-size: 11px; font-weight: 900; color: #888; letter-spacing: 2px; }
+        #lock-count { font-size: 28px; font-weight: 900; color: var(--act-c); }
+
+        /* ── RING COLORS ── */
+        .ring-cosmos { background: var(--ring-cosmos); color: #8888ff; }
+        .ring-cities { background: var(--ring-cities); color: #ff8888; }
+        .ring-agri { background: var(--ring-agri); color: #88ff88; }
+        .ring-pastoral { background: var(--ring-pastoral); color: #ffff88; }
+        .ring-oceanus { background: var(--ring-oceanus); color: #88ccff; }
+
+        /* ── DESKTOP ── */
+        @media (min-width: 768px) {
+            #app { flex-direction: row; }
+            #tab-bar {
+                flex: 0 0 70px; flex-direction: column;
+                border-top: none; border-right: 2px solid #333; order: -1;
+            }
+            .tab-btn { border-right: none; border-bottom: 1px solid #222; }
+            .tab-btn:last-child { border-bottom: none; }
+            .sheet {
+                left: 70px; bottom: 0; width: 340px;
+                max-height: 100vh; border-top: none; border-right: 2px solid #444;
+            }
+            #main-col {
+                flex: 1 1 0%; display: flex; flex-direction: column; min-width: 0;
+            }
+            #timeline-zone { flex: 0 0 80px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- ── TOP BAR: View Switcher ── -->
+    <div id="top-bar">
+        <button class="top-btn active" id="v-cosmo" onclick="switchView('cosmogram')">COSMOGRAM</button>
+        <button class="top-btn" id="v-spiral" onclick="switchView('spiral')">SPIRAL</button>
+        <button class="top-btn" id="v-edit" onclick="switchView('edit')">CANVAS</button>
+        <span style="flex:1"></span>
+        <button class="top-btn" onclick="engageSequence()" id="btn-play">▶ PROJECT</button>
+        <button class="top-btn" onclick="stepFrame(-1)">◀</button>
+        <button class="top-btn" onclick="stepFrame(1)">▶</button>
+        <span class="title">THE SHIELD / FILM FORGE</span>
+    </div>
+
+    <div id="main-col" style="flex:1;display:flex;flex-direction:column;min-width:0;">
+
+        <!-- ── VIEWS ── -->
+        <div id="main-area">
+            <div class="view-panel active" id="view-cosmogram">
+                <canvas id="cosmogram-canvas" width="800" height="800"></canvas>
+            </div>
+            <div class="view-panel" id="view-spiral">
+                <canvas id="spiral-canvas" width="800" height="800"></canvas>
+            </div>
+            <div class="view-panel" id="view-edit">
+                <canvas id="edit-canvas" width="640" height="480"></canvas>
+            </div>
+        </div>
+
+        <!-- ── TIMELINE / EDL ── -->
+        <div id="timeline-zone">
+            <div id="tl-controls">
+                <button class="tl-btn" onclick="unspool()">UNSPOOL</button>
+                <button class="tl-btn" onclick="rewrap()">REWRAP</button>
+                <button class="tl-btn" onclick="ripSector()">RIP</button>
+                <select id="rate-logic" style="height:22px;font-size:9px;font-weight:900;background:#111;color:#888;border:1px solid #333;font-family:var(--ff);">
+                    <option value="editorial">EDITORIAL</option>
+                    <option value="ritual">RITUAL</option>
+                    <option value="event">EVENT</option>
+                    <option value="poetic">POETIC</option>
+                    <option value="cosmic">COSMIC</option>
+                </select>
+                <span id="tl-info">0 FRAMES · RING 0</span>
+            </div>
+            <div id="tl-strip"></div>
+        </div>
+
+    </div>
+
+    <!-- ── TAB BAR ── -->
+    <nav id="tab-bar">
+        <button class="tab-btn" id="tab-a" onclick="openSheet('A')"><span class="tab-letter">A</span>SCAN</button>
+        <button class="tab-btn" id="tab-b" onclick="openSheet('B')"><span class="tab-letter">B</span>FORGE</button>
+        <button class="tab-btn" id="tab-c" onclick="openSheet('C')"><span class="tab-letter">C</span>DRAW</button>
+        <button class="tab-btn" id="tab-d" onclick="openSheet('D')"><span class="tab-letter">D</span>PROJECT</button>
+    </nav>
+
+    <!-- ── SHEETS ── -->
+
+    <!-- A · SCAN -->
+    <div class="sheet" id="sheet-a">
+        <div class="sheet-header">
+            <span class="sheet-title">A · SCAN THE SHIELD</span>
+            <button class="sheet-close" onclick="closeSheets()">×</button>
+        </div>
+        <button class="sh-btn" onclick="document.getElementById('file-input').click()">LOAD MEDIA INTO RINGS</button>
+        <div class="sh-row">
+            <button class="sh-btn" onclick="loadShieldScenes()">HOMER'S SCENES</button>
+            <button class="sh-btn" onclick="addBlankToRing()">+ BLANK FRAME</button>
+        </div>
+        <div class="sh-label">ASSIGN TO RING</div>
+        <select id="ring-select" style="width:100%;height:36px;font-size:12px;font-weight:900;background:#111;color:var(--white);border:2px solid #333;font-family:var(--ff);padding:0 8px;">
+            <option value="0">COSMOS — Earth, Sky, Stars</option>
+            <option value="1">CITIES — Peace, War</option>
+            <option value="2">AGRICULTURE — Plough, Harvest, Vineyard</option>
+            <option value="3">PASTORAL — Cattle, Sheepfold</option>
+            <option value="4">OCEANUS — The Enclosing Horizon</option>
+        </select>
+        <div class="sh-label">SCAN ARM</div>
+        <div class="sh-row">
+            <button class="sh-btn" onclick="rotateScan(-1)">← SCAN</button>
+            <button class="sh-btn" onclick="rotateScan(1)">SCAN →</button>
+        </div>
+        <button class="sh-btn" style="margin-top:4px;" onclick="autoScan()">AUTO-SCAN (FULL ROTATION)</button>
+    </div>
+
+    <!-- B · FORGE -->
+    <div class="sheet" id="sheet-b">
+        <div class="sheet-header">
+            <span class="sheet-title">B · THE FORGE</span>
+            <button class="sheet-close" onclick="closeSheets()">×</button>
+        </div>
+        <details>
+            <summary>TEXT OVERLAY</summary>
+            <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px;">
+                <input id="b-text" type="text" placeholder="INSCRIPTION..." style="width:100%;height:36px;border:2px solid #333;background:#111;color:var(--white);font-size:12px;font-weight:900;padding:0 8px;font-family:var(--ff);">
+                <div class="sh-row">
+                    <input id="b-text-x" type="number" value="10" min="0" max="128" style="width:50%;height:36px;border:2px solid #333;background:#111;color:var(--white);font-size:12px;font-weight:900;padding:0 8px;">
+                    <input id="b-text-y" type="number" value="48" min="0" max="96" style="width:50%;height:36px;border:2px solid #333;background:#111;color:var(--white);font-size:12px;font-weight:900;padding:0 8px;">
+                </div>
+                <button class="sh-btn" onclick="stampText()">ENGRAVE TEXT</button>
+            </div>
+        </details>
+        <details>
+            <summary>BEFLIX SCRIPT</summary>
+            <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px;">
+                <textarea id="b-script" rows="6" placeholder="; BEFLIX-128 commands..." style="width:100%;font-size:10px;font-family:monospace;background:#111;color:#0f0;border:2px solid #333;padding:6px;resize:vertical;"></textarea>
+                <button class="sh-btn" onclick="executeMacro()">EXECUTE SCRIPT</button>
+            </div>
+        </details>
+    </div>
+
+    <!-- C · DRAW -->
+    <div class="sheet" id="sheet-c">
+        <div class="sheet-header">
+            <span class="sheet-title">C · MARK THE METAL</span>
+            <button class="sheet-close" onclick="closeSheets()">×</button>
+        </div>
+        <div class="sh-label">INK LEVEL</div>
+        <div id="ink-bar" style="display:flex;gap:2px;margin-bottom:8px;"></div>
+        <div class="sh-label">TOOL</div>
+        <div class="sh-row">
+            <button class="sh-btn" id="tool-pen" onclick="setTool('pen')">PEN</button>
+            <button class="sh-btn" id="tool-box" onclick="setTool('box')">BOX</button>
+            <button class="sh-btn" id="tool-erase" onclick="setTool('erase')">ERASE</button>
+        </div>
+        <div class="sh-label">BRUSH SIZE</div>
+        <input type="range" id="brush-size" min="1" max="12" value="3" style="width:100%;">
+    </div>
+
+    <!-- D · PROJECT -->
+    <div class="sheet" id="sheet-d">
+        <div class="sheet-header">
+            <span class="sheet-title">D · PROJECT THE SHIELD</span>
+            <button class="sheet-close" onclick="closeSheets()">×</button>
+        </div>
+        <div class="sh-label">FRAME-RATE LOGIC</div>
+        <div style="font-size:9px;color:#666;margin-bottom:8px;">Controls how the shield's spatial weight converts to temporal duration.</div>
+        <select id="d-rate" onchange="setRateLogic(this.value)" style="width:100%;height:36px;font-size:12px;font-weight:900;background:#111;color:var(--white);border:2px solid #333;font-family:var(--ff);padding:0 8px;">
+            <option value="editorial">EDITORIAL — Standard rate</option>
+            <option value="ritual">RITUAL — Symbolic weight</option>
+            <option value="event">EVENT — Action density</option>
+            <option value="poetic">POETIC — Hexameter cadence</option>
+            <option value="cosmic">COSMIC — Ring position</option>
+        </select>
+        <div class="sh-label">EXPORT</div>
+        <div class="sh-row">
+            <button class="sh-btn" onclick="exportPNG()">PNG</button>
+            <button class="sh-btn" onclick="compileOutput('webm')">WEBM</button>
+            <button class="sh-btn" onclick="compileOutput('mp4')">MP4</button>
+        </div>
+        <details>
+            <summary>EDL LOG</summary>
+            <textarea id="edl-view" readonly style="width:100%;height:120px;font-size:9px;font-family:monospace;background:#111;color:#0f0;border:1px solid #333;resize:vertical;padding:6px;"></textarea>
+            <button class="sh-btn" onclick="downloadEDL()">DOWNLOAD EDL</button>
+        </details>
+        <details>
+            <summary>TIMELINE OPS</summary>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="deleteFrame()">DELETE</button>
+                <button class="sh-btn" onclick="duplicateFrame()">DUPLICATE</button>
+            </div>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="reverseAll()">REVERSE</button>
+                <button class="sh-btn" onclick="wipeInk()">WIPE INK</button>
+            </div>
+        </details>
+    </div>
+
+</div>
+
+<input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="ingestMedia(event)">
+<div id="toast"></div>
+<div id="lock-screen">
+    <div id="lock-msg">FORGING</div>
+    <div id="lock-count">0</div>
+</div>
+
+<script>
+    // ═══════════════════════════════════════════
+    // ██ ICARO-SPIRAL · SHIELD / FILM FORGE
+    // ═══════════════════════════════════════════
+
+    // ── CONSTANTS ──
+    const W = 640, H = 480;
+    const G_COLS = 128, G_ROWS = 96, B_SZ = W / G_COLS; // 5px
+    const BASE_FPS = 12;
+
+    // ── SHIELD DATA MODEL ──
+    const RINGS = [
+        { name: 'COSMOS',    color: '#3344aa', scenes: ['Earth & Sky', 'Sun & Moon', 'Stars & Constellations'] },
+        { name: 'CITIES',    color: '#aa3333', scenes: ['City at Peace', 'City at War'] },
+        { name: 'AGRICULTURE', color: '#33aa33', scenes: ['Ploughland', 'Harvest', 'Vineyard'] },
+        { name: 'PASTORAL',  color: '#aaaa33', scenes: ['Cattle Raid', 'Sheepfold', 'Dance'] },
+        { name: 'OCEANUS',   color: '#3388aa', scenes: ['The Enclosing Ocean'] },
+    ];
+
+    // ── STATE ──
+    const state = {
+        frames: [],            // { src, scriptLayer, handLayer, ring, scene, weight }
+        cur: 0,
+        playing: false,
+        scanAngle: 0,          // current scan arm position in degrees
+        activeRing: 0,
+        activeTool: 'pen',
+        inkLevel: 7,
+        brushSize: 3,
+        rateLogic: 'editorial',
+    };
+
+    // ── EDL LOG ──
+    let _edlLog = [];
+
+    // ── VIEW MANAGEMENT ──
+    let currentView = 'cosmogram';
+
+    function switchView(v) {
+        currentView = v;
+        document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.top-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('view-' + v).classList.add('active');
+        document.getElementById('v-' + v.substring(0, v === 'cosmogram' ? 5 : v === 'spiral' ? 6 : 4)).classList.add('active');
+        render();
+    }
+
+    // ── SHEETS ──
+    function openSheet(letter) {
+        const id = 'sheet-' + letter.toLowerCase();
+        document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+        const sh = document.getElementById(id);
+        if (sh) sh.classList.add('on');
+        const tb = document.getElementById('tab-' + letter.toLowerCase());
+        if (tb) tb.classList.add('on');
+    }
+    function closeSheets() {
+        document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+    }
+
+    // ── TOAST ──
+    let _toastTimer;
+    function fireToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('on');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+    }
+
+    // ── LOCK ──
+    function lockSystem(msg) {
+        const ls = document.getElementById('lock-screen');
+        document.getElementById('lock-msg').textContent = msg;
+        document.getElementById('lock-count').textContent = '0';
+        ls.classList.add('on');
+    }
+    function updateLockCount(n) { document.getElementById('lock-count').textContent = n; }
+    function releaseSystem() { document.getElementById('lock-screen').classList.remove('on'); }
+
+    // ── FRAME HELPERS ──
+    function getBlankMatrix() { return new Uint8ClampedArray(W * H * 4); }
+
+    function makeFrame(ring, scene) {
+        return {
+            src: null,
+            scriptLayer: getBlankMatrix(),
+            handLayer: getBlankMatrix(),
+            ring: ring || 0,
+            scene: scene || '',
+            weight: 1.0,
+            clipBoundary: false,
+        };
+    }
+
+    function addBlankToRing() {
+        const r = parseInt(document.getElementById('ring-select').value);
+        const f = makeFrame(r, RINGS[r].scenes[0] || '');
+        state.frames.push(f);
+        state.cur = state.frames.length - 1;
+        rebuildTimeline();
+        render();
+        fireToast('BLANK → ' + RINGS[r].name);
+    }
+
+    // ── INGEST MEDIA ──
+    async function ingestMedia(e) {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        e.target.value = '';
+        const ring = parseInt(document.getElementById('ring-select').value);
+        lockSystem('SCANNING MEDIA');
+        let count = 0;
+        for (const file of files) {
+            if (file.type.startsWith('video/')) {
+                await ripVideoFrames(file, ring);
+            } else if (file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.src = url;
+                await new Promise((r, j) => { img.onload = r; img.onerror = j; setTimeout(j, 5000); });
+                const f = makeFrame(ring, RINGS[ring].scenes[0] || '');
+                f.src = fitSource(img, img.naturalWidth, img.naturalHeight);
+                state.frames.push(f);
+                URL.revokeObjectURL(url);
+            }
+            count++;
+            updateLockCount(count);
+        }
+        state.cur = Math.max(0, state.frames.length - 1);
+        releaseSystem();
+        rebuildTimeline();
+        render();
+        fireToast(count + ' INTO ' + RINGS[ring].name);
+    }
+
+    async function ripVideoFrames(blob, ring) {
+        const url = URL.createObjectURL(blob);
+        const vid = document.createElement('video');
+        vid.muted = true; vid.playsInline = true; vid.preload = 'auto'; vid.src = url;
+        try {
+            await new Promise((res, rej) => {
+                vid.onloadedmetadata = res;
+                vid.onerror = () => rej('bad');
+                setTimeout(() => rej('timeout'), 8000);
+            });
+        } catch(e) { URL.revokeObjectURL(url); return; }
+
+        const dur = vid.duration;
+        if (!isFinite(dur) || dur <= 0) { URL.revokeObjectURL(url); return; }
+
+        const maxF = Math.min(12 * BASE_FPS, Math.ceil(dur * BASE_FPS));
+        const interval = 1 / BASE_FPS;
+        const frames = [];
+        let lastCap = -Infinity;
+
+        lockSystem('RIPPING FRAMES');
+        await new Promise(res => {
+            function onRAF() {
+                if (frames.length >= maxF || vid.ended) { res(); return; }
+                if (vid.videoWidth && vid.currentTime - lastCap >= interval - 0.001) {
+                    lastCap = vid.currentTime;
+                    frames.push(fitSource(vid, vid.videoWidth, vid.videoHeight));
+                    updateLockCount(frames.length);
+                }
+                requestAnimationFrame(onRAF);
+            }
+            requestAnimationFrame(onRAF);
+            vid.play().catch(() => {});
+            setTimeout(res, (dur + 3) * 1000);
+        });
+        vid.pause();
+        URL.revokeObjectURL(url);
+
+        const sceneNames = RINGS[ring].scenes;
+        frames.forEach((src, i) => {
+            const f = makeFrame(ring, sceneNames[i % sceneNames.length] || '');
+            f.src = src;
+            if (i === 0 && state.frames.length > 0) f.clipBoundary = true;
+            state.frames.push(f);
+        });
+    }
+
+    function fitSource(src, sw, sh) {
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const cx = c.getContext('2d');
+        cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H);
+        const a = sw / sh;
+        let dw = W, dh = H, dx = 0, dy = 0;
+        if (a > W / H) { dh = W / a; dy = (H - dh) / 2; }
+        else { dw = H * a; dx = (W - dw) / 2; }
+        cx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh);
+        return c;
+    }
+
+    // ══════════════════════════════════════
+    // ██ COSMOGRAM RENDERER
+    // ══════════════════════════════════════
+
+    function renderCosmogram() {
+        const can = document.getElementById('cosmogram-canvas');
+        const ctx = can.getContext('2d');
+        const sz = Math.min(can.parentElement.clientWidth, can.parentElement.clientHeight, 800);
+        can.width = sz; can.height = sz;
+        const cx = sz / 2, cy = sz / 2;
+        const maxR = sz * 0.46;
+
+        // Background
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(0, 0, sz, sz);
+
+        // Draw rings from outside in
+        const ringWidths = [0.22, 0.20, 0.20, 0.20, 0.18]; // proportional
+        let outerR = maxR;
+
+        for (let r = RINGS.length - 1; r >= 0; r--) {
+            const ring = RINGS[r];
+            const w = maxR * ringWidths[r];
+            const innerR = Math.max(0, outerR - w);
+
+            // Ring band
+            ctx.beginPath();
+            ctx.arc(cx, cy, Math.max(0, outerR), 0, Math.PI * 2);
+            ctx.arc(cx, cy, Math.max(0, innerR), 0, Math.PI * 2, true);
+            ctx.fillStyle = ring.color + '44';
+            ctx.fill();
+
+            // Ring outline
+            ctx.beginPath();
+            ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+            ctx.strokeStyle = ring.color + '88';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Ring label
+            const labelR = (outerR + innerR) / 2;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = ring.color;
+            ctx.font = '900 ' + Math.max(8, w * 0.15) + 'px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ring.name, 0, -labelR);
+            ctx.restore();
+
+            // Draw frames in this ring as arc segments
+            const ringFrames = state.frames.filter(f => f.ring === r);
+            if (ringFrames.length > 0) {
+                const arcPer = (Math.PI * 2) / ringFrames.length;
+                ringFrames.forEach((f, i) => {
+                    const startAngle = i * arcPer - Math.PI / 2;
+                    const endAngle = startAngle + arcPer * 0.9;
+
+                    // Fill segment
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, outerR - 2, startAngle, endAngle);
+                    ctx.arc(cx, cy, innerR + 2, endAngle, startAngle, true);
+                    ctx.closePath();
+
+                    // Color based on whether it's the current frame
+                    const globalIdx = state.frames.indexOf(f);
+                    if (globalIdx === state.cur) {
+                        ctx.fillStyle = ring.color;
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    } else {
+                        ctx.fillStyle = ring.color + '66';
+                    }
+                    ctx.fill();
+
+                    // If frame has source, draw tiny thumbnail
+                    if (f.src) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, outerR - 3, startAngle + 0.02, endAngle - 0.02);
+                        ctx.arc(cx, cy, innerR + 3, endAngle - 0.02, startAngle + 0.02, true);
+                        ctx.closePath();
+                        ctx.clip();
+                        const midA = (startAngle + endAngle) / 2;
+                        const midR = (outerR + innerR) / 2;
+                        const tx = cx + Math.cos(midA) * midR;
+                        const ty = cy + Math.sin(midA) * midR;
+                        const thumbSz = w * 0.6;
+                        ctx.globalAlpha = 0.5;
+                        ctx.drawImage(f.src, tx - thumbSz / 2, ty - thumbSz / 2, thumbSz, thumbSz);
+                        ctx.globalAlpha = 1;
+                        ctx.restore();
+                    }
+                });
+            }
+
+            outerR = innerR;
+        }
+
+        // Center aperture — THE PROJECTOR SCREEN
+        const centerR = Math.max(12, outerR);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+        ctx.clip();
+
+        // Draw current frame in center
+        const f = state.frames[state.cur];
+        if (f && f.src) {
+            // Fill with frame source, letterboxed into circle
+            const aspect = f.src.width / f.src.height;
+            let dw, dh;
+            if (aspect > 1) {
+                dw = centerR * 2;
+                dh = dw / aspect;
+            } else {
+                dh = centerR * 2;
+                dw = dh * aspect;
+            }
+            ctx.drawImage(f.src, cx - dw / 2, cy - dh / 2, dw, dh);
+            // Subtle vignette overlay
+            const grad = ctx.createRadialGradient(cx, cy, centerR * 0.5, cx, cy, centerR);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+        } else {
+            // No source — show red aperture with symbol
+            ctx.fillStyle = '#1a0000';
+            ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+            ctx.fillStyle = '#e60000';
+            ctx.font = '900 ' + Math.max(8, centerR * 0.5) + 'px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⊙', cx, cy);
+        }
+        ctx.restore();
+
+        // Center ring border
+        ctx.beginPath();
+        ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+        ctx.strokeStyle = state.playing ? '#e60000' : '#555';
+        ctx.lineWidth = state.playing ? 3 : 2;
+        ctx.stroke();
+
+        // Frame counter in center bottom
+        if (state.frames.length > 0) {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(cx - 30, cy + centerR - 14, 60, 14);
+            ctx.fillStyle = state.playing ? '#e60000' : '#888';
+            ctx.font = '900 9px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText((state.cur + 1) + '/' + state.frames.length, cx, cy + centerR);
+        }
+
+        // Scan arm
+        const armAngle = (state.scanAngle * Math.PI / 180) - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(armAngle) * maxR, cy + Math.sin(armAngle) * maxR);
+        ctx.strokeStyle = 'rgba(200,168,0,0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Arm tip
+        const tipX = cx + Math.cos(armAngle) * maxR;
+        const tipY = cy + Math.sin(armAngle) * maxR;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = var_act_b();
+        ctx.fill();
+
+        // Oceanus border
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+        ctx.strokeStyle = '#3388aa';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    function var_act_b() { return '#c8a800'; }
+
+    // ══════════════════════════════════════
+    // ██ SPIRAL REEL RENDERER
+    // ══════════════════════════════════════
+
+    function renderSpiral() {
+        const can = document.getElementById('spiral-canvas');
+        const ctx = can.getContext('2d');
+        const sz = Math.min(can.parentElement.clientWidth, can.parentElement.clientHeight, 800);
+        can.width = sz; can.height = sz;
+        const cx = sz / 2, cy = sz / 2;
+
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(0, 0, sz, sz);
+
+        if (!state.frames.length) {
+            ctx.fillStyle = '#333';
+            ctx.font = '900 14px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.fillText('NO FRAMES — SCAN THE SHIELD', cx, cy);
+            return;
+        }
+
+        // Draw frames as a spiral from center outward
+        const n = state.frames.length;
+        const maxR = sz * 0.44;
+        const minR = sz * 0.06;
+        const totalTurns = Math.max(2, Math.ceil(n / 12));
+        const frameW = 16;
+        const frameH = 12;
+
+        for (let i = 0; i < n; i++) {
+            const t = i / n;
+            const angle = t * totalTurns * Math.PI * 2 - Math.PI / 2;
+            const r = minR + t * (maxR - minR);
+
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+
+            const f = state.frames[i];
+            const ring = RINGS[f.ring] || RINGS[0];
+
+            // Frame cell
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle + Math.PI / 2);
+
+            // Background
+            ctx.fillStyle = i === state.cur ? ring.color : (ring.color + '44');
+            ctx.fillRect(-frameW / 2, -frameH / 2, frameW, frameH);
+
+            // Border
+            ctx.strokeStyle = i === state.cur ? '#fff' : (ring.color + '88');
+            ctx.lineWidth = i === state.cur ? 2 : 0.5;
+            ctx.strokeRect(-frameW / 2, -frameH / 2, frameW, frameH);
+
+            // Sprocket holes (film aesthetic)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-frameW / 2 - 3, -3, 3, 2);
+            ctx.fillRect(-frameW / 2 - 3, 1, 3, 2);
+            ctx.fillRect(frameW / 2, -3, 3, 2);
+            ctx.fillRect(frameW / 2, 1, 3, 2);
+
+            // Source thumbnail
+            if (f.src) {
+                ctx.globalAlpha = 0.6;
+                ctx.drawImage(f.src, -frameW / 2 + 1, -frameH / 2 + 1, frameW - 2, frameH - 2);
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
+        }
+
+        // Center spindle
+        ctx.beginPath();
+        ctx.arc(cx, cy, minR * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = '#222';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = var_act_b();
+        ctx.font = '900 10px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(n, cx, cy);
+    }
+
+    // ══════════════════════════════════════
+    // ██ EDIT CANVAS (DOT MATRIX)
+    // ══════════════════════════════════════
+
+    const DOT_STAMPS = {};
+    function initDotStamps() {
+        for (let v = 1; v <= 7; v++) {
+            const r = (v / 7) * (B_SZ * 0.45);
+            const c = document.createElement('canvas');
+            c.width = Math.ceil(r * 2 + 2); c.height = c.width;
+            const cx = c.getContext('2d');
+            cx.beginPath();
+            cx.arc(c.width / 2, c.height / 2, r, 0, Math.PI * 2);
+            cx.fillStyle = '#000';
+            cx.fill();
+            DOT_STAMPS[v] = { canvas: c, radius: r };
+        }
+    }
+    initDotStamps();
+
+    function alphaToLevel(a) {
+        if (a < 16) return 0;
+        return Math.min(7, Math.max(1, Math.round((a / 255) * 7)));
+    }
+
+    function renderEditCanvas() {
+        if (!state.frames.length) return;
+        const f = state.frames[state.cur];
+        const can = document.getElementById('edit-canvas');
+        renderDotFrame(f, can);
+    }
+
+    function renderDotFrame(f, targetCanvas) {
+        const tc = targetCanvas.getContext('2d');
+        tc.fillStyle = '#FFFFFF';
+        tc.fillRect(0, 0, W, H);
+
+        // Grid lines
+        tc.strokeStyle = 'rgba(0,0,0,0.06)';
+        tc.lineWidth = 0.5;
+        for (let gy = 0; gy < G_ROWS; gy++) {
+            const py = gy * B_SZ + B_SZ * 0.5;
+            tc.beginPath(); tc.moveTo(0, py); tc.lineTo(W, py); tc.stroke();
+        }
+
+        // Source image sampling
+        let srcGrid = null;
+        if (f.src) {
+            const ts = document.createElement('canvas');
+            ts.width = G_COLS; ts.height = G_ROWS;
+            const tsx = ts.getContext('2d');
+            tsx.imageSmoothingEnabled = true;
+            tsx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
+            const px = tsx.getImageData(0, 0, G_COLS, G_ROWS).data;
+            srcGrid = new Uint8Array(G_ROWS * G_COLS);
+            for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                const pi = i * 4;
+                const lum = px[pi] * 0.299 + px[pi + 1] * 0.587 + px[pi + 2] * 0.114;
+                srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+            }
+        }
+
+        // Stamp dots
+        for (let gy = 0; gy < G_ROWS; gy++) {
+            for (let gx = 0; gx < G_COLS; gx++) {
+                const sX = gx * B_SZ + Math.floor(B_SZ / 2);
+                const sY = gy * B_SZ + Math.floor(B_SZ / 2);
+                const sIdx = (sY * W + sX) * 4;
+                let val = 0;
+                const hA = f.handLayer[sIdx + 3];
+                if (hA >= 16) { val = alphaToLevel(hA); }
+                else {
+                    const sA = f.scriptLayer[sIdx + 3];
+                    if (sA >= 16) { val = alphaToLevel(sA); }
+                    else if (srcGrid) { val = srcGrid[gy * G_COLS + gx]; }
+                }
+                if (val > 0 && DOT_STAMPS[val]) {
+                    const d = DOT_STAMPS[val];
+                    tc.drawImage(d.canvas, sX - d.canvas.width / 2, sY - d.canvas.height / 2);
+                }
+            }
+        }
+    }
+
+    // ══════════════════════════════════════
+    // ██ DRAWING ENGINE
+    // ══════════════════════════════════════
+
+    let _drawing = false;
+    (function initDrawing() {
+        const can = document.getElementById('edit-canvas');
+        can.addEventListener('pointerdown', (e) => {
+            if (currentView !== 'edit' || !state.frames.length) return;
+            _drawing = true;
+            draw(e);
+        });
+        can.addEventListener('pointermove', (e) => {
+            if (_drawing) draw(e);
+        });
+        window.addEventListener('pointerup', () => { _drawing = false; });
+
+        function draw(e) {
+            const f = state.frames[state.cur];
+            const rect = can.getBoundingClientRect();
+            const scaleX = W / rect.width, scaleY = H / rect.height;
+            const px = Math.floor((e.clientX - rect.left) * scaleX);
+            const py = Math.floor((e.clientY - rect.top) * scaleY);
+            const sz = state.brushSize;
+            const layer = state.activeTool === 'erase' ? f.handLayer : f.handLayer;
+            const alpha = state.activeTool === 'erase' ? 0 : Math.round((state.inkLevel / 7) * 255);
+
+            for (let dy = -sz; dy <= sz; dy++) {
+                for (let dx = -sz; dx <= sz; dx++) {
+                    if (dx * dx + dy * dy > sz * sz) continue;
+                    const x = px + dx, y = py + dy;
+                    if (x < 0 || x >= W || y < 0 || y >= H) continue;
+                    const idx = (y * W + x) * 4;
+                    layer[idx + 3] = alpha;
+                }
+            }
+            renderEditCanvas();
+        }
+    })();
+
+    // Tool + ink bar
+    function setTool(t) {
+        state.activeTool = t;
+        document.querySelectorAll('[id^=tool-]').forEach(b => b.style.borderColor = '#333');
+        const el = document.getElementById('tool-' + t);
+        if (el) el.style.borderColor = var_act_b();
+    }
+
+    (function initInkBar() {
+        const bar = document.getElementById('ink-bar');
+        for (let v = 1; v <= 7; v++) {
+            const b = document.createElement('button');
+            const shade = Math.round(255 - (v / 7) * 255);
+            b.style.cssText = `flex:1;height:28px;border:2px solid ${v === 7 ? var_act_b() : '#333'};background:rgb(${shade},${shade},${shade});cursor:pointer;`;
+            b.onclick = () => {
+                state.inkLevel = v;
+                bar.querySelectorAll('button').forEach(btn => btn.style.borderColor = '#333');
+                b.style.borderColor = var_act_b();
+            };
+            bar.appendChild(b);
+        }
+    })();
+
+    // ══════════════════════════════════════
+    // ██ TEXT STAMPING
+    // ══════════════════════════════════════
+
+    function stampText() {
+        if (!state.frames.length) return;
+        const txt = document.getElementById('b-text').value.trim();
+        if (!txt) { fireToast('TYPE SOMETHING'); return; }
+        const x = parseInt(document.getElementById('b-text-x').value) || 10;
+        const y = parseInt(document.getElementById('b-text-y').value) || 48;
+        const f = state.frames[state.cur];
+        const tc = document.createElement('canvas');
+        tc.width = W; tc.height = H;
+        const cx = tc.getContext('2d');
+        cx.font = '900 ' + (B_SZ * 5) + 'px monospace';
+        cx.fillStyle = 'rgba(0,0,0,1)';
+        cx.textBaseline = 'top';
+        cx.fillText(txt, x * B_SZ, y * B_SZ);
+        const px = cx.getImageData(0, 0, W, H).data;
+        for (let i = 0; i < px.length; i += 4) {
+            if (px[i + 3] > 16) {
+                f.scriptLayer[i + 3] = px[i + 3];
+            }
+        }
+        edlRecord('engrave', txt + ' at (' + x + ',' + y + ')');
+        renderEditCanvas();
+        render();
+        fireToast('ENGRAVED: ' + txt);
+    }
+
+    // ══════════════════════════════════════
+    // ██ BEFLIX SCRIPT ENGINE
+    // ══════════════════════════════════════
+
+    function executeMacro() {
+        const code = document.getElementById('b-script').value;
+        if (!code.trim()) { fireToast('NO SCRIPT'); return; }
+        const lines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith(';'));
+        let frameIdx = state.cur;
+
+        lines.forEach(line => {
+            const parts = line.split(/\s+/);
+            const cmd = parts[0].toUpperCase();
+
+            switch(cmd) {
+                case 'CLR': {
+                    const v = parseInt(parts[1]) || 0;
+                    if (frameIdx >= state.frames.length) {
+                        const f = makeFrame(state.activeRing);
+                        state.frames.push(f);
+                    }
+                    const f = state.frames[frameIdx];
+                    const alpha = Math.round((v / 7) * 255);
+                    for (let i = 3; i < f.scriptLayer.length; i += 4) f.scriptLayer[i] = alpha;
+                    break;
+                }
+                case 'PNT': {
+                    const [, x, y, w, h, v] = parts.map(Number);
+                    if (frameIdx >= state.frames.length) state.frames.push(makeFrame(state.activeRing));
+                    const f = state.frames[frameIdx];
+                    const alpha = Math.round((v / 7) * 255);
+                    for (let py = y; py < y + h && py < G_ROWS; py++) {
+                        for (let px = x; px < x + w && px < G_COLS; px++) {
+                            const sx = px * B_SZ + Math.floor(B_SZ / 2);
+                            const sy = py * B_SZ + Math.floor(B_SZ / 2);
+                            const idx = (sy * W + sx) * 4;
+                            f.scriptLayer[idx + 3] = alpha;
+                        }
+                    }
+                    break;
+                }
+                case 'REC': {
+                    const n = parseInt(parts[1]) || 1;
+                    if (frameIdx < state.frames.length) {
+                        const ref = state.frames[frameIdx];
+                        for (let i = 1; i < n; i++) {
+                            const dupe = makeFrame(ref.ring, ref.scene);
+                            dupe.src = ref.src;
+                            dupe.scriptLayer = new Uint8ClampedArray(ref.scriptLayer);
+                            dupe.handLayer = new Uint8ClampedArray(ref.handLayer);
+                            state.frames.splice(frameIdx + i, 0, dupe);
+                        }
+                    }
+                    frameIdx += (parseInt(parts[1]) || 1);
+                    break;
+                }
+                case 'COMMENT': break; // EDL comments pass through
+                default: break;
+            }
+        });
+
+        state.cur = Math.min(frameIdx, state.frames.length - 1);
+        edlRecord('script', lines.length + ' commands');
+        rebuildTimeline();
+        render();
+        fireToast('SCRIPT FORGED');
+    }
+
+    // ══════════════════════════════════════
+    // ██ SHIELD OPERATIONS
+    // ══════════════════════════════════════
+
+    function rotateScan(dir) {
+        state.scanAngle = (state.scanAngle + dir * 15 + 360) % 360;
+        render();
+    }
+
+    let _autoScanTimer;
+    function autoScan() {
+        if (_autoScanTimer) { clearInterval(_autoScanTimer); _autoScanTimer = null; fireToast('SCAN STOPPED'); return; }
+        _autoScanTimer = setInterval(() => {
+            state.scanAngle = (state.scanAngle + 3) % 360;
+            render();
+        }, 80);
+        fireToast('AUTO-SCANNING');
+    }
+
+    function loadShieldScenes() {
+        lockSystem('FORGING HOMER\'S SCENES');
+        setTimeout(() => {
+            // Generate procedural scenes for each ring
+            RINGS.forEach((ring, r) => {
+                ring.scenes.forEach((scene, s) => {
+                    const nFrames = 6 + Math.floor(Math.random() * 6); // 6-12 frames per scene
+                    for (let i = 0; i < nFrames; i++) {
+                        const f = makeFrame(r, scene);
+                        if (i === 0 && state.frames.length > 0) f.clipBoundary = true;
+                        // Generate procedural dot pattern based on ring
+                        const tc = document.createElement('canvas');
+                        tc.width = W; tc.height = H;
+                        const cx = tc.getContext('2d');
+                        // Ring-specific procedural pattern
+                        cx.fillStyle = ring.color + '33';
+                        cx.fillRect(0, 0, W, H);
+                        // Scene-specific elements
+                        cx.fillStyle = ring.color;
+                        cx.font = '900 40px monospace';
+                        cx.textAlign = 'center';
+                        cx.textBaseline = 'middle';
+                        cx.fillText(scene.toUpperCase(), W / 2, H / 2 - 20);
+                        cx.font = '900 16px monospace';
+                        cx.fillStyle = ring.color + '88';
+                        cx.fillText('RING ' + (r + 1) + ' · FRAME ' + (i + 1), W / 2, H / 2 + 30);
+                        // Motion: shift text slightly per frame
+                        cx.fillStyle = ring.color + '22';
+                        for (let j = 0; j < 12; j++) {
+                            const bx = (i * 17 + j * 53) % W;
+                            const by = (i * 31 + j * 37) % H;
+                            cx.fillRect(bx, by, 20 + j * 3, 10 + j * 2);
+                        }
+                        f.src = tc;
+                        state.frames.push(f);
+                    }
+                });
+            });
+            state.cur = 0;
+            releaseSystem();
+            rebuildTimeline();
+            render();
+            edlRecord('load', 'Homer\'s Shield scenes');
+            fireToast(state.frames.length + ' SCENES FORGED');
+        }, 100);
+    }
+
+    // ── UNSPOOL: spiral to linear ──
+    function unspool() {
+        // Already linear — this re-sorts by ring order (cosmos → oceanus)
+        state.frames.sort((a, b) => a.ring - b.ring);
+        rebuildTimeline();
+        render();
+        edlRecord('unspool', 'radial → linear');
+        fireToast('UNSPOOLED TO LINEAR');
+    }
+
+    // ── REWRAP: linear back to radial ──
+    function rewrap() {
+        // Distribute frames evenly across rings
+        const perRing = Math.ceil(state.frames.length / RINGS.length);
+        state.frames.forEach((f, i) => {
+            f.ring = Math.min(RINGS.length - 1, Math.floor(i / perRing));
+        });
+        rebuildTimeline();
+        render();
+        edlRecord('rewrap', 'linear → radial');
+        fireToast('REWRAPPED TO RADIAL');
+    }
+
+    // ── RIP: extract current ring's frames ──
+    function ripSector() {
+        const ring = state.frames[state.cur]?.ring ?? 0;
+        const ringFrames = state.frames.filter(f => f.ring === ring);
+        fireToast('RIPPED ' + ringFrames.length + ' FROM ' + RINGS[ring].name);
+        edlRecord('rip', RINGS[ring].name + ' (' + ringFrames.length + ' frames)');
+    }
+
+    // ══════════════════════════════════════
+    // ██ FRAME-RATE LOGICS
+    // ══════════════════════════════════════
+
+    function setRateLogic(logic) {
+        state.rateLogic = logic;
+        document.getElementById('rate-logic').value = logic;
+        fireToast('RATE: ' + logic.toUpperCase());
+    }
+
+    function getFrameDuration(frame, idx) {
+        const baseDur = 1000 / BASE_FPS;
+        switch(state.rateLogic) {
+            case 'ritual':
+                return baseDur * (frame.weight || 1) * 1.5; // symbolic weight
+            case 'event':
+                // Fast for action-dense frames, slow for still
+                return baseDur * (frame.src ? 0.8 : 2.0);
+            case 'poetic':
+                // Hexameter rhythm: long-short-short pattern
+                const beat = idx % 6;
+                return baseDur * (beat < 2 ? 1.5 : 0.7);
+            case 'cosmic':
+                // Center rings = slow, outer = fast
+                return baseDur * (1.5 - (frame.ring / RINGS.length));
+            default: // editorial
+                return baseDur;
+        }
+    }
+
+    // ══════════════════════════════════════
+    // ██ PLAYBACK
+    // ══════════════════════════════════════
+
+    let playRAF, lastPlayT = 0, nextFrameTime = 0;
+
+    function engageSequence() {
+        state.playing = !state.playing;
+        const btn = document.getElementById('btn-play');
+        if (state.playing) {
+            btn.textContent = '■ STOP';
+            btn.classList.add('active');
+            lastPlayT = performance.now();
+            nextFrameTime = 0;
+            playRAF = requestAnimationFrame(playStep);
+        } else {
+            btn.textContent = '▶ PROJECT';
+            btn.classList.remove('active');
+            cancelAnimationFrame(playRAF);
+            render();
+            rebuildTimeline();
+        }
+    }
+
+    function playStep(now) {
+        if (!state.playing || !state.frames.length) { state.playing = false; return; }
+        playRAF = requestAnimationFrame(playStep);
+        const elapsed = now - lastPlayT;
+        const dur = getFrameDuration(state.frames[state.cur], state.cur);
+        if (elapsed >= dur) {
+            lastPlayT = now - (elapsed % dur);
+            state.cur = (state.cur + 1) % state.frames.length;
+            render();
+            // Update timeline highlight
+            document.querySelectorAll('.tl-frame').forEach((el, i) =>
+                i === state.cur ? el.classList.add('on') : el.classList.remove('on')
+            );
+        }
+    }
+
+    function stepFrame(dir) {
+        if (state.playing || !state.frames.length) return;
+        state.cur = (state.cur + dir + state.frames.length) % state.frames.length;
+        rebuildTimeline();
+        render();
+    }
+
+    // ══════════════════════════════════════
+    // ██ TIMELINE
+    // ══════════════════════════════════════
+
+    function rebuildTimeline() {
+        const strip = document.getElementById('tl-strip');
+        strip.innerHTML = '';
+        state.frames.forEach((f, i) => {
+            const w = document.createElement('div');
+            w.className = 'tl-frame' + (i === state.cur ? ' on' : '');
+            w.onclick = () => {
+                if (state.playing) return;
+                state.cur = i;
+                rebuildTimeline();
+                render();
+            };
+            // Tiny canvas thumb
+            const c = document.createElement('canvas');
+            c.width = 112; c.height = 80;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, 112, 80);
+            if (f.src) {
+                ctx.globalAlpha = 0.5;
+                ctx.drawImage(f.src, 0, 0, 112, 80);
+                ctx.globalAlpha = 1;
+            }
+            w.appendChild(c);
+
+            // Frame number
+            const n = document.createElement('div');
+            n.className = 'tl-num';
+            n.textContent = i + 1;
+            w.appendChild(n);
+
+            // Ring tag
+            const ring = RINGS[f.ring] || RINGS[0];
+            const tag = document.createElement('div');
+            tag.className = 'ring-tag';
+            tag.style.background = ring.color;
+            tag.style.color = '#fff';
+            tag.textContent = ring.name.substring(0, 3);
+            w.appendChild(tag);
+
+            strip.appendChild(w);
+            if (i === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+        });
+        updateInfo();
+    }
+
+    function updateInfo() {
+        const info = document.getElementById('tl-info');
+        const f = state.frames[state.cur];
+        const ringName = f ? RINGS[f.ring]?.name : '—';
+        info.textContent = state.frames.length + ' FRAMES · ' + (state.cur + 1) + '/' + state.frames.length + ' · ' + ringName;
+    }
+
+    // ══════════════════════════════════════
+    // ██ TIMELINE OPS
+    // ══════════════════════════════════════
+
+    function deleteFrame() {
+        if (state.frames.length <= 1) return;
+        state.frames.splice(state.cur, 1);
+        if (state.cur >= state.frames.length) state.cur = state.frames.length - 1;
+        edlRecord('delete', 'frame ' + (state.cur + 1));
+        rebuildTimeline(); render();
+        fireToast('DELETED');
+    }
+
+    function duplicateFrame() {
+        if (!state.frames.length) return;
+        const ref = state.frames[state.cur];
+        const dupe = makeFrame(ref.ring, ref.scene);
+        dupe.src = ref.src;
+        dupe.scriptLayer = new Uint8ClampedArray(ref.scriptLayer);
+        dupe.handLayer = new Uint8ClampedArray(ref.handLayer);
+        state.frames.splice(state.cur + 1, 0, dupe);
+        state.cur++;
+        edlRecord('duplicate', 'frame ' + state.cur);
+        rebuildTimeline(); render();
+        fireToast('DUPLICATED');
+    }
+
+    function reverseAll() {
+        state.frames.reverse();
+        edlRecord('reverse', 'all frames');
+        rebuildTimeline(); render();
+        fireToast('REVERSED');
+    }
+
+    function wipeInk() {
+        if (!state.frames.length) return;
+        state.frames[state.cur].handLayer = getBlankMatrix();
+        state.frames[state.cur].scriptLayer = getBlankMatrix();
+        edlRecord('wipe', 'frame ' + (state.cur + 1));
+        render();
+        fireToast('INK WIPED');
+    }
+
+    // ══════════════════════════════════════
+    // ██ EDL LOG
+    // ══════════════════════════════════════
+
+    function edlRecord(op, detail) {
+        const d = new Date();
+        const ts = `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+        _edlLog.push({ ts, op, detail: detail || '', frames: state.frames.length, cur: state.cur + 1 });
+        updateEDLView();
+    }
+
+    function updateEDLView() {
+        const el = document.getElementById('edl-view');
+        if (!el) return;
+        let text = '; ═══ SHIELD / FILM FORGE · EDL ═══\n';
+        text += '; ' + _edlLog.length + ' operations\n;\n';
+        _edlLog.forEach((e, i) => {
+            text += `; [${i + 1}] ${e.ts} | ${e.op.toUpperCase()} | ${e.detail}\n`;
+            text += `;     FRAMES: ${e.frames}  CURSOR: ${e.cur}\n`;
+            text += `COMMENT ${e.op.toUpperCase().replace(/\s/g, '_')} ${e.detail}\n\n`;
+        });
+        el.value = text;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function downloadEDL() {
+        updateEDLView();
+        const blob = new Blob([document.getElementById('edl-view').value], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'shield-edl-' + Date.now() + '.bfx';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        fireToast('EDL DOWNLOADED');
+    }
+
+    // ══════════════════════════════════════
+    // ██ EXPORT
+    // ══════════════════════════════════════
+
+    function exportPNG() {
+        if (!state.frames.length) return;
+        const tmp = document.createElement('canvas');
+        tmp.width = W; tmp.height = H;
+        renderDotFrame(state.frames[state.cur], tmp);
+        const a = document.createElement('a');
+        a.download = 'SHIELD_FRAME_' + String(state.cur + 1).padStart(3, '0') + '.png';
+        a.href = tmp.toDataURL('image/png');
+        a.click();
+        fireToast('PNG EXPORTED');
+    }
+
+    async function compileOutput(format) {
+        if (!state.frames.length || !window.MediaRecorder) { fireToast('NO ENCODER'); return; }
+        const mimeTypes = format === 'mp4'
+            ? ['video/mp4;codecs=h264', 'video/mp4']
+            : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+        let mime = '';
+        for (const m of mimeTypes) { if (MediaRecorder.isTypeSupported(m)) { mime = m; break; } }
+        if (!mime) { fireToast(format.toUpperCase() + ' UNSUPPORTED'); return; }
+
+        lockSystem('ENCODING ' + format.toUpperCase());
+        const ec = document.createElement('canvas'); ec.width = W * 2; ec.height = H * 2;
+        const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+        const stream = ec.captureStream(BASE_FPS);
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
+        const chunks = [];
+        rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+        rec.start();
+        for (let i = 0; i < state.frames.length; i++) {
+            renderDotFrame(state.frames[i], tmp);
+            ec.getContext('2d').drawImage(tmp, 0, 0, ec.width, ec.height);
+            updateLockCount(i + 1);
+            await new Promise(r => setTimeout(r, 1000 / BASE_FPS));
+        }
+        rec.stop();
+        await new Promise(r => { rec.onstop = r; });
+
+        const blob = new Blob(chunks, { type: mime });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'SHIELD_FILM.' + format;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        releaseSystem();
+        fireToast(format.toUpperCase() + ' EXPORTED');
+    }
+
+    // ══════════════════════════════════════
+    // ██ RENDER DISPATCH
+    // ══════════════════════════════════════
+
+    function render() {
+        try {
+            switch(currentView) {
+                case 'cosmogram': renderCosmogram(); break;
+                case 'spiral': renderSpiral(); break;
+                case 'edit': renderEditCanvas(); break;
+            }
+        } catch(e) { console.warn('render error:', e.message); }
+    }
+
+    // ══════════════════════════════════════
+    // ██ KEYBOARD
+    // ══════════════════════════════════════
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        switch(e.key) {
+            case ' ': e.preventDefault(); engageSequence(); break;
+            case 'ArrowLeft': e.preventDefault(); stepFrame(-1); break;
+            case 'ArrowRight': e.preventDefault(); stepFrame(1); break;
+            case '1': openSheet('A'); break;
+            case '2': openSheet('B'); break;
+            case '3': openSheet('C'); break;
+            case '4': openSheet('D'); break;
+            case 'Escape': closeSheets(); break;
+        }
+    });
+
+    // ══════════════════════════════════════
+    // ██ COSMOGRAM CLICK HANDLING
+    // ══════════════════════════════════════
+
+    document.getElementById('cosmogram-canvas').addEventListener('click', (e) => {
+        if (!state.frames.length) return;
+        const can = e.target;
+        const rect = can.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width * can.width;
+        const y = (e.clientY - rect.top) / rect.height * can.height;
+        const cx = can.width / 2, cy = can.height / 2;
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        const maxR = can.width * 0.46;
+        const angle = (Math.atan2(y - cy, x - cx) + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+
+        // Determine which ring was clicked
+        const ringWidths = [0.22, 0.20, 0.20, 0.20, 0.18];
+        let outerR = maxR;
+        let clickedRing = -1;
+        for (let r = RINGS.length - 1; r >= 0; r--) {
+            const innerR = outerR - maxR * ringWidths[r];
+            if (dist <= outerR && dist >= innerR) {
+                clickedRing = r;
+                break;
+            }
+            outerR = innerR;
+        }
+
+        if (clickedRing >= 0) {
+            // Find frames in this ring
+            const ringFrames = state.frames.filter(f => f.ring === clickedRing);
+            if (ringFrames.length > 0) {
+                // Find closest frame by angle
+                const arcPer = (Math.PI * 2) / ringFrames.length;
+                const frameIdx = Math.floor(angle / arcPer) % ringFrames.length;
+                const globalIdx = state.frames.indexOf(ringFrames[frameIdx]);
+                if (globalIdx >= 0) {
+                    state.cur = globalIdx;
+                    state.activeRing = clickedRing;
+                    rebuildTimeline();
+                    render();
+                }
+            }
+        }
+    });
+
+    // ══════════════════════════════════════
+    // ██ INIT
+    // ══════════════════════════════════════
+
+    window.addEventListener('resize', render);
+
+    // Start with a blank frame
+    state.frames.push(makeFrame(0, 'Origin'));
+    rebuildTimeline();
+    render();
+    fireToast('HEPHAESTUS AWAITS');
+</script>
+</body>
+</html>

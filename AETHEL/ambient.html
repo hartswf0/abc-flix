@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AETHEL · Ambient</title>
+  <style>
+    /* =====================================================
+       AMBIENT PALETTE
+       ===================================================== */
+    :root {
+      --night-a:  #080810;
+      --night-b:  #0c0c1a;
+      --night-c:  #101024;
+      --text-dim: rgba(200, 210, 230, 0.12);
+      --text-lo:  rgba(200, 210, 230, 0.25);
+      --text-mid: rgba(200, 210, 230, 0.5);
+      --text-hi:  rgba(200, 210, 230, 0.8);
+      --blue:     rgba(80, 130, 220, 0.7);
+      --amber:    rgba(220, 180, 80, 0.7);
+      --lav:      rgba(160, 140, 220, 0.6);
+      --warm:     rgba(240, 230, 210, 0.7);
+      --red:      rgba(220, 80, 80, 0.6);
+      --grey:     rgba(120, 120, 130, 0.4);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--night-a);
+      color: var(--text-mid);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+    }
+
+    /* =====================================================
+       CANVAS (FULL BLEED)
+       ===================================================== */
+    #sky {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* =====================================================
+       BREATHING RING + STATE WORD
+       ===================================================== */
+    #ring-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    #ring {
+      width: 220px;
+      height: 220px;
+      border: 1.5px solid rgba(200, 210, 230, 0.06);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      animation: breathe 8s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.6; }
+      50%      { transform: scale(1.08); opacity: 1; }
+    }
+
+    #state-word {
+      font-size: 28px;
+      font-weight: 200;
+      letter-spacing: 0.25em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      transition: color 4s ease, opacity 4s ease;
+    }
+
+    #state-sub {
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: rgba(200, 210, 230, 0.08);
+      margin-top: 8px;
+      transition: color 4s ease;
+    }
+
+    /* =====================================================
+       MINIMAL HUD (HIDDEN BY DEFAULT)
+       ===================================================== */
+    #hud {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 20px 24px;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+      pointer-events: none;
+    }
+
+    #hud.visible {
+      opacity: 1;
+    }
+
+    .hud-text {
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      color: var(--text-lo);
+    }
+
+    .hud-stat {
+      font-size: 14px;
+      font-weight: 200;
+      color: var(--text-mid);
+      margin-bottom: 2px;
+    }
+
+    /* =====================================================
+       VOLUME CONTROL
+       ===================================================== */
+    #vol-wrap {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.15;
+      transition: opacity 0.5s ease;
+    }
+
+    #vol-wrap:hover {
+      opacity: 0.6;
+    }
+
+    #vol-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--text-lo);
+    }
+
+    #vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 2px;
+      background: rgba(200, 210, 230, 0.15);
+      outline: none;
+      cursor: pointer;
+    }
+
+    #vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      background: rgba(200, 210, 230, 0.4);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* =====================================================
+       START PROMPT (AUTOPLAY POLICY)
+       ===================================================== */
+    #start-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--night-a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      cursor: pointer;
+      transition: opacity 2s ease;
+    }
+
+    #start-screen.gone {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #start-text {
+      font-size: 14px;
+      font-weight: 200;
+      letter-spacing: 0.3em;
+      color: var(--text-lo);
+      text-transform: uppercase;
+      animation: pulse-start 3s ease-in-out infinite;
+    }
+
+    #start-sub {
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: rgba(200, 210, 230, 0.1);
+      margin-top: 12px;
+    }
+
+    @keyframes pulse-start {
+      0%, 100% { opacity: 0.25; }
+      50%      { opacity: 0.6; }
+    }
+
+    /* =====================================================
+       DEMO WHISPER
+       ===================================================== */
+    #demo-whisper {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 5;
+      font-size: 9px;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: rgba(200, 210, 230, 0.08);
+      display: none;
+    }
+
+    #demo-whisper.on {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Particle Canvas -->
+<canvas id="sky"></canvas>
+
+<!-- Breathing Ring -->
+<div id="ring-wrap">
+  <div id="ring">
+    <div id="state-word">—</div>
+    <div id="state-sub"></div>
+  </div>
+</div>
+
+<!-- HUD (tap to reveal) -->
+<div id="hud">
+  <div>
+    <div class="hud-stat" id="hud-tasks">—</div>
+    <div class="hud-text">TASKS</div>
+  </div>
+  <div style="text-align:center">
+    <div class="hud-stat" id="hud-state">—</div>
+    <div class="hud-text">STATE</div>
+  </div>
+  <div style="text-align:right">
+    <div class="hud-stat" id="hud-clock">—</div>
+    <div class="hud-text">TIME</div>
+  </div>
+</div>
+
+<!-- Volume -->
+<div id="vol-wrap">
+  <span id="vol-label">VOL</span>
+  <input type="range" id="vol-slider" min="0" max="100" value="40">
+</div>
+
+<!-- Start Screen -->
+<div id="start-screen" onclick="beginAmbient()">
+  <div id="start-text">Listen</div>
+  <div id="start-sub">tap to begin ambient monitoring</div>
+</div>
+
+<!-- Demo badge -->
+<div id="demo-whisper">DEMO</div>
+
+<script>
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const WS_URL = 'ws://localhost:8765';
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let audioCtx      = null;
+let masterGain    = null;
+let droneVoices   = {};
+let reverbNode    = null;
+let dryGain       = null;
+let wetGain       = null;
+let audioStarted  = false;
+let socket        = null;
+let wsConnected   = false;
+let reconnectTimer= null;
+let demoMode      = false;
+let demoInterval  = null;
+let currentState  = 'BOOT';
+let allTasks      = [];
+let particles     = [];
+let hudTimeout    = null;
+let canvas, ctx;
+
+/* ============================================================
+   PENTATONIC SCALE (D MAJOR PENTATONIC)
+   ============================================================ */
+const SCALE = {
+  D3: 146.83, E3: 164.81, G3: 196.00, A3: 220.00, B3: 246.94,
+  D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00, B4: 493.88,
+  D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00,
+};
+const BELL_NOTES = [SCALE.D4, SCALE.E4, SCALE.G4, SCALE.A4, SCALE.B4, SCALE.D5];
+const CHIME_NOTES = [SCALE.D5, SCALE.E5, SCALE.G5, SCALE.A5];
+
+/* ============================================================
+   AUDIO ENGINE
+   ============================================================ */
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master chain
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.4;
+  masterGain.connect(audioCtx.destination);
+
+  // Simple reverb via delay feedback (synthetic, no IR needed)
+  const reverbDelay  = audioCtx.createDelay(2);
+  reverbDelay.delayTime.value = 0.6;
+  const reverbFB     = audioCtx.createGain();
+  reverbFB.gain.value = 0.35;
+  const reverbFilter = audioCtx.createBiquadFilter();
+  reverbFilter.type  = 'lowpass';
+  reverbFilter.frequency.value = 2200;
+
+  dryGain = audioCtx.createGain();
+  dryGain.gain.value = 0.7;
+  wetGain = audioCtx.createGain();
+  wetGain.gain.value = 0.5;
+
+  // Dry path
+  dryGain.connect(masterGain);
+  // Wet path: input → delay → filter → feedback loop → wetGain → master
+  wetGain.connect(masterGain);
+  reverbDelay.connect(reverbFilter);
+  reverbFilter.connect(reverbFB);
+  reverbFB.connect(reverbDelay);
+  reverbFilter.connect(wetGain);
+
+  // Store reverb input point
+  reverbNode = reverbDelay;
+
+  // === VOICE 1: LOW DRONE ===
+  const drone1 = audioCtx.createOscillator();
+  drone1.type = 'sawtooth';
+  drone1.frequency.value = 73.42; // D2
+  const drone1Filter = audioCtx.createBiquadFilter();
+  drone1Filter.type = 'lowpass';
+  drone1Filter.frequency.value = 180;
+  drone1Filter.Q.value = 2;
+  const drone1Gain = audioCtx.createGain();
+  drone1Gain.gain.value = 0.15;
+  drone1.connect(drone1Filter);
+  drone1Filter.connect(drone1Gain);
+  drone1Gain.connect(dryGain);
+  drone1Gain.connect(reverbNode);
+  drone1.start();
+  droneVoices.low = { osc: drone1, filter: drone1Filter, gain: drone1Gain };
+
+  // === VOICE 2: PAD (D3 + A3) ===
+  const pad1 = audioCtx.createOscillator();
+  pad1.type = 'triangle';
+  pad1.frequency.value = SCALE.D3;
+  const pad2 = audioCtx.createOscillator();
+  pad2.type = 'triangle';
+  pad2.frequency.value = SCALE.A3;
+  const padGain = audioCtx.createGain();
+  padGain.gain.value = 0.08;
+  const padFilter = audioCtx.createBiquadFilter();
+  padFilter.type = 'bandpass';
+  padFilter.frequency.value = 400;
+  padFilter.Q.value = 0.8;
+  pad1.connect(padFilter);
+  pad2.connect(padFilter);
+  padFilter.connect(padGain);
+  padGain.connect(dryGain);
+  padGain.connect(reverbNode);
+  pad1.start();
+  pad2.start();
+  droneVoices.pad = { osc1: pad1, osc2: pad2, filter: padFilter, gain: padGain };
+
+  // === VOICE 3: HIGH SHIMMER ===
+  const shimmer = audioCtx.createOscillator();
+  shimmer.type = 'sine';
+  shimmer.frequency.value = SCALE.D5;
+  const shimGain = audioCtx.createGain();
+  shimGain.gain.value = 0.02;
+  // Slow LFO on shimmer volume
+  const shimLFO = audioCtx.createOscillator();
+  shimLFO.type = 'sine';
+  shimLFO.frequency.value = 0.08; // very slow
+  const shimLFOGain = audioCtx.createGain();
+  shimLFOGain.gain.value = 0.015;
+  shimLFO.connect(shimLFOGain);
+  shimLFOGain.connect(shimGain.gain);
+  shimmer.connect(shimGain);
+  shimGain.connect(dryGain);
+  shimGain.connect(reverbNode);
+  shimmer.start();
+  shimLFO.start();
+  droneVoices.shimmer = { osc: shimmer, gain: shimGain, lfo: shimLFO };
+
+  // Volume slider
+  document.getElementById('vol-slider').addEventListener('input', (e) => {
+    masterGain.gain.setTargetAtTime(e.target.value / 100, audioCtx.currentTime, 0.3);
+  });
+
+  audioStarted = true;
+}
+
+/* ── Bell / Chime ── */
+function playBell(freq, volume = 0.12, duration = 4) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = freq || pickRandom(BELL_NOTES);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(volume, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(g);
+  g.connect(dryGain);
+  g.connect(reverbNode);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration + 0.1);
+}
+
+function playChime() {
+  playBell(pickRandom(CHIME_NOTES), 0.06, 6);
+}
+
+/* ── Rain click (log entry) ── */
+function playRainClick() {
+  if (!audioCtx) return;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.15));
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.015;
+  const f = audioCtx.createBiquadFilter();
+  f.type = 'highpass';
+  f.frequency.value = 4000;
+  src.connect(f);
+  f.connect(g);
+  g.connect(dryGain);
+  src.start();
+}
+
+/* ── Low cloud (error tone) ── */
+function playCloudTone() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 110;
+  const g = audioCtx.createGain();
+  const f = audioCtx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 300;
+  g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 3);
+  osc.connect(f);
+  f.connect(g);
+  g.connect(dryGain);
+  g.connect(reverbNode);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 3.5);
+}
+
+/* ── State-based drone modulation ── */
+function modulateDrone(state) {
+  if (!audioCtx || !droneVoices.low) return;
+  const t = audioCtx.currentTime;
+
+  // Low drone filter cutoff
+  const cutoffs = {
+    BOOT: 120, IDLE: 180, POLLING: 280, SLOT_FOUND: 350,
+    UPLOADING: 320, INJECTING: 380, AWAITING: 250,
+    TETHERING: 400, ERROR: 100, HALTED: 90,
+  };
+  const cutoff = cutoffs[state] || 180;
+  droneVoices.low.filter.frequency.setTargetAtTime(cutoff, t, 3);
+
+  // Pad chord voicing
+  const chords = {
+    BOOT:       [SCALE.D3, SCALE.A3],
+    IDLE:       [SCALE.D3, SCALE.A3],       // root + 5th (resolved)
+    POLLING:    [SCALE.D3, SCALE.A3],       // same but brighter filter
+    SLOT_FOUND: [SCALE.E3, SCALE.B3],       // step up
+    UPLOADING:  [SCALE.G3, SCALE.D3],       // inversion
+    INJECTING:  [SCALE.A3, SCALE.E3],       // movement
+    AWAITING:   [SCALE.D3, SCALE.G3],       // suspended feel (4th)
+    TETHERING:  [SCALE.D3, SCALE.A3],       // resolve back
+    ERROR:      [SCALE.D3, SCALE.G3],       // suspended
+    HALTED:     [SCALE.D3, SCALE.D3],       // unison (hollow)
+  };
+  const [f1, f2] = chords[state] || [SCALE.D3, SCALE.A3];
+  droneVoices.pad.osc1.frequency.setTargetAtTime(f1, t, 4);
+  droneVoices.pad.osc2.frequency.setTargetAtTime(f2, t, 4);
+
+  // Pad filter brightness
+  const padBright = {
+    BOOT: 300, IDLE: 400, POLLING: 600, SLOT_FOUND: 700,
+    UPLOADING: 550, INJECTING: 650, AWAITING: 350,
+    TETHERING: 800, ERROR: 200, HALTED: 200,
+  };
+  droneVoices.pad.filter.frequency.setTargetAtTime(padBright[state] || 400, t, 3);
+
+  // Shimmer volume (brighter in active states)
+  const shimVol = ['POLLING','SLOT_FOUND','UPLOADING','INJECTING','TETHERING'].includes(state) ? 0.035 : 0.015;
+  droneVoices.shimmer.gain.gain.setTargetAtTime(shimVol, t, 2);
+}
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* ============================================================
+   PARTICLE SYSTEM
+   ============================================================ */
+function initCanvas() {
+  canvas = document.getElementById('sky');
+  ctx = canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize', resize);
+}
+
+function resize() {
+  canvas.width  = window.innerWidth  * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width  = '100%';
+  canvas.style.height = '100%';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+class Particle {
+  constructor(task) {
+    this.task = task;
+    this.x = Math.random() * window.innerWidth;
+    this.y = Math.random() * window.innerHeight;
+    this.vx = (Math.random() - 0.5) * 0.15;
+    this.vy = (Math.random() - 0.5) * 0.1;
+    this.size = 2 + Math.random() * 2;
+    this.pulsePhase = Math.random() * Math.PI * 2;
+    this.born = Date.now();
+    this.opacity = 0;
+  }
+
+  get color() {
+    const s = (this.task.status || 'PENDING').toUpperCase().replace(/-/g,'_');
+    switch (s) {
+      case 'PENDING':    return 'rgba(80, 130, 220, OP)';
+      case 'IN_FLIGHT':  return 'rgba(220, 180, 80, OP)';
+      case 'AWAITING':   return 'rgba(160, 140, 220, OP)';
+      case 'TETHERED':   return 'rgba(240, 230, 210, OP)';
+      case 'ERROR':
+      case 'TETHER_ERROR': return 'rgba(220, 80, 80, OP)';
+      default:           return 'rgba(120, 140, 180, OP)';
+    }
+  }
+
+  get pulses() {
+    const s = (this.task.status || '').toUpperCase().replace(/-/g,'_');
+    return s === 'IN_FLIGHT' || s === 'AWAITING';
+  }
+
+  update(dt) {
+    // Fade in
+    if (this.opacity < 1) this.opacity = Math.min(1, this.opacity + dt * 0.5);
+
+    // Drift
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Wrap
+    const w = window.innerWidth, h = window.innerHeight;
+    if (this.x < -20) this.x = w + 20;
+    if (this.x > w + 20) this.x = -20;
+    if (this.y < -20) this.y = h + 20;
+    if (this.y > h + 20) this.y = -20;
+
+    // Pulse
+    this.pulsePhase += dt * 1.2;
+  }
+
+  draw(ctx) {
+    let op = this.opacity * 0.6;
+    if (this.pulses) {
+      op *= 0.5 + 0.5 * Math.sin(this.pulsePhase);
+    }
+    const col = this.color.replace('OP', op.toFixed(2));
+    const glow = this.color.replace('OP', (op * 0.3).toFixed(2));
+
+    // Glow
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Core
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+  }
+}
+
+// Background stars (ambient field)
+let bgStars = [];
+function initBgStars() {
+  bgStars = [];
+  for (let i = 0; i < 60; i++) {
+    bgStars.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      s: 0.5 + Math.random() * 1,
+      o: 0.02 + Math.random() * 0.06,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+let lastFrame = 0;
+function renderLoop(ts) {
+  const dt = Math.min((ts - lastFrame) / 1000, 0.1);
+  lastFrame = ts;
+
+  const w = window.innerWidth, h = window.innerHeight;
+  
+  // Background gradient
+  const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h) * 0.7);
+  grad.addColorStop(0, '#0e0e1c');
+  grad.addColorStop(1, '#080810');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Background stars
+  for (const star of bgStars) {
+    star.phase += dt * 0.3;
+    const op = star.o * (0.5 + 0.5 * Math.sin(star.phase));
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.s, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(180, 190, 220, ${op})`;
+    ctx.fill();
+  }
+
+  // Breathing ring glow
+  const ringPulse = 0.5 + 0.5 * Math.sin(ts / 4000);
+  const ringOp = 0.02 + ringPulse * 0.03;
+  ctx.beginPath();
+  ctx.arc(w/2, h/2, 110 + ringPulse * 8, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(180, 200, 240, ${ringOp})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Task particles
+  for (const p of particles) {
+    p.update(dt);
+    p.draw(ctx);
+  }
+
+  requestAnimationFrame(renderLoop);
+}
+
+function syncParticles(tasks) {
+  // Add new
+  for (const t of tasks) {
+    if (!particles.find(p => p.task.id === t.id)) {
+      particles.push(new Particle(t));
+    }
+  }
+  // Update existing
+  for (const p of particles) {
+    const updated = tasks.find(t => t.id === p.task.id);
+    if (updated) p.task = updated;
+  }
+  // Remove gone (fade would be better but simple for now)
+  particles = particles.filter(p => tasks.find(t => t.id === p.task.id));
+}
+
+/* ============================================================
+   STATE DISPLAY
+   ============================================================ */
+function setVisualState(state) {
+  const prev = currentState;
+  currentState = state;
+
+  // State word
+  document.getElementById('state-word').textContent = state;
+
+  // Ring color modulation
+  const ring = document.getElementById('ring');
+  const colors = {
+    BOOT:    'rgba(120, 130, 150, 0.06)',
+    IDLE:    'rgba(100, 180, 140, 0.08)',
+    POLLING: 'rgba(80, 130, 220, 0.1)',
+    SLOT_FOUND: 'rgba(220, 180, 80, 0.12)',
+    UPLOADING:  'rgba(220, 180, 80, 0.1)',
+    INJECTING:  'rgba(200, 160, 80, 0.12)',
+    AWAITING:   'rgba(160, 140, 220, 0.1)',
+    TETHERING:  'rgba(100, 200, 160, 0.14)',
+    ERROR:      'rgba(220, 80, 80, 0.1)',
+    HALTED:     'rgba(100, 100, 110, 0.06)',
+  };
+  ring.style.borderColor = colors[state] || colors.IDLE;
+
+  // Sonic
+  if (audioStarted) {
+    modulateDrone(state);
+
+    // Discrete event sounds
+    if (state !== prev) {
+      if (state === 'SLOT_FOUND') playBell(pickRandom(BELL_NOTES), 0.08, 3);
+      if (state === 'TETHERING')  playChime();
+      if (state === 'ERROR')      playCloudTone();
+    }
+  }
+}
+
+/* ============================================================
+   HUD
+   ============================================================ */
+function showHud() {
+  const hud = document.getElementById('hud');
+  hud.classList.add('visible');
+  clearTimeout(hudTimeout);
+  hudTimeout = setTimeout(() => hud.classList.remove('visible'), 4000);
+}
+
+function updateHudClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('hud-clock').textContent = `${h}:${m}`;
+}
+setInterval(updateHudClock, 10000);
+updateHudClock();
+
+// Tap to reveal HUD
+document.addEventListener('click', () => {
+  if (!audioStarted) return;
+  showHud();
+});
+
+/* ============================================================
+   WEBSOCKET (SAME PROTOCOL AS DASHBOARD)
+   ============================================================ */
+function connectWS() {
+  if (socket) { try { socket.close(); } catch(_) {} }
+  try {
+    socket = new WebSocket(WS_URL);
+  } catch(e) {
+    scheduleReconnect();
+    return;
+  }
+
+  socket.addEventListener('open', () => {
+    wsConnected = true;
+    clearTimeout(reconnectTimer);
+    stopDemo();
+    document.getElementById('state-sub').textContent = 'connected';
+  });
+
+  socket.addEventListener('message', (ev) => {
+    try {
+      const frame = JSON.parse(ev.data);
+      handleFrame(frame);
+    } catch(_) {}
+  });
+
+  socket.addEventListener('close', () => {
+    wsConnected = false;
+    document.getElementById('state-sub').textContent = '';
+    scheduleReconnect();
+  });
+
+  socket.addEventListener('error', () => {
+    wsConnected = false;
+    socket.close();
+  });
+}
+
+function scheduleReconnect() {
+  if (!wsConnected && !demoMode) {
+    startDemo();
+  }
+  let secs = 8;
+  clearTimeout(reconnectTimer);
+  const tick = () => {
+    secs--;
+    if (secs <= 0) connectWS();
+    else reconnectTimer = setTimeout(tick, 1000);
+  };
+  reconnectTimer = setTimeout(tick, 1000);
+}
+
+function handleFrame(frame) {
+  switch (frame.type) {
+    case 'STATE_UPDATE': applyState(frame.payload); break;
+    case 'LOG':          onLogEntry(frame.payload);  break;
+  }
+}
+
+function applyState(payload) {
+  if (payload.machine) setVisualState(payload.machine);
+  if (payload.queue) {
+    allTasks = payload.queue;
+    syncParticles(allTasks);
+    const pending  = allTasks.filter(t => t.status === 'PENDING').length;
+    const total    = allTasks.length;
+    document.getElementById('hud-tasks').textContent = `${total}`;
+    document.getElementById('hud-state').textContent = payload.machine || currentState;
+  }
+  if (payload.stats) {
+    const up = payload.stats.uptime || 0;
+    const h = Math.floor(up/3600), m = Math.floor((up%3600)/60);
+    document.getElementById('state-sub').textContent = `${h}h ${m}m`;
+  }
+}
+
+function onLogEntry(entry) {
+  if (audioStarted) {
+    playRainClick();
+  }
+  // Tethered completion bell
+  if (entry.level === 'TETHER' && entry.message && entry.message.includes('BOUND')) {
+    if (audioStarted) playBell(pickRandom(CHIME_NOTES), 0.1, 5);
+  }
+}
+
+/* ============================================================
+   DEMO MODE
+   ============================================================ */
+const DEMO_TASKS = [
+  { id:'AEL-001', label:'Harbor fog at dawn',          status:'TETHERED',  hash:'a3f89c12' },
+  { id:'AEL-002', label:'Brutalist timelapse',         status:'IN_FLIGHT', hash:'7b2e441f' },
+  { id:'AEL-003', label:'Signal propagation',          status:'AWAITING',  hash:'cc30f881' },
+  { id:'AEL-004', label:'Cooling tower study',         status:'PENDING',   hash:null },
+  { id:'AEL-005', label:'Deep ocean pressure',         status:'PENDING',   hash:null },
+];
+
+const DEMO_STATES = ['IDLE','POLLING','SLOT_FOUND','UPLOADING','INJECTING','AWAITING','IDLE','POLLING','TETHERING','IDLE'];
+let demoStateIdx = 0;
+let demoUptime = 0;
+
+const DEMO_LOGS = [
+  { level:'SYS',    message:'Ambient monitor connected' },
+  { level:'DRIP',   message:'Drip scheduler online' },
+  { level:'STATE',  message:'IDLE >> POLLING' },
+  { level:'DRIP',   message:'Slot poll: 2 available' },
+  { level:'STATE',  message:'POLLING >> SLOT_FOUND' },
+  { level:'DRIP',   message:'Dispatching: AEL-001' },
+  { level:'HCI',    message:'Upload: ref_harbor_A.jpg' },
+  { level:'STATE',  message:'UPLOADING >> INJECTING' },
+  { level:'HCI',    message:'Prompt injection complete' },
+  { level:'STATE',  message:'INJECTING >> AWAITING' },
+  { level:'TETHER', message:'File detected: video_001.mp4' },
+  { level:'TETHER', message:'BOUND: video_001.mp4 >> AEL-001' },
+  { level:'STATE',  message:'TETHERING >> IDLE' },
+];
+let demoLogIdx = 0;
+
+function startDemo() {
+  if (demoMode) return;
+  demoMode = true;
+  document.getElementById('demo-whisper').classList.add('on');
+
+  applyState({
+    machine: 'IDLE',
+    queue: DEMO_TASKS,
+    stats: { active: 1, completed: 1, errors: 0, uptime: 0 },
+  });
+
+  // Slow log replay
+  demoLogIdx = 0;
+  const logTick = () => {
+    if (!demoMode) return;
+    if (demoLogIdx < DEMO_LOGS.length) {
+      onLogEntry(DEMO_LOGS[demoLogIdx]);
+      demoLogIdx++;
+      setTimeout(logTick, 2000 + Math.random() * 3000);
+    } else {
+      setTimeout(() => { demoLogIdx = 0; logTick(); }, 8000);
+    }
+  };
+  setTimeout(logTick, 3000);
+
+  // State cycle — much slower than dashboard demo
+  const stateTick = () => {
+    if (!demoMode) return;
+    demoStateIdx = (demoStateIdx + 1) % DEMO_STATES.length;
+    demoUptime += 6;
+    setVisualState(DEMO_STATES[demoStateIdx]);
+    const up = demoUptime;
+    const h = Math.floor(up/3600), m = Math.floor((up%3600)/60);
+    document.getElementById('state-sub').textContent = `${h}h ${m}m`;
+    demoInterval = setTimeout(stateTick, 6000 + Math.random() * 6000);
+  };
+  demoInterval = setTimeout(stateTick, 5000);
+}
+
+function stopDemo() {
+  demoMode = false;
+  document.getElementById('demo-whisper').classList.remove('on');
+  clearTimeout(demoInterval);
+}
+
+/* ============================================================
+   BEGIN (USER TAP TO START AUDIO)
+   ============================================================ */
+function beginAmbient() {
+  initAudio();
+  document.getElementById('start-screen').classList.add('gone');
+  setTimeout(() => {
+    document.getElementById('start-screen').style.display = 'none';
+  }, 2500);
+
+  // Start connection
+  connectWS();
+
+  // Initial state
+  setVisualState('BOOT');
+  modulateDrone('BOOT');
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(function boot() {
+  initCanvas();
+  initBgStars();
+  requestAnimationFrame(renderLoop);
+})();
+</script>
+
+</body>
+</html>

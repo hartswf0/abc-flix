@@ -1,0 +1,203 @@
+import json
+from pathlib import Path
+
+data = {
+    "project": "ShieldMallOfAchilles",
+    "version": "1.0",
+    "format": "camera_prompt_library",
+    "description": "Machine-readable prompt library for 36 camera variants across the ShieldMallOfAchilles surveillance world: 12 base surveillance feeds, 12 embedded first-person views, and 12 nearby world-watcher hovering views.",
+    "base_image": "image_0.png",
+    "main_label": "ShieldMallOfAchilles – OPERATIONAL MONITOR",
+    "counts": {
+        "source_scenes": 12,
+        "total_variants": 36,
+        "variant_types": {
+            "operational_monitor": 12,
+            "embedded_first_person": 12,
+            "world_watcher_third_person": 12
+        }
+    },
+    "global_style": {
+        "world_fusion": [
+            "Homeric Shield of Achilles",
+            "multi-tiered mall diorama",
+            "retro-futurist CCTV control surface",
+            "forged bronze-gold miniature epic world"
+        ],
+        "shared_constraints": [
+            "all variants belong to the same world",
+            "keep architectural placement consistent with the original 12 feed layout",
+            "preserve mythic-material detail and surveillance system coherence",
+            "avoid generic FPS, glossy drone, tourism aerial, or video-game HUD clichés unless specified",
+            "keep the world tactile, weathered, and spatially precise"
+        ]
+    },
+    "variant_legend": {
+        "operational_monitor": "Clean circular CCTV surveillance feed with digital overlay, REC indicator, timestamps, compression grit, and feed-specific composition.",
+        "embedded_first_person": "Body-bound sensory ethnography from inside the scene; partial, tactile, local, pressured.",
+        "world_watcher_third_person": "Small hovering witness near the action; patient, nearby, observant, non-omniscient."
+    },
+    "cameras": []
+}
+
+base_cams = [
+    {
+        "cam_no": 1,
+        "scene_code": "COSMIC_VAULT",
+        "position": "North",
+        "title": "Cosmic Vault",
+        "core_scene": "Starlit dome projections of Moon, Sun, Orion, Pleiades, Hyades, and the Bear/Wain over microscopic shoppers below.",
+        "operational_prompt": "Create a clean circular CCTV feed positioned at the north of ShieldMallOfAchilles showing the Cosmic Vault: the moon, sun, Orion, Pleiades, Hyades, and the Bear/Wain projected across the starlit dome above tiny shopper-pilgrims. Preserve the monumental scale of the heavens and the miniature scale of the bodies below. Include subtle scanlines, REC indicator, timestamp burn-in, mild compression grit, and crisp digital text. Keep the feed legible, mythic, and architecturally consistent with the mall’s concentric rings.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the north Cosmic Vault of ShieldMallOfAchilles, moving beneath the artificial night dome as a small shopper-pilgrim; breath audible, shoulders and hands occasionally entering frame, polished tile reflecting moon, sun, Orion, Pleiades, Hyades, and the Bear above; the constellations feel vast and the body feels miniature, swallowed by blue-black retail dusk, distant escalator hum, soft crowd shuffle, halated star-glow on glass and brass.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in the Cosmic Vault: a small hovering witness drifts just above head height through the north vault, circling the projected heavens without becoming a god-view; it pauses beside dome glass, glides over tiny bodies crossing the annulus, and watches constellations reflected in waxed floors and fountain mist, preserving scale, hush, and starlit enclosure."
+    },
+    {
+        "cam_no": 2,
+        "scene_code": "PEACE_CITY",
+        "position": "Upper-Left Far",
+        "title": "Peace City",
+        "core_scene": "Torchlit wedding procession through decorated storefront streets with brides, singers, dancers, and women watching from thresholds.",
+        "operational_prompt": "Create a clean circular CCTV feed in the upper-left far position showing Peace City: a torchlit wedding procession passing through decorated storefront streets, brides emerging, singers and dancers in motion, women watching from their thresholds. The atmosphere should feel ceremonial, communal, and orderly. Add clean digital labeling, timestamp, REC indicator, and light CCTV compression grit while preserving mythic detail and bronze-gold miniature richness.",
+        "first_person_prompt": "Embedded first-person sensory ethnography in the torchlit wedding procession of Peace City, walking with the bridal crowd through decorated storefront streets; fabric edges, wrists, torch smoke, garlands, and neighboring bodies brush the frame, flutes and lyres stay close, women watch from thresholds, and gold shopfronts breathe with firelight and communal heat.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in Peace City: a small witness-cam floats just above the wedding procession, drifting between torches and banners, sliding past doors where women stand and admire, observing the circular motion of marriage, music, and festive footwork without rising into spectacle."
+    },
+    {
+        "cam_no": 3,
+        "scene_code": "FORUM",
+        "position": "Left-Mid Arcade",
+        "title": "Forum",
+        "core_scene": "Civic dispute circle with elders, heralds, crowd pressure, and two talents of gold on a pedestal at the center.",
+        "operational_prompt": "Create a clean circular CCTV feed at the left-mid arcade showing the Forum: a civic dispute circle with elders seated on polished stones, heralds controlling a tight crowd, and two talents of gold clearly visible on a central pedestal. The crowd should feel tense but procedural. Include REC indicator, timestamp, digital overlay text, slight scanlines, and compression grit while keeping the gold and stone details sharp.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the Forum dispute circle, shoulder to shoulder with supporters, hearing shouts rebound off stone and tile; herald staves lift and lower, elders rise from polished stones, hands gesture toward the two talents of gold at the center, and the crowd presses so tightly that parts of the judgment remain blocked by bodies.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in the Forum: a near-surface hovering cam circles the dispute slowly, dipping over the gold talents, then sliding to elder faces, raised staves, and the crowd’s divided semicircles; it witnesses procedure, pressure, and civic ritual as a spatial pattern rather than a spectacle shot."
+    },
+    {
+        "cam_no": 4,
+        "scene_code": "WAR_CITY",
+        "position": "Upper-Right Far",
+        "title": "War City",
+        "core_scene": "Fortified gates, barrier lines, armed defenders, and civilians under harsh white security light in a city under siege pressure.",
+        "operational_prompt": "Create a clean circular CCTV feed in the upper-right far position showing War City: fortified gates, barrier lines, defenders in arms, and a tense urban edge where wives, children, and elders remain near the walls. Use harsh white security illumination and militarized commerce atmosphere. Add REC indicator, timestamp, subtle scanlines, compression grit, and crisp digital text overlays.",
+        "first_person_prompt": "Embedded first-person sensory ethnography with a defender on the wall of War City, looking past wives, children, and old men toward gates under siege light; shield edge, spear shaft, harsh white illumination, dust in the throat, and the crush of fortified commerce make the body feel enlisted and cornered.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in War City: a small hovering observer drifts along the wall line, moves past anxious civilians, then pauses over barriers and armed defenders under cold security glare; it tracks pressure points, watch routes, and the geometry of a city bracing for breach."
+    },
+    {
+        "cam_no": 5,
+        "scene_code": "AMBUSH_RIVER",
+        "position": "Right-Mid Throat",
+        "title": "Ambush River",
+        "core_scene": "Rocky watering place where hidden brass-clad ambushers emerge from kiosk shadows toward shepherds, sheep, and curved oxen.",
+        "operational_prompt": "Create a clean circular CCTV feed at the right-mid throat showing Ambush River: a rocky watering place with kiosk shadows, reeds, hidden brass-clad ambushers, unsuspecting shepherds, sheep, and curved oxen. The image should feel like violence is about to break open from concealment. Add surveillance timestamp, REC indicator, scanlines, and mild compression noise while keeping rocks, brass, and reeds detailed.",
+        "first_person_prompt": "Embedded first-person sensory ethnography among the hidden ambushers at the river throat, crouched in kiosk-shadow and reed-edge brass, waiting for shepherds and curved oxen to enter range; breath held, fingers tense on weapon grip, water murmur close, visibility partial through rocks, metal, and bodies.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography at Ambush River: a tiny witness-cam glides low above the watering place, slipping between reeds, kiosk edges, and rock cover, revealing the hidden line of brass-clad bodies, the unaware shepherds approaching, and the fragile delay before violence breaks the hush."
+    },
+    {
+        "cam_no": 6,
+        "scene_code": "BLACK_FIELD",
+        "position": "Lower-Left Far",
+        "title": "Black Field",
+        "core_scene": "Thrice-ploughed black-gold field with solemn ploughmen, teams turning, and sweet wine offered at the edge.",
+        "operational_prompt": "Create a clean circular CCTV feed in the lower-left far position showing the Black Field: a wide thrice-ploughed black-gold field with ploughmen turning teams in measured lines, and a figure offering sweet wine at the edge of labor. The scene should feel solemn, repetitive, and agriculturally monumental. Add timestamp, REC indicator, scanlines, and light compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the thrice-ploughed black-gold field with the ploughmen, walking behind the team as soil turns dark behind golden ground; reins, dust, hide, sweat, and the drag of the furrow structure the frame, while the offered cup of sweet wine appears at the edge of labor like a brief sacrament.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in the Black Field: a low drifting witness travels parallel to the plough lines, hovering just above the turned earth, watching repeated furrow patterns, circling teams at each turn, and revealing the field as a ritual machine of labor, soil, and blackening gold."
+    },
+    {
+        "cam_no": 7,
+        "scene_code": "CORN_FIELD",
+        "position": "Lower-Left Inner",
+        "title": "Corn Field",
+        "core_scene": "Dense grain harvest with reapers, binders, boys carrying handfuls, a silent king observing, and feast preparation under an oak.",
+        "operational_prompt": "Create a clean circular CCTV feed in the lower-left inner position showing the Corn Field: dense grain harvest with reapers, binders, sheaves, boys carrying armfuls, a silent king with staff, and feast preparations under an oak. Let the feed carry slight timestamp bleed and agricultural density. Add digital text overlay, REC indicator, scanlines, and mild compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography among the reapers and binders in the Corn Field, moving through dense grain with sickle rhythm and arm-load repetition; stalks scrape the lens, straw ropes pass hand to hand, boys brush by carrying handfuls, the silent king appears and disappears through the standing corn, feast smoke under the oak just beyond view.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in the Corn Field: a small hovering cam threads above the cut rows and drops low beside binders, then drifts toward the oak where the feast is being prepared; it watches harvest become pattern—reaping, tying, carrying, pausing—under warm field haze and timestamp bleed."
+    },
+    {
+        "cam_no": 8,
+        "scene_code": "VINEYARD_PATH",
+        "position": "Central-North Promenade",
+        "title": "Vineyard Path",
+        "core_scene": "Grape-bearers in procession along a single path through golden vines with black clusters, silver poles, tin hedge, and a lyre boy singing.",
+        "operational_prompt": "Create a clean circular CCTV feed at the central-north promenade showing the Vineyard Path: rhythmic grape-bearers procession, black clusters on golden vines, silver support poles, a dark-blue trench, tin hedge, and a lyre boy leading singers. The movement should feel steady and processional. Add clean surveillance overlay text, timestamp, REC indicator, scanlines, and light compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the grape-bearers’ procession on the single Vineyard Path, carrying woven baskets beneath black grape clusters on golden vines; silver poles, tin hedge, shoulder strain, foot-beat rhythm, and the lyre boy’s thin song shape the scene from within as a lived procession.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography on the Vineyard Path: a nearby witness-organism floats just off the path, weaving beside baskets, dipping near silver poles and grape skin, then circling the lyre boy and singers as the vintage line advances in steady, communal cadence."
+    },
+    {
+        "cam_no": 9,
+        "scene_code": "LION_PASTURE",
+        "position": "Lower-Right Corner",
+        "title": "Lion Pasture",
+        "core_scene": "Two lions mauling a roaring bull while herdsmen and barking dogs rush in at pasture beside the reeds and river.",
+        "operational_prompt": "Create a clean circular CCTV feed in the lower-right corner showing Lion Pasture: a visceral close-up of two lions mauling a roaring bull, with herdsmen rushing in and dogs barking nearby. The scene should feel immediate, brutal, and unstable without losing readability. Add surveillance HUD text, timestamp, REC indicator, slight scanlines, and gritty compression.",
+        "first_person_prompt": "Embedded first-person sensory ethnography with a herdsman rushing toward the seized bull in Lion Pasture, dogs barking near the legs, reeds and mud underfoot, the lions too close and too terrible to fully frame; blood, hide, and roaring overwhelm the body’s viewpoint, which cannot hold the whole violence at once.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in Lion Pasture: a small hovering cam stays low and nervous at pasture height, sliding around the struggling bull, the lunging lions, barking dogs, and recoiling herdsmen; it never turns the attack into clean spectacle, instead witnessing panic, animal force, and failed human response."
+    },
+    {
+        "cam_no": 10,
+        "scene_code": "SHEEP_GROVE",
+        "position": "Lower-Right Inner",
+        "title": "Sheep Grove",
+        "core_scene": "White sheep, folds, sheds, and cottages in calm repose with soft green monitor bleed and slight fisheye distortion.",
+        "operational_prompt": "Create a clean circular CCTV feed in the lower-right inner position showing Sheep Grove: white sheep among folds, sheds, and cottages in calm pastoral repose. Use subtle fisheye and soft green monitor bleed to suggest older surveillance optics. Add timestamp, REC indicator, digital feed text, scanlines, and mild compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the white Sheep Grove at walking height, moving between folds, sheds, and cottages in calm pastoral air; wool brushes the frame, wood grain and thatch hold soft green monitor bleed, and the scene is carried by breathing, hoof-clicks, and slow pastoral repetition.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in Sheep Grove: a subtle hovering cam with slight fisheye drift moves through the grove at low altitude, passing over sheep backs, dipping near sheds and cottage roofs, and tracing the quiet infrastructure of enclosure, rest, and animal order."
+    },
+    {
+        "cam_no": 11,
+        "scene_code": "DANCE_COURT",
+        "position": "Central Atrium",
+        "title": "Dance Court",
+        "core_scene": "Direct overhead Daedalan circular dance around the fountain with patterned loops, twin tumblers, and waxed-tile reflections.",
+        "operational_prompt": "Create a clean circular CCTV feed in the central atrium showing the Dance Court: a direct overhead view of the Daedalan circular dance around the fountain, patterned loops of youths and maidens, twin tumblers spinning, and waxed-tile reflections. The geometry should feel elegant, ritualized, and spatially clear. Add surveillance overlay, timestamp, REC indicator, scanlines, and light compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography inside the Daedalan Dance Court itself, hands clasped at the wrists, feet turning on waxed tile near the fountain; linen, oil-sheened tunics, garlands, breath, music, and circular momentum make the body know the dance from inside its patterned loops rather than from above.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography in the Dance Court: a small overhead-but-near hovering cam circles the atrium dance floor, never leaving the level of the bodies for a god-view; it watches loops form and dissolve, twin tumblers spin, reflections slide across tile, and the fountain anchor the court’s turning geometry."
+    },
+    {
+        "cam_no": 12,
+        "scene_code": "OCEANUS_RIM",
+        "position": "Outermost Annulus",
+        "title": "Oceanus Rim",
+        "core_scene": "Wet reflective black parking-ring boundary with sodium-vapor spill, continuous perimeter watch, and Oceanus as surveillance moat.",
+        "operational_prompt": "Create a clean circular CCTV feed around the outermost annulus showing the Oceanus Rim: concatenated sections of a wet reflective black parking-ring boundary, sodium-vapor spill, perimeter-watch atmosphere, and the outer river Oceanus reimagined as a continuous surveillance moat. Add clean digital overlay text, timestamps, REC indicator, scanlines, and controlled compression grit.",
+        "first_person_prompt": "Embedded first-person sensory ethnography on the outermost wet-black annulus of the Oceanus Rim, walking the reflective perimeter under sodium spill as a boundary watcher; boots slap damp surface, railings and painted lines enter frame, the ring feels endless, and the Oceanus border reads as both parking lot and cosmic moat.",
+        "world_watcher_prompt": "World-watcher third-person sensory ethnography on the Oceanus Rim: a small witness glides along the outer rim at low altitude, following puddle reflections, barrier edges, sodium lamps, and the continuous loop of the boundary watch; it reveals the annulus as a living perimeter river encircling the whole shield-mall world."
+    }
+]
+
+for cam in base_cams:
+    cam_no = cam["cam_no"]
+    scene_code = cam["scene_code"]
+    common = {
+        "cam_no": cam_no,
+        "scene_code": scene_code,
+        "scene_title": cam["title"],
+        "position": cam["position"],
+        "core_scene": cam["core_scene"]
+    }
+    data["cameras"].append({
+        **common,
+        "variant_id": f"CAM{cam_no:02d}_BASE",
+        "variant_type": "operational_monitor",
+        "display_name": f"CAM {cam_no:02d} – {cam['title']} – Operational Monitor",
+        "prompt": cam["operational_prompt"]
+    })
+    data["cameras"].append({
+        **common,
+        "variant_id": f"CAM{cam_no:02d}_FP",
+        "variant_type": "embedded_first_person",
+        "display_name": f"CAM {cam_no:02d} – {cam['title']} – Embedded First Person",
+        "prompt": cam["first_person_prompt"]
+    })
+    data["cameras"].append({
+        **common,
+        "variant_id": f"CAM{cam_no:02d}_WW",
+        "variant_type": "world_watcher_third_person",
+        "display_name": f"CAM {cam_no:02d} – {cam['title']} – World Watcher",
+        "prompt": cam["world_watcher_prompt"]
+    })
+
+out_path = Path("/Users/gaia/ABC FLIX/AETHEL/shieldmallofachilles_36_cams.json")
+with out_path.open("w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+
+print(f"Saved {len(data['cameras'])} camera variants to {out_path}")
+print("First 3 variant IDs:", [c["variant_id"] for c in data["cameras"][:3]])

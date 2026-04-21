@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX: TACTILE MOBILE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-base: #f4f4f0;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #0033cc;
+            /* Bauhaus Blue */
+            --act-b: #ffcc00;
+            /* Bauhaus Yellow */
+            --act-c: #e60000;
+            /* Bauhaus Red */
+            --act-d: #000000;
+            /* Bauhaus Black */
+            --canvas-bg: #e0e0e0;
+            --border-width: 4px;
+            --shadow-depth: 4px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            width: 100vw;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            overscroll-behavior: none;
+            background-color: var(--bg-base);
+            color: var(--black);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* STRICT MOBILE-FIRST GRID */
+        .layout-body {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+            gap: 4px;
+            padding-bottom: env(safe-area-inset-bottom, 4px);
+        }
+
+        .gate-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel-container {
+            flex: 0 0 35vh;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .timeline-container {
+            flex: 0 0 auto;
+        }
+
+        .nav-container {
+            flex: 0 0 70px;
+            display: flex;
+            gap: 4px;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-body {
+                display: grid;
+                grid-template-rows: 1fr auto;
+                grid-template-columns: 100px 400px 1fr;
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .nav-container {
+                grid-row: 1 / -1;
+                grid-column: 1;
+                flex-direction: column;
+                height: auto;
+            }
+
+            .panel-container {
+                grid-row: 1 / -1;
+                grid-column: 2;
+                flex: auto;
+                height: 100%;
+            }
+
+            .gate-container {
+                grid-row: 1;
+                grid-column: 3;
+            }
+
+            .timeline-container {
+                grid-row: 2;
+                grid-column: 3;
+            }
+        }
+
+        /* MASSIVE TACTILE COMPONENTS */
+        .btn-op {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 16px;
+            background: var(--white);
+            border: var(--border-width) solid var(--black);
+            color: var(--black);
+            cursor: pointer;
+            width: 100%;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-depth) var(--shadow-depth) 0 var(--black);
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+
+        .btn-op:active {
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .btn-op.active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: var(--white);
+            border: var(--border-width) solid var(--black);
+            box-shadow: var(--shadow-depth) var(--shadow-depth) 0 var(--black);
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+
+        .nav-btn:active {
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .nav-btn.on-a {
+            background: var(--act-a);
+            color: var(--white);
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .nav-btn.on-b {
+            background: var(--act-b);
+            color: var(--black);
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .nav-btn.on-c {
+            background: var(--act-c);
+            color: var(--white);
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .nav-btn.on-d {
+            background: var(--act-d);
+            color: var(--white);
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .op-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 12px;
+            gap: 12px;
+            background: var(--white);
+            border: var(--border-width) solid var(--black);
+            overscroll-behavior: contain;
+        }
+
+        .op-panel.on {
+            display: flex;
+        }
+
+        .panel-header {
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            border-bottom: var(--border-width) solid var(--black);
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        textarea {
+            user-select: text;
+            -webkit-user-select: text;
+            caret-color: var(--black);
+            background: var(--bg-base);
+            color: var(--black);
+            font-family: 'Space Mono', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 12px;
+            border: var(--border-width) solid var(--black);
+            resize: none;
+            width: 100%;
+            outline: none;
+            line-height: 1.5;
+            box-shadow: inset 4px 4px 0 rgba(0, 0, 0, 0.1);
+            overscroll-behavior: contain;
+        }
+
+        .swatch {
+            width: 48px;
+            height: 48px;
+            border: var(--border-width) solid var(--black);
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-depth) var(--shadow-depth) 0 var(--black);
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+
+        .swatch:active {
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+            box-shadow: 0px 0px 0 var(--black);
+        }
+
+        .swatch.on {
+            outline: 4px solid var(--black);
+            outline-offset: 4px;
+            box-shadow: 0px 0px 0 var(--black);
+            transform: translate(var(--shadow-depth), var(--shadow-depth));
+        }
+
+        .gate-bg {
+            background: var(--white);
+            position: relative;
+            flex: 1 1 0%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 0;
+            border: var(--border-width) solid var(--black);
+            cursor: crosshair;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            z-index: 10;
+            border: var(--border-width) solid var(--black);
+            background: var(--canvas-bg);
+            box-shadow: 8px 8px 0 var(--black);
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+            touch-action: none;
+        }
+
+        .grid-net {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            display: none;
+            background-image: linear-gradient(to right, var(--black) 1px, transparent 1px), linear-gradient(to bottom, var(--black) 1px, transparent 1px);
+            opacity: 0.3;
+        }
+
+        .grid-net.on {
+            display: block;
+        }
+
+        .tl-bar {
+            background: var(--white);
+            border: var(--border-width) solid var(--black);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .tl-controls {
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            border-bottom: var(--border-width) solid var(--black);
+            align-items: center;
+            background: var(--bg-base);
+            flex-shrink: 0;
+        }
+
+        .tl-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--white);
+            color: var(--black);
+            border: var(--border-width) solid var(--black);
+            padding: 8px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--black);
+            flex-shrink: 0;
+        }
+
+        .tl-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .tl-btn.indicator-on {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .tl-strip {
+            flex: 1 1 0%;
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            overflow-x: auto;
+            align-items: center;
+            min-height: 90px;
+        }
+
+        .tl-frame {
+            position: relative;
+            flex-shrink: 0;
+            border: var(--border-width) solid var(--black);
+            height: 100%;
+            aspect-ratio: 16/9;
+            cursor: pointer;
+            background: var(--canvas-bg);
+        }
+
+        .tl-frame.on {
+            outline: 4px solid var(--act-c);
+            outline-offset: 4px;
+        }
+
+        .tl-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            image-rendering: pixelated;
+        }
+
+        .tl-num {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: var(--white);
+            color: var(--black);
+            border: var(--border-width) solid var(--black);
+            font-size: 10px;
+            padding: 2px 4px;
+            font-weight: 900;
+        }
+
+        /* EXPANDED TIMELINE (GRID VIEW) */
+        .timeline-container.expanded {
+            position: absolute;
+            bottom: 70px;
+            /* Sits exactly above the nav bar on mobile */
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--white);
+            border-top: var(--border-width) solid var(--black);
+            box-shadow: 0 -12px 0 rgba(0, 0, 0, 0.2);
+            height: 50vh;
+        }
+
+        @media (min-width: 1024px) {
+            .timeline-container.expanded {
+                position: relative;
+                bottom: 0;
+                grid-row: 2;
+                grid-column: 3;
+                height: 40vh;
+                box-shadow: none;
+            }
+        }
+
+        #hud-toast {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--act-b);
+            color: var(--black);
+            font-weight: 900;
+            font-size: 16px;
+            padding: 12px 20px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            text-transform: uppercase;
+            border: var(--border-width) solid var(--black);
+            box-shadow: var(--shadow-depth) var(--shadow-depth) 0 var(--black);
+            transition: opacity 0.1s;
+            letter-spacing: 0.1em;
+        }
+
+        #hud-toast.on {
+            opacity: 1;
+        }
+
+        .stat-badge {
+            position: absolute;
+            padding: 8px 12px;
+            background: var(--white);
+            color: var(--black);
+            font-size: 14px;
+            font-weight: 900;
+            border: var(--border-width) solid var(--black);
+            z-index: 30;
+            box-shadow: var(--shadow-depth) var(--shadow-depth) 0 var(--black);
+            pointer-events: none;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* ONBOARDING OVERLAY */
+        #help-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        #help-overlay.on {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .help-box {
+            background: var(--white);
+            border: var(--border-width) solid var(--black);
+            box-shadow: 12px 12px 0 var(--black);
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .help-header {
+            background: var(--act-b);
+            color: var(--black);
+            padding: 20px;
+            font-weight: 900;
+            font-size: 24px;
+            text-transform: uppercase;
+            border-bottom: var(--border-width) solid var(--black);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .help-content {
+            padding: 20px;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.6;
+            max-height: 60vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .help-step {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .help-num {
+            background: var(--black);
+            color: var(--white);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: 900;
+        }
+
+        /* ZEN MODE (FOCUS) */
+        body.zen-mode .panel-container,
+        body.zen-mode .timeline-container,
+        body.zen-mode .nav-container {
+            display: none !important;
+        }
+
+        @media (min-width: 1024px) {
+            body.zen-mode .layout-body {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr;
+            }
+
+            body.zen-mode .gate-container {
+                grid-row: 1 / -1;
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* A.I. OVERLAY */
+        #ai-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        #ai-overlay.on {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        svg {
+            display: block;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
+        }
+    </style>
+</head>
+
+<body class="layout-body">
+
+    <!-- TOP: CANVAS VIEWPORT -->
+    <section class="gate-container z-20">
+        <div class="gate-bg" id="gate">
+            <div class="stat-badge" style="top:8px; left:8px; pointer-events:all; display:flex; gap: 8px; padding:4px;">
+                <!-- HELP BUTTON -->
+                <button class="tl-btn" id="btn-help" onclick="toggleHelp()" style="background: var(--act-b);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                </button>
+                <div style="width: 2px; height: 20px; background: var(--black); margin: 0 2px;"></div>
+                <button class="tl-btn" id="btn-grid" onclick="triggerGrid()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <path d="M3 3h18v18H3z" />
+                        <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+                    </svg>
+                </button>
+                <button class="tl-btn" id="btn-onion" onclick="triggerOnionSkin()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <rect x="3" y="3" width="12" height="12" />
+                        <rect x="9" y="9" width="12" height="12" stroke-dasharray="2 2" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="stat-badge"
+                style="top:8px; right:8px; font-size:16px; background:var(--white); display: flex; gap: 8px; pointer-events:all; padding: 4px 8px;"
+                id="frame-badge-container">
+                <span id="lbl-frame" style="margin-top: 2px;">00/00</span>
+                <div style="width: 2px; height: 16px; background: var(--black); margin-top: 4px;"></div>
+                <button class="tl-btn" onclick="toggleZenMode()"
+                    style="padding: 2px 4px; box-shadow: 2px 2px 0 var(--black);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <polyline points="15 3 21 3 21 9" />
+                        <polyline points="9 21 3 21 3 15" />
+                        <line x1="21" y1="3" x2="14" y2="10" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="canvas-wrapper">
+                <div id="net" class="grid-net"></div>
+                <canvas id="primary-buffer"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- MIDDLE: INTERACTIVE PANELS -->
+    <aside class="panel-container z-30">
+
+        <!-- A. LOAD -->
+        <div id="panel-a" class="op-panel" style="border-color: var(--act-a);">
+            <div class="panel-header" style="color: var(--act-a);">LOAD</div>
+            <button class="btn-op" onclick="document.getElementById('file-input').click()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                    <path d="M21 15v4H3v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                IMAGE
+            </button>
+            <button class="btn-op" onclick="loadTestSequence()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="4" />
+                </svg>
+                TEST FILM
+            </button>
+        </div>
+
+        <!-- B. CODE -->
+        <div id="panel-b" class="op-panel" style="padding: 0; border-color: var(--act-b); gap: 0;">
+            <div class="flex justify-between items-center px-4 py-3 border-b-[4px] border-black bg-white flex-shrink-0">
+                <span class="text-xl font-black uppercase"
+                    style="color: var(--act-b); -webkit-text-stroke: 1px black;">CODE</span>
+                <button onclick="openAIModal()"
+                    class="bg-black text-white font-black text-[12px] px-3 py-2 uppercase border-[3px] border-black active:translate-y-1">ASK
+                    A.I.</button>
+            </div>
+
+            <!-- TACTILE CODE PRESETS FOR MOBILE -->
+            <div class="flex gap-2 p-3 border-b-[4px] border-black bg-[var(--bg-base)] overflow-x-auto shrink-0"
+                style="scrollbar-width: none;">
+                <button class="tl-btn" style="padding: 10px 16px; font-size: 14px;"
+                    onclick="injectCode('RAIN')">RAIN</button>
+                <button class="tl-btn" style="padding: 10px 16px; font-size: 14px;"
+                    onclick="injectCode('PULSE')">PULSE</button>
+                <button class="tl-btn" style="padding: 10px 16px; font-size: 14px;"
+                    onclick="injectCode('SLIDE')">SLIDE</button>
+            </div>
+
+            <textarea id="sys-script" spellcheck="false" class="flex-1 min-h-[150px]" style="border: none;">
+C DRAWING ADDS CODE HERE.
+C TRY CLICKING "RAIN" OR "PULSE" ABOVE!
+
+CLR 5
+PNT 4 10 12 12 2
+PNT 20 18 10 14 3
+REC 1
+SHF 1 1 10</textarea>
+        </div>
+
+        <!-- C. DRAW -->
+        <div id="panel-c" class="op-panel on" style="border-color: var(--act-c);">
+            <div class="panel-header" style="color: var(--act-c);">
+                <span>TOOLS</span>
+                <button onclick="wipeCurrentInk()" class="text-[10px] font-black underline"
+                    style="color: var(--black)">WIPE INK</button>
+            </div>
+            <!-- Expanded to 4 columns to fit the Move/Pan tool -->
+            <div class="grid grid-cols-4 gap-2 shrink-0">
+                <button class="btn-op active" id="tool-pen" onclick="bindTool('pen')" style="padding: 16px 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <line x1="5" y1="19" x2="19" y2="5" />
+                    </svg>
+                </button>
+                <button class="btn-op" id="tool-rect" onclick="bindTool('rect')" style="padding: 16px 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <rect x="4" y="4" width="16" height="16" />
+                    </svg>
+                </button>
+                <button class="btn-op" id="tool-pan" onclick="bindTool('pan')" style="padding: 16px 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <polyline points="5 9 2 12 5 15" />
+                        <polyline points="9 5 12 2 15 5" />
+                        <polyline points="19 9 22 12 19 15" />
+                        <polyline points="9 19 12 22 15 19" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <line x1="12" y1="2" x2="12" y2="22" />
+                    </svg>
+                </button>
+                <button class="btn-op" id="tool-erase" onclick="bindTool('erase')" style="padding: 16px 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <line x1="5" y1="5" x2="19" y2="19" />
+                        <line x1="19" y1="5" x2="5" y2="19" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="panel-header mt-2">COLORS</div>
+            <div id="ink-swatches" class="flex flex-wrap gap-2 justify-start shrink-0"></div>
+        </div>
+
+        <!-- D. SAVE -->
+        <div id="panel-d" class="op-panel" style="border-color: var(--act-d);">
+            <div class="panel-header">SAVE</div>
+            <button class="btn-op" onclick="compileOutput()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                    <rect x="2" y="2" width="20" height="20" />
+                    <line x1="7" y1="2" x2="7" y2="22" />
+                    <line x1="17" y1="2" x2="17" y2="22" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                </svg>
+                MOVIE
+            </button>
+            <button class="btn-op" onclick="compileContactSheet()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                    <rect x="3" y="3" width="18" height="18" />
+                    <rect x="7" y="7" width="4" height="4" />
+                    <rect x="13" y="7" width="4" height="4" />
+                    <rect x="7" y="13" width="4" height="4" />
+                    <rect x="13" y="13" width="4" height="4" />
+                </svg>
+                SHEET
+            </button>
+        </div>
+
+    </aside>
+
+    <!-- TIMELINE -->
+    <section class="timeline-container z-20">
+        <div class="tl-bar">
+            <div class="tl-controls">
+                <button id="btn-engage" class="tl-btn" onclick="engageSequence()"
+                    style="background:var(--act-c); color:var(--white); border-color:var(--act-c); width: 60px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="play-icon">
+                        <polygon points="5,3 19,12 5,21" />
+                    </svg>
+                </button>
+                <div style="width: 2px; height: 24px; background: var(--black); margin: 0 4px;"></div>
+
+                <button class="tl-btn" onclick="stepSequence(-1)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="19,3 5,12 19,21" />
+                    </svg>
+                </button>
+                <button class="tl-btn" onclick="stepSequence(1)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5,3 19,12 5,21" />
+                    </svg>
+                </button>
+
+                <div style="flex-grow:1"></div>
+
+                <button class="tl-btn" onclick="toggleTimelineGrid()" id="btn-grid-view">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                </button>
+                <button class="tl-btn" onclick="injectFrame()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                </button>
+                <button class="tl-btn" onclick="duplicateFrame()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                        <rect x="6" y="6" width="12" height="12" />
+                        <path d="M18 18l4 4" />
+                    </svg>
+                </button>
+            </div>
+            <div class="tl-strip" id="track"></div>
+        </div>
+    </section>
+
+    <!-- BOTTOM NAV: MASSIVE HIT AREAS, PURE GEOMETRY -->
+    <nav class="nav-container z-40">
+        <button id="nav-a" class="nav-btn" onclick="execNav('A')">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+        </button>
+        <button id="nav-b" class="nav-btn" onclick="execNav('B')">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+            </svg>
+        </button>
+        <button id="nav-c" class="nav-btn on-c" onclick="execNav('C')">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+        </button>
+        <button id="nav-d" class="nav-btn" onclick="execNav('D')">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+            </svg>
+        </button>
+    </nav>
+
+    <input type="file" id="file-input" accept="image/*,video/*" style="display:none" onchange="ingestMedia(event)">
+    <div id="hud-toast">READY</div>
+
+    <!-- ONBOARDING OVERLAY -->
+    <div id="help-overlay">
+        <div class="help-box">
+            <div class="help-header">
+                <span>HOW TO PLAY</span>
+            </div>
+            <div class="help-content">
+                <p>Welcome to ABC FLIX! This is a machine that makes animations using a secret robot language.</p>
+                <div class="help-step">
+                    <div class="help-num">1</div>
+                    <div><strong>DRAW:</strong> Use your finger to draw on the canvas. It writes code for you!</div>
+                </div>
+                <div class="help-step">
+                    <div class="help-num">2</div>
+                    <div><strong>CODE:</strong> Tap the MAGIC buttons (RAIN, PULSE) to instantly build complex
+                        animations.</div>
+                </div>
+                <div class="help-step">
+                    <div class="help-num">3</div>
+                    <div><strong>TIMELINE:</strong> Press the big PLAY button at the bottom to watch your movie. Press
+                        "+ BLANK" to add frames.</div>
+                </div>
+                <div class="help-step"
+                    style="background: var(--act-b); padding: 12px; border: var(--border-width) solid var(--black);">
+                    <strong>MAGIC A.I.:</strong> Tap "ASK A.I." in the CODE tab. It copies instructions you can paste
+                    into ChatGPT to let AI make a movie for you!
+                </div>
+            </div>
+            <button class="btn-op" onclick="toggleHelp()"
+                style="background: var(--act-c); color: var(--white); border-top: var(--border-width) solid var(--black); padding: 24px;">LET'S
+                GO!</button>
+        </div>
+    </div>
+
+    <!-- A.I. OVERLAY -->
+    <div id="ai-overlay">
+        <div class="help-box" style="max-width: 400px;">
+            <div class="help-header" style="background: var(--black); color: var(--white);">
+                <span id="ai-modal-title">ASK A.I.</span>
+                <button id="ai-close-btn" onclick="closeAIModal()"
+                    style="background: none; border: none; color: var(--white); font-weight: 900; cursor: pointer;">X</button>
+            </div>
+            <div class="help-content" style="gap: 10px; max-height: none;" id="ai-modal-body">
+                <p style="font-size: 14px; margin: 0;" id="ai-prompt-desc">Describe what you want to animate on the 64×36 grid.</p>
+
+                <textarea id="ai-prompt-input" rows="3" placeholder="E.g. 'A yellow ball bouncing into water with splashes'"
+                    style="font-size: 14px; padding: 8px; width: 100%; resize: none; border: var(--border-width) solid var(--black); font-family: 'Helvetica Neue', sans-serif; font-weight: bold;"></textarea>
+
+                <div style="width:100%; height:2px; background:var(--black); margin:2px 0;"></div>
+                <div style="font-size: 10px; font-weight: 900; letter-spacing: 0.1em; color: #666;">OPTION 1 — NO API KEY NEEDED</div>
+                <button class="btn-op" onclick="copySystemPromptAA()"
+                    style="background: var(--act-b); color: var(--black); font-size: 12px; font-weight: 900; padding: 12px; border: 3px solid var(--black); box-shadow: 3px 3px 0 var(--black);">⎘ COPY FULL PROMPT TO CLIPBOARD</button>
+                <div style="font-size: 9px; color: #888; font-weight: 700; text-align: center;">Paste into ChatGPT, Gemini, or Claude. Paste the output into the code editor.</div>
+
+                <div style="width:100%; height:2px; background:var(--black); margin:2px 0;"></div>
+                <div style="font-size: 10px; font-weight: 900; letter-spacing: 0.1em; color: #666;">OPTION 2 — AUTO-GENERATE WITH OPENAI</div>
+                <input type="password" id="openai-key-input" placeholder="Paste your OpenAI API Key (sk-...)"
+                    style="font-size: 12px; padding: 8px; width: 100%; border: var(--border-width) solid var(--black); font-family: 'Space Mono', monospace; font-weight: bold; background: var(--bg-base);">
+                <button id="ai-submit-btn" class="btn-op" onclick="executeAI()"
+                    style="background: var(--act-a); color: var(--white); border: var(--border-width) solid var(--black); padding: 14px; font-size: 12px; font-weight: 900;">GENERATE WITH AI</button>
+
+                <canvas id="ai-canvas" width="64" height="36"
+                    style="display:none; width:100%; height:160px; image-rendering:pixelated; background:var(--black); border: var(--border-width) solid var(--black);"></canvas>
+            </div>
+        </div>
+    </div>
+
+</body>
+<script>
+    // STRUCTURAL CONSTANTS
+    const W = 320, H = 180;
+    const G_COLS = 64, G_ROWS = 36, B_SZ = 5;
+    const BASE_FPS = 12;
+
+    const INKS = [
+        { id: 0, hex: '#e0e0e0', rgb: [0, 0, 0, 0] },
+        { id: 1, hex: '#000000', rgb: [0, 0, 0, 255] },
+        { id: 2, hex: '#e60000', rgb: [230, 0, 0, 255] },
+        { id: 3, hex: '#0033cc', rgb: [0, 51, 204, 255] },
+        { id: 4, hex: '#ffcc00', rgb: [255, 204, 0, 255] },
+        { id: 5, hex: '#ffffff', rgb: [255, 255, 255, 255] }
+    ];
+
+    // STATE
+    let state = {
+        frames: [], cur: 0, playing: false,
+        tool: 'pen', color: 2, grid: false, onionSkin: false,
+        dragging: false, p0: [0, 0], p1: [0, 0],
+        velocity: 1.0, activeNav: 'C', scale: 1,
+        frameMappings: [], activeHighlight: null,
+        dragSnapshot: null
+    };
+
+    // HARDWARE
+    const cvs = document.getElementById('primary-buffer');
+    const ctx = cvs.getContext('2d', { willReadFrequently: true });
+    const inkBuf = document.createElement('canvas'); inkBuf.width = W; inkBuf.height = H;
+    const inkCtx = inkBuf.getContext('2d', { willReadFrequently: true });
+    const compBuf = document.createElement('canvas'); compBuf.width = W; compBuf.height = H;
+    const compCtx = compBuf.getContext('2d', { willReadFrequently: true });
+    const scriptBuf = document.getElementById('sys-script');
+
+    let playRAF, lastT = 0, evalTimeout;
+
+    const playSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
+    const stopSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg>';
+
+    let timelineExpanded = false;
+    let aiAniFrame = 0;
+    let aiAniTimer = null;
+
+    // ── BOOT ──
+    window.onload = () => {
+        buildInkReservoir();
+        injectFrame(true);
+        rescaleWorkspace();
+        window.addEventListener('resize', rescaleWorkspace);
+
+        // Live Compiler Event Binding
+        scriptBuf.addEventListener('input', () => {
+            clearTimeout(evalTimeout);
+            evalTimeout = setTimeout(liveCompileLogic, 100);
+        });
+
+        // Bidirectional Linking Binding
+        scriptBuf.addEventListener('click', updateCodeToFrameLink);
+        scriptBuf.addEventListener('keyup', updateCodeToFrameLink);
+
+        liveCompileLogic();
+
+        // Show onboarding on first load
+        if (!localStorage.getItem('abc_flix_seen')) {
+            toggleHelp();
+            localStorage.setItem('abc_flix_seen', 'true');
+        }
+    };
+
+    // --- MISSING UI/NAV FUNCTIONS ---
+    function toggleZenMode() {
+        document.body.classList.toggle('zen-mode');
+        setTimeout(rescaleWorkspace, 100);
+    }
+
+    function toggleHelp() {
+        const el = document.getElementById('help-overlay');
+        el.classList.toggle('on');
+    }
+
+    function execNav(id) {
+        state.activeNav = id;
+        ['A', 'B', 'C', 'D'].forEach(c => {
+            const navBtn = document.getElementById('nav-' + c.toLowerCase());
+            const panel = document.getElementById('panel-' + c.toLowerCase());
+            if (navBtn) navBtn.classList.remove(`on-${c.toLowerCase()}`);
+            if (panel) panel.classList.remove('on');
+        });
+        const activeNavBtn = document.getElementById('nav-' + id.toLowerCase());
+        const activePanel = document.getElementById('panel-' + id.toLowerCase());
+        if (activeNavBtn) activeNavBtn.classList.add(`on-${id.toLowerCase()}`);
+        if (activePanel) activePanel.classList.add('on');
+    }
+
+    function bindTool(id) {
+        state.tool = id;
+        ['pen', 'rect', 'pan', 'erase'].forEach(t => {
+            const b = document.getElementById('tool-' + t);
+            if (!b) return;
+            if (t === id) {
+                b.classList.add('active');
+                b.style.background = 'var(--black)'; b.style.color = 'var(--white)';
+            } else {
+                b.classList.remove('active');
+                b.style.background = 'var(--white)'; b.style.color = 'var(--black)';
+            }
+        });
+    }
+
+    function buildInkReservoir() {
+        const box = document.getElementById('ink-swatches');
+        if (!box) return;
+        box.innerHTML = '';
+        INKS.slice(1).forEach(c => {
+            const s = document.createElement('div');
+            s.className = `swatch ${c.id === state.color ? 'on' : ''}`;
+            s.style.background = c.hex;
+            s.onclick = () => {
+                state.color = c.id;
+                document.querySelectorAll('.swatch').forEach(el => el.classList.remove('on'));
+                s.classList.add('on');
+                if (state.tool === 'erase' || state.tool === 'pan') bindTool('pen');
+            };
+            box.appendChild(s);
+        });
+    }
+
+    function triggerGrid() {
+        state.grid = !state.grid;
+        const net = document.getElementById('net');
+        const btn = document.getElementById('btn-grid');
+        if (net) net.classList.toggle('on', state.grid);
+        if (btn) btn.classList.toggle('indicator-on', state.grid);
+    }
+
+    function triggerOnionSkin() {
+        state.onionSkin = !state.onionSkin;
+        const btn = document.getElementById('btn-onion');
+        if (btn) btn.classList.toggle('indicator-on', state.onionSkin);
+        renderOutput();
+    }
+
+    function fireToast(msg) {
+        const t = document.getElementById('hud-toast');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('on');
+        setTimeout(() => t.classList.remove('on'), 1500);
+    }
+
+    function rescaleWorkspace() {
+        const wrap = document.getElementById('canvas-wrapper');
+        const gate = document.getElementById('gate');
+        if (!gate || !wrap) return;
+        const padding = window.innerWidth < 768 ? 16 : 40;
+        const maxW = gate.clientWidth - padding;
+        const maxH = gate.clientHeight - padding;
+        state.scale = Math.min(maxW / W, maxH / H);
+
+        const vW = Math.floor(W * state.scale);
+        const vH = Math.floor(H * state.scale);
+
+        cvs.style.width = `${vW}px`; cvs.style.height = `${vH}px`;
+        cvs.width = W; cvs.height = H;
+        wrap.style.width = `${vW}px`; wrap.style.height = `${vH}px`;
+
+        const net = document.getElementById('net');
+        if (net) net.style.backgroundSize = `${state.scale * B_SZ}px ${state.scale * B_SZ}px`;
+        renderOutput();
+    }
+
+    function wipeCurrentInk() {
+        if (!state.frames.length) return;
+        state.frames[state.cur].handLayer.fill(0);
+        renderOutput();
+        rebuildTrack();
+        fireToast('INK WIPED');
+    }
+
+    // --- TIMELINE / FRAMES ---
+    function getBlankMatrix() { return new Uint8ClampedArray(W * H * 4); }
+
+    function injectFrame(init = false) {
+        state.frames.push({ src: null, scriptLayer: getBlankMatrix(), handLayer: getBlankMatrix() });
+        if (!init) {
+            state.cur = state.frames.length - 1;
+            rebuildTrack(); renderOutput();
+        }
+    }
+
+    function duplicateFrame() {
+        if (!state.frames.length) return;
+        const ref = state.frames[state.cur];
+        state.frames.splice(state.cur + 1, 0, {
+            src: ref.src,
+            scriptLayer: new Uint8ClampedArray(ref.scriptLayer),
+            handLayer: new Uint8ClampedArray(ref.handLayer)
+        });
+        state.cur++;
+        rebuildTrack(); renderOutput();
+    }
+
+    function stepSequence(dir) {
+        if (state.playing || !state.frames.length) return;
+        state.cur = (state.cur + dir + state.frames.length) % state.frames.length;
+        rebuildTrack(); renderOutput();
+    }
+
+    function toggleTimelineGrid() {
+        timelineExpanded = !timelineExpanded;
+        const container = document.querySelector('.timeline-container');
+        const strip = document.getElementById('track');
+        const btn = document.getElementById('btn-grid-view');
+
+        if (timelineExpanded) {
+            container.classList.add('expanded');
+            strip.style.flexWrap = 'wrap';
+            strip.style.height = '100%';
+            strip.style.alignContent = 'flex-start';
+            btn.classList.add('indicator-on');
+        } else {
+            container.classList.remove('expanded');
+            strip.style.flexWrap = 'nowrap';
+            strip.style.height = '90px';
+            strip.style.alignContent = 'center';
+            btn.classList.remove('indicator-on');
+        }
+        setTimeout(rescaleWorkspace, 100);
+    }
+
+    function updateCodeToFrameLink() {
+        if (state.playing) return;
+        const cursorPos = scriptBuf.selectionStart;
+        const textToCursor = scriptBuf.value.substring(0, cursorPos);
+        const lineNum = textToCursor.split('\n').length - 1;
+
+        // 1. Sync Timeline Frame
+        if (state.frameMappings) {
+            const frameIdx = state.frameMappings.findIndex(m => lineNum >= m.start && lineNum <= m.end);
+            if (frameIdx !== -1 && frameIdx < state.frames.length) {
+                if (state.cur !== frameIdx) {
+                    state.cur = frameIdx;
+                    rebuildTrack();
+                }
+            }
+        }
+
+        // 2. Visual Highlight on Canvas
+        const lines = scriptBuf.value.split('\n');
+        const line = lines[lineNum].trim().toUpperCase();
+        const p = line.split(/\s+/);
+        const c = p[0];
+        const a = p.slice(1).map(Number);
+
+        if (c === 'PNT' && a.length >= 4 && !a.slice(0, 4).some(isNaN)) {
+            state.activeHighlight = { type: 'PNT', x: a[0], y: a[1], w: a[2], h: a[3] };
+        } else if (c === 'LIN' && a.length >= 4 && !a.slice(0, 4).some(isNaN)) {
+            state.activeHighlight = { type: 'LIN', x0: a[0], y0: a[1], x1: a[2], y1: a[3] };
+        } else {
+            state.activeHighlight = null;
+        }
+        renderOutput();
+    }
+
+    function rebuildTrack() {
+        const trk = document.getElementById('track');
+        if (!trk) return;
+        trk.innerHTML = '';
+        state.frames.forEach((f, i) => {
+            const w = document.createElement('div');
+            w.className = `tl-frame ${i === state.cur ? 'on' : ''}`;
+            w.onclick = () => {
+                if (state.playing) return;
+                state.cur = i;
+                rebuildTrack();
+                renderOutput();
+
+                // 3. Highlight Script based on Timeline click
+                if (state.activeNav === 'B' && state.frameMappings && state.frameMappings[i]) {
+                    const mapping = state.frameMappings[i];
+                    const lines = scriptBuf.value.split('\n');
+                    let startChar = 0;
+                    for (let l = 0; l < mapping.start; l++) startChar += lines[l].length + 1;
+                    let endChar = startChar;
+                    for (let l = mapping.start; l <= mapping.end && l < lines.length; l++) endChar += lines[l].length + 1;
+
+                    scriptBuf.focus();
+                    scriptBuf.setSelectionRange(startChar, endChar - 1);
+                    updateCodeToFrameLink();
+                }
+            };
+
+            const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = W; c.height = H;
+            const cx = c.getContext('2d');
+            if (f.src) cx.drawImage(f.src, 0, 0, W, H); else { cx.fillStyle = '#e0e0e0'; cx.fillRect(0, 0, W, H); }
+
+            // Render Script
+            const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+            tmp.getContext('2d').putImageData(new ImageData(f.scriptLayer, W, H), 0, 0);
+            cx.drawImage(tmp, 0, 0);
+
+            // Render Hand Drawing
+            const hm = document.createElement('canvas'); hm.width = W; hm.height = H;
+            hm.getContext('2d').putImageData(new ImageData(f.handLayer, W, H), 0, 0);
+            cx.drawImage(hm, 0, 0);
+
+            const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1;
+            w.appendChild(c); w.appendChild(n); trk.appendChild(w);
+            if (i === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+        });
+        const lblFrame = document.getElementById('lbl-frame');
+        if (lblFrame) lblFrame.textContent = `${String(state.cur + 1).padStart(2, '0')}/${String(state.frames.length).padStart(2, '0')}`;
+    }
+
+    // ── COMPOSITE RENDERER ──
+    function renderOutput() {
+        const f = state.frames[state.cur];
+        if (!f) return;
+
+        compCtx.clearRect(0, 0, W, H);
+        inkCtx.clearRect(0, 0, W, H);
+
+        // 1. Background Source
+        if (f.src) compCtx.drawImage(f.src, 0, 0, W, H);
+        else { compCtx.fillStyle = '#e0e0e0'; compCtx.fillRect(0, 0, W, H); }
+
+        // 2. Onion Skin (N-1)
+        if (state.onionSkin && state.cur > 0) {
+            const prev = state.frames[state.cur - 1];
+            const oc = document.createElement('canvas'); oc.width = W; oc.height = H; const octx = oc.getContext('2d');
+            if (prev.src) octx.drawImage(prev.src, 0, 0, W, H); else { octx.fillStyle = '#e0e0e0'; octx.fillRect(0, 0, W, H); }
+
+            const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+            tmp.getContext('2d').putImageData(new ImageData(prev.scriptLayer, W, H), 0, 0);
+            octx.drawImage(tmp, 0, 0);
+
+            const hm = document.createElement('canvas'); hm.width = W; hm.height = H;
+            hm.getContext('2d').putImageData(new ImageData(prev.handLayer, W, H), 0, 0);
+            octx.drawImage(hm, 0, 0);
+
+            compCtx.globalAlpha = 0.35;
+            compCtx.drawImage(oc, 0, 0);
+            compCtx.globalAlpha = 1.0;
+        }
+
+        // 3. Algorithmic Script Layer
+        inkCtx.putImageData(new ImageData(f.scriptLayer, W, H), 0, 0);
+
+        // 4. Physical Hand Drawn Layer
+        const hm = document.createElement('canvas'); hm.width = W; hm.height = H;
+        hm.getContext('2d').putImageData(new ImageData(f.handLayer, W, H), 0, 0);
+        inkCtx.drawImage(hm, 0, 0);
+
+        // 5. Live Vector Drag (Preview before mouseup)
+        if (state.dragging && state.tool === 'rect') {
+            const live = getBlankMatrix();
+            plotRect(live, state.p0[0], state.p0[1], state.p1[0], state.p1[1], INKS[state.color].rgb, 1);
+            const lm = document.createElement('canvas'); lm.width = W; lm.height = H;
+            lm.getContext('2d').putImageData(new ImageData(live, W, H), 0, 0);
+            inkCtx.drawImage(lm, 0, 0);
+        }
+
+        // Merge onto view
+        compCtx.drawImage(inkBuf, 0, 0);
+
+        // 6. Visual Trace Overlay (Active Code Highlight)
+        if (state.activeHighlight && !state.playing) {
+            compCtx.save();
+            compCtx.strokeStyle = 'rgba(255, 255, 255, 1)';
+            compCtx.lineWidth = 3;
+
+            let hx, hy, hw, hh;
+            if (state.activeHighlight.type === 'PNT') {
+                hx = state.activeHighlight.x * B_SZ;
+                hy = state.activeHighlight.y * B_SZ;
+                hw = state.activeHighlight.w * B_SZ;
+                hh = state.activeHighlight.h * B_SZ;
+            } else if (state.activeHighlight.type === 'LIN') {
+                const { x0, y0, x1, y1 } = state.activeHighlight;
+                hx = Math.min(x0, x1) * B_SZ;
+                hy = Math.min(y0, y1) * B_SZ;
+                hw = (Math.max(x0, x1) - Math.min(x0, x1)) * B_SZ + B_SZ;
+                hh = (Math.max(y0, y1) - Math.min(y0, y1)) * B_SZ + B_SZ;
+            }
+
+            compCtx.strokeRect(hx, hy, hw, hh);
+            compCtx.strokeStyle = 'rgba(0, 0, 0, 1)';
+            compCtx.lineWidth = 1;
+            compCtx.setLineDash([4, 4]);
+            compCtx.strokeRect(hx, hy, hw, hh);
+            compCtx.restore();
+        }
+
+        ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+        const lblFrame = document.getElementById('lbl-frame');
+        if (lblFrame) lblFrame.textContent = `${String(state.cur + 1).padStart(2, '0')}/${String(state.frames.length).padStart(2, '0')}`;
+    }
+
+    // ── FAULT TOLERANT COMPILER ──
+    function liveCompileLogic() {
+        const code = scriptBuf.value.toUpperCase().split('\n');
+        let res = [];
+        let mat = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
+        state.frameMappings = [];
+        let lastRecLine = -1;
+
+        code.forEach((l, lineIndex) => {
+            l = l.trim();
+            if (!l || l.startsWith('C')) return;
+            const p = l.split(/\s+/); // Robust whitespace parsing
+            const c = p[0];
+            const a = p.slice(1).map(Number);
+
+            if (c === 'CLR' && a.length >= 1 && !isNaN(a[0])) {
+                for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) mat[y][x] = a[0];
+            }
+            else if (c === 'PNT' && a.length >= 5 && !a.some(isNaN)) {
+                for (let y = a[1]; y < a[1] + a[3]; y++) for (let x = a[0]; x < a[0] + a[2]; x++) if (y >= 0 && y < G_ROWS && x >= 0 && x < G_COLS) mat[y][x] = a[4];
+            }
+            else if (c === 'LIN' && a.length >= 5 && !a.some(isNaN)) {
+                let x0 = a[0], y0 = a[1], x1 = a[2], y1 = a[3], v = a[4];
+                let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+                let sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
+                while (true) {
+                    if (y0 >= 0 && y0 < G_ROWS && x0 >= 0 && x0 < G_COLS) mat[y0][x0] = v;
+                    if (x0 === x1 && y0 === y1) break;
+                    let e2 = 2 * err; if (e2 > -dy) { err -= dy; x0 += sx; } if (e2 < dx) { err += dx; y0 += sy; }
+                }
+            }
+            else if (c === 'REC') {
+                const count = (a.length >= 1 && !isNaN(a[0])) ? a[0] : 1;
+                for (let i = 0; i < count; i++) {
+                    res.push(mat.map(r => [...r]));
+                    state.frameMappings.push({ start: lastRecLine + 1, end: lineIndex });
+                }
+                lastRecLine = lineIndex;
+            }
+            else if (c === 'SHF' && a.length >= 3 && !a.some(isNaN)) {
+                for (let f = 0; f < a[2]; f++) {
+                    let n = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
+                    for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+                        let nx = x - a[0], ny = y - a[1]; if (nx >= 0 && nx < G_COLS && ny >= 0 && ny < G_ROWS) n[y][x] = mat[ny][nx];
+                    }
+                    mat = n; res.push(mat.map(r => [...r]));
+                    state.frameMappings.push({ start: lastRecLine + 1, end: lineIndex });
+                }
+                lastRecLine = lineIndex;
+            }
+        });
+
+        if (res.length === 0) {
+            res = [mat];
+            state.frameMappings.push({ start: 0, end: code.length - 1 });
+        }
+
+        if (state.frames.length > res.length) {
+            state.frames.splice(res.length);
+        }
+        while (state.frames.length < res.length) injectFrame(true);
+        if (state.cur >= state.frames.length) state.cur = Math.max(0, state.frames.length - 1);
+
+        for (let i = 0; i < state.frames.length; i++) {
+            const f = state.frames[i];
+            const sm = res[i % res.length];
+            const ink = f.scriptLayer;
+            ink.fill(0);
+
+            for (let y = 0; y < G_ROWS; y++) {
+                for (let x = 0; x < G_COLS; x++) {
+                    const v = sm[y][x]; if (v === 0) continue;
+                    const col = INKS.find(p => p.id === v).rgb;
+                    for (let by = 0; by < B_SZ; by++) for (let bx = 0; bx < B_SZ; bx++) bindPixel(ink, x * B_SZ + bx, y * B_SZ + by, col);
+                }
+            }
+        }
+
+        renderOutput();
+        rebuildTrack();
+        updateCodeToFrameLink();
+    }
+
+    // ── FAST DRAWING ENGINE ──
+    function bindPixel(arr, x, y, c) {
+        if (x < 0 || x >= W || y < 0 || y >= H) return;
+        const i = (y * W + x) * 4;
+        if (c[3] === 0) { arr[i] = 0; arr[i + 1] = 0; arr[i + 2] = 0; arr[i + 3] = 0; return; }
+        arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3];
+    }
+
+    function plotBlock(arr, x, y, c, r) {
+        const rad = r / 2;
+        for (let iy = -Math.ceil(rad); iy <= Math.ceil(rad); iy++)
+            for (let ix = -Math.ceil(rad); ix <= Math.ceil(rad); ix++)
+                if (ix * ix + iy * iy <= rad * rad) bindPixel(arr, Math.round(x + ix), Math.round(y + iy), c);
+    }
+
+    function plotVector(arr, x0, y0, x1, y1, c, w) {
+        let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+        let sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
+        while (true) {
+            plotBlock(arr, x0, y0, c, w);
+            if (x0 === x1 && y0 === y1) break;
+            let e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 < dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    function plotRect(arr, x0, y0, x1, y1, c, w) {
+        plotVector(arr, x0, y0, x1, y0, c, w); plotVector(arr, x1, y0, x1, y1, c, w);
+        plotVector(arr, x1, y1, x0, y1, c, w); plotVector(arr, x0, y1, x0, y0, c, w);
+    }
+
+    function mapCoord(e) {
+        const r = cvs.getBoundingClientRect();
+        const cx = e.clientX; const cy = e.clientY;
+        const mappedX = Math.max(0, Math.min(W - 1, Math.floor((cx - r.left) / r.width * W)));
+        const mappedY = Math.max(0, Math.min(H - 1, Math.floor((cy - r.top) / r.height * H)));
+        return [mappedX, mappedY];
+    }
+
+    // Draw Event Listeners
+    cvs.addEventListener('pointerdown', e => {
+        if (state.playing || state.activeNav !== 'C') return;
+        cvs.setPointerCapture(e.pointerId);
+        state.dragging = true;
+        state.p0 = mapCoord(e);
+        state.p1 = state.p0;
+
+        // If Pan Tool, snapshot the current hand drawing so we can shift it cleanly
+        if (state.tool === 'pan') {
+            state.dragSnapshot = new Uint8ClampedArray(state.frames[state.cur].handLayer);
+            return;
+        }
+
+        // Dot logic for tapping
+        const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb;
+        if (state.tool === 'pen' || state.tool === 'erase') {
+            plotVector(state.frames[state.cur].handLayer, state.p0[0], state.p0[1], state.p0[0], state.p0[1], col, 5);
+            renderOutput();
+        }
+    });
+
+    cvs.addEventListener('pointermove', e => {
+        if (!state.dragging) return;
+        state.p1 = mapCoord(e);
+
+        if (state.tool === 'pan') {
+            const dx = state.p1[0] - state.p0[0];
+            const dy = state.p1[1] - state.p0[1];
+            const f = state.frames[state.cur];
+
+            f.handLayer.fill(0);
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    const nx = x - dx;
+                    const ny = y - dy;
+                    if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                        const i = (y * W + x) * 4;
+                        const ni = (ny * W + nx) * 4;
+                        f.handLayer[i] = state.dragSnapshot[ni];
+                        f.handLayer[i + 1] = state.dragSnapshot[ni + 1];
+                        f.handLayer[i + 2] = state.dragSnapshot[ni + 2];
+                        f.handLayer[i + 3] = state.dragSnapshot[ni + 3];
+                    }
+                }
+            }
+            renderOutput();
+        }
+        else if (state.tool === 'rect') {
+            renderOutput();
+        } else {
+            const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb;
+            plotVector(state.frames[state.cur].handLayer, state.p0[0], state.p0[1], state.p1[0], state.p1[1], col, 5);
+            state.p0 = state.p1;
+            renderOutput();
+        }
+    });
+
+    cvs.addEventListener('pointerup', e => {
+        if (!state.dragging) return;
+
+        if (state.tool === 'rect') {
+            const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb;
+            plotRect(state.frames[state.cur].handLayer, state.p0[0], state.p0[1], state.p1[0], state.p1[1], col, 5);
+            renderOutput();
+        }
+
+        if (state.tool === 'pan') {
+            state.dragSnapshot = null;
+        }
+
+        state.dragging = false;
+        rebuildTrack();
+    });
+
+    // ── PLAYBACK ──
+    function engageSequence() {
+        state.playing = !state.playing;
+        const b = document.getElementById('btn-engage');
+        if (state.playing) {
+            b.innerHTML = stopSvg;
+            b.style.background = 'var(--black)'; b.style.color = 'var(--white)'; b.style.borderColor = 'var(--black)';
+            lastT = performance.now(); playRAF = requestAnimationFrame(playStep);
+        } else {
+            b.innerHTML = playSvg;
+            b.style.background = 'var(--act-c)'; b.style.color = 'var(--white)'; b.style.borderColor = 'var(--act-c)';
+            cancelAnimationFrame(playRAF); renderOutput(); rebuildTrack();
+        }
+    }
+
+    function playStep(now) {
+        if (!state.playing) return;
+        playRAF = requestAnimationFrame(playStep);
+        const el = now - lastT, dur = 1000 / (BASE_FPS * state.velocity);
+        if (el >= dur) {
+            lastT = now - (el % dur);
+            state.cur = (state.cur + 1) % state.frames.length;
+            renderOutput();
+            document.querySelectorAll('.tl-frame').forEach((el, i) => i === state.cur ? el.classList.add('on') : el.classList.remove('on'));
+        }
+    }
+
+    function shiftVelocity() {
+        const v = [0.5, 1.0, 2.0, 4.0];
+        let i = v.indexOf(state.velocity) + 1; if (i >= v.length) i = 0;
+        state.velocity = v[i];
+        document.getElementById('lbl-vel').textContent = `${state.velocity}X`;
+    }
+
+    // ── MEDIA & EXPORT ──
+    function fitSource(src, sw, sh) {
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const cx = c.getContext('2d'); cx.fillStyle = '#e0e0e0'; cx.fillRect(0, 0, W, H);
+        const a = sw / sh; let sx = 0, sy = 0, sW = sw, sH = sh;
+        if (a > W / H) { sW = sH * (W / H); sx = (sw - sW) / 2; } else { sH = sW / (W / H); sy = (sh - sH) / 2; }
+        cx.drawImage(src, sx, sy, sW, sH, 0, 0, W, H);
+        return c;
+    }
+
+    function loadTestSequence() {
+        state.frames = [];
+        const SECONDS = 4;
+        const TOTAL_FRAMES = SECONDS * BASE_FPS;
+
+        for (let i = 0; i < TOTAL_FRAMES; i++) {
+            const c = document.createElement('canvas'); c.width = W; c.height = H;
+            const cx = c.getContext('2d');
+            const sec = SECONDS - Math.floor(i / BASE_FPS);
+            if (sec === 2 && (i % BASE_FPS) === 0) {
+                cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, W, H);
+            } else {
+                cx.fillStyle = '#666666'; cx.fillRect(0, 0, W, H);
+                cx.strokeStyle = '#000000'; cx.lineWidth = 4;
+                cx.beginPath(); cx.moveTo(W / 2, 0); cx.lineTo(W / 2, H); cx.stroke();
+                cx.beginPath(); cx.moveTo(0, H / 2); cx.lineTo(W, H / 2); cx.stroke();
+                cx.beginPath(); cx.arc(W / 2, H / 2, H / 3.5, 0, Math.PI * 2); cx.fillStyle = '#cccccc'; cx.fill(); cx.stroke();
+            }
+            state.frames.push({ src: c, scriptLayer: getBlankMatrix(), handLayer: getBlankMatrix() });
+        }
+        state.cur = 0; liveCompileLogic();
+    }
+
+    function ingestMedia(e) {
+        const f = e.target.files[0]; if (!f) return;
+        const u = URL.createObjectURL(f); const img = new Image(); img.src = u;
+        img.onload = () => {
+            state.frames[state.cur].src = fitSource(img, img.naturalWidth, img.naturalHeight);
+            liveCompileLogic(); URL.revokeObjectURL(u);
+        };
+    }
+
+    async function compileOutput() {
+        if (!state.frames.length) return;
+        if (state.playing) engageSequence();
+
+        if (!window.MediaRecorder) return fireToast('ENCODER MISSING');
+
+        const s = cvs.captureStream(BASE_FPS); const r = new MediaRecorder(s); const ch = [];
+        r.ondataavailable = e => ch.push(e.data);
+        const p = new Promise(res => r.onstop = res);
+        r.start();
+        for (let i = 0; i < state.frames.length; i++) {
+            state.cur = i;
+            renderOutput();
+            await new Promise(rs => setTimeout(rs, 1000 / BASE_FPS));
+        }
+        r.stop(); await p;
+        const bl = new Blob(ch, { type: 'video/webm' });
+        const l = document.createElement('a');
+        l.download = 'ABC_MOVIE.webm';
+        l.href = URL.createObjectURL(bl);
+        l.click();
+        fireToast('COMPILE COMPLETE');
+    }
+
+    function compileContactSheet() {
+        if (!state.frames.length) return;
+        setTimeout(() => {
+            const cols = Math.min(5, state.frames.length);
+            const rows = Math.ceil(state.frames.length / cols);
+            const sc = document.createElement('canvas'); sc.width = cols * W; sc.height = rows * H;
+            const sctx = sc.getContext('2d', { willReadFrequently: true });
+
+            state.frames.forEach((f, i) => {
+                const tc = document.createElement('canvas'); tc.width = W; tc.height = H;
+                const tcx = tc.getContext('2d');
+                if (f.src) tcx.drawImage(f.src, 0, 0, W, H); else { tcx.fillStyle = '#e0e0e0'; tcx.fillRect(0, 0, W, H); }
+
+                const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+                tmp.getContext('2d').putImageData(new ImageData(f.scriptLayer, W, H), 0, 0);
+                const hm = document.createElement('canvas'); hm.width = W; hm.height = H;
+                hm.getContext('2d').putImageData(new ImageData(f.handLayer, W, H), 0, 0);
+
+                tcx.drawImage(tmp, 0, 0); tcx.drawImage(hm, 0, 0);
+                sctx.drawImage(tc, (i % cols) * W, Math.floor(i / cols) * H);
+            });
+
+            const l = document.createElement('a'); l.download = `ABC_SHEET.png`;
+            l.href = sc.toDataURL('image/png'); l.click();
+            fireToast('SHEET SAVED');
+        }, 50);
+    }
+
+    // ── AI MODAL AND GENERATION ──
+    function openAIModal() {
+        document.getElementById('ai-overlay').classList.add('on');
+        document.getElementById('ai-prompt-input').focus();
+
+        document.getElementById('ai-canvas').style.display = 'none';
+        document.getElementById('ai-prompt-input').style.display = 'block';
+        document.getElementById('ai-prompt-desc').style.display = 'block';
+        document.getElementById('ai-submit-btn').style.display = 'flex';
+        document.getElementById('ai-close-btn').style.display = 'block';
+        document.getElementById('ai-modal-title').textContent = 'ASK A.I.';
+        // Restore all modal body children that were hidden during THINKING
+        var modalBody = document.getElementById('ai-modal-body');
+        if (modalBody) {
+            var allChildren = modalBody.children;
+            for (var i = 0; i < allChildren.length; i++) {
+                if (allChildren[i].id !== 'ai-canvas') {
+                    allChildren[i].style.display = '';
+                }
+            }
+        }
+    }
+
+    function closeAIModal() {
+        document.getElementById('ai-overlay').classList.remove('on');
+        clearTimeout(aiAniTimer);
+    }
+
+    function playAILoading() {
+        const cvs = document.getElementById('ai-canvas');
+        if (!cvs) return;
+        const cx = cvs.getContext('2d');
+
+        cx.fillStyle = '#0033cc';
+        cx.fillRect(0, 0, 64, 36);
+
+        const f = aiAniFrame;
+
+        if (f < 10) {
+            cx.fillStyle = '#ffffff';
+            cx.fillRect(31, f * 3, 2, 4);
+        } else {
+            const r = (f - 10) * 1.5;
+            if (r < 30) {
+                cx.strokeStyle = '#ffffff';
+                cx.lineWidth = 1;
+                cx.beginPath();
+                cx.ellipse(32, 30, r * 2, r * 0.5, 0, 0, Math.PI * 2);
+                cx.stroke();
+            }
+        }
+
+        aiAniFrame = (aiAniFrame + 1) % 30;
+        aiAniTimer = setTimeout(() => requestAnimationFrame(playAILoading), 1000 / 15);
+    }
+
+    const apiKey = "";
+
+    var BEFLIX_SYSTEM_PROMPT_AA = [
+        'You are a BEFLIX-64 animation composer. You generate frame-by-frame animation code for a 64-wide x 36-tall pixel grid.',
+        '',
+        'COMMANDS (output ONLY these, one per line):',
+        '  CLR v           \u2014 Fill entire grid with color v',
+        '  PNT x y w h v   \u2014 Paint rectangle at (x,y) with width w, height h, color v',
+        '  LIN x1 y1 x2 y2 v \u2014 Draw line from (x1,y1) to (x2,y2) in color v',
+        '  REC n           \u2014 Record current grid state as n frames (higher n = longer hold)',
+        '  SHF dx dy n     \u2014 Shift all pixels by (dx,dy) and record n frames',
+        '',
+        'PALETTE:',
+        '  0 = Transparent/Clear, 1 = Black, 2 = Red, 3 = Blue, 4 = Yellow, 5 = White',
+        '',
+        'CINEMATIC RULES:',
+        '1. Build each frame from scratch: CLR then layered PNT/LIN. Do NOT rely only on SHF.',
+        '2. Use REC with VARYING values: REC 1 for fast action, REC 3-5 for holds, REC 8-15 for pauses.',
+        '3. Layer multiple PNT per frame for DEPTH: background first, then mid-ground, then foreground.',
+        '4. Move objects smoothly: change x,y by small increments (1-4 px) between frames.',
+        '5. Add effects: LIN for rays/reflections, small PNT for particles/splashes.',
+        '6. Create 8-12 distinct visual states. Total REC sum: 40-80 frames.',
+        '7. Use ALL colors. Compose with environmental context (ground, sky, water, structures).',
+        '8. Think cinematically: establish, build, climax, resolve.',
+        '',
+        'OUTPUT: ONLY raw BEFLIX code with C comments. NO markdown. NO backticks. NO explanations.'
+    ].join('\n');
+
+    function copySystemPromptAA() {
+        var query = document.getElementById('ai-prompt-input').value.trim();
+        var fullPrompt = BEFLIX_SYSTEM_PROMPT_AA;
+        if (query) {
+            fullPrompt = fullPrompt + '\n\n---\nUSER REQUEST: ' + query + '\n\nGenerate the BEFLIX-64 animation code now.';
+        }
+        try {
+            navigator.clipboard.writeText(fullPrompt);
+            fireToast('PROMPT COPIED TO CLIPBOARD');
+        } catch (e) {
+            var ta = document.getElementById('ai-prompt-input');
+            ta.value = fullPrompt;
+            ta.select();
+            try { document.execCommand('copy'); } catch (e2) {}
+            fireToast('PROMPT IN TEXTBOX \u2014 COPY IT');
+        }
+    }
+
+    async function executeAI() {
+        const promptInput = document.getElementById('ai-prompt-input');
+        const query = promptInput.value.trim();
+        if (!query) return fireToast('ENTER A PROMPT');
+
+        const openAiKey = (document.getElementById('openai-key-input') || {}).value;
+        const trimmedKey = openAiKey ? openAiKey.trim() : '';
+
+        if (!trimmedKey) {
+            fireToast('ENTER API KEY OR USE COPY PROMPT');
+            return;
+        }
+
+        // HAS KEY: Call OpenAI API
+        document.getElementById('ai-prompt-input').style.display = 'none';
+        document.getElementById('ai-prompt-desc').style.display = 'none';
+        document.getElementById('ai-submit-btn').style.display = 'none';
+        document.getElementById('ai-close-btn').style.display = 'none';
+        var keyInput = document.getElementById('openai-key-input');
+        if (keyInput) keyInput.style.display = 'none';
+        // Hide option labels and copy button
+        var modalBody = document.getElementById('ai-modal-body');
+        if (modalBody) {
+            var dividers = modalBody.querySelectorAll('div');
+            for (var d = 0; d < dividers.length; d++) { dividers[d].style.display = 'none'; }
+            var btns = modalBody.querySelectorAll('button');
+            for (var b = 0; b < btns.length; b++) { btns[b].style.display = 'none'; }
+        }
+        document.getElementById('ai-modal-title').textContent = 'THINKING...';
+
+        const aiCanvas = document.getElementById('ai-canvas');
+        aiCanvas.style.display = 'block';
+        aiAniFrame = 0;
+        playAILoading();
+
+        try {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + trimmedKey
+                },
+                body: JSON.stringify({
+                    model: 'o4-mini',
+                    messages: [
+                        { role: 'developer', content: BEFLIX_SYSTEM_PROMPT_AA },
+                        { role: 'user', content: query }
+                    ]
+                })
+            });
+            if (!res.ok) throw new Error('API ' + res.status);
+            const data = await res.json();
+            var code = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+            code = code.replace(/```[A-Za-z-]*\n?/g, '').replace(/```/g, '').trim();
+
+            if (code) {
+                scriptBuf.value = code;
+                liveCompileLogic();
+                fireToast('A.I. GENERATED!');
+                closeAIModal();
+            } else {
+                fireToast('A.I. RETURNED EMPTY');
+                openAIModal();
+            }
+        } catch (e) {
+            console.error(e);
+            fireToast('A.I. FAILED \u2014 CHECK KEY');
+            openAIModal();
+        } finally {
+            promptInput.value = '';
+        }
+    }
+
+    async function fetchWithRetry(url, options, retries = 5) {
+        const delays = [1000, 2000, 4000, 8000, 16000];
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                return await response.json();
+            } catch (e) {
+                if (i === retries - 1) throw e;
+                await new Promise(r => setTimeout(r, delays[i]));
+            }
+        }
+    }
+
+    function injectCode(type) {
+        let snippet = '';
+        if (type === 'RAIN') {
+            snippet = `C MAKE IT RAIN\nCLR 1\nPNT 10 0 2 4 3\nPNT 30 10 2 4 3\nPNT 50 5 2 4 3\nREC 1\nSHF 0 4 10`;
+        } else if (type === 'PULSE') {
+            snippet = `C RED PULSE\nCLR 5\nPNT 28 14 8 8 2\nREC 1\nCLR 5\nPNT 24 10 16 16 2\nREC 1\nCLR 5\nPNT 20 6 24 24 2\nREC 1\nCLR 5\nPNT 16 2 32 32 2\nREC 1`;
+        } else if (type === 'SLIDE') {
+            snippet = `C YELLOW SLIDE\nCLR 5\nPNT 0 10 16 16 4\nREC 1\nSHF 6 0 10`;
+        }
+        scriptBuf.value = snippet;
+        fireToast('MAGIC INJECTED');
+        liveCompileLogic();
+    }
+</script>
+
+</html>

@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>B·FLIX STUDIO</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bl: #0033cc;
+            --yl: #ffcc00;
+            --rd: #e60000;
+            --bk: #000;
+            --wh: #fff;
+            --bg: #f4f4f0;
+            --bw: 3px;
+            --sd: 4px;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            border-radius: 0 !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100vw;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            color: var(--bk);
+            font-family: -apple-system, 'Helvetica Neue', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        textarea,
+        input[type=range] {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        /* ── LAYOUT ── */
+        .app {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            gap: 3px;
+            padding: 3px;
+            padding-bottom: max(3px, env(safe-area-inset-bottom));
+        }
+
+        .g-wrap {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .p-wrap {
+            flex: 0 0 34vh;
+            min-height: 0;
+            display: flex;
+        }
+
+        .tl-wrap {
+            flex: 0 0 auto;
+        }
+
+        .nav {
+            flex: 0 0 58px;
+            display: flex;
+            gap: 3px;
+        }
+
+        @media(min-width:1024px) {
+            .app {
+                display: grid;
+                grid-template-columns: 84px 360px 1fr;
+                grid-template-rows: 1fr auto;
+                grid-template-areas: "nav panel gate" "nav panel tl";
+                gap: 5px;
+                padding: 5px;
+            }
+
+            .g-wrap {
+                grid-area: gate;
+            }
+
+            .p-wrap {
+                grid-area: panel;
+                height: 100%;
+                flex: auto;
+            }
+
+            .tl-wrap {
+                grid-area: tl;
+            }
+
+            .nav {
+                grid-area: nav;
+                flex-direction: column;
+                height: auto;
+            }
+        }
+
+        /* ── GATE ── */
+        .gate {
+            flex: 1;
+            min-height: 0;
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .c-shell {
+            position: relative;
+            border: var(--bw) solid var(--bk);
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            background: #c8c8c8;
+            flex-shrink: 0;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+            touch-action: none;
+        }
+
+        .grid-ov {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            display: none;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, .18) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, .18) 1px, transparent 1px);
+        }
+
+        .grid-ov.on {
+            display: block;
+        }
+
+        .hud {
+            position: absolute;
+            z-index: 30;
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .hud.tl {
+            top: 6px;
+            left: 6px;
+            pointer-events: all;
+        }
+
+        .hud.tr {
+            top: 6px;
+            right: 6px;
+            pointer-events: all;
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            background: var(--wh);
+            color: var(--bk);
+            border: var(--bw) solid var(--bk);
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            font-family: inherit;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            cursor: pointer;
+            padding: 9px 13px;
+            transition: transform .04s, box-shadow .04s;
+            flex-shrink: 0;
+        }
+
+        .btn:active {
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0 var(--bk);
+        }
+
+        .btn.sm {
+            padding: 6px 9px;
+            font-size: 10px;
+            box-shadow: 3px 3px 0 var(--bk);
+        }
+
+        .btn.sm:active {
+            transform: translate(3px, 3px);
+        }
+
+        .btn.full {
+            width: 100%;
+        }
+
+        .btn.on,
+        .btn.active {
+            background: var(--bk);
+            color: var(--wh);
+        }
+
+        .btn.icon {
+            padding: 7px;
+        }
+
+        .btn-a {
+            background: var(--bl);
+            color: var(--wh);
+            border-color: var(--bl);
+        }
+
+        .btn-b {
+            background: var(--yl);
+            color: var(--bk);
+            border-color: var(--yl);
+        }
+
+        .btn-c {
+            background: var(--rd);
+            color: var(--wh);
+            border-color: var(--rd);
+        }
+
+        /* ── NAV ── */
+        .nb {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            font-family: inherit;
+            transition: transform .04s, box-shadow .04s;
+            padding: 4px;
+        }
+
+        .nb:active {
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb.on-a {
+            background: var(--bl);
+            color: var(--wh);
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb.on-b {
+            background: var(--yl);
+            color: var(--bk);
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb.on-c {
+            background: var(--rd);
+            color: var(--wh);
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb.on-d {
+            background: var(--bk);
+            color: var(--wh);
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb.on-play {
+            background: var(--rd);
+            color: var(--wh);
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .nb svg {
+            display: block;
+        }
+
+        /* ── PANELS ── */
+        .p-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+            overflow: hidden;
+        }
+
+        .panel.on {
+            display: flex;
+        }
+
+        .ph {
+            flex-shrink: 0;
+            padding: 9px 13px;
+            border-bottom: var(--bw) solid var(--bk);
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .pa .ph {
+            background: var(--bl);
+            color: var(--wh);
+        }
+
+        .pb .ph {
+            background: var(--yl);
+            color: var(--bk);
+        }
+
+        .pc .ph {
+            background: var(--rd);
+            color: var(--wh);
+        }
+
+        .pd .ph {
+            background: var(--bk);
+            color: var(--wh);
+        }
+
+        .pb-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            overscroll-behavior: contain;
+        }
+
+        /* ── CODE EDITOR ── */
+        .code-ta {
+            flex: 1;
+            min-height: 100px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.55;
+            background: #0f1117;
+            color: #a8ffb0;
+            border: none;
+            border-bottom: var(--bw) solid var(--bk);
+            padding: 11px;
+            resize: none;
+            outline: none;
+            overscroll-behavior: contain;
+        }
+
+        .compile-bar {
+            flex-shrink: 0;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 7px 10px;
+            background: var(--bg);
+            border-top: var(--bw) solid var(--bk);
+        }
+
+        .status-lbl {
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #777;
+        }
+
+        /* ── SWATCH ── */
+        .sw {
+            width: 42px;
+            height: 42px;
+            border: var(--bw) solid var(--bk);
+            cursor: pointer;
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            transition: transform .04s, box-shadow .04s;
+            flex-shrink: 0;
+        }
+
+        .sw:active {
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        .sw.on {
+            outline: 4px solid var(--bk);
+            outline-offset: 3px;
+            transform: translate(var(--sd), var(--sd));
+            box-shadow: 0 0 0;
+        }
+
+        /* ── TIMELINE ── */
+        .tl {
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+        }
+
+        .tl-ctrl {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 8px;
+            border-bottom: var(--bw) solid var(--bk);
+            background: var(--bg);
+        }
+
+        .tl-strip {
+            display: flex;
+            gap: 7px;
+            padding: 7px;
+            overflow-x: auto;
+            align-items: center;
+            min-height: 74px;
+            max-height: 74px;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tf {
+            position: relative;
+            flex-shrink: 0;
+            width: 96px;
+            height: 54px;
+            border: var(--bw) solid var(--bk);
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--bk);
+            transition: box-shadow .04s, transform .04s;
+            overflow: hidden;
+        }
+
+        .tf.on {
+            outline: 3px solid var(--rd);
+            outline-offset: 2px;
+            box-shadow: 0 0 0;
+            transform: translate(3px, 3px);
+        }
+
+        .tf canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .tf-num {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: var(--wh);
+            border-top: 2px solid var(--bk);
+            border-left: 2px solid var(--bk);
+            font-size: 9px;
+            font-weight: 900;
+            padding: 1px 4px;
+        }
+
+        .tf.on .tf-num {
+            background: var(--rd);
+            color: var(--wh);
+        }
+
+        .seam-a {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--bl);
+            z-index: 5;
+        }
+
+        .seam-b {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--yl);
+            z-index: 5;
+        }
+
+        /* ── LOOP STRIP (gate bottom) ── */
+        .loop-strip {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            display: none;
+            z-index: 25;
+        }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed;
+            top: 48px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--yl);
+            color: var(--bk);
+            border: var(--bw) solid var(--bk);
+            box-shadow: var(--sd) var(--sd) 0 var(--bk);
+            font-weight: 900;
+            font-size: 12px;
+            padding: 9px 16px;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity .1s;
+            white-space: nowrap;
+        }
+
+        .toast.on {
+            opacity: 1;
+        }
+
+        /* ── OVERLAY ── */
+        .ov {
+            position: fixed;
+            inset: 0;
+            z-index: 800;
+            background: rgba(0, 0, 0, .88);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .18s;
+        }
+
+        .ov.on {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .ov-box {
+            background: var(--wh);
+            border: var(--bw) solid var(--bk);
+            box-shadow: 10px 10px 0 var(--bk);
+            width: 100%;
+            max-width: 480px;
+            max-height: 88vh;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ov-head {
+            flex-shrink: 0;
+            padding: 14px 18px;
+            border-bottom: var(--bw) solid var(--bk);
+            font-size: 17px;
+            font-weight: 900;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ov-body {
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            overflow-y: auto;
+        }
+
+        .help-step {
+            display: flex;
+            gap: 11px;
+            align-items: flex-start;
+            padding: 12px;
+            border: var(--bw) solid var(--bk);
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+
+        .help-num {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .cam-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 700;
+            background: #000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        .cam-wrap.on {
+            display: flex;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: calc(100% - 80px);
+            object-fit: contain;
+            display: block;
+        }
+
+        .dv {
+            width: var(--bw);
+            background: var(--bk);
+            flex-shrink: 0;
+        }
+
+        .lbl {
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: #666;
+        }
+
+        svg {
+            display: block;
+        }
+
+        select {
+            background: transparent;
+            border: none;
+            font-weight: 900;
+            font-size: 10px;
+            text-transform: uppercase;
+            cursor: pointer;
+            font-family: inherit;
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+
+        <!-- GATE -->
+        <section class="g-wrap">
+            <div class="gate" id="gate">
+                <div class="hud tl">
+                    <button class="btn sm icon" id="btn-grid" onclick="toggleGrid()" title="Grid (G)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <rect x="3" y="3" width="18" height="18" />
+                            <line x1="9" y1="3" x2="9" y2="21" />
+                            <line x1="15" y1="3" x2="15" y2="21" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="3" y1="15" x2="21" y2="15" />
+                        </svg>
+                    </button>
+                    <button class="btn sm icon" id="btn-onion" onclick="toggleOnion()" title="Onion skin (O)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <rect x="3" y="3" width="12" height="12" />
+                            <rect x="9" y="9" width="12" height="12" stroke-dasharray="3 2" />
+                        </svg>
+                    </button>
+                    <div class="dv" style="height:14px;"></div>
+                    <button class="btn sm icon" onclick="openHelp()" style="background:var(--yl);">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="hud tr" style="flex-direction:column;align-items:flex-end;gap:2px;padding:6px 10px;">
+                    <div id="lbl-frame" style="font-size:15px;letter-spacing:.03em;">01/01</div>
+                    <div id="lbl-loop" style="font-size:9px;color:#888;font-weight:700;"></div>
+                </div>
+                <div class="c-shell" id="c-shell">
+                    <div class="grid-ov" id="grid-ov"></div>
+                    <canvas id="MC"></canvas>
+                </div>
+                <div class="loop-strip" id="loop-strip"></div>
+            </div>
+        </section>
+
+        <!-- PANELS -->
+        <aside class="p-wrap">
+
+            <!-- A: LOAD -->
+            <div class="panel pa on" id="panel-a">
+                <div class="ph">
+                    <span>A · Load</span>
+                    <span id="media-info" style="font-size:9px;font-weight:400;color:rgba(255,255,255,.7)">No
+                        footage</span>
+                </div>
+                <div class="pb-body">
+                    <button class="btn full btn-a" onclick="document.getElementById('fi').click()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <path d="M21 15v4H3v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        Load Video or Image
+                    </button>
+                    <button class="btn full" id="btn-cam" onclick="startCamera()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <path d="M23 7l-7 5 7 5V7z" />
+                            <rect x="1" y="5" width="15" height="14" />
+                        </svg>
+                        Camera
+                    </button>
+                    <button class="btn full" onclick="loadSample()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="4" />
+                        </svg>
+                        Load Test Film
+                    </button>
+                    <div style="height:var(--bw);background:var(--bk);flex-shrink:0;"></div>
+                    <div class="lbl">Capture Rate</div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn sm" id="cap6" onclick="setCap(6)">6 fps</button>
+                        <button class="btn sm on" id="cap12" onclick="setCap(12)">12 fps</button>
+                        <button class="btn sm" id="cap24" onclick="setCap(24)">24 fps</button>
+                    </div>
+                    <div style="height:var(--bw);background:var(--bk);flex-shrink:0;"></div>
+                    <div class="lbl">Blend Mode</div>
+                    <div class="btn sm" style="justify-content:flex-start;padding:7px 10px;">
+                        <select id="sel-blend" onchange="ST.blend=this.value;renderFrame()">
+                            <option value="over">Script over video</option>
+                            <option value="under">Video over script</option>
+                            <option value="mul">Multiply</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B: CODE -->
+            <div class="panel pb" id="panel-b">
+                <div class="ph">
+                    <span>B · Code</span>
+                    <button class="btn sm" onclick="openAI()" style="background:var(--bk);color:var(--wh);">Ask
+                        AI</button>
+                </div>
+                <div
+                    style="display:flex;gap:5px;padding:7px 9px;border-bottom:var(--bw) solid var(--bk);flex-shrink:0;overflow-x:auto;background:var(--bg);">
+                    <button class="btn sm" onclick="injectPreset('pulse')">Pulse</button>
+                    <button class="btn sm" onclick="injectPreset('rain')">Rain</button>
+                    <button class="btn sm" onclick="injectPreset('slide')">Slide</button>
+                    <button class="btn sm" onclick="injectPreset('bounce')">Bounce</button>
+                    <button class="btn sm" onclick="injectPreset('wipe')">Wipe</button>
+                </div>
+                <textarea class="code-ta" id="code-ta" spellcheck="false" oninput="scheduleCompile()"></textarea>
+                <div class="compile-bar">
+                    <button class="btn sm" onclick="compileNow()" style="flex:1;">▶ RUN</button>
+                    <span id="cstatus" class="status-lbl">IDLE</span>
+                </div>
+            </div>
+
+            <!-- C: DRAW -->
+            <div class="panel pc" id="panel-c">
+                <div class="ph">
+                    <span>C · Draw</span>
+                    <button class="btn sm" onclick="wipeInk()" style="background:var(--wh);color:var(--bk);">Wipe
+                        Frame</button>
+                </div>
+                <div class="pb-body">
+                    <div class="lbl">Tool</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+                        <button class="btn on" id="tool-pen" onclick="setTool('pen')" title="Pen (P)">✏</button>
+                        <button class="btn" id="tool-rect" onclick="setTool('rect')" title="Rectangle (R)">▭</button>
+                        <button class="btn" id="tool-pan" onclick="setTool('pan')" title="Pan (M)">✥</button>
+                        <button class="btn" id="tool-erase" onclick="setTool('erase')" title="Erase (E)">⌫</button>
+                    </div>
+                    <div class="lbl">Brush Size · <span id="sz-lbl">5</span>px</div>
+                    <input type="range" id="sz-range" min="1" max="22" value="5"
+                        style="width:100%;accent-color:var(--rd);"
+                        oninput="ST.brushSz=+this.value;document.getElementById('sz-lbl').textContent=this.value;">
+                    <div class="lbl">Color</div>
+                    <div id="swatches" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+                </div>
+            </div>
+
+            <!-- D: SAVE -->
+            <div class="panel pd" id="panel-d">
+                <div class="ph">D · Save</div>
+                <div class="pb-body">
+                    <div class="lbl">Still Frame</div>
+                    <button class="btn full" onclick="exportPNG()">Current Frame PNG</button>
+                    <button class="btn full" onclick="exportSheet()">Contact Sheet PNG</button>
+                    <div style="height:var(--bw);background:var(--bk);"></div>
+                    <div class="lbl">Animation</div>
+                    <div style="display:flex;gap:7px;flex-wrap:wrap;">
+                        <div>
+                            <div class="lbl" style="margin-bottom:4px;">FPS</div>
+                            <select id="ex-fps" class="btn sm" style="padding:6px 10px;display:block;">
+                                <option value="8">8</option>
+                                <option value="12" selected>12</option>
+                                <option value="24">24</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="lbl" style="margin-bottom:4px;">Scale</div>
+                            <select id="ex-sc" class="btn sm" style="padding:6px 10px;display:block;">
+                                <option>1×</option>
+                                <option selected>2×</option>
+                                <option>3×</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn full" onclick="exportVid()">Export WebM Video</button>
+                    <p style="font-size:10px;font-weight:700;color:#888;margin:0;line-height:1.5;">WebM plays natively
+                        in Chrome, Firefox, and most modern browsers.</p>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- TIMELINE -->
+        <section class="tl-wrap">
+            <div class="tl">
+                <div class="tl-ctrl">
+                    <button class="btn sm btn-c" id="btn-play" onclick="togglePlay()" style="min-width:68px;">▶
+                        PLAY</button>
+                    <div class="dv" style="height:20px;"></div>
+                    <button class="btn sm" onclick="stepFrame(-1)">◀</button>
+                    <button class="btn sm" onclick="stepFrame(1)">▶</button>
+                    <button class="btn sm" onclick="addFrame()">+ Frame</button>
+                    <button class="btn sm" onclick="cloneFrame()">Clone</button>
+                    <div style="flex:1;"></div>
+                    <button class="btn sm" onclick="cycleSpeed(-1)" title="Slower">◀◀</button>
+                    <span id="spd-lbl"
+                        style="font-size:11px;font-weight:900;min-width:26px;text-align:center;">1×</span>
+                    <button class="btn sm" onclick="cycleSpeed(1)" title="Faster">▶▶</button>
+                    <div class="dv" style="height:20px;"></div>
+                    <span id="tl-ct"
+                        style="font-size:11px;font-weight:900;letter-spacing:.03em;white-space:nowrap;">01/01</span>
+                </div>
+                <div class="tl-strip" id="tl-strip"></div>
+            </div>
+        </section>
+
+        <!-- NAV -->
+        <nav class="nav">
+            <button class="nb on-a" id="nav-a" onclick="openChannel('a')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                A·LOAD
+            </button>
+            <button class="nb" id="nav-b" onclick="openChannel('b')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                B·CODE
+            </button>
+            <button class="nb" id="nav-play" onclick="togglePlay()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="play-ico">
+                    <polygon points="5,3 19,12 5,21" />
+                </svg>
+                <span id="play-lbl">PLAY</span>
+            </button>
+            <button class="nb on-c" id="nav-c" onclick="openChannel('c')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                </svg>
+                C·DRAW
+            </button>
+            <button class="nb" id="nav-d" onclick="openChannel('d')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                </svg>
+                D·SAVE
+            </button>
+        </nav>
+    </div>
+
+    <!-- INPUTS + TOAST -->
+    <input type="file" id="fi" accept="image/*,video/*" style="display:none" onchange="handleFile(event)">
+    <div class="toast" id="toast"></div>
+
+    <!-- CAMERA -->
+    <div class="cam-wrap" id="cam-wrap">
+        <video id="cam-vid" autoplay playsinline muted
+            style="border:var(--bw) solid rgba(255,255,255,.3);max-height:calc(100dvh - 120px);"></video>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-c" id="cam-rec-btn" onclick="toggleCamRecord()"
+                style="padding:14px 24px;font-size:14px;">⏺ RECORD</button>
+            <span id="cam-time" style="color:#fff;font-weight:900;font-size:13px;display:none;">0s</span>
+            <button class="btn" onclick="closeCamera()" style="padding:12px 18px;">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- ONBOARDING -->
+    <div class="ov on" id="ov-help">
+        <div class="ov-box">
+            <div class="ov-head" style="background:var(--yl);">
+                <span>B·FLIX STUDIO</span>
+                <button class="btn sm" onclick="closeHelp()">✕ Close</button>
+            </div>
+            <div class="ov-body">
+                <p style="font-weight:700;font-size:14px;line-height:1.6;margin:0;">A dual-track pixel animation
+                    machine. Two film loops composite into one picture in real time.</p>
+                <div class="help-step" style="background:var(--bl);color:var(--wh);">
+                    <div class="help-num" style="background:rgba(255,255,255,.2);">A</div>
+                    <div><strong>VIDEO TRACK</strong> — Load a video or photo sequence. It loops independently as the
+                        base layer.</div>
+                </div>
+                <div class="help-step" style="background:var(--yl);">
+                    <div class="help-num" style="background:rgba(0,0,0,.1);">B</div>
+                    <div><strong>CODE TRACK</strong> — Write BEFLIX-64 pixel commands or ask Claude AI to animate the
+                        64×36 grid. Loops independently from A.</div>
+                </div>
+                <div class="help-step" style="background:var(--rd);color:var(--wh);">
+                    <div class="help-num" style="background:rgba(255,255,255,.2);">C</div>
+                    <div><strong>DRAW TRACK</strong> — Hand-draw on frames. Unlike A and B, drawings are per-frame—they
+                        don't loop.</div>
+                </div>
+                <p style="font-size:11px;font-weight:700;color:#666;margin:0;line-height:1.6;">If A has 48 frames and B
+                    has 4 frames, B loops 12 times while A plays once. Hit PLAY to see them composite. Loop seam lines
+                    appear in the timeline.</p>
+            </div>
+            <button class="btn full btn-c" onclick="closeHelp()"
+                style="padding:18px;font-size:15px;border-top:var(--bw) solid var(--bk);">LET'S MAKE A FILM</button>
+        </div>
+    </div>
+
+    <!-- AI OVERLAY -->
+    <div class="ov" id="ov-ai">
+        <div class="ov-box">
+            <div class="ov-head" style="background:var(--bk);color:var(--wh);">
+                <span id="ai-title">AI · Generate Code</span>
+                <button class="btn sm" onclick="closeAI()" style="background:var(--wh);color:var(--bk);">✕</button>
+            </div>
+            <div class="ov-body">
+                <p style="font-size:13px;font-weight:700;margin:0;line-height:1.5;">Describe an animation. Claude
+                    generates BEFLIX-64 code for the 64×36 pixel grid.</p>
+                <textarea id="ai-prompt" rows="3"
+                    placeholder="e.g. A yellow sun rising, or a blue wave crossing the screen"
+                    style="font-family:-apple-system,sans-serif;font-size:14px;font-weight:700;padding:10px;border:var(--bw) solid var(--bk);resize:none;width:100%;outline:none;background:var(--bg);"></textarea>
+                <div id="ai-preview" style="display:none;">
+                    <div class="lbl" style="margin-bottom:6px;">Generated Code:</div>
+                    <pre id="ai-code-pre"
+                        style="font-family:'Space Mono',monospace;font-size:11px;color:#a8ffb0;background:#0f1117;padding:12px;margin:0;white-space:pre-wrap;max-height:180px;overflow-y:auto;border:var(--bw) solid var(--bk);"></pre>
+                </div>
+                <button class="btn full" id="ai-gen-btn" onclick="runAI()"
+                    style="background:var(--bl);color:var(--wh);border-color:var(--bl);padding:15px;font-size:13px;">Generate
+                    Animation</button>
+                <button class="btn full btn-c" id="ai-apply-btn" onclick="applyAI()"
+                    style="display:none;padding:13px;font-size:13px;">✓ Apply to Code Track</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════════════════════
+        //  B·FLIX STUDIO · Full Integrated Version
+        //
+        //  ARCHITECTURE — DUAL INDEPENDENT TRACKS:
+        //  mediaTrack[]  HTMLCanvasElement[]  — A channel, loops
+        //  scriptTrack[] Uint8ClampedArray[]  — B channel (compiled), loops
+        //  drawTrack[]   Uint8ClampedArray[]  — C channel, per-frame no loop
+        //
+        //  total = max(media.length, script.length)
+        //  frame i composites: media[i%m] + script[i%s] + draw[i]
+        // ════════════════════════════════════════════════════════════════
+
+        const W = 320, H = 180, GC = 64, GR = 36, BSZ = 5;
+
+        const PAL = [
+            { id: 0, hex: '#000', rgba: [0, 0, 0, 0] },
+            { id: 1, hex: '#111', rgba: [17, 17, 17, 255] },
+            { id: 2, hex: '#e60000', rgba: [230, 0, 0, 255] },
+            { id: 3, hex: '#0033cc', rgba: [0, 51, 204, 255] },
+            { id: 4, hex: '#ffcc00', rgba: [255, 204, 0, 255] },
+            { id: 5, hex: '#fff', rgba: [255, 255, 255, 255] },
+            { id: 6, hex: '#00aa44', rgba: [0, 170, 68, 255] },
+            { id: 7, hex: '#ff6600', rgba: [255, 102, 0, 255] },
+        ];
+
+        const ST = {
+            mediaTrack: [], scriptTrack: [], drawTrack: [],
+            cur: 0, playing: false, speed: 1, capFps: 12,
+            tool: 'pen', color: 2, brushSz: 5,
+            grid: false, onion: false,
+            drag: false, p0: [0, 0], p1: [0, 0], panSnap: null,
+            ch: null, blend: 'over',
+            aiCode: '',
+        };
+
+        const MC = document.getElementById('MC');
+        const mCtx = MC.getContext('2d', { willReadFrequently: true });
+        const inkC = document.createElement('canvas'); inkC.width = W; inkC.height = H;
+        const iCtx = inkC.getContext('2d', { willReadFrequently: true });
+        const tmpC = document.createElement('canvas'); tmpC.width = W; tmpC.height = H;
+        const tCtx = tmpC.getContext('2d', { willReadFrequently: true });
+
+        let playRAF, lastT = 0, compTimer;
+        const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 3, 4]; let sIdx = 2;
+
+        // ── UTILS ────────────────────────────────────────────────────
+        const total = () => Math.max(ST.mediaTrack.length, ST.scriptTrack.length, 1);
+        const mediaAt = i => ST.mediaTrack.length ? ST.mediaTrack[i % ST.mediaTrack.length] : null;
+        const scriptAt = i => ST.scriptTrack.length ? ST.scriptTrack[i % ST.scriptTrack.length] : null;
+        const drawAt = i => ST.drawTrack[i] || null;
+        const emptyInk = () => new Uint8ClampedArray(W * H * 4);
+        function ensureDraw(i) { while (ST.drawTrack.length <= i) ST.drawTrack.push(null); if (!ST.drawTrack[i]) ST.drawTrack[i] = emptyInk(); }
+
+        function toast(msg, dur = 2200) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), dur); }
+        function haptic(ms = 14) { try { navigator.vibrate?.(ms); } catch (e) { } }
+
+        // ── RESIZE ───────────────────────────────────────────────────
+        function resize() {
+            const gate = document.getElementById('gate'), sh = document.getElementById('c-shell');
+            const maxW = gate.clientWidth - 20, maxH = gate.clientHeight - 20;
+            const sc = Math.min(maxW / W, maxH / H);
+            const vW = Math.floor(W * sc), vH = Math.floor(H * sc);
+            MC.style.width = `${vW}px`; MC.style.height = `${vH}px`; MC.width = W; MC.height = H;
+            sh.style.width = `${vW}px`; sh.style.height = `${vH}px`;
+            document.getElementById('grid-ov').style.backgroundSize = `${sc * BSZ}px ${sc * BSZ}px`;
+            renderFrame();
+        }
+
+        // ── CHANNEL SYSTEM ───────────────────────────────────────────
+        function openChannel(ch) {
+            ['a', 'b', 'c', 'd'].forEach(x => {
+                const p = document.getElementById(`panel-${x}`); if (p) p.classList.remove('on');
+                const n = document.getElementById(`nav-${x}`); if (n) n.className = 'nb';
+            });
+            if (ST.ch === ch) { ST.ch = null; return; }
+            ST.ch = ch;
+            const pc = document.getElementById(`panel-${ch}`); if (pc) pc.classList.add('on');
+            const nc = document.getElementById(`nav-${ch}`); if (nc) nc.classList.add(`on-${ch}`);
+            haptic(10);
+        }
+
+        // ── PIXEL ENGINE ─────────────────────────────────────────────
+        function setTool(t) {
+            ST.tool = t;
+            ['pen', 'rect', 'pan', 'erase'].forEach(id => { const b = document.getElementById(`tool-${id}`); if (b) b.classList.toggle('on', id === t); });
+        }
+
+        function pix(arr, x, y, col) {
+            if (x < 0 || x >= W || y < 0 || y >= H) return;
+            const i = (y * W + x) * 4;
+            if (col[3] === 0) { arr[i] = arr[i + 1] = arr[i + 2] = arr[i + 3] = 0; return; }
+            arr[i] = col[0]; arr[i + 1] = col[1]; arr[i + 2] = col[2]; arr[i + 3] = col[3];
+        }
+        function dot(arr, x, y, col, r) { const rd = r / 2; for (let dy = -Math.ceil(rd); dy <= Math.ceil(rd); dy++)for (let dx = -Math.ceil(rd); dx <= Math.ceil(rd); dx++)if (dx * dx + dy * dy <= rd * rd) pix(arr, Math.round(x + dx), Math.round(y + dy), col); }
+        function line(arr, x0, y0, x1, y1, col, r) { let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy; while (true) { dot(arr, x0, y0, col, r); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 > -dy) { err -= dy; x0 += sx; } if (e2 < dx) { err += dx; y0 += sy; } } }
+        function rectStroke(arr, x0, y0, x1, y1, col, r) { line(arr, x0, y0, x1, y0, col, r); line(arr, x1, y0, x1, y1, col, r); line(arr, x1, y1, x0, y1, col, r); line(arr, x0, y1, x0, y0, col, r); }
+
+        function getXY(e) {
+            const r = MC.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            return [Math.max(0, Math.min(W - 1, Math.floor((cx - r.left) / r.width * W))), Math.max(0, Math.min(H - 1, Math.floor((cy - r.top) / r.height * H)))];
+        }
+
+        MC.addEventListener('pointerdown', e => {
+            if (ST.playing || ST.ch !== 'c') return;
+            MC.setPointerCapture(e.pointerId);
+            ST.drag = true; ST.p0 = getXY(e); ST.p1 = ST.p0;
+            haptic(7); ensureDraw(ST.cur);
+            if (ST.tool === 'pan') { ST.panSnap = new Uint8ClampedArray(ST.drawTrack[ST.cur]); return; }
+            if (ST.tool === 'pen' || ST.tool === 'erase') { const col = ST.tool === 'erase' ? PAL[0].rgba : PAL[ST.color].rgba; dot(ST.drawTrack[ST.cur], ST.p0[0], ST.p0[1], col, ST.brushSz); renderFrame(); }
+        });
+        MC.addEventListener('pointermove', e => {
+            if (!ST.drag || ST.ch !== 'c') return;
+            const prev = ST.p1; ST.p1 = getXY(e);
+            if (ST.tool === 'pan') {
+                const dx = ST.p1[0] - ST.p0[0], dy = ST.p1[1] - ST.p0[1], snap = ST.panSnap, f = ST.drawTrack[ST.cur];
+                f.fill(0);
+                for (let y = 0; y < H; y++)for (let x = 0; x < W; x++) { const nx = x - dx, ny = y - dy; if (nx >= 0 && nx < W && ny >= 0 && ny < H) { const i = (y * W + x) * 4, ni = (ny * W + nx) * 4; f[i] = snap[ni]; f[i + 1] = snap[ni + 1]; f[i + 2] = snap[ni + 2]; f[i + 3] = snap[ni + 3]; } }
+                renderFrame();
+            } else if (ST.tool === 'pen' || ST.tool === 'erase') { const col = ST.tool === 'erase' ? PAL[0].rgba : PAL[ST.color].rgba; line(ST.drawTrack[ST.cur], prev[0], prev[1], ST.p1[0], ST.p1[1], col, ST.brushSz); renderFrame(); }
+            else if (ST.tool === 'rect') renderFrame();
+        });
+        MC.addEventListener('pointerup', e => {
+            if (!ST.drag) return; ST.drag = false;
+            if (ST.tool === 'rect') { ensureDraw(ST.cur); rectStroke(ST.drawTrack[ST.cur], ST.p0[0], ST.p0[1], ST.p1[0], ST.p1[1], PAL[ST.color].rgba, ST.brushSz); }
+            ST.panSnap = null; renderFrame(); rebuildTL();
+        });
+
+        // ── COMPOSITE RENDERER ────────────────────────────────────────
+        function compositeAt(i, tc, isDrag = false) {
+            tc.clearRect(0, 0, W, H);
+            const base = mediaAt(i), scr = scriptAt(i), drw = drawAt(i);
+            // Build ink layer in inkC
+            iCtx.clearRect(0, 0, W, H);
+            if (scr) iCtx.putImageData(new ImageData(scr, W, H), 0, 0);
+            if (drw) { const dc = document.createElement('canvas'); dc.width = W; dc.height = H; dc.getContext('2d').putImageData(new ImageData(drw, W, H), 0, 0); iCtx.drawImage(dc, 0, 0); }
+            if (isDrag && ST.drag && ST.tool === 'rect') {
+                const pr = drw ? new Uint8ClampedArray(drw) : emptyInk();
+                rectStroke(pr, ST.p0[0], ST.p0[1], ST.p1[0], ST.p1[1], PAL[ST.color].rgba, ST.brushSz);
+                iCtx.clearRect(0, 0, W, H);
+                if (scr) iCtx.putImageData(new ImageData(scr, W, H), 0, 0);
+                const pc = document.createElement('canvas'); pc.width = W; pc.height = H; pc.getContext('2d').putImageData(new ImageData(pr, W, H), 0, 0); iCtx.drawImage(pc, 0, 0);
+            }
+            const bg = '#c0bdb5';
+            if (ST.blend === 'over') { if (base) tc.drawImage(base, 0, 0, W, H); else { tc.fillStyle = bg; tc.fillRect(0, 0, W, H); } tc.drawImage(inkC, 0, 0); }
+            else if (ST.blend === 'under') { tc.drawImage(inkC, 0, 0); if (base) tc.drawImage(base, 0, 0, W, H); }
+            else if (ST.blend === 'mul') { if (base) tc.drawImage(base, 0, 0, W, H); else { tc.fillStyle = '#fff'; tc.fillRect(0, 0, W, H); } tc.globalCompositeOperation = 'multiply'; tc.drawImage(inkC, 0, 0); tc.globalCompositeOperation = 'source-over'; }
+        }
+
+        function renderFrame() {
+            const i = ST.cur;
+            if (ST.onion && i > 0 && !ST.playing) {
+                compositeAt(i - 1, tCtx);           // tmp = prev frame
+                mCtx.clearRect(0, 0, W, H);
+                mCtx.globalAlpha = 0.3;
+                mCtx.drawImage(tmpC, 0, 0);        // draw prev at 30%
+                mCtx.globalAlpha = 1;
+                compositeAt(i, tCtx, true);        // tmp = current frame
+                mCtx.drawImage(tmpC, 0, 0);        // draw current at 100%
+            } else {
+                compositeAt(i, mCtx, true);
+            }
+            updateHUD();
+        }
+
+        function updateHUD() {
+            const tot = total(), si = ST.scriptTrack.length, sm = ST.mediaTrack.length;
+            const s = String(ST.cur + 1).padStart(2, '0') + '/' + String(tot).padStart(2, '0');
+            document.getElementById('lbl-frame').textContent = s;
+            document.getElementById('tl-ct').textContent = s;
+            let loopTxt = '';
+            if (si > 0 && sm > 0 && si !== sm) { const sh = Math.min(si, sm), lo = Math.max(si, sm); loopTxt = `${si}B · ${sm}A · loops ×${Math.ceil(lo / sh)}`; }
+            document.getElementById('lbl-loop').textContent = loopTxt;
+            // Loop strip
+            const ls = document.getElementById('loop-strip');
+            if (si > 0 && sm > 0 && si !== sm) {
+                ls.style.display = 'flex'; ls.innerHTML = '';
+                for (let j = 0; j < tot; j++) {
+                    const seg = document.createElement('div');
+                    seg.style.flex = '1'; seg.style.height = '100%';
+                    const isA = sm > 0 && j > 0 && j % sm === 0, isB = si > 0 && j > 0 && j % si === 0;
+                    seg.style.background = isA ? '#0033cc' : isB ? '#ffcc00' : 'rgba(0,0,0,0.08)';
+                    seg.style.borderRight = j < tot - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none';
+                    ls.appendChild(seg);
+                }
+            } else ls.style.display = 'none';
+        }
+
+        // ── PLAYBACK ─────────────────────────────────────────────────
+        function togglePlay() {
+            ST.playing = !ST.playing;
+            const pb = document.getElementById('btn-play'), nb = document.getElementById('nav-play');
+            const ico = document.getElementById('play-ico'), lbl = document.getElementById('play-lbl');
+            if (ST.playing) {
+                pb.textContent = '■ STOP'; pb.style.background = '#000'; pb.style.borderColor = '#000';
+                nb.classList.add('on-play');
+                ico.innerHTML = '<rect x="4" y="4" width="16" height="16"/>';
+                lbl.textContent = 'STOP';
+                lastT = performance.now(); playRAF = requestAnimationFrame(playStep); haptic(12);
+            } else {
+                pb.innerHTML = '▶ PLAY'; pb.style.background = 'var(--rd)'; pb.style.borderColor = 'var(--rd)';
+                nb.classList.remove('on-play');
+                ico.innerHTML = '<polygon points="5,3 19,12 5,21"/>'; lbl.textContent = 'PLAY';
+                cancelAnimationFrame(playRAF); haptic(8); renderFrame(); rebuildTL();
+            }
+        }
+        function playStep(now) {
+            if (!ST.playing) return;
+            playRAF = requestAnimationFrame(playStep);
+            const el = now - lastT, dur = 1000 / (12 * ST.speed);
+            if (el >= dur) {
+                lastT = now - (el % dur);
+                ST.cur = (ST.cur + 1) % total();
+                renderFrame();
+                document.querySelectorAll('.tf').forEach((el, i) => el.classList.toggle('on', i === ST.cur));
+            }
+        }
+        function stepFrame(d) { if (ST.playing) return; ST.cur = (ST.cur + d + total()) % total(); haptic(8); renderFrame(); rebuildTL(); }
+        function cycleSpeed(d) { sIdx = Math.max(0, Math.min(SPEEDS.length - 1, sIdx + d)); ST.speed = SPEEDS[sIdx]; document.getElementById('spd-lbl').textContent = `${ST.speed}×`; toast(`${ST.speed}× speed`); }
+
+        // ── TIMELINE ─────────────────────────────────────────────────
+        function rebuildTL() {
+            const strip = document.getElementById('tl-strip'); strip.innerHTML = '';
+            const tot = total(), si = ST.scriptTrack.length, sm = ST.mediaTrack.length;
+            const showSeams = si > 0 && sm > 0 && si !== sm;
+            for (let i = 0; i < tot; i++) {
+                const tf = document.createElement('div');
+                tf.className = `tf${i === ST.cur ? ' on' : ''}`;
+                if (showSeams) { if (i > 0 && sm > 0 && i % sm === 0) { const s = document.createElement('div'); s.className = 'seam-a'; tf.appendChild(s); } if (i > 0 && si > 0 && i % si === 0) { const s = document.createElement('div'); s.className = 'seam-b'; tf.appendChild(s); } }
+                const c = document.createElement('canvas'); c.width = W; c.height = H;
+                compositeAt(i, c.getContext('2d')); tf.appendChild(c);
+                const num = document.createElement('div'); num.className = 'tf-num'; num.textContent = i + 1; tf.appendChild(num);
+                const idx = i; tf.onclick = () => { if (ST.playing) return; ST.cur = idx; haptic(8); rebuildTL(); renderFrame(); tf.scrollIntoView({ inline: 'center', block: 'nearest' }); };
+                strip.appendChild(tf);
+                if (i === ST.cur) tf.scrollIntoView({ inline: 'center', block: 'nearest' });
+            }
+            updateHUD();
+        }
+
+        function addFrame() { ST.scriptTrack.push(emptyInk()); ST.cur = ST.scriptTrack.length - 1; haptic(15); rebuildTL(); renderFrame(); toast('FRAME ADDED'); }
+        function cloneFrame() {
+            const si = ST.cur % Math.max(ST.scriptTrack.length, 1);
+            ST.scriptTrack.splice(si + 1, 0, new Uint8ClampedArray(ST.scriptTrack[si] || emptyInk()));
+            const di = ST.drawTrack[ST.cur] || emptyInk();
+            ST.drawTrack.splice(ST.cur + 1, 0, new Uint8ClampedArray(di));
+            ST.cur = si + 1; haptic(15); rebuildTL(); renderFrame(); toast('FRAME CLONED');
+        }
+        function wipeInk() { ensureDraw(ST.cur); ST.drawTrack[ST.cur].fill(0); renderFrame(); rebuildTL(); toast('INK WIPED'); }
+
+        // ── GRID / ONION ─────────────────────────────────────────────
+        function toggleGrid() { ST.grid = !ST.grid; document.getElementById('grid-ov').classList.toggle('on', ST.grid); document.getElementById('btn-grid').classList.toggle('on', ST.grid); toast(ST.grid ? 'GRID ON' : 'GRID OFF'); }
+        function toggleOnion() { ST.onion = !ST.onion; document.getElementById('btn-onion').classList.toggle('on', ST.onion); toast(ST.onion ? 'ONION SKIN ON' : 'ONION SKIN OFF'); renderFrame(); }
+
+        // ── BEFLIX-64 COMPILER ────────────────────────────────────────
+        let cTimer;
+        function scheduleCompile() { clearTimeout(cTimer); setStatus('...'); cTimer = setTimeout(compileNow, 400); }
+        function setStatus(s) { const el = document.getElementById('cstatus'); if (el) { el.textContent = s; el.style.color = s.startsWith('ERR') ? '#e60000' : s.startsWith('OK') ? '#00aa44' : '#777'; } }
+        function compileNow() {
+            try { ST.scriptTrack = compile(document.getElementById('code-ta').value); if (ST.cur >= total()) ST.cur = total() - 1; rebuildTL(); renderFrame(); setStatus(`OK · ${ST.scriptTrack.length}f`); }
+            catch (e) { setStatus(`ERR: ${String(e.message).slice(0, 28)}`); toast(e.message); }
+        }
+        function compile(src) {
+            const lines = src.toUpperCase().split('\n');
+            let mat = Array(GR).fill(0).map(() => Array(GC).fill(0));
+            const frames = [], clone = m => m.map(r => [...r]);
+            for (let li = 0; li < lines.length; li++) {
+                const l = lines[li].trim(); if (!l || l[0] === 'C') continue;
+                const p = l.split(/\s+/), cmd = p[0], a = p.slice(1).map(Number);
+                if (a.some(isNaN)) throw new Error(`Line ${li + 1}: bad number`);
+                switch (cmd) {
+                    case 'CLR': { const v = clamp(a[0] || 0, 0, 7); for (let y = 0; y < GR; y++)for (let x = 0; x < GC; x++)mat[y][x] = v; break; }
+                    case 'PNT': { if (a.length < 5) throw new Error(`Line ${li + 1}: PNT x y w h c`); const [px, py, pw, ph, pv] = a, v = clamp(pv, 0, 7); for (let y = Math.max(0, py); y < Math.min(GR, py + ph); y++)for (let x = Math.max(0, px); x < Math.min(GC, px + pw); x++)mat[y][x] = v; break; }
+                    case 'LIN': { if (a.length < 5) throw new Error(`Line ${li + 1}: LIN x0 y0 x1 y1 c`); let [lx0, ly0, lx1, ly1, lv] = a; lv = clamp(lv, 0, 7); let dx = Math.abs(lx1 - lx0), dy = Math.abs(ly1 - ly0), sx = lx0 < lx1 ? 1 : -1, sy = ly0 < ly1 ? 1 : -1, err = dx - dy; while (true) { if (lx0 >= 0 && lx0 < GC && ly0 >= 0 && ly0 < GR) mat[ly0][lx0] = lv; if (lx0 === lx1 && ly0 === ly1) break; const e2 = 2 * err; if (e2 > -dy) { err -= dy; lx0 += sx; } if (e2 < dx) { err += dx; ly0 += sy; } } break; }
+                    case 'REC': { const n = Math.max(1, a[0] || 1); for (let i = 0; i < n; i++) { frames.push(matToInk(clone(mat))); if (frames.length > 300) throw new Error('Frame limit: 300'); } break; }
+                    case 'SHF': { if (a.length < 3) throw new Error(`Line ${li + 1}: SHF dx dy n`); const [sdx, sdy, sn] = a; for (let f = 0; f < Math.max(1, sn); f++) { const nm = Array(GR).fill(0).map(() => Array(GC).fill(0)); for (let y = 0; y < GR; y++)for (let x = 0; x < GC; x++) { const nx = x - sdx, ny = y - sdy; if (nx >= 0 && nx < GC && ny >= 0 && ny < GR) nm[y][x] = mat[ny][nx]; } mat = nm; frames.push(matToInk(clone(mat))); if (frames.length > 300) throw new Error('Frame limit: 300'); } break; }
+                    default: throw new Error(`Line ${li + 1}: unknown '${cmd}'`);
+                }
+            }
+            if (!frames.length) frames.push(matToInk(mat));
+            return frames;
+        }
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        function matToInk(m) {
+            const ink = emptyInk();
+            for (let y = 0; y < GR; y++)for (let x = 0; x < GC; x++) {
+                const v = m[y][x]; if (!v) continue;
+                const col = PAL.find(p => p.id === v)?.rgba || PAL[1].rgba;
+                for (let by = 0; by < BSZ; by++)for (let bx = 0; bx < BSZ; bx++)pix(ink, x * BSZ + bx, y * BSZ + by, col);
+            }
+            return ink;
+        }
+
+        // ── PRESETS ──────────────────────────────────────────────────
+        const PRESETS = {
+            pulse: 'C RED PULSE\nCLR 5\nPNT 30 15 4 4 2\nREC 2\nCLR 5\nPNT 26 11 12 12 2\nREC 2\nCLR 5\nPNT 22 7 20 20 2\nREC 2\nCLR 5\nPNT 26 11 12 12 2\nREC 2',
+            rain: 'C RAIN\nCLR 1\nPNT 8 0 2 5 3\nPNT 28 3 2 5 3\nPNT 48 1 2 5 3\nPNT 18 16 2 5 3\nREC 1\nSHF 0 4 9',
+            slide: 'C YELLOW SLIDE\nCLR 1\nPNT 0 12 14 12 4\nREC 1\nSHF 5 0 11',
+            bounce: 'C BOUNCE\nCLR 1\nPNT 29 1 4 4 2\nREC 1\nSHF 0 3 10\nSHF 0 -3 10',
+            wipe: 'C BLUE WIPE\nCLR 5\nPNT 0 0 2 36 3\nREC 1\nSHF 4 0 15\nCLR 5\nREC 4',
+        };
+        function injectPreset(k) { document.getElementById('code-ta').value = PRESETS[k]; compileNow(); toast(`${k.toUpperCase()} INJECTED`); haptic(12); }
+
+        // ── AI GENERATION (Claude API) ────────────────────────────────
+        const AI_SYS = `You are a BEFLIX-64 pixel animation code generator for a 64×36 grid (each cell is 5×5 px on a 320×180 canvas).
+
+OUTPUT ONLY RAW CODE. No markdown, no backticks, no prose. Comments start with C.
+
+Commands:
+  CLR c         fill grid with color c
+  PNT x y w h c paint rectangle at (x,y) size w×h with color c
+  LIN x0 y0 x1 y1 c  Bresenham line
+  REC n         record n frames of current state
+  SHF dx dy n   shift all pixels by (dx,dy) recording n frames
+
+Palette c: 0=transparent 1=black 2=red 3=blue 4=yellow 5=white 6=green 7=orange
+Grid: x 0–63, y 0–35. Must use REC or SHF to produce frames. Generate 8–18 frames. Always start with CLR.`;
+
+        function openAI() {
+            document.getElementById('ai-gen-btn').style.display = 'flex'; document.getElementById('ai-gen-btn').textContent = 'Generate Animation'; document.getElementById('ai-gen-btn').disabled = false;
+            document.getElementById('ai-apply-btn').style.display = 'none'; document.getElementById('ai-preview').style.display = 'none';
+            document.getElementById('ai-title').textContent = 'AI · Generate Code';
+            document.getElementById('ov-ai').classList.add('on');
+            setTimeout(() => document.getElementById('ai-prompt').focus(), 100);
+        }
+        function closeAI() { document.getElementById('ov-ai').classList.remove('on'); }
+
+        async function runAI() {
+            const prompt = document.getElementById('ai-prompt').value.trim(); if (!prompt) { toast('Enter a prompt'); return; }
+            const btn = document.getElementById('ai-gen-btn');
+            btn.textContent = 'Claude is thinking...'; btn.disabled = true;
+            document.getElementById('ai-title').textContent = 'AI · Working...';
+            try {
+                const res = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: AI_SYS, messages: [{ role: 'user', content: `Create BEFLIX-64 animation for: ${prompt}` }] })
+                });
+                const data = await res.json();
+                const code = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+                if (!code) throw new Error('Empty response');
+                ST.aiCode = code;
+                document.getElementById('ai-code-pre').textContent = code;
+                document.getElementById('ai-preview').style.display = 'block';
+                document.getElementById('ai-apply-btn').style.display = 'flex';
+                document.getElementById('ai-title').textContent = 'AI · Done!';
+                btn.textContent = 'Regenerate'; btn.disabled = false;
+            } catch (e) {
+                document.getElementById('ai-title').textContent = 'AI · Error';
+                btn.textContent = 'Try Again'; btn.disabled = false;
+                toast('AI generation failed'); console.error(e);
+            }
+        }
+        function applyAI() { document.getElementById('code-ta').value = ST.aiCode; compileNow(); closeAI(); openChannel('b'); toast('AI CODE APPLIED'); haptic(20); }
+
+        // ── OVERLAYS ─────────────────────────────────────────────────
+        function openHelp() { document.getElementById('ov-help').classList.add('on'); }
+        function closeHelp() { document.getElementById('ov-help').classList.remove('on'); }
+
+        // ── CAMERA ───────────────────────────────────────────────────
+        let camStream = null, camRec = null, camChunks = [], camRecording = false, camTimer = null;
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+                .then(s => { camStream = s; document.getElementById('cam-vid').srcObject = s; document.getElementById('cam-wrap').classList.add('on'); })
+                .catch(() => toast('Camera access denied'));
+        }
+        function closeCamera() {
+            if (camRecording) toggleCamRecord();
+            if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+            document.getElementById('cam-wrap').classList.remove('on');
+        }
+        function toggleCamRecord() {
+            if (!camRecording) {
+                const mimes = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'], mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+                camChunks = []; camRec = new MediaRecorder(camStream, mime ? { mimeType: mime } : {});
+                camRec.ondataavailable = e => { if (e.data?.size) camChunks.push(e.data); }; camRec.start(100); camRecording = true;
+                document.getElementById('cam-rec-btn').textContent = '⏹ STOP';
+                const timeEl = document.getElementById('cam-time'); timeEl.style.display = 'flex'; let t = 0;
+                camTimer = setInterval(() => { timeEl.textContent = `${++t}s`; }, 1000); toast('Recording...');
+            } else {
+                clearInterval(camTimer); camRecording = false;
+                const timeEl = document.getElementById('cam-time'); timeEl.style.display = 'none';
+                camRec.onstop = async () => { const blob = new Blob(camChunks, { type: camRec.mimeType || 'video/webm' }); closeCamera(); await extractVideo(blob); };
+                camRec.stop(); document.getElementById('cam-rec-btn').textContent = '⏺ RECORD';
+            }
+        }
+
+        // ── MEDIA LOADING ─────────────────────────────────────────────
+        function setCap(fps) { ST.capFps = fps;[6, 12, 24].forEach(f => document.getElementById(`cap${f}`)?.classList.toggle('on', f === fps)); }
+        function handleFile(e) { const f = e.target.files[0]; if (!f) return; e.target.value = ''; f.type.startsWith('video/') ? extractVideo(f) : loadImage(f); }
+
+        function loadImage(file) {
+            const url = URL.createObjectURL(file), img = new Image(); img.src = url;
+            img.onload = () => { ST.mediaTrack = [fitFrame(img, img.naturalWidth, img.naturalHeight)]; if (ST.cur >= total()) ST.cur = 0; rebuildTL(); renderFrame(); updateMI(); toast('IMAGE LOADED'); URL.revokeObjectURL(url); };
+        }
+        async function extractVideo(src) {
+            toast('LOADING VIDEO...', 10000);
+            const url = src instanceof Blob ? URL.createObjectURL(src) : src;
+            const vid = document.createElement('video'); vid.muted = true; vid.playsInline = true; vid.preload = 'auto'; vid.src = url;
+            try { await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = () => rej(new Error('unreadable')); setTimeout(() => rej(new Error('timeout')), 8000); }); }
+            catch (e) { toast('VIDEO FAILED'); if (src instanceof Blob) URL.revokeObjectURL(url); return; }
+            const dur = vid.duration; if (!isFinite(dur) || dur <= 0) { toast('VIDEO UNREADABLE'); return; }
+            const interval = 1 / ST.capFps, frames = [], maxF = 240; let lastCap = -1;
+            if (typeof vid.requestVideoFrameCallback === 'function') {
+                await new Promise(res => { function onF(now, meta) { if (frames.length >= maxF || vid.ended) { res(); return; } const t = meta.mediaTime; if (t - lastCap >= interval - 0.001) { lastCap = t; if (vid.videoWidth) frames.push(fitFrame(vid, vid.videoWidth, vid.videoHeight)); } vid.requestVideoFrameCallback(onF); } vid.requestVideoFrameCallback(onF); vid.play().catch(() => { }); setTimeout(res, (dur + 3) * 1000); });
+            } else {
+                await new Promise(res => { function onR() { if (frames.length >= maxF || vid.ended) { res(); return; } if (vid.videoWidth && vid.currentTime - lastCap >= interval - 0.001) { lastCap = vid.currentTime; frames.push(fitFrame(vid, vid.videoWidth, vid.videoHeight)); } requestAnimationFrame(onR); } requestAnimationFrame(onR); vid.play().catch(() => { }); setTimeout(res, (dur + 3) * 1000); });
+            }
+            vid.pause(); if (src instanceof Blob) URL.revokeObjectURL(url);
+            if (!frames.length) { toast('NO FRAMES CAPTURED'); return; }
+            ST.mediaTrack = frames; ST.cur = 0; rebuildTL(); renderFrame(); updateMI();
+            toast(`${frames.length} FRAMES LOADED`); haptic([10, 30, 10]);
+        }
+        function fitFrame(src, sw, sh) { const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d'); cx.fillStyle = '#c0bdb5'; cx.fillRect(0, 0, W, H); const a = sw / sh; let sx = 0, sy = 0, sW = sw, sH = sh; if (a > W / H) { sW = sH * (W / H); sx = (sw - sW) / 2; } else { sH = sW / (W / H); sy = (sh - sH) / 2; } cx.drawImage(src, sx, sy, sW, sH, 0, 0, W, H); return c; }
+        function updateMI() { const el = document.getElementById('media-info'); if (el) el.textContent = ST.mediaTrack.length ? `${ST.mediaTrack.length} frames` : 'No footage'; }
+        function loadSample() {
+            const n = 24; ST.mediaTrack = [];
+            for (let i = 0; i < n; i++) { const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d'); cx.fillStyle = `hsl(${210 + i * 4},48%,${20 + i * 0.6}%)`; cx.fillRect(0, 0, W, H); cx.strokeStyle = 'rgba(255,255,255,.2)'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(0, H / 2); cx.lineTo(W, H / 2); cx.stroke(); cx.beginPath(); cx.moveTo(W / 2, 0); cx.lineTo(W / 2, H); cx.stroke(); cx.fillStyle = `hsl(${i * 12},72%,62%)`; cx.beginPath(); cx.arc(W / 2 + Math.sin(i * .45) * (W / 3), H / 2 + Math.cos(i * .65) * (H / 3), 9, 0, Math.PI * 2); cx.fill(); ST.mediaTrack.push(c); }
+            updateMI(); rebuildTL(); renderFrame(); toast('SAMPLE FILM LOADED'); haptic(15);
+        }
+
+        // ── EXPORT ───────────────────────────────────────────────────
+        function getExScale() { return parseInt(document.getElementById('ex-sc').value) || 2; }
+        function getExFps() { return parseInt(document.getElementById('ex-fps').value) || 12; }
+        function exportPNG() {
+            const sc = getExScale(), ec = document.createElement('canvas'); ec.width = W * sc; ec.height = H * sc;
+            const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; compositeAt(ST.cur, tmp.getContext('2d'));
+            ec.getContext('2d').drawImage(tmp, 0, 0, W * sc, H * sc);
+            const a = document.createElement('a'); a.download = `bflix_f${String(ST.cur + 1).padStart(3, '0')}.png`; a.href = ec.toDataURL('image/png'); a.click(); toast('PNG SAVED');
+        }
+        function exportSheet() {
+            const tot = total(), cols = Math.min(5, tot), rows = Math.ceil(tot / cols);
+            const sc = document.createElement('canvas'); sc.width = cols * W; sc.height = rows * H; const scx = sc.getContext('2d');
+            for (let i = 0; i < tot; i++) { const tc = document.createElement('canvas'); tc.width = W; tc.height = H; compositeAt(i, tc.getContext('2d')); scx.drawImage(tc, (i % cols) * W, Math.floor(i / cols) * H); }
+            const a = document.createElement('a'); a.download = `bflix_sheet.png`; a.href = sc.toDataURL('image/png'); a.click(); toast('CONTACT SHEET SAVED');
+        }
+        async function exportVid() {
+            const mimes = ['video/webm;codecs=vp9', 'video/webm'], mime = mimes.find(m => MediaRecorder.isTypeSupported?.(m));
+            if (!mime) { toast('WebM not supported in this browser'); return; }
+            const fps = getExFps(), sc = getExScale(), tot = total();
+            const ec = document.createElement('canvas'); ec.width = W * sc; ec.height = H * sc; const ectx = ec.getContext('2d');
+            const stream = ec.captureStream(fps), rec = new MediaRecorder(stream, { mimeType: mime }), chunks = [];
+            rec.ondataavailable = e => { if (e.data?.size) chunks.push(e.data); }; const done = new Promise(r => rec.onstop = r); rec.start();
+            toast('Exporting film...', 15000);
+            for (let i = 0; i < tot; i++) { const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; compositeAt(i, tmp.getContext('2d')); ectx.clearRect(0, 0, W * sc, H * sc); ectx.drawImage(tmp, 0, 0, W * sc, H * sc); await new Promise(r => setTimeout(r, 1000 / fps)); }
+            rec.stop(); await done;
+            const blob = new Blob(chunks, { type: mime }), a = document.createElement('a');
+            a.download = `bflix_${Date.now()}.webm`; a.href = URL.createObjectURL(blob); a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('FILM SAVED');
+        }
+
+        // ── SWATCHES ─────────────────────────────────────────────────
+        function buildSwatches() {
+            const box = document.getElementById('swatches'); box.innerHTML = '';
+            PAL.slice(1).forEach(p => {
+                const s = document.createElement('div'); s.className = `sw${p.id === ST.color ? ' on' : ''}`;
+                s.style.background = p.hex; if (p.id === 5) s.style.border = '3px solid #999';
+                s.title = p.name;
+                s.onclick = () => { ST.color = p.id; document.querySelectorAll('.sw').forEach(el => el.classList.remove('on')); s.classList.add('on'); if (ST.tool === 'erase') setTool('pen'); };
+                box.appendChild(s);
+            });
+        }
+
+        // ── KEYBOARD ─────────────────────────────────────────────────
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            const k = e.key.toLowerCase();
+            if (k === 'arrowright') stepFrame(1);
+            if (k === 'arrowleft') stepFrame(-1);
+            if (k === ' ') { e.preventDefault(); togglePlay(); }
+            if (k === 'a') openChannel('a'); if (k === 'b') openChannel('b'); if (k === 'c') openChannel('c'); if (k === 'd') openChannel('d');
+            if (k === 'g') toggleGrid(); if (k === 'o') toggleOnion();
+            if (k === 'p') setTool('pen'); if (k === 'r') setTool('rect'); if (k === 'e') setTool('erase'); if (k === 'm') setTool('pan');
+        });
+
+        // ── SWIPE ────────────────────────────────────────────────────
+        let _sx = 0, _sy = 0;
+        document.getElementById('gate').addEventListener('touchstart', e => { _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; }, { passive: true });
+        document.getElementById('gate').addEventListener('touchend', e => {
+            if (!e.changedTouches.length || ST.playing || ST.ch === 'c') return;
+            const dx = e.changedTouches[0].clientX - _sx, dy = e.changedTouches[0].clientY - _sy;
+            if (Math.abs(dx) > 50 && Math.abs(dy) < 36 && Math.abs(dx) > Math.abs(dy) * 1.5) stepFrame(dx < 0 ? 1 : -1);
+        }, { passive: true });
+
+        // ── DRAG-DROP ────────────────────────────────────────────────
+        document.getElementById('gate').addEventListener('dragover', e => e.preventDefault());
+        document.getElementById('gate').addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile({ target: { files: [f] }, }); });
+
+        // ── INIT ────────────────────────────────────────────────────
+        window.onload = () => {
+            buildSwatches();
+            document.getElementById('code-ta').value = 'C WELCOME TO B·FLIX\nC CLICK PULSE ABOVE OR ASK AI\n\nCLR 1\nPNT 28 13 8 8 4\nREC 2\nCLR 1\nPNT 24 9 16 16 4\nREC 2\nCLR 1\nPNT 20 5 24 24 4\nREC 2\nCLR 1\nPNT 24 9 16 16 2\nREC 2';
+            compileNow();
+            resize();
+            window.addEventListener('resize', resize);
+            // Default: panel-a and panel-c visible, nav reflects it
+            // openChannel sets everything — start on C (Draw) as default active
+            openChannel('c');
+            // Also show A panel open on desktop (wide enough for two)
+            // On mobile only one panel shows at a time
+            if (!localStorage.getItem('bflix_seen')) {
+                // Onboarding already visible (has 'on' class in HTML)
+                localStorage.setItem('bflix_seen', '1');
+            } else {
+                document.getElementById('ov-help').classList.remove('on');
+            }
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RIPPLES STUDIO: OPERATIVE ECOLOGY</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-base: #050505;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #00ff00;
+            /* Phosphor Green */
+            --act-b: #ffcc00;
+            --act-c: #ff00ff;
+            /* Shift Purple */
+            --act-d: #00ffff;
+            /* Goal Cyan */
+            --canvas-bg: #111111;
+            --border-width: 4px;
+            --shadow-depth: 4px;
+            --term-dim: #1a4a1a;
+        }
+
+        body.light-mode {
+            --bg-base: #f4f4f0;
+            --act-a: #006600;
+            --canvas-bg: #e0e0e0;
+            --term-dim: #88aa88;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            width: 100vw;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            overscroll-behavior: none;
+            background-color: var(--bg-base);
+            color: var(--act-a);
+            font-family: 'Space Mono', monospace;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Scanline Overlay */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 100;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .layout-body {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+            gap: 4px;
+            padding-bottom: env(safe-area-inset-bottom, 4px);
+        }
+
+        .gate-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel-container {
+            flex: 0 0 35vh;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .timeline-container {
+            flex: 0 0 auto;
+        }
+
+        .nav-container {
+            flex: 0 0 70px;
+            display: flex;
+            gap: 4px;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-body {
+                display: grid;
+                grid-template-rows: 1fr auto;
+                grid-template-columns: 80px 380px 1fr;
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .nav-container {
+                grid-row: 1 / -1;
+                grid-column: 1;
+                flex-direction: column;
+                height: auto;
+            }
+
+            .panel-container {
+                grid-row: 1 / -1;
+                grid-column: 2;
+                flex: auto;
+                height: 100%;
+            }
+
+            .gate-container {
+                grid-row: 1;
+                grid-column: 3;
+            }
+
+            .timeline-container {
+                grid-row: 2;
+                grid-column: 3;
+            }
+        }
+
+        .btn-op {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 14px;
+            background: var(--black);
+            border: 2px solid var(--act-a);
+            color: var(--act-a);
+            cursor: pointer;
+            width: 100%;
+            flex-shrink: 0;
+            transition: all 0.05s;
+        }
+
+        .btn-op:active {
+            background: var(--act-a);
+            color: var(--black);
+        }
+
+        .btn-op.active {
+            background: var(--act-a);
+            color: var(--black);
+        }
+
+        .nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: var(--black);
+            border: 2px solid var(--term-dim);
+            color: var(--term-dim);
+        }
+
+        .nav-btn.on {
+            border-color: var(--act-a);
+            color: var(--act-a);
+            background: #111;
+        }
+
+        .op-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 12px;
+            gap: 12px;
+            background: var(--black);
+            border: 2px solid var(--term-dim);
+        }
+
+        .op-panel.on {
+            display: flex;
+        }
+
+        .panel-header {
+            font-size: 14px;
+            font-weight: 900;
+            border-bottom: 2px solid var(--term-dim);
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: var(--term-dim);
+        }
+
+        .entry-time {
+            color: var(--term-dim);
+            margin-right: 4px;
+        }
+
+        .poetic-text {
+            color: #aaa;
+            font-style: italic;
+            border-left: 1px solid var(--term-dim);
+            padding-left: 8px;
+            margin-bottom: 4px;
+        }
+
+        .gate-bg {
+            background: var(--black);
+            position: relative;
+            flex: 1 1 0%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid var(--term-dim);
+            cursor: crosshair;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            z-index: 10;
+            border: 2px solid var(--act-a);
+            background: var(--canvas-bg);
+            overflow: hidden;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+            touch-action: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tl-bar {
+            background: var(--black);
+            border: 2px solid var(--term-dim);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tl-controls {
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            border-bottom: 2px solid var(--term-dim);
+            align-items: center;
+            background: #0a0a0a;
+        }
+
+        .tl-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--black);
+            color: var(--act-a);
+            border: 1px solid var(--act-a);
+            padding: 6px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .tl-btn:active {
+            background: var(--act-a);
+            color: var(--black);
+        }
+
+        #hud-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--act-a);
+            color: var(--black);
+            font-weight: 900;
+            font-size: 12px;
+            padding: 8px 16px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            text-transform: uppercase;
+            transition: opacity 0.1s;
+        }
+
+        #hud-toast.on {
+            opacity: 1;
+        }
+
+        .stat-badge {
+            position: absolute;
+            padding: 4px 8px;
+            background: var(--black);
+            color: var(--act-a);
+            font-size: 10px;
+            font-weight: 900;
+            border: 1px solid var(--term-dim);
+            z-index: 30;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="layout-body">
+
+    <!-- CANVAS VIEWPORT -->
+    <section class="gate-container">
+        <div class="gate-bg" id="gate">
+            <div class="stat-badge" style="top:8px; left:8px;">
+                UMWELT GRID: 64x36 / ADJACENCY_MTRX
+            </div>
+
+            <div class="stat-badge" style="top:8px; right:8px;">
+                TICK: <span id="sim-tick">0</span>
+            </div>
+
+            <div id="canvas-wrapper">
+                <!-- Core 64x36 rendering surface -->
+                <canvas id="primary-buffer"></canvas>
+            </div>
+
+            <div class="stat-badge" style="bottom:8px; left:8px; pointer-events:all;">
+                <button class="tl-btn" onclick="toggleTheme()" style="font-size: 8px;">[ THEME ]</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- INTERACTIVE PANELS -->
+    <aside class="panel-container">
+        <!-- ECOLOGY LOGS (A) -->
+        <div id="panel-a" class="op-panel on">
+            <div class="panel-header">AUDIT_LOG [RAW]</div>
+            <div class="log-content" id="audit-log">
+                <div class="entry"><span class="entry-time">[SYS]</span> RIPPLES_STUDIO_READY.</div>
+            </div>
+        </div>
+
+        <!-- WORLDTEXT (B) -->
+        <div id="panel-b" class="op-panel">
+            <div class="panel-header">WORLDTEXT [READOUT]</div>
+            <div class="log-content" id="worldtext-log">
+                <div class="entry poetic-text">Systems nominal. Awaiting epistemic drift.</div>
+            </div>
+        </div>
+
+        <!-- VECTORS (C) -->
+        <div id="panel-c" class="op-panel">
+            <div class="panel-header">STEERING_VECTORS</div>
+            <div id="node-details" class="text-[10px] mb-4">
+                > SELECT ENTITY IN GRID TO INJECT VECTORS
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+                <button class="btn-op active" id="btn-goal" onclick="setInjectType('GOAL')">INJECT [GOAL]</button>
+                <button class="btn-op" id="btn-obstacle" onclick="setInjectType('OBSTACLE')">INJECT [OBSTACLE]</button>
+                <button class="btn-op" id="btn-shift" onclick="setInjectType('SHIFT')">INJECT [SHIFT]</button>
+            </div>
+        </div>
+
+        <!-- SETTINGS (D) -->
+        <div id="panel-d" class="op-panel">
+            <div class="panel-header">CONFIG</div>
+            <button class="btn-op" onclick="resetEcology()">[ RESET ECOLOGY ]</button>
+            <button class="btn-op" onclick="toggleSim()">[ TOGGLE SIMULATION ]</button>
+        </div>
+    </aside>
+
+    <!-- TIMELINE CONTROLS -->
+    <section class="timeline-container">
+        <div class="tl-bar">
+            <div class="tl-controls">
+                <button id="btn-play" class="tl-btn" onclick="toggleSim()" style="width: 80px;">[ PLAY ]</button>
+                <button class="tl-btn" onclick="runTick()">[ STEP ]</button>
+                <div class="flex-grow"></div>
+                <div class="text-[10px] opacity-50">ECOLOGY_CLOCK_V2.0</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BOTTOM NAV -->
+    <nav class="nav-container">
+        <button id="nav-a" class="nav-btn on" onclick="execNav('A')">LOG</button>
+        <button id="nav-b" class="nav-btn" onclick="execNav('B')">TEXT</button>
+        <button id="nav-c" class="nav-btn" onclick="execNav('C')">VECT</button>
+        <button id="nav-d" class="nav-btn" onclick="execNav('D')">CFG</button>
+    </nav>
+
+    <div id="hud-toast">READY</div>
+
+    <script>
+        // --- CONFIG & CONSTANTS ---
+        const W = 64, H = 36;
+        const VECTORS = { GOAL: 'GOAL', OBSTACLE: 'OBSTACLE', SHIFT: 'SHIFT' };
+        const VECTOR_COLORS = { GOAL: '#00ffff', OBSTACLE: '#ff0000', SHIFT: '#ff00ff', DEFAULT: '#00ff00' };
+
+        const ENTITY_NAMES = ["Lichen", "Lithic", "Tidal", "Hyphae", "Silicon", "Daemon", "Mycelial", "Trace", "Filter", "Scaffold"];
+
+        const GRAMMAR = {
+            [VECTORS.GOAL]: ["orienting to gradient", "optimizing path", "feeling teleology", "synthesizing attractor"],
+            [VECTORS.OBSTACLE]: ["encountering resistance", "structural blockage", "semantic loop", "halting propagation"],
+            [VECTORS.SHIFT]: ["unstable phase", "mutating constraints", "topo-inversion", "recalibrating boundary"],
+            epistemic: ["Sensors imply", "Readout suggests", "Perturbation indicates", "Partially legible:"]
+        };
+
+        // --- STATE ---
+        const State = {
+            tick: 0,
+            isRunning: true,
+            nodes: [],
+            edges: [],
+            ripples: [],
+            floatingTexts: [],
+            selectedNode: null,
+            injectType: 'GOAL',
+            theme: 'dark',
+            scale: 1
+        };
+
+        // --- CLASSES ---
+        class EcologyNode {
+            constructor(id, name, x, y) {
+                this.id = id; this.name = name; this.x = x; this.y = y;
+                this.vx = 0; this.vy = 0; this.radius = 1.5;
+                this.vectors = { [VECTORS.GOAL]: 0, [VECTORS.OBSTACLE]: 0, [VECTORS.SHIFT]: 0 };
+                this.lastEmit = -10;
+            }
+        }
+
+        class Ripple {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.r = 0; this.maxR = 15; this.life = 1.0;
+                this.color = VECTOR_COLORS[type] || '#ffffff';
+            }
+            update() { this.r += 0.8; this.life -= 0.04; }
+        }
+
+        class FloatingText {
+            constructor(x, y, text) {
+                this.x = x; this.y = y; this.text = text; this.life = 1.0;
+            }
+            update() { this.y -= 0.1; this.life -= 0.02; }
+        }
+
+        // --- INITIALIZATION ---
+        const cvs = document.getElementById('primary-buffer');
+        cvs.width = W; cvs.height = H;
+        const ctx = cvs.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        function init() {
+            rescale();
+            resetEcology();
+
+            window.addEventListener('resize', rescale);
+            cvs.addEventListener('mousedown', handleClick);
+
+            requestAnimationFrame(loop);
+            setInterval(() => { if (State.isRunning) runTick(); }, 800);
+        }
+
+        function resetEcology() {
+            State.nodes = []; State.edges = []; State.tick = 0;
+            for (let i = 0; i < 10; i++) {
+                State.nodes.push(new EcologyNode(i, ENTITY_NAMES[i], Math.random() * W, Math.random() * H));
+            }
+            for (let i = 0; i < 10; i++) {
+                for (let j = i + 1; j < 10; j++) {
+                    if (Math.random() > 0.6) State.edges.push({ s: i, t: j, w: Math.random() * 0.5 + 0.2 });
+                }
+            }
+            logAudit("ECOLOGY_RESET_COMPLETE");
+        }
+
+        function rescale() {
+            const gate = document.getElementById('gate');
+            const wrap = document.getElementById('canvas-wrapper');
+            const pad = 40;
+            const maxW = gate.clientWidth - pad;
+            const maxH = gate.clientHeight - pad;
+            State.scale = Math.min(maxW / W, maxH / H);
+            wrap.style.width = `${W * State.scale}px`;
+            wrap.style.height = `${H * State.scale}px`;
+        }
+
+        // --- LOGIC ---
+        function runTick() {
+            State.tick++;
+            document.getElementById('sim-tick').innerText = State.tick;
+
+            const deltas = State.nodes.map(() => ({ [VECTORS.GOAL]: 0, [VECTORS.OBSTACLE]: 0, [VECTORS.SHIFT]: 0 }));
+
+            State.edges.forEach(e => {
+                const n1 = State.nodes[e.s], n2 = State.nodes[e.t];
+                [{ f: n1, tI: e.t }, { f: n2, tI: e.s }].forEach(p => {
+                    Object.values(VECTORS).forEach(v => {
+                        const load = p.f.vectors[v];
+                        if (load > 0.1) {
+                            const trans = load * e.w * 0.3;
+                            deltas[p.tI][v] += trans;
+                            deltas[p.f.id][v] -= trans;
+                        }
+                    });
+                });
+                e.w = Math.max(0.1, Math.min(1.0, e.w + (Math.random() * 0.02 - 0.01)));
+            });
+
+            State.nodes.forEach((n, i) => {
+                let maxV = 0, dom = null;
+                Object.values(VECTORS).forEach(v => {
+                    n.vectors[v] = Math.max(0, (n.vectors[v] + deltas[i][v]) * 0.9);
+                    if (n.vectors[v] > maxV) { maxV = n.vectors[v]; dom = v; }
+                });
+
+                if (maxV > 1.0 && State.tick - n.lastEmit > 5) {
+                    emitWorldtext(n, dom);
+                    n.lastEmit = State.tick;
+                }
+            });
+        }
+
+        function loop() {
+            updatePhysics();
+            State.ripples.forEach(r => r.update());
+            State.ripples = State.ripples.filter(r => r.life > 0);
+            State.floatingTexts.forEach(f => f.update());
+            State.floatingTexts = State.floatingTexts.filter(f => f.life > 0);
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function updatePhysics() {
+            const center = { x: W / 2, y: H / 2 };
+            State.nodes.forEach(n1 => {
+                // Simple attraction to center
+                n1.vx += (center.x - n1.x) * 0.001;
+                n1.vy += (center.y - n1.y) * 0.001;
+
+                State.nodes.forEach(n2 => {
+                    if (n1 === n2) return;
+                    const dx = n1.x - n2.x, dy = n1.y - n2.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+                    if (dist < 10) {
+                        const f = 0.05 / dist;
+                        n1.vx += dx * f; n1.vy += dy * f;
+                    }
+                });
+
+                n1.x += n1.vx; n1.y += n1.vy;
+                n1.vx *= 0.8; n1.vy *= 0.8;
+                // Bounds
+                n1.x = Math.max(2, Math.min(W - 2, n1.x));
+                n1.y = Math.max(2, Math.min(H - 2, n1.y));
+            });
+        }
+
+        function draw() {
+            ctx.fillStyle = State.theme === 'dark' ? '#0a0a0a' : '#e0e0e0';
+            ctx.fillRect(0, 0, W, H);
+
+            // Edges
+            State.edges.forEach(e => {
+                const n1 = State.nodes[e.s], n2 = State.nodes[e.t];
+                ctx.strokeStyle = State.theme === 'dark' ? `rgba(0,255,0,${e.w * 0.5})` : `rgba(0,100,0,${e.w * 0.5})`;
+                ctx.beginPath(); ctx.moveTo(n1.x, n1.y); ctx.lineTo(n2.x, n2.y); ctx.stroke();
+            });
+
+            // Ripples
+            State.ripples.forEach(r => {
+                ctx.strokeStyle = r.color;
+                ctx.globalAlpha = r.life;
+                ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            });
+
+            // Nodes
+            State.nodes.forEach(n => {
+                let total = n.vectors.GOAL + n.vectors.OBSTACLE + n.vectors.SHIFT;
+                ctx.fillStyle = State.selectedNode === n ? '#fff' : (State.theme === 'dark' ? '#0f0' : '#060');
+                ctx.fillRect(n.x - 1, n.y - 1, 2 + total, 2 + total);
+            });
+
+            // Text
+            ctx.font = '4px monospace';
+            ctx.textAlign = 'center';
+            State.floatingTexts.forEach(f => {
+                ctx.fillStyle = `rgba(255,255,255,${f.life})`;
+                ctx.fillText(f.text, f.x, f.y);
+            });
+        }
+
+        // --- UI ACTIONS ---
+        function handleClick(e) {
+            const rect = cvs.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) / State.scale;
+            const my = (e.clientY - rect.top) / State.scale;
+
+            let hit = null;
+            State.nodes.forEach(n => {
+                if (Math.abs(n.x - mx) < 3 && Math.abs(n.y - my) < 3) hit = n;
+            });
+
+            if (hit) {
+                State.selectedNode = hit;
+                hit.vectors[State.injectType] += 1.5;
+                State.ripples.push(new Ripple(hit.x, hit.y, State.injectType));
+                logAudit(`INJECT_${State.injectType} -> ${hit.name}`);
+                updateNodeUI();
+            } else {
+                State.ripples.push(new Ripple(mx, my, 'DEFAULT'));
+                State.nodes.forEach(n => {
+                    const d = Math.sqrt((n.x - mx) ** 2 + (n.y - my) ** 2);
+                    if (d < 15) n.vectors.SHIFT += (1 - d / 15);
+                });
+            }
+        }
+
+        function execNav(id) {
+            ['a', 'b', 'c', 'd'].forEach(p => {
+                document.getElementById('nav-' + p).classList.remove('on');
+                document.getElementById('panel-' + p).classList.remove('on');
+            });
+            document.getElementById('nav-' + id.toLowerCase()).classList.add('on');
+            document.getElementById('panel-' + id.toLowerCase()).classList.add('on');
+        }
+
+        function setInjectType(t) {
+            State.injectType = t;
+            ['goal', 'obstacle', 'shift'].forEach(b => document.getElementById('btn-' + b).classList.remove('active'));
+            document.getElementById('btn-' + t.toLowerCase()).classList.add('active');
+        }
+
+        function logAudit(msg) {
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="entry-time">[T-${State.tick}]</span> ${msg}`;
+            const log = document.getElementById('audit-log');
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function emitWorldtext(node, vector) {
+            const q = GRAMMAR.epistemic[Math.floor(Math.random() * GRAMMAR.epistemic.length)];
+            const a = GRAMMAR[vector][Math.floor(Math.random() * GRAMMAR[vector].length)];
+            const txt = `${q} ${node.name} is ${a}.`;
+
+            const div = document.createElement('div');
+            div.className = 'entry poetic-text';
+            div.innerText = txt;
+            const log = document.getElementById('worldtext-log');
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+
+            State.floatingTexts.push(new FloatingText(node.x, node.y, a));
+        }
+
+        function updateNodeUI() {
+            const n = State.selectedNode;
+            if (!n) return;
+            document.getElementById('node-details').innerHTML = `
+        <div class="text-white mb-1">> ENTITY: ${n.name}</div>
+        G: ${n.vectors.GOAL.toFixed(2)} | O: ${n.vectors.OBSTACLE.toFixed(2)} | S: ${n.vectors.SHIFT.toFixed(2)}
+    `;
+        }
+
+        function toggleSim() {
+            State.isRunning = !State.isRunning;
+            document.getElementById('btn-play').innerText = State.isRunning ? '[ HALT ]' : '[ PLAY ]';
+        }
+
+        function toggleTheme() {
+            State.theme = State.theme === 'dark' ? 'light' : 'dark';
+            document.body.classList.toggle('light-mode');
+        }
+
+        function fireToast(m) {
+            const t = document.getElementById('hud-toast');
+            t.innerText = m; t.classList.add('on');
+            setTimeout(() => t.classList.remove('on'), 1000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

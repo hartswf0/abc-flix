@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEFLIX-64: Machine World Control Surface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            margin: 0;
+            background-color: #111;
+            color: #e5e5e5;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .punch-card-bg {
+            background-color: #d8d3c5;
+        }
+
+        .punch-card-text {
+            color: #2a2a2a;
+        }
+
+        .crt-container {
+            position: relative;
+            background-color: #050505;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+            aspect-ratio: 4/3;
+            max-height: 80vh;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            filter: blur(1.5px) contrast(1.4) grayscale(100%);
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .tape-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'VT323', monospace;
+            font-size: 1.5rem;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .tape-loading.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .blink {
+            animation: blinker 1s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #555;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-bg {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col lg:flex-row w-full overflow-x-hidden">
+
+    <!-- INPUT PANEL (Control Surface) -->
+    <div
+        class="punch-card-bg w-full lg:w-1/2 flex flex-col border-b-4 lg:border-b-0 lg:border-r-4 border-neutral-600 min-h-[50vh] lg:h-screen">
+        <div
+            class="bg-neutral-800 text-neutral-200 px-4 py-2 text-xs font-mono uppercase tracking-widest flex justify-between items-center z-10 sticky top-0">
+            <span>Input Matrix Console</span>
+            <div class="flex gap-4 items-center">
+                <button id="help-btn" class="text-blue-300 hover:text-white underline">Operations Manual</button>
+                <span>Col: <span id="col-counter">0</span>/80</span>
+            </div>
+        </div>
+
+        <div class="p-4 md:p-6 flex flex-col flex-grow">
+            <h1 class="font-bold text-xl md:text-2xl uppercase mb-2 punch-card-text">Command Input</h1>
+
+            <div class="flex-grow flex flex-col relative">
+                <textarea id="code-input"
+                    class="w-full flex-grow bg-white/50 border-2 border-neutral-400 punch-card-text text-sm md:text-base p-4 resize-y whitespace-pre min-h-[300px] font-bold"
+                    spellcheck="false">
+C -- OPERATION: MACHINE WORLD --
+C Grid: 64x48. Values: 0(White) to 7(Black).
+CLR 0
+
+C 1. Assembly of Spherical Base (Intensity 4)
+C Stacking rectangles to approximate radius
+PNT 24 8 16 32 4
+PNT 20 10 24 28 4
+PNT 16 14 32 20 4
+PNT 14 18 36 12 4
+
+C 2. Injection of Structural Strata (Intensity 7)
+LIN 14 20 49 20 7
+LIN 14 24 49 24 7
+LIN 14 28 49 28 7
+LIN 32 8 32 39 7
+
+C 3. Implantation of Data Nodes (Intensity 1)
+PNT 22 14 4 4 1
+PNT 38 26 4 4 1
+PNT 26 32 4 2 1
+
+C 4. Commit Static Matrix to Buffer
+REC 15
+
+C 5. Orbital Translation Sequence
+SHF 1 0 40
+
+C 6. Purge and Hold
+CLR 0
+REC 5</textarea>
+            </div>
+
+            <div class="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div id="error-log"
+                    class="text-red-700 font-bold text-xs md:text-sm uppercase min-h-[2rem] flex-grow break-words">
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button id="export-btn"
+                        class="bg-neutral-600 hover:bg-neutral-700 text-white px-4 py-3 font-mono text-sm uppercase shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] transition-all whitespace-nowrap hidden">
+                        Export PNG
+                    </button>
+                    <button id="submit-btn"
+                        class="w-full sm:w-auto bg-neutral-800 hover:bg-black text-white px-8 py-3 font-mono text-lg uppercase shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] transition-all">
+                        Execute
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OUTPUT PANEL (Render Array) -->
+    <div class="w-full lg:w-1/2 flex flex-col bg-neutral-900 min-h-[50vh] lg:h-screen sticky top-0">
+        <div
+            class="bg-neutral-950 text-green-500 px-4 py-2 text-xs font-mono uppercase tracking-widest flex justify-between border-b border-neutral-800 z-20">
+            <span>Visual Output Register</span>
+            <span id="frame-counter">FRAME 0000</span>
+        </div>
+
+        <div class="relative flex-grow flex items-center justify-center p-2 md:p-8">
+            <div class="crt-container w-full max-w-2xl mx-auto">
+                <canvas id="screen" width="640" height="480" class="bg-white rounded-sm"></canvas>
+                <div class="crt-overlay"></div>
+
+                <div id="tape-loader" class="tape-loading rounded-sm">
+                    <div class="mb-4 text-center px-4">SEQUENCE INITIATED</div>
+                    <div id="loader-status" class="text-green-400 text-xl md:text-2xl text-center px-4">PROCESSING
+                        ARRAY...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPERATIONS MANUAL (Modal) -->
+    <div id="onboarding-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center modal-bg p-4 opacity-100 transition-opacity">
+        <div
+            class="bg-neutral-100 text-neutral-900 max-w-3xl w-full p-6 md:p-8 shadow-2xl border-4 border-neutral-800 overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-start mb-4 border-b-2 border-neutral-300 pb-4">
+                <h2 class="text-2xl font-bold uppercase tracking-tight">Operations Manual & Philosophy</h2>
+                <button id="close-modal" class="text-neutral-500 hover:text-black font-bold text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-sm md:text-base">
+
+                <!-- OPERATIONAL PHILOSOPHY -->
+                <div class="bg-neutral-800 text-neutral-100 p-5 border-l-4 border-neutral-400 shadow-inner">
+                    <h3 class="font-bold mb-2 uppercase text-xs tracking-widest text-neutral-400">The Operational
+                        Paradigm</h3>
+                    <p class="mb-3 italic text-neutral-300">"I want to create visual ambiguity, something that
+                        demonstrates that recognizable images... can be made while observing them under severe or
+                        unusual constraints. In spite of such constraints, we're successful at giving meaning to what we
+                        see... My greatest fun comes from using odd building blocks."</p>
+                    <p class="text-xs uppercase tracking-wider text-neutral-500 text-right">— Ken Knowlton (Masters of
+                        Deception)</p>
+                    <div class="mt-4 pt-4 border-t border-neutral-600 text-sm">
+                        <strong>Execution Rule:</strong> Do not attempt to draw reality. Assemble "odd building blocks"
+                        (integer values on a 64x48 grid). The constraints are absolute; the blurring mechanism forces
+                        your visual cortex to assign meaning to the resulting ambiguity.
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2 uppercase text-xs tracking-widest text-neutral-600">Protocol 1: The Grid
+                        Constraints</h3>
+                    <ul class="list-disc pl-5 space-y-1 bg-neutral-200 p-4 border border-neutral-300">
+                        <li>The output target is an absolute matrix: <strong>64 X-columns</strong> by <strong>48
+                                Y-rows</strong>.</li>
+                        <li>Origin point (X:0, Y:0) is the top-left corner.</li>
+                        <li>Intensity constraints: Input must be an integer between <strong>0 (White)</strong> and
+                            <strong>7 (Black)</strong>.</li>
+                        <li>Line length constraint: Lines exceeding 80 characters result in fatal compilation failure.
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2 uppercase text-xs tracking-widest text-neutral-600">Protocol 2: Command
+                        Syntax</h3>
+                    <table class="w-full text-left border-collapse bg-white">
+                        <tr class="border-b-2 border-neutral-800">
+                            <th class="py-2 px-2 w-1/3">Command Format</th>
+                            <th class="py-2 px-2">Execution Result</th>
+                        </tr>
+                        <tr class="border-b border-neutral-200">
+                            <td class="py-2 px-2 font-mono"><span class="bg-neutral-300 px-1 rounded font-bold">CLR
+                                    v</span></td>
+                            <td class="py-2 px-2">Fills all grid coordinates with intensity <code>v</code>.</td>
+                        </tr>
+                        <tr class="border-b border-neutral-200">
+                            <td class="py-2 px-2 font-mono"><span class="bg-neutral-300 px-1 rounded font-bold">PNT x y
+                                    w h v</span></td>
+                            <td class="py-2 px-2">Draws a block starting at <code>x,y</code>, spanning width
+                                <code>w</code> and height <code>h</code>, applying intensity <code>v</code>.</td>
+                        </tr>
+                        <tr class="border-b border-neutral-200">
+                            <td class="py-2 px-2 font-mono"><span class="bg-neutral-300 px-1 rounded font-bold">LIN x1
+                                    y1 x2 y2 v</span></td>
+                            <td class="py-2 px-2">Plots a trajectory from <code>x1,y1</code> to <code>x2,y2</code> with
+                                intensity <code>v</code>.</td>
+                        </tr>
+                        <tr class="border-b border-neutral-200">
+                            <td class="py-2 px-2 font-mono"><span class="bg-neutral-300 px-1 rounded font-bold">REC
+                                    n</span></td>
+                            <td class="py-2 px-2">Writes the current array to the buffer <code>n</code> times.</td>
+                        </tr>
+                        <tr class="border-b border-neutral-200">
+                            <td class="py-2 px-2 font-mono"><span class="bg-neutral-300 px-1 rounded font-bold">SHF dx
+                                    dy n</span></td>
+                            <td class="py-2 px-2">Translates the entire matrix by <code>dx, dy</code> units per frame,
+                                looping <code>n</code> times.</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2 uppercase text-xs tracking-widest text-neutral-600">Protocol 3: Output
+                        Extraction</h3>
+                    <ul class="list-disc pl-5 space-y-1 bg-neutral-200 p-4 border border-neutral-300">
+                        <li>Click <strong>Execute</strong> to process the syntax array.</li>
+                        <li>When execution completes, click <strong>Export PNG</strong> to extract the currently
+                            displayed visual state to your local filesystem.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 p-4 relative mt-4">
+                    <h3 class="font-bold mb-2 text-blue-900 flex items-center justify-between">
+                        <span>External System Pipeline (LLM Prompt)</span>
+                        <button id="copy-prompt-btn"
+                            class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors">Copy
+                            Rule Set</button>
+                    </h3>
+                    <p class="text-sm text-blue-800 mb-3">Instruct an external Language Model to assemble odd building
+                        blocks into recognizable geometry.</p>
+                    <textarea id="llm-prompt-text"
+                        class="w-full h-32 text-xs font-mono bg-white border border-blue-300 p-2 text-neutral-600 resize-y"
+                        readonly>Act as a strict BEFLIX-64 Fortran compiler. Generate macro code for a 64x48 discrete boolean matrix. 
+Constraints: X ranges 0-63 (left-to-right), Y ranges 0-47 (top-to-bottom). Values: 0 (white) to 7 (black).
+Output ONLY raw code, no markdown formatting, no explanations. 
+Available commands:
+CLR v (clear screen to value)
+PNT x y w h v (paint rect)
+LIN x1 y1 x2 y2 v (draw line)
+REC n (record N frames)
+SHF dx dy n (shift screen by dx,dy over N frames)
+
+Request: [INSERT REQUEST HERE]</textarea>
+                </div>
+
+                <div class="pt-4 border-t-2 border-neutral-300 text-center">
+                    <button id="start-coding-btn"
+                        class="bg-black text-white px-8 py-3 font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors shadow-lg">Acknowledge
+                        Constraints</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLS = 64;
+        const ROWS = 48;
+        const DENSITY_CHARS = [' ', '.', ',', '-', '+', '*', '%', 'M'];
+        const FPS = 24;
+
+        let matrix = [];
+        let filmRoll = [];
+        let isPlaying = false;
+        let currentFrame = 0;
+        let playInterval;
+
+        const codeInput = document.getElementById('code-input');
+        const colCounter = document.getElementById('col-counter');
+        const submitBtn = document.getElementById('submit-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const errorLog = document.getElementById('error-log');
+        const canvas = document.getElementById('screen');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const tapeLoader = document.getElementById('tape-loader');
+        const loaderStatus = document.getElementById('loader-status');
+        const frameCounter = document.getElementById('frame-counter');
+
+        const modal = document.getElementById('onboarding-modal');
+        const closeBtn = document.getElementById('close-modal');
+        const startBtn = document.getElementById('start-coding-btn');
+        const helpBtn = document.getElementById('help-btn');
+        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        const llmPromptText = document.getElementById('llm-prompt-text');
+
+        const closeModal = () => { modal.style.display = 'none'; };
+        const openModal = () => { modal.style.display = 'flex'; };
+
+        // Automatically show modal on first load
+        window.onload = openModal;
+
+        closeBtn.addEventListener('click', closeModal);
+        startBtn.addEventListener('click', closeModal);
+        helpBtn.addEventListener('click', openModal);
+
+        copyPromptBtn.addEventListener('click', () => {
+            llmPromptText.select();
+            document.execCommand('copy');
+            const originalText = copyPromptBtn.innerText;
+            copyPromptBtn.innerText = 'Copied!';
+            copyPromptBtn.classList.add('bg-green-600');
+            copyPromptBtn.classList.remove('bg-blue-600');
+            setTimeout(() => {
+                copyPromptBtn.innerText = originalText;
+                copyPromptBtn.classList.remove('bg-green-600');
+                copyPromptBtn.classList.add('bg-blue-600');
+            }, 2000);
+        });
+
+        function initMatrix() { matrix = Array(ROWS).fill().map(() => Array(COLS).fill(0)); }
+        function deepCopyMatrix(mat) { return mat.map(row => [...row]); }
+
+        codeInput.addEventListener('input', () => {
+            const cursor = codeInput.selectionStart;
+            const textBeforeCursor = codeInput.value.substring(0, cursor);
+            const cursorCol = cursor - (textBeforeCursor.lastIndexOf('\n') + 1);
+            colCounter.innerText = cursorCol;
+            colCounter.style.color = cursorCol > 80 ? 'red' : 'inherit';
+        });
+
+        function clearMatrix(val) {
+            for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) matrix[y][x] = val;
+        }
+
+        function paintRect(x, y, w, h, val) {
+            for (let iy = Math.max(0, y); iy < Math.min(ROWS, y + h); iy++) {
+                for (let ix = Math.max(0, x); ix < Math.min(COLS, x + w); ix++) {
+                    matrix[iy][ix] = val;
+                }
+            }
+        }
+
+        function drawLine(x0, y0, x1, y1, val) {
+            let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+            let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+            let err = dx + dy, e2;
+            while (true) {
+                if (x0 >= 0 && x0 < COLS && y0 >= 0 && y0 < ROWS) matrix[y0][x0] = val;
+                if (x0 === x1 && y0 === y1) break;
+                e2 = 2 * err;
+                if (e2 >= dy) { err += dy; x0 += sx; }
+                if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function shiftMatrix(dx, dy) {
+            let newMat = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    let nx = x - dx, ny = y - dy;
+                    if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) newMat[y][x] = matrix[ny][nx];
+                }
+            }
+            matrix = newMat;
+        }
+
+        function compileBatchJob(source) {
+            initMatrix();
+            filmRoll = [];
+            const lines = source.toUpperCase().split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (line.length === 0 || line.startsWith('C')) continue;
+                if (line.length > 80) throw new Error(`LINE ${i + 1}: EXCEEDS 80 COLUMNS`);
+                const parts = line.split(/\s+/);
+                const cmd = parts[0];
+                const args = parts.slice(1).map(Number);
+
+                if (args.some(isNaN)) throw new Error(`LINE ${i + 1}: INVALID NUMERIC IN '${cmd}'`);
+
+                switch (cmd) {
+                    case 'CLR': clearMatrix(Math.max(0, Math.min(7, args[0]))); break;
+                    case 'PNT': paintRect(args[0], args[1], args[2], args[3], Math.max(0, Math.min(7, args[4]))); break;
+                    case 'LIN': drawLine(args[0], args[1], args[2], args[3], Math.max(0, Math.min(7, args[4]))); break;
+                    case 'REC':
+                        let frames = Math.max(1, args[0]);
+                        for (let f = 0; f < frames; f++) filmRoll.push(deepCopyMatrix(matrix));
+                        break;
+                    case 'SHF':
+                        let shfFrames = Math.max(1, args[2]);
+                        for (let f = 0; f < shfFrames; f++) {
+                            shiftMatrix(args[0], args[1]);
+                            filmRoll.push(deepCopyMatrix(matrix));
+                        }
+                        break;
+                    default: throw new Error(`LINE ${i + 1}: UNKNOWN INSTRUCTION '${cmd}'`);
+                }
+                if (filmRoll.length > 2000) throw new Error(`BUFFER EXCEEDED (MAX 2000)`);
+            }
+            if (filmRoll.length === 0) filmRoll.push(deepCopyMatrix(matrix));
+        }
+
+        function renderFrame(frameIndex) {
+            if (!filmRoll[frameIndex]) return;
+            const mat = filmRoll[frameIndex];
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cellW = canvas.width / COLS;
+            const cellH = canvas.height / ROWS;
+            ctx.font = `bold ${cellH * 1.3}px 'Space Mono', monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#000000';
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const val = mat[y][x];
+                    const char = DENSITY_CHARS[val];
+                    if (char !== ' ') ctx.fillText(char, x * cellW + (cellW / 2), y * cellH + (cellH / 2));
+                }
+            }
+            frameCounter.innerText = `FRAME ${String(frameIndex).padStart(4, '0')} / ${String(filmRoll.length - 1).padStart(4, '0')}`;
+        }
+
+        function playbackLoop() {
+            if (currentFrame >= filmRoll.length) {
+                clearInterval(playInterval);
+                isPlaying = false;
+                submitBtn.innerText = "Re-Execute";
+                submitBtn.disabled = false;
+                exportBtn.classList.remove('hidden');
+                return;
+            }
+            renderFrame(currentFrame);
+            currentFrame++;
+        }
+
+        submitBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            errorLog.innerText = '';
+            exportBtn.classList.add('hidden');
+
+            try { compileBatchJob(codeInput.value); } catch (e) {
+                errorLog.innerText = "HALT: " + e.message;
+                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f00'; ctx.font = '24px monospace'; ctx.textAlign = 'left';
+                ctx.fillText('SYSTEM HALT', 20, 40);
+                ctx.fillText(e.message, 20, 80);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "PROCESSING";
+            tapeLoader.classList.add('active');
+            if (window.innerWidth < 1024) document.querySelector('.crt-container').scrollIntoView({ behavior: 'smooth' });
+
+            setTimeout(() => {
+                tapeLoader.classList.remove('active');
+                currentFrame = 0;
+                isPlaying = true;
+                submitBtn.innerText = "RUNNING";
+                playInterval = setInterval(playbackLoop, 1000 / FPS);
+            }, 1200);
+        });
+
+        exportBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            let exportFrame = currentFrame >= filmRoll.length ? filmRoll.length - 1 : currentFrame;
+            link.download = `BEFLIX_OUTPUT_FRAME_${exportFrame}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        });
+
+        initMatrix();
+        filmRoll.push(matrix);
+        renderFrame(0);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colosseum — Four Renderings in Four Native Languages</title>
+    <meta name="description" content="Roman Colosseum rendered through four conceptual lenses, each in its native geospatial format: WKT geometric primitives, GeoJSON on Leaflet maps, CityGML in 3D via Three.js, and KML with styled placemarks and camera tours.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-deep: #08080d;
+            --bg-card: #0e0e15;
+            --bg-card-hover: #131320;
+            --border: #1a1a28;
+            --border-active: #2a2a40;
+            --text-primary: #e0dde8;
+            --text-secondary: #7a7890;
+            --text-dim: #4a4860;
+            --accent-bricolage: #bb5577;
+            --accent-humility: #7a7a8a;
+            --accent-metastable: #cc8844;
+            --accent-worlding: #3daaaa;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── HEADER ── */
+        .site-header {
+            text-align: center;
+            padding: 56px 24px 44px;
+            position: relative;
+        }
+        .site-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 8%; right: 8%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+        .site-header h1 {
+            font-size: 2.4rem;
+            font-weight: 200;
+            letter-spacing: 0.12em;
+            background: linear-gradient(135deg, #e0dde8 20%, #7a7890 80%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .site-header .sub {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        /* ── FORMAT SECTION ── */
+        .format-section {
+            padding: 52px 20px 56px;
+            position: relative;
+        }
+        .format-section + .format-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 5%; right: 5%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+        .format-title {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .format-title .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem; letter-spacing: 0.2em;
+            color: var(--text-dim); text-transform: uppercase;
+            display: block; margin-bottom: 6px;
+        }
+        .format-title h2 {
+            font-size: 1.6rem; font-weight: 300;
+            letter-spacing: 0.06em;
+        }
+        .format-title .desc {
+            font-size: 0.78rem; color: var(--text-secondary);
+            margin-top: 8px; max-width: 680px;
+            margin-left: auto; margin-right: auto; line-height: 1.6;
+        }
+        .format-title .native-tag {
+            display: inline-block;
+            margin-top: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+            border-radius: 100px;
+        }
+
+        /* ── GRID ── */
+        .concepts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        @media (max-width: 900px) { .concepts-grid { grid-template-columns: 1fr; } }
+
+        /* ── CARD ── */
+        .concept-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s, transform 0.15s;
+            opacity: 0;
+            animation: fade-in 0.5s ease-out forwards;
+        }
+        .concept-card:nth-child(2) { animation-delay: 0.08s; }
+        .concept-card:nth-child(3) { animation-delay: 0.16s; }
+        .concept-card:nth-child(4) { animation-delay: 0.24s; }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .concept-card:hover {
+            border-color: var(--border-active);
+            transform: translateY(-1px);
+        }
+        .concept-card.bricolage:hover { box-shadow: 0 6px 30px rgba(187,85,119,0.12); border-color: var(--accent-bricolage); }
+        .concept-card.humility:hover { box-shadow: 0 6px 30px rgba(122,122,138,0.1); border-color: var(--accent-humility); }
+        .concept-card.metastable:hover { box-shadow: 0 6px 30px rgba(204,136,68,0.12); border-color: var(--accent-metastable); }
+        .concept-card.worlding:hover { box-shadow: 0 6px 30px rgba(61,170,170,0.12); border-color: var(--accent-worlding); }
+
+        .card-header {
+            padding: 14px 18px;
+            display: flex; align-items: center; gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            animation: pulse 3s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+        .bricolage .dot { background: var(--accent-bricolage); box-shadow: 0 0 6px var(--accent-bricolage); }
+        .humility .dot { background: var(--accent-humility); box-shadow: 0 0 6px var(--accent-humility); }
+        .metastable .dot { background: var(--accent-metastable); box-shadow: 0 0 6px var(--accent-metastable); }
+        .worlding .dot { background: var(--accent-worlding); box-shadow: 0 0 6px var(--accent-worlding); }
+        .card-name { font-size: 0.9rem; font-weight: 500; }
+        .card-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.55rem; color: var(--text-dim);
+            margin-left: auto; letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* ── RENDER AREA ── */
+        .render-area {
+            width: 100%;
+            height: 380px;
+            position: relative;
+            background: #060609;
+            overflow: hidden;
+        }
+        .render-area svg { width: 100%; height: 100%; }
+        .render-area canvas { width: 100% !important; height: 100% !important; }
+
+        /* Leaflet overrides */
+        .render-area .leaflet-container {
+            width: 100%; height: 100%;
+            background: #0a0a10;
+        }
+        .leaflet-tile-pane { filter: saturate(0.15) brightness(0.25) contrast(1.2); }
+        .leaflet-control-attribution { display: none !important; }
+        .leaflet-control-zoom { display: none !important; }
+
+        /* ── METADATA ── */
+        .card-meta {
+            padding: 14px 18px;
+            border-top: 1px solid var(--border);
+        }
+        .meta-row {
+            display: flex; gap: 8px;
+            margin-bottom: 5px; font-size: 0.72rem; line-height: 1.5;
+        }
+        .meta-row:last-child { margin-bottom: 0; }
+        .meta-key {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim); flex-shrink: 0;
+            min-width: 90px; font-size: 0.6rem;
+            letter-spacing: 0.05em; text-transform: uppercase;
+            padding-top: 1px;
+        }
+        .meta-val { color: var(--text-secondary); }
+
+        /* ── WKT SPECIFIC ── */
+        .wkt-grid-line { stroke: #1a1a28; stroke-width: 0.3; }
+        .wkt-axis { stroke: #252538; stroke-width: 0.5; }
+        .wkt-tick {
+            fill: #3a3850; font-size: 3px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        @keyframes wkt-draw {
+            from { stroke-dashoffset: 800; }
+            to { stroke-dashoffset: 0; }
+        }
+        .wkt-anim {
+            stroke-dasharray: 800;
+            stroke-dashoffset: 800;
+            animation: wkt-draw 1.8s ease-out forwards;
+        }
+
+        /* ── 3D hint ── */
+        .three-hint {
+            position: absolute;
+            bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* ── FOOTER ── */
+        .site-footer {
+            text-align: center; padding: 40px 24px 56px;
+            font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.12em;
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <h1>COLOSSEUM</h1>
+    <p class="sub">Four Concepts × Four Native Geospatial Languages</p>
+</header>
+
+<!-- ═══════════════ I. WKT ═══════════════ -->
+<section class="format-section" id="s-wkt">
+    <div class="format-title">
+        <span class="num">I</span>
+        <h2>Well-Known Text</h2>
+        <p class="desc">Raw geometry primitives on a Cartesian coordinate grid. LINESTRING arcs, POLYGON rings, GEOMETRYCOLLECTION assemblies. No projection, no metadata — pure topology.</p>
+        <span class="native-tag">RENDERER: SVG COORDINATE GRID</span>
+    </div>
+    <div class="concepts-grid" id="g-wkt"></div>
+</section>
+
+<!-- ═══════════════ II. GeoJSON ═══════════════ -->
+<section class="format-section" id="s-geojson">
+    <div class="format-title">
+        <span class="num">II</span>
+        <h2>GeoJSON — FeatureCollection</h2>
+        <p class="desc">WGS84 coordinates on an interactive slippy map. Real lon/lat centered on 41.8902°N, 12.4923°E. Properties carry conceptual metadata and operative meaning.</p>
+        <span class="native-tag">RENDERER: LEAFLET.JS INTERACTIVE MAP</span>
+    </div>
+    <div class="concepts-grid" id="g-geojson"></div>
+</section>
+
+<!-- ═══════════════ III. CityGML ═══════════════ -->
+<section class="format-section" id="s-citygml">
+    <div class="format-title">
+        <span class="num">III</span>
+        <h2>CityGML — LOD1 3D City Model</h2>
+        <p class="desc">Three-dimensional MultiSurface geometry with real z-heights (0–57m). GenericCityObject attributes encode material layers and temporal depth. Drag to orbit.</p>
+        <span class="native-tag">RENDERER: THREE.JS WEBGL 3D</span>
+    </div>
+    <div class="concepts-grid" id="g-citygml"></div>
+</section>
+
+<!-- ═══════════════ IV. KML ═══════════════ -->
+<section class="format-section" id="s-kml">
+    <div class="format-title">
+        <span class="num">IV</span>
+        <h2>KML — Keyhole Markup Language</h2>
+        <p class="desc">Google Earth placemarks with aaBGR color styles, MultiGeometry composition, and gx:Tour animated camera paths. Styled visualization with tour trajectory overlay.</p>
+        <span class="native-tag">RENDERER: STYLED PLACEMARKS + CAMERA TOUR PATH</span>
+    </div>
+    <div class="concepts-grid" id="g-kml"></div>
+</section>
+
+<footer class="site-footer">
+    COLOSSEUM — WKT · GeoJSON · CityGML · KML — Operative Ekphrasis
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// SHARED DATA
+// ═══════════════════════════════════════════
+
+const CONCEPTS = [
+    {
+        id: 'bricolage', name: '⟨Bricolage⟩', css: 'bricolage',
+        sub: 'Heterogeneous Fragment Assembly',
+        color: '#bb5577', colorDim: 'rgba(187,85,119,0.2)', colorFaint: 'rgba(187,85,119,0.06)',
+        meta: {
+            geometry: 'GEOMETRYCOLLECTION of arc-fragments',
+            'ruin state': 'partial — southern wall intact, N degraded',
+            operative: 'assembled heterogeneous remains',
+            arches: '240 surviving',
+        }
+    },
+    {
+        id: 'humility', name: '⟨Humility⟩', css: 'humility',
+        sub: 'Epistemic Gradient — Inaccessible Interior',
+        color: '#7a7a8a', colorDim: 'rgba(122,122,138,0.2)', colorFaint: 'rgba(122,122,138,0.06)',
+        meta: {
+            geometry: 'Three concentric polygon zones',
+            zones: 'public → ticketed → restricted → sealed',
+            operative: 'epistemic gradient toward center',
+            accessible: '41.2% publicly accessible',
+        }
+    },
+    {
+        id: 'metastable', name: '⟨Metastable_Place⟩', css: 'metastable',
+        sub: 'Overlapping Historical States',
+        color: '#cc8844', colorDim: 'rgba(204,136,68,0.2)', colorFaint: 'rgba(204,136,68,0.06)',
+        meta: {
+            geometry: 'Four displaced polygon shells',
+            layers: 'imperial · ruin · archaeological · digital',
+            condition: 'elliptical geometry persists; function shifts',
+        }
+    },
+    {
+        id: 'worlding', name: '⟨Worlding_Medium⟩', css: 'worlding',
+        sub: 'Operative Spectacle Machine',
+        color: '#3daaaa', colorDim: 'rgba(61,170,170,0.2)', colorFaint: 'rgba(61,170,170,0.06)',
+        meta: {
+            geometry: 'Shell + entries + sightlines + arena focal',
+            circulation: 'radial centripetal (80 vomitoria)',
+            capacity: '50,000 spectators',
+            operative: 'world-staging apparatus',
+        }
+    }
+];
+
+// WKT local-meter coordinates
+const WKT = {
+    bricolage: {
+        arcs: [
+            [[94,0],[93.2,10.18],[90.8,20.19],[86.84,29.85],[81.41,39],[74.58,47.48],[66.47,55.15],[57.22,61.88],[47,67.55],[35.97,72.06],[24.33,75.34]],
+            [[3.28,77.95],[-8.85,77.65],[-20.83,76.06],[-32.46,73.2],[-43.55,69.12],[-53.92,63.89],[-63.38,57.6],[-71.8,50.35],[-79.01,42.25],[-84.91,33.46],[-89.4,24.1]],
+            [[-93.64,-6.8],[-92.05,-15.82],[-89.19,-24.62],[-85.12,-33.09],[-79.89,-41.1],[-73.57,-48.56],[-66.24,-55.35],[-58,-61.38],[-48.97,-66.58],[-39.28,-70.86],[-29.05,-74.18]],
+            [[53.92,-63.89],[60.42,-59.75],[66.47,-55.15],[72.01,-50.14],[77,-44.74],[81.41,-39],[85.19,-32.96],[88.33,-26.68],[90.8,-20.19],[92.57,-13.54],[93.64,-6.8]],
+            [[73.36,12.89],[69.88,22.52],[64.56,31.56],[57.54,39.77],[49.01,46.93],[39.19,52.86],[28.34,57.4],[16.74,60.44],[4.71,61.88],[-7.45,61.69],[-19.41,59.89]],
+            [[-50.18,46.07],[-58.29,39.02],[-64.95,31],[-70.02,22.22],[-73.36,12.89],[-74.9,3.24],[-74.59,-6.48],[-72.44,-16.05],[-68.52,-25.22],[-62.9,-33.77],[-55.74,-41.49]],
+            [[15.59,-60.65],[23.92,-58.76],[31.93,-56.1],[39.52,-52.69],[46.59,-48.59],[53.03,-43.84],[58.78,-38.51],[63.74,-32.67],[67.86,-26.4],[71.08,-19.78],[73.36,-12.89]],
+            [[43,0],[41.01,8.12],[35.22,15.49],[26.18,21.42],[14.71,25.37],[1.88,26.97],[-11.13,26.08],[-23.1,22.77],[-32.94,17.36],[-39.73,10.33],[-42.84,2.35]],
+            [[-41.53,-6.99],[-36.66,-14.11],[-28.77,-20.06],[-18.51,-24.37],[-6.73,-26.67],[5.61,-26.77],[17.49,-24.67],[27.93,-20.53],[36.06,-14.71],[41.23,-7.67],[43,0]]
+        ],
+        radials: [[[43,0],[94,0]],[[30.41,30.41],[66.47,66.47]],[[0,43],[0,94]],[[-30.41,30.41],[-66.47,66.47]],[[0,-43],[0,-94]],[[30.41,-30.41],[66.47,-66.47]]]
+    },
+    humility: {
+        rings: [{rx:94,ry:78},{rx:55,ry:45},{rx:43,ry:27}]
+    },
+    metastable: {
+        shells: [
+            {rx:94,ry:78,ox:6,oy:4,label:'imperial'},
+            {rx:91,ry:75.5,ox:3,oy:2,label:'ruin'},
+            {rx:89,ry:73.5,ox:1,oy:1,label:'archaeological'},
+            {rx:87,ry:71,ox:0,oy:0,label:'digital'}
+        ],
+        inner: {rx:43,ry:27}
+    },
+    worlding: {
+        shell: {rx:94,ry:78}, arena: {rx:43,ry:27},
+        entries: [[[117.5,0],[94,0]],[[83.09,68.94],[66.47,55.15]],[[0,97.5],[0,78]],[[-83.09,68.94],[-66.47,55.15]],[[-117.5,0],[-94,0]],[[-83.09,-68.94],[-66.47,-55.15]],[[0,-97.5],[0,-78]],[[83.09,-68.94],[66.47,-55.15]]],
+        sightlines: [[[65,0],[0,0]],[[45.96,38.18],[0,0]],[[0,54],[0,0]],[[-45.96,38.18],[0,0]],[[-65,0],[0,0]],[[-45.96,-38.18],[0,0]],[[0,-54],[0,0]],[[45.96,-38.18],[0,0]]]
+    }
+};
+
+// GeoJSON coordinate rings
+const GJ_CTR = [12.4923, 41.8902];
+const GJ_OUTER = [[12.493437,41.8902],[12.493399,41.890382],[12.493285,41.890551],[12.493104,41.890696],[12.492869,41.890808],[12.492594,41.890878],[12.4923,41.890902],[12.492006,41.890878],[12.491731,41.890808],[12.491496,41.890696],[12.491315,41.890551],[12.491201,41.890382],[12.491163,41.8902],[12.491201,41.890018],[12.491315,41.889849],[12.491496,41.889704],[12.491731,41.889592],[12.492006,41.889522],[12.4923,41.889498],[12.492594,41.889522],[12.492869,41.889592],[12.493104,41.889704],[12.493285,41.889849],[12.493399,41.890018],[12.493437,41.8902]];
+const GJ_INNER = [[12.49282,41.8902],[12.492803,41.890263],[12.492751,41.890321],[12.492668,41.890372],[12.49256,41.89041],[12.492435,41.890435],[12.4923,41.890443],[12.492165,41.890435],[12.49204,41.89041],[12.491932,41.890372],[12.491849,41.890321],[12.491797,41.890263],[12.49178,41.8902],[12.491797,41.890137],[12.491849,41.890079],[12.491932,41.890028],[12.49204,41.88999],[12.492165,41.889965],[12.4923,41.889957],[12.492435,41.889965],[12.49256,41.88999],[12.492668,41.890028],[12.492751,41.890079],[12.492803,41.890137],[12.49282,41.8902]];
+const GJ_MID = [[12.492966,41.8902],[12.492943,41.890305],[12.492876,41.890403],[12.492771,41.890486],[12.492633,41.890551],[12.492472,41.890591],[12.4923,41.890605],[12.492128,41.890591],[12.491967,41.890551],[12.491829,41.890486],[12.491724,41.890403],[12.491657,41.890305],[12.491634,41.8902],[12.491657,41.890095],[12.491724,41.889997],[12.491829,41.889914],[12.491967,41.889849],[12.492128,41.889809],[12.4923,41.889795],[12.492472,41.889809],[12.492633,41.889849],[12.492771,41.889914],[12.492876,41.889997],[12.492943,41.890095],[12.492966,41.8902]];
+const GJ_META = {
+    imperial: [[12.49351,41.890236],[12.493471,41.890418],[12.493358,41.890587],[12.493177,41.890732],[12.492941,41.890844],[12.492667,41.890914],[12.492373,41.890938],[12.492078,41.890914],[12.491804,41.890844],[12.491568,41.890732],[12.491388,41.890587],[12.491274,41.890418],[12.491235,41.890236],[12.491274,41.890054],[12.491388,41.889885],[12.491568,41.88974],[12.491804,41.889628],[12.492078,41.889558],[12.492373,41.889534],[12.492667,41.889558],[12.492941,41.889628],[12.493177,41.88974],[12.493358,41.889885],[12.493471,41.890054],[12.49351,41.890236]],
+    ruin: [[12.493437,41.890218],[12.4934,41.890393],[12.49329,41.890555],[12.493115,41.890695],[12.492887,41.890803],[12.492621,41.89087],[12.492336,41.890893],[12.492051,41.89087],[12.491786,41.890803],[12.491558,41.890695],[12.491383,41.890555],[12.491273,41.890393],[12.491235,41.890218],[12.491273,41.890043],[12.491383,41.88988],[12.491558,41.889741],[12.491786,41.889633],[12.492051,41.889566],[12.492336,41.889543],[12.492621,41.889566],[12.492887,41.889633],[12.493115,41.889741],[12.49329,41.88988],[12.4934,41.890043],[12.493437,41.890218]],
+    archaeological: [[12.493389,41.890209],[12.493352,41.890379],[12.493245,41.890538],[12.493074,41.890674],[12.492851,41.890778],[12.492591,41.890844],[12.492312,41.890866],[12.492033,41.890844],[12.491774,41.890778],[12.491551,41.890674],[12.491379,41.890538],[12.491272,41.890379],[12.491235,41.890209],[12.491272,41.890039],[12.491379,41.88988],[12.491551,41.889744],[12.491774,41.88964],[12.492033,41.889574],[12.492312,41.889552],[12.492591,41.889574],[12.492851,41.88964],[12.493074,41.889744],[12.493245,41.88988],[12.493352,41.890039],[12.493389,41.890209]],
+    digital: [[12.493353,41.8902],[12.493317,41.890365],[12.493212,41.89052],[12.493044,41.890652],[12.492826,41.890753],[12.492572,41.890817],[12.4923,41.890839],[12.492028,41.890817],[12.491774,41.890753],[12.491556,41.890652],[12.491388,41.89052],[12.491283,41.890365],[12.491247,41.8902],[12.491283,41.890035],[12.491388,41.88988],[12.491556,41.889748],[12.491774,41.889647],[12.492028,41.889583],[12.4923,41.889561],[12.492572,41.889583],[12.492826,41.889647],[12.493044,41.889748],[12.493212,41.88988],[12.493317,41.890035],[12.493353,41.8902]]
+};
+
+// CityGML 3D data
+const CGML = {
+    bricolage: {
+        arenaFloor: {rx:43,ry:27,z:0},
+        outerArcE: {rx:94,ry:78,z:57,start:-Math.PI/3,end:Math.PI/3},
+        outerArcS: {rx:94,ry:78,z:57,start:Math.PI*0.7,end:Math.PI*1.3},
+    },
+    humility: {
+        zones: [{rx:94,ry:78,z:3,h:50},{rx:55,ry:45,z:3,h:30},{rx:43,ry:27,z:0,h:0}]
+    },
+    metastable: {
+        layers: [
+            {rx:94,ry:78,ox:6,oy:4,z:57,color:0xdd9955,label:'Imperial'},
+            {rx:91,ry:75,ox:3,oy:2,z:30,color:0xcc8844,label:'Ruin'},
+            {rx:89,ry:74,ox:1,oy:1,z:20,color:0xaa7733,label:'Archaeological'},
+            {rx:87,ry:71,ox:0,oy:0,z:3,color:0x886622,label:'Digital'}
+        ]
+    },
+    worlding: {
+        shell: {rx:94,ry:78,z:57},
+        arena: {rx:43,ry:27,z:0}
+    }
+};
+
+// KML camera tour waypoints
+const KML_TOUR = [
+    {lon:12.493,lat:41.889,alt:280,heading:350,tilt:62,label:'Bricolage approach'},
+    {lon:12.494,lat:41.89,alt:180,heading:80,tilt:72,label:'Fragment orbit'},
+    {lon:12.4923,lat:41.8902,alt:350,heading:0,tilt:0,label:'Humility descent'},
+    {lon:12.4923,lat:41.8915,alt:120,heading:180,tilt:68,label:'Interior opacity'},
+    {lon:12.4923,lat:41.889,alt:420,heading:15,tilt:50,label:'Metastable rise'},
+    {lon:12.494,lat:41.8895,alt:380,heading:340,tilt:48,label:'Layer displacement'},
+    {lon:12.4923,lat:41.8902,alt:200,heading:0,tilt:30,label:'Worlding descent'},
+    {lon:12.4923,lat:41.8902,alt:20,heading:0,tilt:85,label:'Arena spectacle'},
+    {lon:12.4923,lat:41.887,alt:600,heading:5,tilt:42,label:'Full overview'}
+];
+
+// KML aaBGR styles converted to CSS hex
+const KML_STYLES = {
+    bricolage: {stroke:'#bb5522',fill:'rgba(187,17,85,0.2)',width:2},
+    humility:  {stroke:'#333333',fill:'rgba(136,136,136,0.33)',width:1.5},
+    metastable:{stroke:'#0055aa',fill:'rgba(0,85,170,0.2)',width:1.5},
+    worlding:  {stroke:'#aaaa00',fill:'rgba(0,170,170,0.27)',width:2}
+};
+
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+
+const NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k,v] of Object.entries(attrs||{})) el.setAttribute(k, v);
+    return el;
+}
+function mkCard(concept, tag) {
+    const card = document.createElement('div');
+    card.className = `concept-card ${concept.css}`;
+    card.id = `c-${tag}-${concept.id}`;
+    card.innerHTML = `<div class="card-header"><span class="dot"></span><span class="card-name">${concept.name}</span><span class="card-tag">${tag}</span></div>`;
+    const area = document.createElement('div');
+    area.className = 'render-area';
+    area.id = `r-${tag}-${concept.id}`;
+    card.appendChild(area);
+    const meta = document.createElement('div');
+    meta.className = 'card-meta';
+    const subRow = `<div class="meta-row"><span class="meta-key">concept</span><span class="meta-val">${concept.sub}</span></div>`;
+    const rows = Object.entries(concept.meta).map(([k,v]) =>
+        `<div class="meta-row"><span class="meta-key">${k}</span><span class="meta-val">${v}</span></div>`
+    ).join('');
+    meta.innerHTML = subRow + rows;
+    card.appendChild(meta);
+    return card;
+}
+
+function ellipsePoints(rx, ry, n, ox, oy) {
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        pts.push([(ox||0) + rx * Math.cos(a), (oy||0) + ry * Math.sin(a)]);
+    }
+    return pts;
+}
+
+// ═══════════════════════════════════════════
+// I. WKT RENDERER — SVG Coordinate Grid
+// ═══════════════════════════════════════════
+
+function renderWKT(concept, container) {
+    const vb = '-140 -110 280 220';
+    const svg = svgEl('svg', {viewBox: vb, preserveAspectRatio: 'xMidYMid meet'});
+
+    // Grid
+    for (let x = -120; x <= 120; x += 20) {
+        svg.appendChild(svgEl('line', {x1:x,y1:-100,x2:x,y2:100,class:'wkt-grid-line'}));
+        if (x !== 0 && x % 40 === 0) svg.appendChild(Object.assign(svgEl('text', {x:x,y:105,class:'wkt-tick','text-anchor':'middle'}), {textContent: x}));
+    }
+    for (let y = -100; y <= 100; y += 20) {
+        svg.appendChild(svgEl('line', {x1:-120,y1:y,x2:120,y2:y,class:'wkt-grid-line'}));
+        if (y !== 0 && y % 40 === 0) svg.appendChild(Object.assign(svgEl('text', {x:-125,y:y+1.5,class:'wkt-tick','text-anchor':'end'}), {textContent: -y}));
+    }
+    // Axes
+    svg.appendChild(svgEl('line', {x1:-130,y1:0,x2:130,y2:0,class:'wkt-axis'}));
+    svg.appendChild(svgEl('line', {x1:0,y1:-105,x2:0,y2:105,class:'wkt-axis'}));
+
+    const c = concept.color;
+    const cd = concept.colorDim;
+
+    if (concept.id === 'bricolage') {
+        WKT.bricolage.arcs.forEach((arc, i) => {
+            const pts = arc.map(([x,y]) => `${x},${-y}`).join(' ');
+            const el = svgEl('polyline', {points:pts, stroke:c, 'stroke-width':1.2, fill:'none', class:'wkt-anim'});
+            el.style.animationDelay = (i*0.15)+'s';
+            svg.appendChild(el);
+        });
+        WKT.bricolage.radials.forEach(r => {
+            svg.appendChild(svgEl('line', {x1:r[0][0],y1:-r[0][1],x2:r[1][0],y2:-r[1][1],stroke:c,'stroke-width':0.5,opacity:0.35}));
+        });
+        // WKT type label
+        svg.appendChild(Object.assign(svgEl('text',{x:0,y:-102,fill:c,'font-size':'3.5','font-family':'JetBrains Mono,monospace','text-anchor':'middle',opacity:'0.5'}),{textContent:'GEOMETRYCOLLECTION ( LINESTRING... )'}));
+    }
+    else if (concept.id === 'humility') {
+        const fills = ['none', concept.colorFaint, cd];
+        WKT.humility.rings.forEach((r, i) => {
+            svg.appendChild(svgEl('ellipse', {cx:0,cy:0,rx:r.rx,ry:r.ry,stroke:c,'stroke-width':i===0?1.2:0.7,fill:fills[i],opacity:0.8-i*0.15}));
+        });
+        const labels = [{y:-82,t:'POLYGON(outer,(inner))'},{y:-72,t:'POLYGON(seating,(arena))'},{y:-62,t:'POLYGON(arena)'}];
+        labels.forEach(l => svg.appendChild(Object.assign(svgEl('text',{x:0,y:l.y,fill:c,'font-size':'2.8','font-family':'JetBrains Mono,monospace','text-anchor':'middle',opacity:'0.4'}),{textContent:l.t})));
+    }
+    else if (concept.id === 'metastable') {
+        const colors = ['#dd9955','#cc8844','#aa7733','#886622'];
+        WKT.metastable.shells.forEach((s, i) => {
+            svg.appendChild(svgEl('ellipse', {cx:s.ox,cy:-s.oy,rx:s.rx,ry:s.ry,stroke:colors[i],'stroke-width':0.9,fill:'none',opacity:0.8-i*0.15,'stroke-dasharray':i>0?(4+i*2)+' '+(2+i):'none'}));
+            svg.appendChild(svgEl('ellipse', {cx:s.ox,cy:-s.oy,rx:WKT.metastable.inner.rx,ry:WKT.metastable.inner.ry,stroke:colors[i],'stroke-width':0.4,fill:'none',opacity:(0.6-i*0.12)}));
+            svg.appendChild(Object.assign(svgEl('text',{x:s.rx+s.ox+4,y:-s.oy,fill:colors[i],'font-size':'2.5','font-family':'JetBrains Mono,monospace','text-anchor':'start',opacity:'0.6'}),{textContent:'/* '+s.label+' */'}));
+        });
+    }
+    else if (concept.id === 'worlding') {
+        svg.appendChild(svgEl('ellipse', {cx:0,cy:0,rx:WKT.worlding.shell.rx,ry:WKT.worlding.shell.ry,stroke:c,'stroke-width':1.2,fill:concept.colorFaint,opacity:0.7}));
+        WKT.worlding.entries.forEach(e => {
+            svg.appendChild(svgEl('line', {x1:e[0][0],y1:-e[0][1],x2:e[1][0],y2:-e[1][1],stroke:c,'stroke-width':1.4,opacity:0.6}));
+            svg.appendChild(svgEl('circle', {cx:e[0][0],cy:-e[0][1],r:2,fill:c,opacity:0.4}));
+        });
+        WKT.worlding.sightlines.forEach(s => {
+            svg.appendChild(svgEl('line', {x1:s[0][0],y1:-s[0][1],x2:s[1][0],y2:-s[1][1],stroke:c,'stroke-width':0.4,opacity:0.25,'stroke-dasharray':'3 2'}));
+        });
+        svg.appendChild(svgEl('ellipse', {cx:0,cy:0,rx:WKT.worlding.arena.rx,ry:WKT.worlding.arena.ry,stroke:c,'stroke-width':0.8,fill:cd,opacity:0.5}));
+        svg.appendChild(svgEl('circle', {cx:0,cy:0,r:2.5,fill:c,opacity:0.8}));
+    }
+
+    container.appendChild(svg);
+}
+
+
+// ═══════════════════════════════════════════
+// II. GeoJSON RENDERER — Leaflet Map
+// ═══════════════════════════════════════════
+
+function renderGeoJSON(concept, container) {
+    const mapDiv = document.createElement('div');
+    mapDiv.style.cssText = 'width:100%;height:100%;';
+    container.appendChild(mapDiv);
+
+    const map = L.map(mapDiv, {
+        center: [41.8902, 12.4923],
+        zoom: 17,
+        zoomControl: false,
+        attributionControl: false,
+        dragging: true,
+        scrollWheelZoom: false,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
+    }).addTo(map);
+
+    const c = concept.color;
+    const cDim = concept.colorDim;
+
+    function toLatLngs(coords) { return coords.map(([lon,lat]) => [lat, lon]); }
+
+    if (concept.id === 'bricolage') {
+        L.polygon(toLatLngs(GJ_OUTER), {color: c, weight: 2, fillColor: c, fillOpacity: 0.08, dashArray: '6 4'}).addTo(map);
+        L.polygon(toLatLngs(GJ_INNER), {color: c, weight: 1, fillOpacity: 0}).addTo(map);
+        // Radial spokes
+        const spokeIndices = [0, 6, 12, 18];
+        spokeIndices.forEach(i => {
+            L.polyline([toLatLngs(GJ_INNER)[i], toLatLngs(GJ_OUTER)[i]], {color: c, weight: 0.8, opacity: 0.4}).addTo(map);
+        });
+    }
+    else if (concept.id === 'humility') {
+        L.polygon(toLatLngs(GJ_OUTER), {color: c, weight: 1.5, fillColor: c, fillOpacity: 0.04}).addTo(map);
+        L.polygon(toLatLngs(GJ_MID), {color: c, weight: 1, fillColor: c, fillOpacity: 0.12}).addTo(map);
+        L.polygon(toLatLngs(GJ_INNER), {color: c, weight: 0.8, fillColor: c, fillOpacity: 0.25}).addTo(map);
+        L.marker([41.8902, 12.4923], {
+            icon: L.divIcon({className:'',html:`<div style="color:${c};font-size:9px;font-family:JetBrains Mono;opacity:0.6;white-space:nowrap">SEALED</div>`, iconSize:[40,12], iconAnchor:[20,6]})
+        }).addTo(map);
+    }
+    else if (concept.id === 'metastable') {
+        const layerData = [
+            {coords: GJ_META.imperial, color: '#dd9955', label: 'imperial'},
+            {coords: GJ_META.ruin, color: '#cc8844', label: 'ruin'},
+            {coords: GJ_META.archaeological, color: '#aa7733', label: 'archaeological'},
+            {coords: GJ_META.digital, color: '#886622', label: 'digital'}
+        ];
+        layerData.forEach(l => {
+            L.polygon(toLatLngs(l.coords), {color: l.color, weight: 1.2, fillColor: l.color, fillOpacity: 0.06}).addTo(map);
+        });
+    }
+    else if (concept.id === 'worlding') {
+        L.polygon(toLatLngs(GJ_OUTER), {color: c, weight: 1.5, fillColor: c, fillOpacity: 0.06}).addTo(map);
+        L.polygon(toLatLngs(GJ_INNER), {color: c, weight: 1, fillColor: c, fillOpacity: 0.18}).addTo(map);
+        // Entry paths
+        const entryIdxs = [0, 3, 6, 9, 12, 15, 18, 21];
+        entryIdxs.forEach(i => {
+            const outer = toLatLngs(GJ_OUTER)[i];
+            const ext = [outer[0] + (outer[0] - 41.8902) * 0.3, outer[1] + (outer[1] - 12.4923) * 0.3];
+            L.polyline([ext, outer], {color: c, weight: 1.5, opacity: 0.5}).addTo(map);
+        });
+        // Sightlines to center
+        entryIdxs.forEach(i => {
+            const inner = toLatLngs(GJ_INNER)[i % GJ_INNER.length];
+            L.polyline([inner, [41.8902, 12.4923]], {color: c, weight: 0.5, opacity: 0.25, dashArray: '3 3'}).addTo(map);
+        });
+        L.circleMarker([41.8902, 12.4923], {radius: 4, color: c, fillColor: c, fillOpacity: 0.8, weight: 0}).addTo(map);
+    }
+
+    // Invalidate size after layout settles
+    setTimeout(() => map.invalidateSize(), 200);
+    setTimeout(() => map.invalidateSize(), 600);
+}
+
+
+// ═══════════════════════════════════════════
+// III. CityGML RENDERER — Three.js 3D
+// ═══════════════════════════════════════════
+
+function renderCityGML(concept, container) {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06060a);
+    scene.fog = new THREE.FogExp2(0x06060a, 0.003);
+
+    const w = container.clientWidth || 600;
+    const h = container.clientHeight || 380;
+    const camera = new THREE.PerspectiveCamera(45, w / h, 1, 1000);
+    camera.position.set(120, 80, 120);
+    camera.lookAt(0, 15, 0);
+
+    const renderer3 = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    renderer3.setSize(w, h);
+    renderer3.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer3.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer3.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.4;
+    controls.maxPolarAngle = Math.PI / 2.2;
+
+    // Ground plane
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(300, 300),
+        new THREE.MeshBasicMaterial({color: 0x0a0a12, transparent: true, opacity: 0.6})
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.5;
+    scene.add(ground);
+
+    // Grid helper
+    const gridH = new THREE.GridHelper(200, 20, 0x1a1a28, 0x12121c);
+    gridH.position.y = -0.3;
+    scene.add(gridH);
+
+    const color = new THREE.Color(concept.color);
+    const mat = new THREE.MeshBasicMaterial({color: color, wireframe: true, transparent: true, opacity: 0.5});
+    const matSolid = new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.08, side: THREE.DoubleSide});
+
+    function makeEllipseRing(rx, ry, z, segments) {
+        const shape = new THREE.Shape();
+        for (let i = 0; i <= segments; i++) {
+            const a = (i / segments) * Math.PI * 2;
+            const x = rx * Math.cos(a), y = ry * Math.sin(a);
+            if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+        }
+        return shape;
+    }
+
+    function makeWall(rx, ry, z, h, segments, col, op) {
+        const geom = new THREE.BufferGeometry();
+        const verts = [];
+        const n = segments || 48;
+        for (let i = 0; i < n; i++) {
+            const a1 = (i / n) * Math.PI * 2;
+            const a2 = ((i + 1) / n) * Math.PI * 2;
+            const x1 = rx * Math.cos(a1), z1 = ry * Math.sin(a1);
+            const x2 = rx * Math.cos(a2), z2 = ry * Math.sin(a2);
+            verts.push(x1, 0, z1, x2, 0, z2, x2, h, z2);
+            verts.push(x1, 0, z1, x2, h, z2, x1, h, z1);
+        }
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        geom.computeVertexNormals();
+        const m = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(col || concept.color),
+            wireframe: false, transparent: true, opacity: op || 0.12, side: THREE.DoubleSide
+        });
+        return new THREE.Mesh(geom, m);
+    }
+
+    function makeWireEllipse(rx, ry, y, col, op) {
+        const pts = [];
+        for (let i = 0; i <= 64; i++) {
+            const a = (i / 64) * Math.PI * 2;
+            pts.push(new THREE.Vector3(rx * Math.cos(a), y, ry * Math.sin(a)));
+        }
+        const geom = new THREE.BufferGeometry().setFromPoints(pts);
+        const m = new THREE.LineBasicMaterial({color: new THREE.Color(col || concept.color), transparent: true, opacity: op || 0.6});
+        return new THREE.Line(geom, m);
+    }
+
+    function makeFloor(rx, ry, y, col, op) {
+        const shape = makeEllipseRing(rx, ry, 0, 48);
+        const geom = new THREE.ShapeGeometry(shape);
+        const m = new THREE.MeshBasicMaterial({color: new THREE.Color(col || concept.color), transparent: true, opacity: op || 0.08, side: THREE.DoubleSide});
+        const mesh = new THREE.Mesh(geom, m);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = y;
+        return mesh;
+    }
+
+    if (concept.id === 'bricolage') {
+        // Fragmentary walls (partial arcs)
+        const wall1 = makeWall(94, 78, 0, 57, 48, concept.color, 0.1);
+        scene.add(wall1);
+        // Remove some faces to show fragmentation — we'll add partial wireframe instead
+        scene.add(makeWireEllipse(94, 78, 0, concept.color, 0.4));
+        scene.add(makeWireEllipse(94, 78, 57, concept.color, 0.3));
+        scene.add(makeWireEllipse(94, 78, 28, concept.color, 0.15));
+        // Arena floor
+        scene.add(makeFloor(43, 27, 0, concept.color, 0.15));
+        scene.add(makeWireEllipse(43, 27, 0, concept.color, 0.5));
+        // Vertical fragment lines
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            const x = 94 * Math.cos(a), z = 78 * Math.sin(a);
+            const pts = [new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 57, z)];
+            const g = new THREE.BufferGeometry().setFromPoints(pts);
+            scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({color: new THREE.Color(concept.color), transparent: true, opacity: 0.25})));
+        }
+    }
+    else if (concept.id === 'humility') {
+        // Three nested zones at different opacities
+        scene.add(makeWall(94, 78, 0, 50, 48, concept.color, 0.05));
+        scene.add(makeWireEllipse(94, 78, 0, concept.color, 0.5));
+        scene.add(makeWireEllipse(94, 78, 50, concept.color, 0.3));
+
+        scene.add(makeWall(55, 45, 0, 30, 36, concept.color, 0.1));
+        scene.add(makeWireEllipse(55, 45, 0, concept.color, 0.4));
+        scene.add(makeWireEllipse(55, 45, 30, concept.color, 0.2));
+
+        scene.add(makeFloor(43, 27, 0, concept.color, 0.2));
+        scene.add(makeWireEllipse(43, 27, 0, concept.color, 0.6));
+
+        // Zone height labels with 3D sprites won't render, but we'll show structure
+        camera.position.set(0, 140, 140);
+    }
+    else if (concept.id === 'metastable') {
+        const layerColors = [0xdd9955, 0xcc8844, 0xaa7733, 0x886622];
+        CGML.metastable.layers.forEach((l, i) => {
+            scene.add(makeWall(l.rx, l.ry, 0, l.z, 36, '#' + l.color.toString(16).padStart(6, '0'), 0.06 + i * 0.02));
+            scene.add(makeWireEllipse(l.rx, l.ry, l.z, '#' + l.color.toString(16).padStart(6, '0'), 0.5 - i * 0.08));
+            scene.add(makeWireEllipse(l.rx, l.ry, 0, '#' + l.color.toString(16).padStart(6, '0'), 0.2));
+        });
+        scene.add(makeFloor(43, 27, 0, concept.color, 0.1));
+        camera.position.set(140, 100, 100);
+    }
+    else if (concept.id === 'worlding') {
+        // Shell
+        scene.add(makeWall(94, 78, 0, 57, 48, concept.color, 0.06));
+        scene.add(makeWireEllipse(94, 78, 0, concept.color, 0.4));
+        scene.add(makeWireEllipse(94, 78, 57, concept.color, 0.3));
+
+        // Arena
+        scene.add(makeFloor(43, 27, 0, concept.color, 0.2));
+        scene.add(makeWireEllipse(43, 27, 0, concept.color, 0.6));
+
+        // Entry paths as 3D lines
+        WKT.worlding.entries.forEach(e => {
+            const pts = [
+                new THREE.Vector3(e[0][0], 30, e[0][1]),
+                new THREE.Vector3(e[1][0], 30, e[1][1])
+            ];
+            const g = new THREE.BufferGeometry().setFromPoints(pts);
+            scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({color: new THREE.Color(concept.color), transparent: true, opacity: 0.4})));
+        });
+
+        // Sightlines converging on center
+        WKT.worlding.sightlines.forEach(s => {
+            const pts = [
+                new THREE.Vector3(s[0][0], 40, s[0][1]),
+                new THREE.Vector3(0, 0, 0)
+            ];
+            const g = new THREE.BufferGeometry().setFromPoints(pts);
+            const m = new THREE.LineDashedMaterial({color: new THREE.Color(concept.color), transparent: true, opacity: 0.2, dashSize: 3, gapSize: 2});
+            const line = new THREE.Line(g, m);
+            line.computeLineDistances();
+            scene.add(line);
+        });
+
+        // Center marker
+        const centerGeo = new THREE.SphereGeometry(2, 16, 16);
+        const centerMat = new THREE.MeshBasicMaterial({color: new THREE.Color(concept.color), transparent: true, opacity: 0.8});
+        scene.add(new THREE.Mesh(centerGeo, centerMat));
+    }
+
+    // Ambient light
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+    // Hint
+    const hint = document.createElement('div');
+    hint.className = 'three-hint';
+    hint.textContent = 'DRAG TO ORBIT · SCROLL TO ZOOM';
+    container.appendChild(hint);
+
+    // Animate
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer3.render(scene, camera);
+    }
+    animate();
+
+    // Resize handler
+    const ro = new ResizeObserver(() => {
+        const w2 = container.clientWidth;
+        const h2 = container.clientHeight;
+        camera.aspect = w2 / h2;
+        camera.updateProjectionMatrix();
+        renderer3.setSize(w2, h2);
+    });
+    ro.observe(container);
+}
+
+
+// ═══════════════════════════════════════════
+// IV. KML RENDERER — Styled Placemarks + Tour
+// ═══════════════════════════════════════════
+
+function renderKML(concept, container) {
+    const svg = svgEl('svg', {viewBox: '-130 -110 260 220', preserveAspectRatio: 'xMidYMid meet'});
+    const S = 80000;
+    function gj2svg(coords) {
+        return coords.map(([lon,lat]) => [(lon - GJ_CTR[0]) * S, -(lat - GJ_CTR[1]) * S]);
+    }
+
+    const style = KML_STYLES[concept.id];
+    const c = style.stroke;
+    concept.id === 'bricolage' && (style.stroke = '#bb5577');
+    concept.id === 'humility' && (style.stroke = '#7a7a8a');
+    concept.id === 'metastable' && (style.stroke = '#cc8844');
+    concept.id === 'worlding' && (style.stroke = '#3daaaa');
+    const sc = style.stroke;
+
+    // KML Style indicator box
+    const styleInfo = concept.id === 'bricolage' ? '#s_bric · ff2255BB · w:2' :
+                      concept.id === 'humility' ? '#s_hum · ff333333 · w:1.5' :
+                      concept.id === 'metastable' ? '#s_meta · ffAA5500 · w:1.5' :
+                      '#s_world · ff00AAAA · w:2';
+
+    // Background: faint tour path
+    const tourPts = KML_TOUR.map(t => {
+        const x = (t.lon - GJ_CTR[0]) * S * 3;
+        const y = -(t.lat - GJ_CTR[1]) * S * 3;
+        return `${x},${y}`;
+    }).join(' ');
+    svg.appendChild(svgEl('polyline', {points: tourPts, stroke: '#1a1a30', 'stroke-width': 0.6, fill: 'none', opacity: 0.4, 'stroke-dasharray': '2 2'}));
+
+    // Tour waypoints
+    KML_TOUR.forEach((t, i) => {
+        const x = (t.lon - GJ_CTR[0]) * S * 3;
+        const y = -(t.lat - GJ_CTR[1]) * S * 3;
+        const isActive = (concept.id === 'bricolage' && i < 2) ||
+                         (concept.id === 'humility' && (i === 2 || i === 3)) ||
+                         (concept.id === 'metastable' && (i === 4 || i === 5)) ||
+                         (concept.id === 'worlding' && i >= 6);
+        const col = isActive ? sc : '#252538';
+        svg.appendChild(svgEl('circle', {cx: x, cy: y, r: isActive ? 2 : 1, fill: col, opacity: isActive ? 0.8 : 0.3}));
+        if (isActive) {
+            // Heading indicator
+            const ha = (t.heading - 90) * Math.PI / 180;
+            const hx = x + Math.cos(ha) * 6;
+            const hy = y + Math.sin(ha) * 6;
+            svg.appendChild(svgEl('line', {x1: x, y1: y, x2: hx, y2: hy, stroke: col, 'stroke-width': 0.5, opacity: 0.5}));
+            svg.appendChild(Object.assign(svgEl('text', {x: x, y: y + 6, fill: col, 'font-size': '2', 'font-family': 'JetBrains Mono,monospace', 'text-anchor': 'middle', opacity: '0.5'}), {textContent: `alt:${t.alt}m h:${t.heading}°`}));
+        }
+    });
+
+    // Main geometry
+    if (concept.id === 'bricolage') {
+        const outer = gj2svg(GJ_OUTER);
+        const inner = gj2svg(GJ_INNER);
+        svg.appendChild(svgEl('polygon', {points: outer.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': style.width, fill: 'rgba(187,85,119,0.08)', opacity: 0.8}));
+        svg.appendChild(svgEl('polygon', {points: inner.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': 0.6, fill: 'none', opacity: 0.5}));
+        // Spokes
+        [0,6,12].forEach(i => {
+            svg.appendChild(svgEl('line', {x1:inner[i][0],y1:inner[i][1],x2:outer[i][0],y2:outer[i][1],stroke:sc,'stroke-width':0.5,opacity:0.35}));
+        });
+    }
+    else if (concept.id === 'humility') {
+        const outer = gj2svg(GJ_OUTER);
+        const mid = gj2svg(GJ_MID);
+        const inner = gj2svg(GJ_INNER);
+        svg.appendChild(svgEl('polygon', {points: outer.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': style.width, fill: 'rgba(122,122,138,0.05)', opacity: 0.7}));
+        svg.appendChild(svgEl('polygon', {points: mid.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': 1, fill: 'rgba(122,122,138,0.12)', opacity: 0.5}));
+        svg.appendChild(svgEl('polygon', {points: inner.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': 0.8, fill: 'rgba(122,122,138,0.25)', opacity: 0.4}));
+    }
+    else if (concept.id === 'metastable') {
+        const layers = [
+            {coords: GJ_META.imperial, col: '#dd9955'},
+            {coords: GJ_META.ruin, col: '#cc8844'},
+            {coords: GJ_META.archaeological, col: '#aa7733'},
+            {coords: GJ_META.digital, col: '#886622'}
+        ];
+        layers.forEach((l, i) => {
+            const pts = gj2svg(l.coords);
+            svg.appendChild(svgEl('polygon', {points: pts.map(p=>p.join(',')).join(' '), stroke: l.col, 'stroke-width': 0.9, fill: 'none', opacity: 0.7 - i * 0.12}));
+        });
+    }
+    else if (concept.id === 'worlding') {
+        const outer = gj2svg(GJ_OUTER);
+        const inner = gj2svg(GJ_INNER);
+        svg.appendChild(svgEl('polygon', {points: outer.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': style.width, fill: 'rgba(61,170,170,0.06)', opacity: 0.7}));
+        svg.appendChild(svgEl('polygon', {points: inner.map(p=>p.join(',')).join(' '), stroke: sc, 'stroke-width': 1, fill: 'rgba(61,170,170,0.2)', opacity: 0.5}));
+        // Entries
+        [0,3,6,9,12,15,18,21].forEach(i => {
+            const p = outer[i];
+            const dx = p[0]*1.2, dy = p[1]*1.2;
+            svg.appendChild(svgEl('line', {x1:dx,y1:dy,x2:p[0],y2:p[1],stroke:sc,'stroke-width':1.2,opacity:0.5}));
+        });
+        svg.appendChild(svgEl('circle', {cx:0,cy:0,r:2,fill:sc,opacity:0.7}));
+    }
+
+    // Style info box
+    const g = svgEl('g', {});
+    g.appendChild(svgEl('rect', {x:-125,y:-105,width:90,height:14,rx:2,fill:'#0e0e18',stroke:'#1a1a28','stroke-width':0.5}));
+    g.appendChild(Object.assign(svgEl('text', {x:-120,y:-97,fill:sc,'font-size':'2.5','font-family':'JetBrains Mono,monospace'}), {textContent: 'KML Style: ' + styleInfo.split('·')[0].trim()}));
+    g.appendChild(Object.assign(svgEl('text', {x:-120,y:-94,fill:'#4a4860','font-size':'2','font-family':'JetBrains Mono,monospace'}), {textContent: 'color: ' + styleInfo.split('·')[1]?.trim() + ' width: ' + styleInfo.split('·')[2]?.trim()}));
+    svg.appendChild(g);
+
+    // Placemark ID
+    const pmId = concept.id === 'bricolage' ? 'PM_BRICOLAGE' :
+                 concept.id === 'humility' ? 'PM_HUMILITY' :
+                 concept.id === 'metastable' ? 'PM_METASTABLE' : 'PM_WORLDING';
+    svg.appendChild(Object.assign(svgEl('text', {x:0,y:100,fill:sc,'font-size':'3.5','font-family':'JetBrains Mono,monospace','text-anchor':'middle',opacity:'0.5'}), {textContent: pmId}));
+
+    container.appendChild(svg);
+}
+
+
+// ═══════════════════════════════════════════
+// ASSEMBLE
+// ═══════════════════════════════════════════
+
+const grids = {
+    wkt: document.getElementById('g-wkt'),
+    geojson: document.getElementById('g-geojson'),
+    citygml: document.getElementById('g-citygml'),
+    kml: document.getElementById('g-kml')
+};
+
+CONCEPTS.forEach(c => {
+    // WKT
+    const wktCard = mkCard(c, 'WKT');
+    grids.wkt.appendChild(wktCard);
+    renderWKT(c, wktCard.querySelector('.render-area'));
+
+    // GeoJSON
+    const gjCard = mkCard(c, 'GeoJSON');
+    grids.geojson.appendChild(gjCard);
+
+    // KML
+    const kmlCard = mkCard(c, 'KML');
+    grids.kml.appendChild(kmlCard);
+    renderKML(c, kmlCard.querySelector('.render-area'));
+});
+
+// Lazy-init Leaflet maps and Three.js canvases on intersection
+const ioGJ = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const id = entry.target.id;
+            const concept = CONCEPTS.find(c => id.endsWith(c.id));
+            if (concept) renderGeoJSON(concept, entry.target);
+            ioGJ.unobserve(entry.target);
+        }
+    });
+}, {threshold: 0.1});
+
+document.querySelectorAll('#g-geojson .render-area').forEach(el => ioGJ.observe(el));
+
+const io3D = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const id = entry.target.id;
+            const concept = CONCEPTS.find(c => id.endsWith(c.id));
+            if (concept) renderCityGML(concept, entry.target);
+            io3D.unobserve(entry.target);
+        }
+    });
+}, {threshold: 0.05});
+
+// Add CityGML cards
+CONCEPTS.forEach(c => {
+    const cgCard = mkCard(c, 'CityGML');
+    grids.citygml.appendChild(cgCard);
+    io3D.observe(cgCard.querySelector('.render-area'));
+});
+
+</script>
+</body>
+</html>
