@@ -439,9 +439,39 @@
             border-left: 5px solid var(--act-c);
         }
 
-        .tl-frame.tl-selected {
-            box-shadow: inset 0 0 0 3px rgba(107, 33, 168, 0.5);
+        .tl-frame.tl-selected, .tl-clip-group.tl-selected {
+            box-shadow: inset 0 0 0 3px var(--act-c), 0 0 10px rgba(230,0,0,0.8);
+            border-color: var(--act-c);
         }
+        
+        .tl-clip-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            border: 2px dashed #444;
+            height: calc(100% - 8px);
+            min-width: 136px;
+            margin: 4px 6px;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: all 0.15s;
+        }
+        .tl-clip-group:hover { border-color: #777; }
+        
+        .tl-clip-toggle {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 14px;
+            color: #999;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 20;
+        }
+        .tl-clip-toggle:hover { color: #fff; }
 
         .tl-frame.tl-clip-boundary {
             border-left: 3px solid var(--act-c);
@@ -466,33 +496,48 @@
             display: none;
             position: fixed;
             z-index: 9999;
-            min-width: 160px;
-            background: #111;
-            border: 2px solid var(--white);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            padding: 4px 0;
+            min-width: 170px;
+            background: rgba(15, 15, 15, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+            padding: 6px 0;
             font-family: var(--ff);
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.1s cubic-bezier(0,1,.5,1);
         }
-        #tl-ctx-menu.on { display: block; }
+        #tl-ctx-menu.on { display: block; transform: scale(1); opacity: 1; }
         .ctx-item {
             display: block;
             width: 100%;
             padding: 8px 14px;
             border: none;
             background: none;
-            color: #fff;
-            font-size: 12px;
+            color: #ddd;
+            font-size: 11px;
             font-weight: 700;
             text-align: left;
             cursor: pointer;
             font-family: var(--ff);
+            transition: background 0.1s, color 0.1s;
         }
-        .ctx-item:hover { background: var(--act-c); }
+        .ctx-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .ctx-sep {
             height: 1px;
-            background: #333;
-            margin: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            margin: 4px 0;
         }
+        .ctx-colors {
+            display: flex; gap: 6px; padding: 6px 14px; align-items: center; justify-content: space-between;
+        }
+        .ctx-color-btn {
+            width: 16px; height: 16px; border-radius: 8px; border: none; cursor: pointer;
+            transition: transform 0.1s; padding:0; display:flex; align-items:center; justify-content:center;
+        }
+        .ctx-color-btn:hover { transform: scale(1.2); }
 
         .tl-thumb {
             width: 100%;
@@ -1307,6 +1352,7 @@
                 <div id="draw-toolbar">
                     <button class="dt-btn on" id="dtt-pen" onclick="bindTool('pen')">PEN</button>
                     <button class="dt-btn" id="dtt-rect" onclick="bindTool('rect')">BOX</button>
+                    <button class="dt-btn" id="dtt-patch" onclick="bindTool('patch')">PATCH</button>
                     <button class="dt-btn" id="dtt-erase" onclick="bindTool('erase')">×</button>
                     <div class="dt-div"></div>
                     <div id="dt-swatches" style="display:flex; gap:5px; align-items:center;"></div>
@@ -1559,6 +1605,7 @@ SHF 2 1 24</textarea>
             <div class="sh-row">
                 <button class="sh-btn on" id="tool-pen" onclick="bindTool('pen')">PEN</button>
                 <button class="sh-btn" id="tool-rect" onclick="bindTool('rect')">BOX</button>
+                <button class="sh-btn" id="tool-patch" onclick="bindTool('patch')" style="color:var(--act-b);">PATCH</button>
                 <button class="sh-btn" id="tool-erase" onclick="bindTool('erase')">ERASE</button>
             </div>
             <button class="sh-btn" style="background:var(--black);color:var(--white);" onclick="wipeCurrentInk()">WIPE
@@ -1567,6 +1614,14 @@ SHF 2 1 24</textarea>
             <div class="ink-grid" id="c-ink-swatches"></div>
             <div class="sh-label" style="margin-top:4px;">BRUSH SIZE</div>
             <input type="range" min="1" max="24" value="5" oninput="setSize(this.value)">
+
+            <div class="sh-label" style="margin-top:16px; color:var(--act-b);">PATCH OPS</div>
+            <div style="font-size:9px; color:#888; font-weight:700; margin-bottom:4px;">Operates iteratively across timeline selection.</div>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="cropToPatch()" style="font-size:10px;">CROP TO PATCH</button>
+                <button class="sh-btn" onclick="wipeWithinPatch()" style="font-size:10px;">WIPE PATCH</button>
+            </div>
+            <button class="sh-btn" onclick="clearPatchBox()" style="font-size:10px; margin-top:4px;">CLEAR MARQUEE</button>
         </div>
     </div>
 
@@ -1600,6 +1655,10 @@ SHF 2 1 24</textarea>
                     <div class="sh-row">
                         <button class="sh-btn" onclick="duplicateRange()" style="font-size:10px;">DUPLICATE RANGE</button>
                         <button class="sh-btn" onclick="reverseRange()" style="font-size:10px;">REVERSE RANGE</button>
+                    </div>
+                    <div class="sh-row">
+                        <button class="sh-btn" onclick="expandAllClips()" style="font-size:10px;">EXPAND ALL CLIPS</button>
+                        <button class="sh-btn" onclick="collapseAllClips()" style="font-size:10px;">COLLAPSE ALL CLIPS</button>
                     </div>
                     <div id="sel-info" style="font-size:10px; font-weight:900; color:#999; text-align:center; padding:4px;">NO SELECTION</div>
                 </div>
@@ -1639,10 +1698,19 @@ SHF 2 1 24</textarea>
     <div id="tl-ctx-menu">
         <div id="ctx-label" style="padding:6px 14px;font-size:10px;color:#888;font-weight:900;letter-spacing:1px;">FRAME 1</div>
         <div class="ctx-sep"></div>
+        <div class="ctx-colors">
+            <button class="ctx-color-btn" style="background:#ff4444" onclick="ctxSetColor('#ff4444')"></button>
+            <button class="ctx-color-btn" style="background:#44aaff" onclick="ctxSetColor('#44aaff')"></button>
+            <button class="ctx-color-btn" style="background:#ffea44" onclick="ctxSetColor('#ffea44')"></button>
+            <button class="ctx-color-btn" style="background:#44ff77" onclick="ctxSetColor('#44ff77')"></button>
+            <button class="ctx-color-btn" style="background:transparent; border:1px dashed #666; color:#999;font-size:10px;line-height:14px;" onclick="ctxSetColor(null)">✕</button>
+        </div>
+        <div class="ctx-sep"></div>
         <button class="ctx-item" onclick="ctxGoTo()">▶ GO TO FRAME</button>
         <button class="ctx-item" onclick="ctxSelectFrom()">◆ SELECT FROM HERE</button>
         <button class="ctx-item" onclick="ctxSelectTo()">◇ SELECT TO HERE</button>
         <button class="ctx-item" onclick="ctxSelectClip()" style="color:var(--act-b);">▣ SELECT WHOLE CLIP</button>
+        <button class="ctx-item" onclick="ctxToggleCollapse()">⛶ TOGGLE COLLAPSE</button>
         <div class="ctx-sep"></div>
         <button class="ctx-item" onclick="ctxDuplicate()">⧉ DUPLICATE</button>
         <button class="ctx-item" onclick="ctxSplitHere()">✂ SPLIT / BOUNDARY</button>
@@ -1750,7 +1818,7 @@ SHF 2 1 24</textarea>
             if (a < 240) return 6;
             return 7;
         }
-        let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0 };
+        let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0, patchBox: null };
 
         // ══════════════════════════════════════════════════
         // ██ ANTIFRAGILE ENGINE: UNDO · AUTOSAVE · GUARD
@@ -2108,6 +2176,10 @@ SHF 2 1 24</textarea>
                         await ripFrames(clip.blob);
                         if (state.frames.length > beforeCount && beforeCount > 0) {
                             state.frames[beforeCount].clipBoundary = true;
+                            state.frames[beforeCount].collapsed = true;
+                        } else if (state.frames.length > 1 && beforeCount === 0) {
+                            state.frames[0].clipBoundary = true;
+                            state.frames[0].collapsed = true;
                         }
                     } else {
                         const url = URL.createObjectURL(clip.blob);
@@ -2282,6 +2354,38 @@ SHF 2 1 24</textarea>
             fireToast(r.count + ' FRAMES DELETED');
         }
 
+        function clearPatchBox() {
+            state.patchBox = null;
+            if (state.tool === 'patch') bindTool('pen');
+            renderOutput();
+            fireToast('MARQUEE CLEARED');
+        }
+
+        function actOnPatch(action) {
+            if (!state.patchBox) { fireToast('NO PATCH MARQUEE'); return; }
+            let r = getSelRange();
+            let from = r ? r.from : state.cur;
+            let to = r ? r.to : state.cur;
+            pushUndo(action + ' patch');
+            for (let i = from; i <= to; i++) {
+                const f = state.frames[i];
+                for (let y = 0; y < H; y++) {
+                    for (let x = 0; x < W; x++) {
+                        const inPatch = (x >= state.patchBox.x && x < state.patchBox.x + state.patchBox.w && y >= state.patchBox.y && y < state.patchBox.y + state.patchBox.h);
+                        const idx = (y * W + x) * 4;
+                        if (action === 'crop' && !inPatch) f.handLayer[idx + 3] = 0; // wipe outside
+                        if (action === 'wipe' && inPatch) f.handLayer[idx + 3] = 0;  // wipe inside
+                    }
+                }
+            }
+            playClack();
+            renderOutput(); rebuildTrack();
+            fireToast((to - from + 1) + ' FRAMES AMENDED');
+        }
+
+        function cropToPatch() { actOnPatch('crop'); }
+        function wipeWithinPatch() { actOnPatch('wipe'); }
+
         function duplicateRange() {
             const r = getSelRange();
             if (!r) { fireToast('SELECT FRAMES FIRST'); return; }
@@ -2331,7 +2435,7 @@ SHF 2 1 24</textarea>
         // ── TOOLS ──
         function bindTool(id) {
             playTick(); state.tool = id;
-            ['pen', 'rect', 'erase'].forEach(t => {
+            ['pen', 'rect', 'erase', 'patch'].forEach(t => {
                 const b1 = document.getElementById('tool-' + t);
                 const b2 = document.getElementById('dtt-' + t);
                 const on = t === id;
@@ -2341,7 +2445,19 @@ SHF 2 1 24</textarea>
             updateStatusBar();
         }
 
-        function wipeCurrentInk() { if (!state.frames.length) return; pushUndo('wipe ink'); playClack(); state.frames[state.cur].handLayer.fill(0); renderOutput(); rebuildTrack(); fireToast('INK WIPED'); }
+        function wipeCurrentInk() { 
+            if (!state.frames.length) return; 
+            pushUndo('wipe ink'); 
+            playClack(); 
+            const sel = getSelRange();
+            const from = sel ? sel.from : state.cur;
+            const to = sel ? sel.to : state.cur;
+            for (let i = from; i <= to; i++) {
+                state.frames[i].handLayer.fill(0); 
+            }
+            renderOutput(); rebuildTrack(); 
+            fireToast(sel && to > from ? `INK WIPED (${to - from + 1} FRAMES)` : 'INK WIPED'); 
+        }
 
         function buildInkReservoir() {
             ['c-ink-swatches', 'dt-swatches'].forEach(boxId => {
@@ -2585,114 +2701,163 @@ SHF 2 1 24</textarea>
         let _dragIdx = -1;
         let _ctxIdx = -1;
 
-        // ── DRAG-SELECT STATE ──
-        let _sweepActive = false;
-        let _sweepStart = -1;
-        let _sweepEnd = -1;
-
         function rebuildTrack() {
             const trk = document.getElementById('tl-strip'); trk.innerHTML = '';
             const sel = getSelRange();
-            state.frames.forEach((f, i) => {
-                const w = document.createElement('div');
-                let cls = 'tl-frame';
-                if (i === state.cur) cls += ' on';
-                if (sel && i >= sel.from && i <= sel.to) cls += ' tl-selected';
-                if (f.clipBoundary) cls += ' tl-clip-boundary';
-                w.className = cls;
-                w.setAttribute('data-idx', i);
+            
+            let i = 0;
+            while (i < state.frames.length) {
+                let startIdx = i;
+                let isCollapsed = state.frames[i].collapsed === true;
+                
+                // Find clip boundary end
+                let endIdx = i;
+                while (endIdx + 1 < state.frames.length && !state.frames[endIdx + 1].clipBoundary) {
+                    endIdx++;
+                }
 
-                // ── Click: navigate or extend selection ──
-                w.onclick = (e) => {
-                    if (state.playing || _sweepActive) return;
-                    // Shift-click: range select
-                    if (e.shiftKey) {
-                        if (!state.selMode) startSelection(state.cur);
-                        extendSelection(i);
-                        return;
-                    }
-                    if (state.selMode && !e.altKey) {
-                        extendSelection(i);
-                    } else {
-                        playTick(); state.cur = i; rebuildTrack(); renderOutput(); updateStatusBar();
-                    }
-                };
+                const isClip = endIdx > startIdx;
 
-                // ── Right-click: context menu (desktop) ──
-                w.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    showCtxMenu(e.clientX, e.clientY, i);
-                };
+                if (isClip && isCollapsed) {
+                    // Render collapsed clip
+                    const w = document.createElement('div');
+                    let cls = 'tl-clip-group';
+                    const isSelected = sel && ((startIdx >= sel.from && startIdx <= sel.to) || (endIdx >= sel.from && endIdx <= sel.to) || (sel.from >= startIdx && sel.from <= endIdx));
+                    if (isSelected) cls += ' tl-selected';
+                    if (state.cur >= startIdx && state.cur <= endIdx) cls += ' on';
+                    w.className = cls;
 
-                // ── Pointer: drag-select (default) or long-press (context) ──
-                let lpt = null;
-                let _didSweep = false;
-                w.onpointerdown = (e) => {
-                    if (state.playing) return;
-                    _didSweep = false;
-
-                    // Alt+drag = reorder prep (nothing yet, handled on move)
-                    if (e.altKey) {
-                        _dragIdx = i;
-                        return;
-                    }
-
-                    // Start sweep-select
-                    _sweepActive = true;
-                    _sweepStart = i;
-                    _sweepEnd = i;
-                    startSelection(i);
-                    _didSweep = true;
-
-                    // Also long-press timer for context menu
-                    lpt = setTimeout(() => {
-                        if (_sweepActive) {
-                            _sweepActive = false;
-                            showCtxMenu(e.clientX, e.clientY, i);
+                    w.onclick = (e) => {
+                        if (state.playing) return;
+                        if (e.shiftKey) {
+                            if (!state.selMode) startSelection(state.cur);
+                            extendSelection(endIdx);
+                        } else {
+                            startSelection(startIdx);
+                            extendSelection(endIdx);
                         }
-                        lpt = null;
-                    }, 600);
-                };
-                w.onpointermove = (e) => {
-                    if (!_sweepActive) return;
-                    // Cancel long-press on movement
-                    if (lpt) { clearTimeout(lpt); lpt = null; }
-                };
-                w.onpointerup = () => {
-                    if (lpt) { clearTimeout(lpt); lpt = null; }
-                    if (_sweepActive) {
-                        _sweepActive = false;
-                    }
-                    _dragIdx = -1;
-                };
-                w.onpointerleave = () => {
-                    if (lpt) { clearTimeout(lpt); lpt = null; }
-                };
+                    };
 
-                // ── Pointer enter during sweep = extend selection ──
-                w.onpointerenter = () => {
-                    if (_sweepActive && !state.playing) {
-                        _sweepEnd = i;
-                        extendSelection(i);
-                        playMicroTick();
-                    }
-                };
+                    w.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        showCtxMenu(e.clientX, e.clientY, startIdx);
+                    };
 
-                const TW = 136, TH = 96; // small thumb size
-                const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = TW; c.height = TH;
-                renderThumb(f, c, TW, TH);
-                w.appendChild(c);
-                const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1; w.appendChild(n);
-                const b = document.createElement('div'); b.className = 'tl-badge'; b.textContent = i + 1; w.appendChild(b);
-                trk.appendChild(w);
-                if (i === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
-            });
+                    const TW = 136, TH = 96;
+                    const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = TW; c.height = TH;
+                    renderThumb(state.frames[startIdx], c, TW, TH);
+                    c.style.opacity = '0.5';
+                    w.appendChild(c);
+                    
+                    const lbl = document.createElement('div');
+                    lbl.style = "position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:10; pointer-events:none;";
+                    lbl.innerHTML = `<span style="font-weight:900; font-size:12px; color:white; text-shadow:0 0 4px black; letter-spacing:1px;">CLIP [${endIdx - startIdx + 1}]</span>
+                                     <span style="font-size:8px; color:#aaa; margin-top:4px;">FRAMES ${startIdx+1} - ${endIdx+1}</span>`;
+                    w.appendChild(lbl);
+
+                    if (state.frames[startIdx].colorTag) {
+                        const tbox = document.createElement('div');
+                        tbox.style = `position:absolute; bottom:0; left:0; right:0; height:6px; background:${state.frames[startIdx].colorTag}; z-index:10;`;
+                        w.appendChild(tbox);
+                    }
+
+                    const tog = document.createElement('button');
+                    tog.className = 'tl-clip-toggle';
+                    tog.innerHTML = '⛶'; // Expand icon
+                    tog.onclick = (e) => {
+                        e.stopPropagation();
+                        state.frames[startIdx].collapsed = false;
+                        rebuildTrack();
+                    };
+                    w.appendChild(tog);
+
+                    trk.appendChild(w);
+
+                    if (state.cur >= startIdx && state.cur <= endIdx) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+
+                    i = endIdx + 1;
+                } else {
+                    // Render individual frames (expanded)
+                    for (let j = startIdx; j <= endIdx; j++) {
+                        const f = state.frames[j];
+                        const w = document.createElement('div');
+                        let cls = 'tl-frame';
+                        if (j === state.cur) cls += ' on';
+                        if (sel && j >= sel.from && j <= sel.to) cls += ' tl-selected';
+                        if (f.clipBoundary) cls += ' tl-clip-boundary';
+                        w.className = cls;
+                        w.setAttribute('data-idx', j);
+
+                        w.onclick = (e) => {
+                            if (state.playing) return;
+                            if (e.shiftKey) {
+                                if (!state.selMode) startSelection(state.cur);
+                                extendSelection(j);
+                                return;
+                            }
+                            // Regular click: clear any selection and navigate
+                            if (state.selMode) clearSelection();
+                            playTick(); state.cur = j; rebuildTrack(); renderOutput(); updateStatusBar();
+                        };
+
+                        w.oncontextmenu = (e) => {
+                            e.preventDefault();
+                            showCtxMenu(e.clientX, e.clientY, j);
+                        };
+
+                        let lpt = null;
+                        w.onpointerdown = (e) => {
+                            if (state.playing) return;
+                            lpt = setTimeout(() => {
+                                showCtxMenu(e.clientX, e.clientY, j);
+                                lpt = null;
+                            }, 600);
+                        };
+                        w.onpointermove = (e) => {
+                            if (lpt) { clearTimeout(lpt); lpt = null; }
+                        };
+                        w.onpointerup = () => {
+                            if (lpt) { clearTimeout(lpt); lpt = null; }
+                        };
+                        w.onpointerleave = () => {
+                            if (lpt) { clearTimeout(lpt); lpt = null; }
+                        };
+
+                        const TW = 136, TH = 96;
+                        const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = TW; c.height = TH;
+                        renderThumb(f, c, TW, TH);
+                        w.appendChild(c);
+                        const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = j + 1; w.appendChild(n);
+                        const b = document.createElement('div'); b.className = 'tl-badge'; b.textContent = j + 1; w.appendChild(b);
+
+                        if (f.colorTag) {
+                            const tbox = document.createElement('div');
+                            tbox.style = `position:absolute; bottom:0; left:0; right:0; height:4px; background:${f.colorTag}; z-index:10;`;
+                            w.appendChild(tbox);
+                        }
+                        
+                        // Add collapse toggle button to the first frame if it's a clip boundary expanding
+                        if (j === startIdx && isClip) {
+                            const tog = document.createElement('button');
+                            tog.className = 'tl-clip-toggle';
+                            tog.innerHTML = '⊟'; // Collapse icon
+                            tog.onclick = (e) => {
+                                e.stopPropagation();
+                                state.frames[startIdx].collapsed = true;
+                                rebuildTrack();
+                            };
+                            w.appendChild(tog);
+                        }
+
+                        trk.appendChild(w);
+                        if (j === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+                    }
+                    i = endIdx + 1;
+                }
+            }
             updateStatusBar();
             updateMemGauge();
         }
-
-        // Cancel sweep on global pointer up
-        document.addEventListener('pointerup', () => { _sweepActive = false; });
 
         // ── SELECT WHOLE CLIP ──
         // Selects all frames between clip boundaries around position
@@ -2751,6 +2916,55 @@ SHF 2 1 24</textarea>
         function ctxGoTo() {
             if (_ctxIdx >= 0) { state.cur = _ctxIdx; renderOutput(); rebuildTrack(); updateStatusBar(); }
             hideCtxMenu();
+        }
+
+        function ctxToggleCollapse() {
+            if (_ctxIdx >= 0) {
+                let clipStart = _ctxIdx;
+                while (clipStart > 0 && !state.frames[clipStart].clipBoundary) clipStart--;
+                state.frames[clipStart].collapsed = !state.frames[clipStart].collapsed;
+                rebuildTrack();
+            }
+            hideCtxMenu();
+        }
+
+        function expandAllClips() {
+            state.frames.forEach(f => {
+                if (f.clipBoundary || state.frames.indexOf(f) === 0) f.collapsed = false;
+            });
+            rebuildTrack();
+            fireToast('ALL CLIPS EXPANDED');
+        }
+
+        function collapseAllClips() {
+            state.frames.forEach(f => {
+                if (f.clipBoundary || state.frames.indexOf(f) === 0) f.collapsed = true;
+            });
+            rebuildTrack();
+            fireToast('ALL CLIPS COLLAPSED');
+        }
+
+        function ctxSetColor(col) {
+            const sel = getSelRange();
+            const from = sel ? sel.from : _ctxIdx;
+            const to = sel ? sel.to : _ctxIdx;
+            if (_ctxIdx >= 0 && (from > _ctxIdx || to < _ctxIdx)) {
+                // Applied context menu outside selection, target explicitly
+                let clipStart = _ctxIdx;
+                while (clipStart > 0 && !state.frames[clipStart].clipBoundary) clipStart--;
+                let clipEnd = clipStart;
+                while (clipEnd < state.frames.length - 1) {
+                    clipEnd++;
+                    if (state.frames[clipEnd].clipBoundary) { clipEnd--; break; }
+                }
+                const isClipCollapsed = state.frames[clipStart].collapsed;
+                const fTo = isClipCollapsed ? clipEnd : clipStart;
+                for(let i=clipStart; i<=fTo; i++) state.frames[i].colorTag = col;
+            } else {
+                for(let i=from; i<=to; i++) state.frames[i].colorTag = col;
+            }
+            playClack(); rebuildTrack(); hideCtxMenu();
+            fireToast(col ? 'COLOR TAG APPLIED' : 'COLOR TAG CLEARED');
         }
 
         function ctxSelectFrom() {
@@ -2828,12 +3042,23 @@ SHF 2 1 24</textarea>
         }
 
         function edlRecord(op, detail) {
+            let activeTags = [];
+            const sel = getSelRange();
+            const from = sel ? sel.from : state.cur;
+            const to = sel ? sel.to : state.cur;
+            for(let i=from; i<=to; i++) {
+                if(state.frames[i].colorTag && !activeTags.includes(state.frames[i].colorTag)) {
+                    activeTags.push(state.frames[i].colorTag);
+                }
+            }
+
             const entry = {
                 ts: edlTimestamp(),
                 op: op,
                 detail: detail || '',
                 frameCount: state.frames.length,
-                cursor: state.cur + 1
+                cursor: state.cur + 1,
+                tags: activeTags
             };
             _edlLog.push(entry);
             updateEDLView();
@@ -2848,10 +3073,18 @@ SHF 2 1 24</textarea>
             lines.push('; ════════════════════════════════════════');
             lines.push('');
             _edlLog.forEach((e, i) => {
-                lines.push('; [' + (i + 1) + '] ' + e.ts);
-                lines.push(';     OP: ' + e.op.toUpperCase());
-                if (e.detail) lines.push(';     ' + e.detail);
-                lines.push(';     FRAMES: ' + e.frameCount + '  CURSOR: ' + e.cursor);
+                const tagNames = {'#ff4444':'RED', '#44aaff':'BLUE', '#ffea44':'YELLOW', '#44ff77':'GREEN'};
+                let tagStr = '';
+                if(e.tags && e.tags.length) {
+                    const names = e.tags.map(t => tagNames[t] || 'TAG').join(',');
+                    tagStr = ` [${names}]`;
+                }
+
+                lines.push(`; [${i + 1}] ${e.ts} · FRAME ${e.cursor}${tagStr}`);
+                lines.push(`;     OP: ${e.op.toUpperCase()}`);
+                if (e.detail) lines.push(`;     ${e.detail}`);
+                lines.push(`;     FRAMES: ${e.frameCount}  CURSOR: ${e.cursor}`);
+                
                 // Generate equivalent BEFLIX comment
                 lines.push('; ---');
                 switch(e.op) {
@@ -2926,9 +3159,12 @@ SHF 2 1 24</textarea>
             edlRecord(label);
         };
 
-        // Dismiss context menu on click anywhere else
+        // Dismiss context menu or selection on click anywhere else on app surface
         document.addEventListener('pointerdown', (e) => {
             if (!e.target.closest('#tl-ctx-menu')) hideCtxMenu();
+            if (e.target.id === 'tl-strip' && state.selMode) {
+                clearSelection();
+            }
         });
 
         // Fast thumbnail renderer — simple downscale, no dot stamping
@@ -3039,6 +3275,28 @@ SHF 2 1 24</textarea>
                 }
             }
             ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+
+            // Render Patch Marquee Overlay
+            if ((state.tool === 'patch' && state.dragging) || state.patchBox) {
+                let px, py, pw, ph;
+                if (state.tool === 'patch' && state.dragging) {
+                    px = Math.min(state.p0[0], state.p1[0]);
+                    py = Math.min(state.p0[1], state.p1[1]);
+                    pw = Math.max(1, Math.abs(state.p1[0] - state.p0[0]));
+                    ph = Math.max(1, Math.abs(state.p1[1] - state.p0[1]));
+                } else {
+                    px = state.patchBox.x; py = state.patchBox.y;
+                    pw = state.patchBox.w; ph = state.patchBox.h;
+                }
+                ctx.save();
+                ctx.setLineDash([6, 6]);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#c8a800'; // Var act-b
+                ctx.strokeRect(px, py, pw, ph);
+                ctx.fillStyle = 'rgba(200, 168, 0, 0.1)';
+                ctx.fillRect(px, py, pw, ph);
+                ctx.restore();
+            }
         }
 
         function bindPixel(arr, x, y, c) { if (x < 0 || x >= W || y < 0 || y >= H) return; const i = (y * W + x) * 4; if (c[3] === 0) { arr[i] = 0; arr[i + 1] = 0; arr[i + 2] = 0; arr[i + 3] = 0; return; } arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3]; }
@@ -3059,11 +3317,41 @@ SHF 2 1 24</textarea>
             // Push undo before any drawing stroke
             pushUndo('draw');
             cvs.setPointerCapture(e.pointerId); state.dragging = true; state.p0 = mapCoord(e); state.p1 = state.p0;
-            commitStroke(state.p0, state.p0);
+            if (state.tool !== 'patch') commitStroke(state.p0, state.p0);
+            else renderOutput();
         });
-        cvs.addEventListener('pointermove', e => { if (!state.dragging) return; const prev = state.p1; state.p1 = mapCoord(e); if (state.tool === 'rect') renderOutput(); else commitStroke(prev, state.p1); });
-        cvs.addEventListener('pointerup', e => { if (!state.dragging) return; if (state.tool === 'rect') commitStroke(state.p0, state.p1, true); state.dragging = false; renderOutput(); rebuildTrack(); });
-        function commitStroke(p0, p1, final = false) { const f = state.frames[state.cur]; const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb; if (state.tool === 'pen' || state.tool === 'erase') plotVector(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); else if (state.tool === 'rect' && final) plotRect(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); renderOutput(); }
+        cvs.addEventListener('pointermove', e => { if (!state.dragging) return; const prev = state.p1; state.p1 = mapCoord(e); if (state.tool === 'rect' || state.tool === 'patch') renderOutput(); else commitStroke(prev, state.p1); });
+        cvs.addEventListener('pointerup', e => { 
+            if (!state.dragging) return; 
+            if (state.tool === 'rect') commitStroke(state.p0, state.p1, true);
+            if (state.tool === 'patch') {
+                state.patchBox = {
+                    x: Math.min(state.p0[0], state.p1[0]),
+                    y: Math.min(state.p0[1], state.p1[1]),
+                    w: Math.max(1, Math.abs(state.p1[0] - state.p0[0])),
+                    h: Math.max(1, Math.abs(state.p1[1] - state.p0[1]))
+                };
+                playTick();
+            }
+            state.dragging = false; 
+            renderOutput(); 
+            if (state.tool !== 'patch') rebuildTrack(); 
+        });
+        function commitStroke(p0, p1, final = false) { 
+            const sel = getSelRange();
+            const from = sel ? sel.from : state.cur;
+            const to = sel ? sel.to : state.cur;
+            const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb; 
+            for (let i = from; i <= to; i++) {
+                const f = state.frames[i];
+                if (state.tool === 'pen' || state.tool === 'erase') {
+                    plotVector(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); 
+                } else if (state.tool === 'rect' && final) {
+                    plotRect(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); 
+                }
+            }
+            renderOutput(); 
+        }
 
         // Full script text backing store — textarea may only show a preview
         let _fullScriptText = '';
