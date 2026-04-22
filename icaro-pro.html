@@ -1403,6 +1403,8 @@
                             oninput="onSpeedSlider(this.value)">
                     </div>
                     <div style="flex-grow:1; min-width:4px;"></div>
+                    <button class="tl-ctrl-btn" id="btn-sel-mode" onclick="toggleSelMode()" style="color:var(--act-c); font-weight:900;">SEL</button>
+                    <button class="tl-ctrl-btn" id="btn-desel" onclick="clearSelection(); fireToast('DESELECTED');">✕</button>
                     <button class="tl-ctrl-btn" id="btn-grid-view" onclick="toggleTimelineGrid()">▦</button>
                 </div>
                 <div id="tl-strip"></div>
@@ -2309,8 +2311,22 @@ SHF 2 1 24</textarea>
             state.selMode = false;
             state.selStart = -1;
             state.selEnd = -1;
+            const btn = document.getElementById('btn-sel-mode');
+            if (btn) btn.classList.remove('on');
             rebuildTrack();
             updateSelInfo();
+        }
+
+        function toggleSelMode() {
+            if (state.selMode) {
+                clearSelection();
+                fireToast('SELECTION OFF');
+            } else {
+                startSelection(state.cur);
+                const btn = document.getElementById('btn-sel-mode');
+                if (btn) btn.classList.add('on');
+                fireToast('TAP FRAMES TO EXTEND SELECTION');
+            }
         }
 
         function getSelRange() {
@@ -2701,6 +2717,12 @@ SHF 2 1 24</textarea>
         let _dragIdx = -1;
         let _ctxIdx = -1;
 
+        // ── SWEEP SELECT STATE ──
+        let _sweepActive = false;
+        let _sweepStart = -1;
+        let _sweepEnd = -1;
+        let _ctx_just_shown = false;
+
         function rebuildTrack() {
             const trk = document.getElementById('tl-strip'); trk.innerHTML = '';
             const sel = getSelRange();
@@ -2788,16 +2810,24 @@ SHF 2 1 24</textarea>
                         w.className = cls;
                         w.setAttribute('data-idx', j);
 
+                        // ── Click: tap to navigate, shift-click for range, SEL mode extends ──
                         w.onclick = (e) => {
-                            if (state.playing) return;
+                            if (state.playing || _ctx_just_shown) return;
                             if (e.shiftKey) {
                                 if (!state.selMode) startSelection(state.cur);
                                 extendSelection(j);
                                 return;
                             }
-                            // Regular click: clear any selection and navigate
-                            if (state.selMode) clearSelection();
-                            playTick(); state.cur = j; rebuildTrack(); renderOutput(); updateStatusBar();
+                            if (state.selMode) {
+                                // In SEL mode: tap extends selection range
+                                extendSelection(j);
+                                state.cur = j; renderOutput(); updateStatusBar();
+                            } else if (j === state.cur) {
+                                // Tap current frame again → enter selection mode on it
+                                startSelection(j);
+                            } else {
+                                playTick(); state.cur = j; rebuildTrack(); renderOutput(); updateStatusBar();
+                            }
                         };
 
                         w.oncontextmenu = (e) => {
@@ -2805,15 +2835,20 @@ SHF 2 1 24</textarea>
                             showCtxMenu(e.clientX, e.clientY, j);
                         };
 
+                        // ── Pointer: long-press for context, drag for sweep select ──
                         let lpt = null;
+                        let _dragStarted = false;
                         w.onpointerdown = (e) => {
                             if (state.playing) return;
+                            _dragStarted = false;
+                            _ctx_just_shown = false;
                             lpt = setTimeout(() => {
+                                _ctx_just_shown = true;
                                 showCtxMenu(e.clientX, e.clientY, j);
                                 lpt = null;
-                            }, 600);
+                            }, 500);
                         };
-                        w.onpointermove = (e) => {
+                        w.onpointermove = () => {
                             if (lpt) { clearTimeout(lpt); lpt = null; }
                         };
                         w.onpointerup = () => {
@@ -2821,6 +2856,15 @@ SHF 2 1 24</textarea>
                         };
                         w.onpointerleave = () => {
                             if (lpt) { clearTimeout(lpt); lpt = null; }
+                        };
+
+                        // ── Drag-enter during active sweep → extend selection ──
+                        w.onpointerenter = () => {
+                            if (_sweepActive && !state.playing) {
+                                _sweepEnd = j;
+                                extendSelection(j);
+                                playMicroTick();
+                            }
                         };
 
                         const TW = 136, TH = 96;
