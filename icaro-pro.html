@@ -8,7 +8,7 @@
     <title>ABC FLIX · PRO</title>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Crect x='10' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='18' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='26' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='34' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='42' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='50' y='49' width='4' height='4' fill='%23000'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
-    <script src="https://cdn.tailwindcss.com"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
     <style>
         :root {
@@ -1915,37 +1915,9 @@ SHF 2 1 24</textarea>
         }
 
         // ── AUTO-SAVE (IndexedDB with localStorage fallback) ──
-        const AUTOSAVE_KEY = 'icaro-pro-autosave';
-        const AUTOSAVE_INTERVAL = 30000; // 30 seconds
-        let _autosaveTimer = null;
-
-        function startAutosave() {
-            if (_autosaveTimer) clearInterval(_autosaveTimer);
-            _autosaveTimer = setInterval(doAutosave, AUTOSAVE_INTERVAL);
-        }
-
-        function doAutosave() {
-            if (!state.frames.length || state.playing) return;
-            try {
-                const meta = {
-                    ts: Date.now(),
-                    frameCount: state.frames.length,
-                    cur: state.cur,
-                    fps: BASE_FPS
-                };
-                localStorage.setItem(AUTOSAVE_KEY + '-meta', JSON.stringify(meta));
-                // Don't save frame data to localStorage (too big) — just metadata
-                // The undo stack serves as crash recovery
-            } catch(e) {
-                // localStorage full — silently fail
-            }
-        }
-
-        function hasAutosave() {
-            try {
-                return !!localStorage.getItem(AUTOSAVE_KEY + '-meta');
-            } catch(e) { return false; }
-        }
+        // ── AUTOSAVE: REMOVED (NSDK) ──
+        // Previous autosave stored only metadata, no frame data.
+        // BEFLIX export is the canonical save mechanism.
 
         // ── ERROR BOUNDARY ──
         // Wrap any risky operation so it never crashes the editor
@@ -2030,7 +2002,7 @@ SHF 2 1 24</textarea>
             injectFrame(true);
             window.addEventListener('resize', rescaleWorkspace);
             rescaleWorkspace();
-            startAutosave();
+            // Autosave removed (NSDK) — BEFLIX export is the save mechanism
         };
         function toggleManual() { playTick(); document.getElementById('manual-modal').classList.toggle('on'); }
 
@@ -2568,12 +2540,56 @@ SHF 2 1 24</textarea>
             updatePlayOverlay();
         }
 
+        let _onionMode = false;
+
         function triggerGrid() {
-            playTick(); state.grid = !state.grid;
-            document.getElementById('lbl-grid').textContent = 'GRID: ' + (state.grid ? 'ON' : 'OFF');
-            const net = document.getElementById('net');
-            net.classList.toggle('on', state.grid);
-            if (state.grid) drawCoordGrid();
+            playTick();
+            if (!state.grid && !_onionMode) {
+                // Off → Grid
+                state.grid = true; _onionMode = false;
+                document.getElementById('lbl-grid').textContent = 'GRID: ON';
+                const net = document.getElementById('net');
+                net.classList.add('on');
+                drawCoordGrid();
+            } else if (state.grid && !_onionMode) {
+                // Grid → Onion
+                state.grid = false; _onionMode = true;
+                document.getElementById('lbl-grid').textContent = 'ONION: ON';
+                const net = document.getElementById('net');
+                net.classList.add('on');
+                drawOnionSkin();
+            } else {
+                // Onion → Off
+                state.grid = false; _onionMode = false;
+                document.getElementById('lbl-grid').textContent = 'OVERLAY: OFF';
+                const net = document.getElementById('net');
+                net.classList.remove('on');
+            }
+        }
+
+        function drawOnionSkin() {
+            const net = document.getElementById('net'); if (!net) return;
+            net.width = W; net.height = H;
+            const gc = net.getContext('2d'); gc.clearRect(0, 0, W, H);
+            if (state.cur <= 0 || !state.frames.length) return;
+            const prevF = state.frames[state.cur - 1];
+            // Draw previous frame at 20% opacity
+            gc.globalAlpha = 0.2;
+            // Render source image if present
+            if (prevF.src) {
+                gc.drawImage(prevF.src, 0, 0, W, H);
+            }
+            // Render hand layer
+            const handData = new ImageData(new Uint8ClampedArray(prevF.handLayer), W, H);
+            const tempC = document.createElement('canvas'); tempC.width = W; tempC.height = H;
+            tempC.getContext('2d').putImageData(handData, 0, 0);
+            gc.drawImage(tempC, 0, 0);
+            // Render script layer
+            const scriptData = new ImageData(new Uint8ClampedArray(prevF.scriptLayer), W, H);
+            const tempC2 = document.createElement('canvas'); tempC2.width = W; tempC2.height = H;
+            tempC2.getContext('2d').putImageData(scriptData, 0, 0);
+            gc.drawImage(tempC2, 0, 0);
+            gc.globalAlpha = 1.0;
         }
         function drawCoordGrid() {
             const net = document.getElementById('net'); if (!net) return;
@@ -3341,6 +3357,8 @@ SHF 2 1 24</textarea>
                 ctx.fillRect(px, py, pw, ph);
                 ctx.restore();
             }
+            // Refresh onion skin overlay if active
+            if (_onionMode) drawOnionSkin();
         }
 
         function bindPixel(arr, x, y, c) { if (x < 0 || x >= W || y < 0 || y >= H) return; const i = (y * W + x) * 4; if (c[3] === 0) { arr[i] = 0; arr[i + 1] = 0; arr[i + 2] = 0; arr[i + 3] = 0; return; } arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3]; }
@@ -3497,17 +3515,55 @@ SHF 2 1 24</textarea>
             let mat = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
 
             try {
+                // Pragma state: metadata to apply to frames as they're created
+                let _pendingBoundary = false;
+                let _pendingTag = null;
+                let _pendingCollapsed = false;
+                let _pragmaFrameIdx = 0;
+                const tagColors = {'RED':'#ff4444', 'BLUE':'#44aaff', 'YELLOW':'#ffea44', 'GREEN':'#44ff77'};
+
                 // Process in async chunks to keep UI responsive
                 for (let chunk = 0; chunk < totalLines; chunk += SCRIPT_CHUNK_SIZE) {
                     const end = Math.min(chunk + SCRIPT_CHUNK_SIZE, totalLines);
                     for (let li = chunk; li < end; li++) {
                         let l = fullCode[li].trim();
-                        if (!l || l.startsWith('C')) continue;
+                        if (!l) continue;
+                        
+                        // Parse structured pragmas from comment lines
+                        if (l.startsWith(';')) {
+                            const pragmaMatch = l.match(/^;\s*@(\w+)\s*(.*)/);
+                            if (pragmaMatch) {
+                                const pType = pragmaMatch[1];
+                                const pArgs = pragmaMatch[2].trim();
+                                if (pType === 'BOUNDARY') {
+                                    _pendingBoundary = true;
+                                } else if (pType === 'TAG') {
+                                    _pendingTag = tagColors[pArgs] || pArgs;
+                                } else if (pType === 'CLIP') {
+                                    const collMatch = pArgs.match(/collapsed=(\w+)/);
+                                    if (collMatch) _pendingCollapsed = (collMatch[1] === 'true');
+                                }
+                            }
+                            continue;
+                        }
+                        
+                        if (l.startsWith('C')) continue;
                         const p = l.split(/\s+/), c = p[0], a = p.slice(1).map(Number);
                         if (c === 'CLR') { for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) mat[y][x] = a[0]; }
                         else if (c === 'PNT') { for (let y = a[1]; y < a[1] + a[3]; y++) for (let x = a[0]; x < a[0] + a[2]; x++) if (y >= 0 && y < G_ROWS && x >= 0 && x < G_COLS) mat[y][x] = a[4]; }
                         else if (c === 'LIN') { let lv = a[4], lx1 = a[0], ly1 = a[1], lx2 = a[2], ly2 = a[3], ldx = Math.abs(lx2 - lx1), lsx = lx1 < lx2 ? 1 : -1, ldy = -Math.abs(ly2 - ly1), lsy = ly1 < ly2 ? 1 : -1, lerr = ldx + ldy, lcx = lx1, lcy = ly1, lim = 2000; while (lim-- > 0) { if (lcx >= 0 && lcx < G_COLS && lcy >= 0 && lcy < G_ROWS) mat[lcy][lcx] = lv; if (lcx === lx2 && lcy === ly2) break; let le2 = 2 * lerr; if (le2 >= ldy) { lerr += ldy; lcx += lsx; } if (le2 <= ldx) { lerr += ldx; lcy += lsy; } } }
-                        else if (c === 'REC') { for (let i = 0; i < Math.min(a[0], 5000); i++) res.push(mat.map(r => [...r])); }
+                        else if (c === 'REC') { 
+                            for (let i = 0; i < Math.min(a[0], 5000); i++) {
+                                const frameData = mat.map(r => [...r]);
+                                frameData._boundary = _pendingBoundary;
+                                frameData._tag = _pendingTag;
+                                frameData._collapsed = _pendingCollapsed;
+                                res.push(frameData);
+                                // Only apply to first frame of REC batch
+                                _pendingBoundary = false;
+                                _pendingTag = null;
+                            }
+                        }
                         else if (c === 'SHF') { for (let f = 0; f < Math.min(a[2], 5000); f++) { let n = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0)); for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) { let nx = x - a[0], ny = y - a[1]; if (nx >= 0 && nx < G_COLS && ny >= 0 && ny < G_ROWS) n[y][x] = mat[ny][nx]; } mat = n; res.push(mat.map(r => [...r])); } }
                     }
                     // Yield to the event loop periodically
@@ -3536,6 +3592,11 @@ SHF 2 1 24</textarea>
                         const col = INKS[sm[y][x]].rgb;
                         for (let by = 0; by < B_SZ; by++) for (let bx = 0; bx < B_SZ; bx++) bindPixel(ink, x * B_SZ + bx, y * B_SZ + by, col);
                     }
+                    // Apply pragma metadata from round-trip
+                    if (sm._boundary && i > 0) f.clipBoundary = true;
+                    if (sm._tag) f.colorTag = sm._tag;
+                    if (sm._collapsed) f.collapsed = true;
+                    
                     // Yield periodically for large frame counts
                     if (state.frames.length > 100 && i % 50 === 49) {
                         if (totalLines > 2000) updateLockCount('FRAME ' + (i + 1) + '/' + state.frames.length);
@@ -3823,10 +3884,45 @@ SHF 2 1 24</textarea>
             } processNext();
         }
         function decompileFrames() {
-            var fullCode = '', total = state.frames.length;
+            var fullCode = '';
+            var total = state.frames.length;
+            var tagNames = {'#ff4444':'RED', '#44aaff':'BLUE', '#ffea44':'YELLOW', '#44ff77':'GREEN'};
+            
+            // File header with metadata
+            fullCode += '; @ICARO-PRO v1.0\n';
+            fullCode += '; @FRAMES ' + total + '\n';
+            fullCode += '; @GRID ' + G_COLS + 'x' + G_ROWS + '\n';
+            fullCode += '; @GENERATED ' + new Date().toISOString() + '\n';
+            fullCode += ';\n';
+
+            // Track clip groupings for @CLIP pragmas
+            var clipId = 0;
+            
             for (var fIdx = 0; fIdx < total; fIdx++) {
+                var f = state.frames[fIdx];
+                
+                // Emit structural pragmas
+                if (fIdx === 0 || f.clipBoundary) {
+                    clipId++;
+                    // Find clip end
+                    var clipEnd = fIdx;
+                    while (clipEnd + 1 < total && !state.frames[clipEnd + 1].clipBoundary) clipEnd++;
+                    var clipLen = clipEnd - fIdx + 1;
+                    var collapsed = f.collapsed ? 'true' : 'false';
+                    fullCode += '; @CLIP id=' + clipId + ' start=' + (fIdx + 1) + ' len=' + clipLen + ' collapsed=' + collapsed + '\n';
+                }
+                
+                if (f.clipBoundary && fIdx > 0) {
+                    fullCode += '; @BOUNDARY\n';
+                }
+                
+                if (f.colorTag) {
+                    var tagName = tagNames[f.colorTag] || f.colorTag;
+                    fullCode += '; @TAG ' + tagName + '\n';
+                }
+                
                 fullCode += 'C FRAME ' + (fIdx + 1) + '\n';
-                var f = state.frames[fIdx], grid = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
+                var grid = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
                 // Build src grid if frame has a source image
                 var srcGrid = null;
                 if (f.src) {
@@ -3871,7 +3967,9 @@ SHF 2 1 24</textarea>
                         } else { gx++; }
                     }
                 } fullCode += 'REC 1\n';
-            } return fullCode;
+            }
+            fullCode += ';\n; @END\n';
+            return fullCode;
         }
         function viewCode() {
             if (!state.frames.length) { fireToast('NO FRAMES'); return; }
