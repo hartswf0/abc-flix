@@ -6,7 +6,7 @@
     <title>ABC FLIX · RIPPLE</title>
     <meta name="description" content="ABC FLIX RIPPLE — Audio-reactive depth-layer hologram engine. Decompose video into luminance layers, tint, toggle, and drive displacement with sound.">
     <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Ccircle cx='32' cy='30' r='24' fill='none' stroke='%23e60000' stroke-width='2' opacity='0.3'/%3E%3Ccircle cx='32' cy='30' r='18' fill='none' stroke='%23e60000' stroke-width='2' opacity='0.5'/%3E%3Ccircle cx='32' cy='30' r='12' fill='none' stroke='%23e60000' stroke-width='2.5' opacity='0.7'/%3E%3Ccircle cx='32' cy='30' r='6' fill='none' stroke='%23c8a800' stroke-width='3'/%3E%3Ccircle cx='32' cy='30' r='2' fill='%23c8a800'/%3E%3Ctext x='32' y='58' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='8' font-weight='900'%3ERIPPLE%3C/text%3E%3C/svg%3E">
     <style>
         :root {
             --bg: #0a0a0a; --black: #000; --white: #fff;
@@ -171,7 +171,7 @@
             #app { flex-direction: row; }
             #tab-bar { flex: 0 0 80px; flex-direction: column; border-top: none; border-right: var(--bw) solid var(--border); order: -1; padding-bottom: 0; }
             .tab-btn { border-right: none; border-bottom: 2px solid var(--border); height: auto; flex: 1; }
-            .sheet { left: 80px; bottom: 0; max-height: 100vh; width: 360px; transform: translateX(-100%); border-top: none; border-right: var(--bw) solid var(--border); }
+            .sheet { left: auto; right: 0; bottom: 0; max-height: 100vh; width: 360px; transform: translateX(100%); border-top: none; border-left: var(--bw) solid var(--border); }
             .sheet.on { transform: translateX(0); }
         }
     </style>
@@ -191,7 +191,7 @@
             <div class="sb-group"><span class="sb-label">FPS</span><span class="sb-val" id="sb-fps">15</span></div>
             <div class="sb-group"><span class="sb-label">LAYERS</span><span class="sb-val" id="sb-layers">8/8</span></div>
             <div class="sb-group"><span class="sb-label">AUDIO</span><span class="sb-val" id="sb-audio">OFF</span></div>
-            <button id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+            <button id="btn-play" onclick="togglePlay()">PLAY</button>
         </div>
         <div id="canvas-zone">
             <canvas id="render-canvas"></canvas>
@@ -203,8 +203,8 @@
         </div>
         <div id="timeline-zone">
             <div id="tl-controls">
-                <button class="tl-btn" onclick="stepFrame(-1)">◀</button>
-                <button class="tl-btn" onclick="stepFrame(1)">▶</button>
+                <button class="tl-btn" onclick="stepFrame(-1)">PREV</button>
+                <button class="tl-btn" onclick="stepFrame(1)">NEXT</button>
                 <span style="flex:1"></span>
                 <span style="font-size:10px;font-weight:900;color:var(--dim)">SPD</span>
                 <button class="tl-btn" onclick="adjustFPS(-2)">−</button>
@@ -243,7 +243,7 @@
 <div class="sheet" id="sheet-c">
     <div class="sheet-handle"><span class="sheet-title">C · AUDIO REACTIVE</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
     <div class="sheet-body">
-        <button class="sh-btn primary" id="btn-mic" onclick="toggleMic()">🎤 CONNECT MICROPHONE</button>
+        <button class="sh-btn primary" id="btn-mic" onclick="toggleMic()">CONNECT MICROPHONE</button>
         <input type="file" id="audio-input" accept="audio/*" style="display:none">
         <button class="sh-btn" onclick="document.getElementById('audio-input').click()">LOAD AUDIO FILE</button>
         <button class="sh-btn" onclick="stopAudio()">STOP AUDIO</button>
@@ -271,16 +271,20 @@
     <div class="sheet-handle"><span class="sheet-title">D · TUNE</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
     <div class="sheet-body">
         <div class="slider-group">
-            <div class="slider-label"><span>EXTRUSION DEPTH</span><span class="slider-val" id="lbl-ext">50</span></div>
-            <input type="range" min="0" max="120" value="50" oninput="pExtrusion=parseInt(this.value);document.getElementById('lbl-ext').textContent=this.value;render()">
+            <div class="slider-label"><span>BRIGHTNESS</span><span class="slider-val" id="lbl-brt">1.8x</span></div>
+            <input type="range" min="5" max="40" value="18" oninput="pBrightness=parseInt(this.value)/10;document.getElementById('lbl-brt').textContent=(parseInt(this.value)/10).toFixed(1)+'x';render()">
         </div>
         <div class="slider-group">
-            <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-ps">3.0</span></div>
-            <input type="range" min="10" max="80" value="30" oninput="pPointSize=parseInt(this.value)/10;document.getElementById('lbl-ps').textContent=(parseInt(this.value)/10).toFixed(1);render()">
+            <div class="slider-label"><span>EXTRUSION DEPTH</span><span class="slider-val" id="lbl-ext">80</span></div>
+            <input type="range" min="0" max="150" value="80" oninput="pExtrusion=parseInt(this.value);document.getElementById('lbl-ext').textContent=this.value;render()">
         </div>
         <div class="slider-group">
-            <div class="slider-label"><span>ZOOM</span><span class="slider-val" id="lbl-zm">100%</span></div>
-            <input type="range" min="30" max="250" value="100" oninput="pZoom=parseInt(this.value);document.getElementById('lbl-zm').textContent=this.value+'%';render()">
+            <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-ps">5.0</span></div>
+            <input type="range" min="10" max="100" value="50" oninput="pPointSize=parseInt(this.value)/10;document.getElementById('lbl-ps').textContent=(parseInt(this.value)/10).toFixed(1);render()">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>ZOOM</span><span class="slider-val" id="lbl-zm">130%</span></div>
+            <input type="range" min="30" max="300" value="130" oninput="pZoom=parseInt(this.value);document.getElementById('lbl-zm').textContent=this.value+'%';render()">
         </div>
         <div class="slider-group">
             <div class="slider-label"><span>LAYER SPACING</span><span class="slider-val" id="lbl-lsp">30</span></div>
@@ -330,7 +334,7 @@ const LAYER_TINT_PRESETS = [
 ];
 
 // 3D params
-let pExtrusion = 50, pPointSize = 3.0, pZoom = 100, pLayerSpacing = 30;
+let pExtrusion = 80, pPointSize = 5.0, pZoom = 130, pLayerSpacing = 30, pBrightness = 1.8;
 let camYaw = 0, camPitch = -0.25;
 let isDragging = false, lastMouse = {x:0,y:0};
 
@@ -422,17 +426,20 @@ function loadDemo() {
         for (let i=0; i<30; i++) {
             const c = document.createElement('canvas'); c.width=MESH_W; c.height=MESH_H;
             const cx = c.getContext('2d');
-            // Gradient background
-            const g = cx.createLinearGradient(0,0,0,MESH_H);
-            g.addColorStop(0,'#000'); g.addColorStop(0.5,'#666'); g.addColorStop(1,'#fff');
+            // High-contrast gradient
+            const g = cx.createRadialGradient(MESH_W/2,MESH_H/2,5,MESH_W/2,MESH_H/2,MESH_H);
+            g.addColorStop(0,'#ffffff'); g.addColorStop(0.4,'#cc8800'); g.addColorStop(0.7,'#e60000'); g.addColorStop(1,'#220000');
             cx.fillStyle=g; cx.fillRect(0,0,MESH_W,MESH_H);
-            // Animated circle
             const t = i/30*Math.PI*2;
-            cx.fillStyle = '#e60000';
-            cx.beginPath(); cx.arc(MESH_W/2+Math.cos(t)*25, MESH_H/2+Math.sin(t)*15, 12, 0, Math.PI*2); cx.fill();
-            // Another shape
-            cx.fillStyle = '#0033cc';
-            cx.fillRect(10+Math.sin(t)*10, 10, 20, 20+Math.cos(t)*10);
+            // Bright moving circle
+            cx.fillStyle = '#ffffff';
+            cx.beginPath(); cx.arc(MESH_W/2+Math.cos(t)*30, MESH_H/2+Math.sin(t)*15, 10, 0, Math.PI*2); cx.fill();
+            // Bright bar
+            cx.fillStyle = '#ffcc00';
+            cx.fillRect(MESH_W*0.1+Math.sin(t)*15, 5, 15, MESH_H-10);
+            // Blue block
+            cx.fillStyle = '#4488ff';
+            cx.fillRect(MESH_W*0.7, MESH_H/2-12+Math.cos(t)*8, 22, 24);
             frames.push(processFrame(c));
         }
         hideLoad(); initSequence();
@@ -542,7 +549,7 @@ function buildLayerPanel() {
         const density=Math.round(layer.pixels.length/totalPx*100);
         const tintColor=layer.colorTint||LAYER_TINT_PRESETS[i];
         row.innerHTML=`
-            <button class="lr-eye ${layer.visible?'on':''}" onclick="toggleLayer(${i})">👁</button>
+            <button class="lr-eye ${layer.visible?'on':''}" onclick="toggleLayer(${i})">${layer.visible?'ON':'--'}</button>
             <div class="lr-swatch" style="background:rgb(${tintColor.join(',')})" onclick="cycleColor(${i})" title="Tap to change color"></div>
             <span class="lr-label">${LAYER_NAMES[i]}</span>
             <input class="lr-opacity" type="range" min="0" max="100" value="${Math.round(layer.opacity*100)}" oninput="setLayerOpacity(${i},this.value)">
@@ -622,7 +629,7 @@ function clearSystem() {
     document.getElementById('tl-strip').innerHTML='';
     document.getElementById('sb-frame').textContent='00/00';
     document.getElementById('btn-play').classList.remove('playing');
-    document.getElementById('btn-play').textContent='▶ PLAY';
+    document.getElementById('btn-play').textContent='PLAY';
     document.getElementById('layer-legend').innerHTML='';
     closeAllSheets();
 }
@@ -633,7 +640,7 @@ function togglePlay() {
     playing=!playing;
     const btn=document.getElementById('btn-play');
     btn.classList.toggle('playing',playing);
-    btn.textContent=playing?'■ PAUSE':'▶ PLAY';
+    btn.textContent=playing?'PAUSE':'PLAY';
     if(playing){lastPlayT=performance.now(); animLoop();}
     else cancelAnimationFrame(playRAF);
 }
@@ -669,7 +676,7 @@ async function toggleMic() {
         audioSource=audioCtx.createMediaStreamSource(stream);
         audioSource.connect(analyser);
         audioActive=true;
-        document.getElementById('btn-mic').textContent='🔴 DISCONNECT MIC';
+        document.getElementById('btn-mic').textContent='DISCONNECT MIC';
         document.getElementById('audio-badge').classList.add('live');
         document.getElementById('audio-label').textContent='MIC LIVE';
         document.getElementById('sb-audio').textContent='LIVE';
@@ -690,7 +697,7 @@ async function loadAudioFile(file) {
     audioActive=true;
     audioElement.play();
     document.getElementById('audio-badge').classList.add('live');
-    document.getElementById('audio-label').textContent='FILE ▶';
+    document.getElementById('audio-label').textContent='FILE PLAYING';
     document.getElementById('sb-audio').textContent='FILE';
     if(!playing) startAudioRenderLoop();
 }
@@ -701,7 +708,7 @@ function stopAudio() {
     if(audioElement) { audioElement.pause(); audioElement=null; }
     if(audioSource) { try{audioSource.disconnect();}catch(e){} audioSource=null; }
     bandLevels.fill(0);
-    document.getElementById('btn-mic').textContent='🎤 CONNECT MICROPHONE';
+    document.getElementById('btn-mic').textContent='CONNECT MICROPHONE';
     document.getElementById('audio-badge').classList.remove('live');
     document.getElementById('audio-label').textContent='NO AUDIO';
     document.getElementById('sb-audio').textContent='OFF';
@@ -797,8 +804,8 @@ function render() {
             if(tint) { cr=tint[0]; cg=tint[1]; cb=tint[2]; }
             else { cr=p.r; cg=p.g; cb=p.b; }
 
-            // Shade by depth
-            const shade=Math.max(0.4,Math.min(1.4,1.3-((z2-100)/500)));
+            // Shade by depth + brightness
+            const shade=Math.max(0.4,Math.min(1.4,1.3-((z2-100)/500)))*pBrightness;
             cr=Math.min(255,Math.floor(cr*shade));
             cg=Math.min(255,Math.floor(cg*shade));
             cb=Math.min(255,Math.floor(cb*shade));
