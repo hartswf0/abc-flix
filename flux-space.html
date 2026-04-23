@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX · FLUX</title>
+    <meta name="description" content="ABC FLIX FLUX — First-person spatial walkthrough engine for BEFLIX-128 frame sequences and video.">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            /* ABC FLIX Design System — Dark Variant */
+            --bg: #0a0a0a;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #0033cc;
+            --act-b: #c8a800;
+            --act-c: #e60000;
+            --dim: #888888;
+            --border: #333333;
+
+            --bw: 3px;
+            --tab-h: 60px;
+            --status-h: 44px;
+            --tl-h: 100px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0;
+            overflow: hidden; position: fixed; inset: 0;
+            height: 100dvh;
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* ── STATUS BAR ── */
+        #status-bar {
+            flex: 0 0 var(--status-h); display: flex; align-items: stretch;
+            background: var(--black); border-bottom: var(--bw) solid var(--border); z-index: 50;
+        }
+        .sb-group {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-right: var(--bw) solid var(--border); flex: 1; padding: 0 4px;
+        }
+        .sb-label { font-size: 9px; font-weight: 900; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+        .sb-val { font-size: 14px; font-weight: 900; color: var(--white); font-variant-numeric: tabular-nums; }
+
+        #btn-play {
+            flex: 0 0 100px; background: var(--act-c); color: var(--white);
+            border: none; font-size: 14px; font-weight: 900; cursor: pointer;
+            letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center;
+        }
+        #btn-play.playing { background: var(--act-a); }
+        #btn-play:active { filter: brightness(0.8); }
+
+        /* ── CANVAS ZONE ── */
+        #canvas-zone {
+            flex: 1 1 0%; position: relative; overflow: hidden;
+            background: #000; display: flex; align-items: center; justify-content: center;
+        }
+        #render-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            image-rendering: pixelated; display: block;
+        }
+
+        /* Mode Switcher */
+        #mode-switcher {
+            position: absolute; top: 12px; left: 12px; z-index: 30;
+            display: flex; gap: 4px;
+        }
+        .mode-btn {
+            background: rgba(0,0,0,0.8); border: var(--bw) solid var(--border);
+            color: var(--dim); font-size: 11px; font-weight: 900; padding: 8px 12px;
+            cursor: pointer; text-transform: uppercase;
+        }
+        .mode-btn.active { background: var(--white); color: var(--black); border-color: var(--white); }
+
+        /* PiP */
+        #pip-wrap {
+            position: absolute; top: 12px; right: 12px; z-index: 30;
+            width: 140px; background: #000; border: var(--bw) solid var(--border);
+            display: flex; flex-direction: column;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.9);
+        }
+        #pip-header {
+            flex: 0 0 18px; background: var(--black); color: var(--dim);
+            font-size: 9px; font-weight: 900; text-align: center; line-height: 18px;
+            letter-spacing: 0.08em;
+        }
+        #pip-canvas { width: 100%; height: auto; aspect-ratio: 16/9; background: #050505; }
+
+        /* Touch zones */
+        #touch-left, #touch-right {
+            position: absolute; top: 0; bottom: 0; width: 50%; z-index: 20;
+        }
+        #touch-left { left: 0; }
+        #touch-right { right: 0; }
+        .touch-hint {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: rgba(255,255,255,0.25); font-size: 10px; font-weight: 900; pointer-events: none;
+        }
+
+        /* Empty */
+        #empty-state {
+            position: absolute; display: flex; flex-direction: column;
+            align-items: center; color: var(--dim); pointer-events: none; text-align: center;
+        }
+        #empty-state h2 { font-size: 24px; font-weight: 900; letter-spacing: 2px; margin: 0 0 8px 0; color: var(--white); }
+        #empty-state p { font-size: 13px; font-weight: 900; margin: 0; color: var(--act-c); }
+
+        /* ── TIMELINE ── */
+        #timeline-zone {
+            flex: 0 0 var(--tl-h); background: var(--black);
+            border-top: var(--bw) solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden; z-index: 40;
+        }
+        #tl-controls {
+            display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+            border-bottom: var(--bw) solid var(--border); flex-shrink: 0; background: var(--bg);
+        }
+        .tl-btn {
+            background: var(--black); color: var(--white); border: var(--bw) solid var(--border);
+            padding: 6px 12px; font-size: 12px; font-weight: 900; cursor: pointer; text-transform: uppercase;
+        }
+        .tl-btn:active { background: var(--act-c); color: var(--white); border-color: var(--act-c); }
+
+        #tl-strip {
+            flex: 1; display: flex; gap: 6px; padding: 8px 10px;
+            overflow-x: auto; align-items: center;
+            scrollbar-width: thin; scrollbar-color: var(--border) var(--bg);
+        }
+        .tl-frame {
+            position: relative; flex: 0 0 80px; height: 48px; border: var(--bw) solid var(--border);
+            cursor: pointer; background: #000; transition: border-color 0.1s, transform 0.1s;
+        }
+        .tl-frame.on {
+            border-color: var(--act-c); transform: scale(1.06); z-index: 2;
+            box-shadow: 0 0 10px rgba(230,0,0,0.3);
+        }
+        .tl-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+        .tl-frame.on .tl-thumb { opacity: 1; }
+        .tl-num {
+            position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.8);
+            color: #fff; font-size: 10px; padding: 2px 4px; font-weight: 900; pointer-events: none;
+        }
+
+        /* ── TAB BAR ── */
+        #tab-bar {
+            flex: 0 0 calc(var(--tab-h) + var(--safe-b)); display: flex;
+            border-top: var(--bw) solid var(--border); background: var(--black);
+            z-index: 60; padding-bottom: var(--safe-b);
+        }
+        .tab-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: var(--tab-h); font-size: 10px; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--dim); cursor: pointer;
+            background: var(--black); border: none; border-right: var(--bw) solid var(--border);
+        }
+        .tab-btn:last-child { border-right: none; }
+        .tab-btn.on-act { background: var(--bg); color: var(--act-c); border-top: 4px solid var(--act-c); }
+        .tab-letter {
+            font-size: 20px; font-weight: 900; line-height: 1; margin-bottom: 2px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        /* ── SHEETS ── */
+        #sheet-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0);
+            pointer-events: none; z-index: 70; transition: background 0.2s;
+        }
+        #sheet-backdrop.on { background: rgba(0,0,0,0.8); pointer-events: all; }
+
+        .sheet {
+            position: fixed; left: 0; right: 0;
+            bottom: calc(var(--tab-h) + var(--safe-b)); max-height: 80vh;
+            background: var(--bg); border-top: var(--bw) solid var(--border);
+            z-index: 80; display: flex; flex-direction: column;
+            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.2,0.9,0.4,1);
+        }
+        .sheet.on { transform: translateY(0); }
+        .sheet-handle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; background: var(--black); border-bottom: var(--bw) solid var(--border);
+        }
+        .sheet-title { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: var(--act-c); text-transform: uppercase; }
+        .sheet-close { font-size: 26px; background: none; border: none; color: var(--white); cursor: pointer; line-height: 1; }
+        .sheet-body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+        .sh-btn {
+            padding: 16px; font-weight: 900; text-transform: uppercase; font-size: 13px;
+            letter-spacing: 0.05em; background: var(--black); border: var(--bw) solid var(--border);
+            color: var(--white); cursor: pointer; text-align: center; width: 100%;
+        }
+        .sh-btn:active { background: var(--border); }
+        .sh-btn.primary { background: var(--act-c); color: var(--white); border-color: var(--act-c); }
+
+        .slider-group { display: flex; flex-direction: column; gap: 6px; }
+        .slider-label {
+            font-size: 11px; font-weight: 900; color: var(--dim); text-transform: uppercase;
+            display: flex; justify-content: space-between;
+        }
+        .slider-val { color: var(--act-b); font-variant-numeric: tabular-nums; }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 24px;
+            background: var(--black); border: var(--bw) solid var(--border); outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 24px; height: 24px;
+            background: var(--act-c); cursor: pointer;
+        }
+
+        /* ── LOADING ── */
+        #loading-overlay {
+            position: absolute; inset: 0; z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95);
+        }
+        #loading-overlay.on { display: flex; }
+        #load-msg { font-size: 16px; font-weight: 900; margin-bottom: 16px; color: var(--white); letter-spacing: 0.1em; }
+        #load-bar { width: 240px; height: 6px; background: var(--border); }
+        #load-fill { height: 100%; background: var(--act-c); width: 0%; transition: width 0.1s; }
+
+        @media (min-width: 768px) {
+            #app { flex-direction: row; }
+            #tab-bar {
+                flex: 0 0 90px; flex-direction: column; border-top: none;
+                border-right: var(--bw) solid var(--border); order: -1; padding-bottom: 0;
+            }
+            .tab-btn { border-right: none; border-bottom: var(--bw) solid var(--border); height: auto; flex: 1; }
+            .sheet {
+                left: 90px; bottom: 0; max-height: 100vh; width: 380px;
+                transform: translateX(-100%); border-top: none; border-right: var(--bw) solid var(--border);
+            }
+            .sheet.on { transform: translateX(0); }
+            #touch-left, #touch-right { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <nav id="tab-bar">
+            <button class="tab-btn" onclick="execNav('A')"><span class="tab-letter">A</span>MEDIA</button>
+            <button class="tab-btn" onclick="execNav('B')"><span class="tab-letter">B</span>TUNE</button>
+            <button class="tab-btn" onclick="execNav('C')"><span class="tab-letter">C</span>EXPORT</button>
+        </nav>
+
+        <div style="flex: 1 1 0%; display: flex; flex-direction: column; min-width: 0; position: relative;">
+            <div id="status-bar">
+                <div class="sb-group"><span class="sb-label">FRAME</span><span class="sb-val" id="sb-frame">00/00</span></div>
+                <div class="sb-group"><span class="sb-label">FPS</span><span class="sb-val" id="sb-fps">12</span></div>
+                <div class="sb-group"><span class="sb-label">MODE</span><span class="sb-val" id="sb-mode">WALK</span></div>
+                <button id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+            </div>
+
+            <div id="canvas-zone">
+                <canvas id="render-canvas"></canvas>
+                <div id="mode-switcher">
+                    <button class="mode-btn active" id="btn-m-walk" onclick="setMode('walk')">WALK</button>
+                    <button class="mode-btn" id="btn-m-cloud" onclick="setMode('cloud')">CLOUD</button>
+                    <button class="mode-btn" id="btn-m-grid" onclick="setMode('grid')">MAP</button>
+                </div>
+                <div id="pip-wrap">
+                    <div id="pip-header">SOURCE 2D</div>
+                    <canvas id="pip-canvas"></canvas>
+                </div>
+                <div id="touch-left"><div class="touch-hint">DRAG: MOVE</div></div>
+                <div id="touch-right"><div class="touch-hint">DRAG: LOOK</div></div>
+                <div id="empty-state">
+                    <h2>NO MEDIA</h2>
+                    <p>TAP A · MEDIA TO LOAD</p>
+                </div>
+            </div>
+
+            <div id="timeline-zone">
+                <div id="tl-controls">
+                    <button class="tl-btn" onclick="stepFrame(-1)">◀</button>
+                    <button class="tl-btn" onclick="stepFrame(1)">▶</button>
+                    <span style="flex:1;"></span>
+                    <span style="font-size:11px; font-weight:900; color:var(--dim);">SPD</span>
+                    <button class="tl-btn" onclick="adjustFPS(-2)">−</button>
+                    <button class="tl-btn" onclick="adjustFPS(2)">+</button>
+                </div>
+                <div id="tl-strip"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHEETS -->
+    <div id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+    <div class="sheet" id="sheet-a">
+        <div class="sheet-handle"><span class="sheet-title">A · MEDIA INGESTION</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <p style="font-size:12px; font-weight:900; color:var(--dim); line-height:1.6; margin:0;">
+                Load video or images. Brightness → depth. Walk through your media in 3D.
+            </p>
+            <input type="file" id="file-input" accept="video/*,image/*" style="display:none">
+            <button class="sh-btn primary" onclick="document.getElementById('file-input').click()">LOAD VIDEO / IMAGE</button>
+            <input type="file" id="bfx-input" accept=".bfx,.txt,.beflix" style="display:none">
+            <button class="sh-btn" onclick="document.getElementById('bfx-input').click()">LOAD .BFX (FROM ICARO-PRO)</button>
+            <button class="sh-btn" onclick="generateDemo()">GENERATE DEMO</button>
+            <div style="margin-top:12px; border-top:var(--bw) solid var(--border); padding-top:12px;">
+                <button class="sh-btn" style="color:var(--act-c); border-color:var(--act-c);" onclick="clearSystem()">CLEAR SYSTEM</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sheet" id="sheet-b">
+        <div class="sheet-handle"><span class="sheet-title">B · 3D TUNING</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <div class="slider-group">
+                <div class="slider-label"><span>DEPTH EXTRUSION</span><span class="slider-val" id="lbl-ext">1.5×</span></div>
+                <input type="range" min="0" max="4" step="0.1" value="1.5"
+                    oninput="pDepthMult=parseFloat(this.value); document.getElementById('lbl-ext').textContent=this.value+'×'; render();">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>FIELD OF VIEW</span><span class="slider-val" id="lbl-fov">80°</span></div>
+                <input type="range" min="40" max="140" step="5" value="80"
+                    oninput="pFov=parseInt(this.value); document.getElementById('lbl-fov').textContent=this.value+'°'; render();">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>MOVE SPEED</span><span class="slider-val" id="lbl-spd">0.02</span></div>
+                <input type="range" min="0.005" max="0.05" step="0.005" value="0.02"
+                    oninput="pMoveSpeed=parseFloat(this.value); document.getElementById('lbl-spd').textContent=this.value;">
+            </div>
+            <button class="sh-btn" onclick="resetPlayer()">RESET CAMERA</button>
+        </div>
+    </div>
+
+    <div class="sheet" id="sheet-c">
+        <div class="sheet-handle"><span class="sheet-title">C · EXPORT</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <p style="font-size:12px; font-weight:900; color:var(--dim); margin:0;">Save the current 3D viewport.</p>
+            <button class="sh-btn primary" onclick="exportFrame()">SAVE FRAME (PNG)</button>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loading-overlay">
+        <div id="load-msg">PROCESSING...</div>
+        <div id="load-bar"><div id="load-fill"></div></div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // ABC FLIX · FLUX — First-Person Spatial Walkthrough Engine
+        // ═══════════════════════════════════════════════════════════
+
+        const canvas = document.getElementById('render-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const pipCanvas = document.getElementById('pip-canvas');
+        const pipCtx = pipCanvas.getContext('2d', { willReadFrequently: true });
+
+        let W = 0, H = 0;
+        let frames = [];
+        let curIdx = 0;
+        let playing = false;
+        let playRAF = null;
+        let lastPlayT = 0;
+        let BASE_FPS = 12;
+
+        let vMode = 'walk';
+        let pDepthMult = 1.5;
+        let pFov = 80;
+        let pMoveSpeed = 0.02;
+        let pTurnSpeed = 0.05;
+
+        let px = 0.5, py = 0.5, pa = 0;
+        let keys = {};
+        let tMove = { x: 0, y: 0 };
+        let tLook = { x: 0, y: 0 };
+
+        function resize() {
+            const rect = document.getElementById('canvas-zone').getBoundingClientRect();
+            W = Math.floor(rect.width); H = Math.floor(rect.height);
+            canvas.width = W; canvas.height = H;
+            ctx.imageSmoothingEnabled = false;
+            if (frames.length) render();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ── UI NAV ──
+        let activeSheet = null;
+        function execNav(id) {
+            if (activeSheet === id) { closeAllSheets(); return; }
+            closeAllSheets();
+            activeSheet = id;
+            document.getElementById('sheet-' + id.toLowerCase()).classList.add('on');
+            document.getElementById('sheet-backdrop').classList.add('on');
+        }
+        function closeAllSheets() {
+            ['a', 'b', 'c'].forEach(id => document.getElementById('sheet-' + id).classList.remove('on'));
+            document.getElementById('sheet-backdrop').classList.remove('on');
+            activeSheet = null;
+        }
+        function setMode(m) {
+            vMode = m;
+            ['walk', 'cloud', 'grid'].forEach(k => document.getElementById('btn-m-' + k).classList.remove('active'));
+            document.getElementById('btn-m-' + m).classList.add('active');
+            document.getElementById('sb-mode').textContent = m.toUpperCase();
+            render();
+        }
+
+        // ── INGESTION ──
+        document.getElementById('file-input').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return; e.target.value = '';
+            closeAllSheets();
+            if (f.type.startsWith('video/')) await loadVideo(f);
+            else if (f.type.startsWith('image/')) await loadImage(f);
+        });
+
+        // BEFLIX ingestion
+        document.getElementById('bfx-input').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return; e.target.value = '';
+            closeAllSheets();
+            showLoad('PARSING BEFLIX...');
+            const text = await f.text();
+            await parseBFX(text);
+            hideLoad();
+            initTimeline();
+        });
+
+        function showLoad(msg) {
+            document.getElementById('loading-overlay').classList.add('on');
+            document.getElementById('load-msg').textContent = msg;
+            document.getElementById('load-fill').style.width = '0%';
+        }
+        function hideLoad() { document.getElementById('loading-overlay').classList.remove('on'); }
+
+        async function loadVideo(file) {
+            showLoad('LOADING VIDEO...');
+            const url = URL.createObjectURL(file);
+            const vid = document.createElement('video');
+            vid.muted = true; vid.playsInline = true; vid.src = url;
+            await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; setTimeout(rej, 8000); });
+            const dur = vid.duration;
+            const total = Math.min(Math.floor(dur * BASE_FPS), 120);
+            const interval = dur / total;
+            for (let i = 0; i < total; i++) {
+                vid.currentTime = i * interval;
+                await new Promise(r => { vid.onseeked = r; setTimeout(r, 400); });
+                frames.push(processFrame(vid));
+                document.getElementById('load-msg').textContent = `EXTRACTING ${i+1}/${total}`;
+                document.getElementById('load-fill').style.width = ((i+1)/total*100) + '%';
+            }
+            URL.revokeObjectURL(url);
+            hideLoad(); initTimeline();
+        }
+
+        async function loadImage(file) {
+            showLoad('PROCESSING IMAGE...');
+            const url = URL.createObjectURL(file);
+            const img = new Image(); img.src = url;
+            await new Promise((r, j) => { img.onload = r; img.onerror = j; setTimeout(j, 5000); });
+            frames.push(processFrame(img));
+            URL.revokeObjectURL(url);
+            hideLoad(); initTimeline();
+        }
+
+        function generateDemo() {
+            closeAllSheets(); showLoad('GENERATING...');
+            setTimeout(() => {
+                const FW = 160, FH = 90;
+                for (let i = 0; i < 30; i++) {
+                    const c = document.createElement('canvas'); c.width = FW; c.height = FH;
+                    const cx = c.getContext('2d', { willReadFrequently: true });
+                    cx.fillStyle = '#222'; cx.fillRect(0, 0, FW, FH);
+                    cx.fillStyle = '#e60000';
+                    cx.beginPath(); cx.arc(FW/2 + Math.sin(i*0.2)*40, FH/2, 20, 0, Math.PI*2); cx.fill();
+                    cx.fillStyle = '#0033cc';
+                    cx.fillRect(FW/4, FH/2-15+Math.cos(i*0.2)*20, 30, 30);
+                    cx.fillStyle = '#c8a800';
+                    cx.fillRect(FW*0.7, FH/2-10, 20, 50+Math.sin(i*0.4)*30);
+                    frames.push(processFrame(c));
+                }
+                hideLoad(); initTimeline();
+            }, 50);
+        }
+
+        // ── BEFLIX PARSER ──
+        const BFX_COLS = 128, BFX_ROWS = 96;
+
+        async function parseBFX(text) {
+            const lines = text.toUpperCase().split('\n');
+            let mat = Array(BFX_ROWS).fill().map(() => Array(BFX_COLS).fill(0));
+            const results = [];
+
+            for (let li = 0; li < lines.length; li++) {
+                let l = lines[li].trim();
+                if (!l || l.startsWith('C') || l.startsWith(';')) continue;
+                const p = l.split(/\s+/), cmd = p[0], a = p.slice(1).map(Number);
+                if (cmd === 'CLR') {
+                    for (let y = 0; y < BFX_ROWS; y++) for (let x = 0; x < BFX_COLS; x++) mat[y][x] = a[0];
+                } else if (cmd === 'PNT') {
+                    for (let y = a[1]; y < a[1]+a[3]; y++) for (let x = a[0]; x < a[0]+a[2]; x++)
+                        if (y >= 0 && y < BFX_ROWS && x >= 0 && x < BFX_COLS) mat[y][x] = a[4];
+                } else if (cmd === 'LIN') {
+                    let lv=a[4], x0=a[0], y0=a[1], x1=a[2], y1=a[3];
+                    let dx=Math.abs(x1-x0), sx=x0<x1?1:-1, dy=-Math.abs(y1-y0), sy=y0<y1?1:-1, err=dx+dy, lim=3000;
+                    while(lim-->0) { if(x0>=0&&x0<BFX_COLS&&y0>=0&&y0<BFX_ROWS) mat[y0][x0]=lv; if(x0===x1&&y0===y1) break; let e2=2*err; if(e2>=dy){err+=dy;x0+=sx;} if(e2<=dx){err+=dx;y0+=sy;} }
+                } else if (cmd === 'REC') {
+                    for (let f = 0; f < Math.min(a[0], 500); f++) results.push(mat.map(r => [...r]));
+                } else if (cmd === 'SHF') {
+                    for (let f = 0; f < Math.min(a[2], 500); f++) {
+                        let n = Array(BFX_ROWS).fill().map(() => Array(BFX_COLS).fill(0));
+                        for (let y=0;y<BFX_ROWS;y++) for (let x=0;x<BFX_COLS;x++) { let nx=x-a[0], ny=y-a[1]; if(nx>=0&&nx<BFX_COLS&&ny>=0&&ny<BFX_ROWS) n[y][x]=mat[ny][nx]; }
+                        mat = n; results.push(mat.map(r => [...r]));
+                    }
+                }
+                if (li % 500 === 0) {
+                    document.getElementById('load-fill').style.width = (li/lines.length*80) + '%';
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            if (!results.length) results.push(mat);
+
+            for (let i = 0; i < results.length; i++) {
+                const grid = results[i];
+                const c = document.createElement('canvas'); c.width = BFX_COLS; c.height = BFX_ROWS;
+                const cx = c.getContext('2d');
+                const img = cx.createImageData(BFX_COLS, BFX_ROWS);
+                const pxd = img.data;
+                for (let y = 0; y < BFX_ROWS; y++) {
+                    for (let x = 0; x < BFX_COLS; x++) {
+                        const idx = (y * BFX_COLS + x) * 4;
+                        const lum = Math.round((grid[y][x] / 7) * 255);
+                        pxd[idx] = lum; pxd[idx+1] = lum; pxd[idx+2] = lum; pxd[idx+3] = 255;
+                    }
+                }
+                cx.putImageData(img, 0, 0);
+                frames.push(processFrame(c));
+                document.getElementById('load-fill').style.width = (80 + (i/results.length*20)) + '%';
+                if (i % 20 === 0) await new Promise(r => setTimeout(r, 0));
+            }
+        }
+
+        // ── FRAME PROCESSING ──
+        function processFrame(source) {
+            const FW = 160, FH = 90;
+            const c = document.createElement('canvas'); c.width = FW; c.height = FH;
+            const cx = c.getContext('2d', { willReadFrequently: true });
+            cx.drawImage(source, 0, 0, FW, FH);
+            const imgData = cx.getImageData(0, 0, FW, FH);
+            const pxd = imgData.data;
+            const depth = new Float32Array(FW * FH);
+            for (let i = 0; i < FW * FH; i++) {
+                depth[i] = (0.299 * pxd[i*4] + 0.587 * pxd[i*4+1] + 0.114 * pxd[i*4+2]) / 255;
+            }
+            const thumb = document.createElement('canvas'); thumb.width = 80; thumb.height = 45;
+            thumb.getContext('2d').drawImage(c, 0, 0, 80, 45);
+            return { w: FW, h: FH, srcCanvas: c, depth, thumb, px: pxd };
+        }
+
+        function initTimeline() {
+            curIdx = 0; resetPlayer();
+            document.getElementById('empty-state').style.display = 'none';
+            const strip = document.getElementById('tl-strip'); strip.innerHTML = '';
+            frames.forEach((f, i) => {
+                const d = document.createElement('div'); d.className = 'tl-frame';
+                d.onclick = () => { curIdx = i; syncUI(); render(); };
+                const img = document.createElement('img'); img.className = 'tl-thumb'; img.src = f.thumb.toDataURL();
+                const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1;
+                d.appendChild(img); d.appendChild(n); strip.appendChild(d);
+            });
+            syncUI(); render();
+        }
+
+        function syncUI() {
+            if (!frames.length) return;
+            document.getElementById('sb-frame').textContent = `${String(curIdx+1).padStart(2,'0')}/${String(frames.length).padStart(2,'0')}`;
+            document.getElementById('sb-fps').textContent = BASE_FPS;
+            document.querySelectorAll('.tl-frame').forEach((el, i) => {
+                if (i === curIdx) { el.classList.add('on'); el.scrollIntoView({inline:'center',block:'nearest'}); }
+                else el.classList.remove('on');
+            });
+            pipCanvas.width = frames[curIdx].w; pipCanvas.height = frames[curIdx].h;
+            pipCtx.drawImage(frames[curIdx].srcCanvas, 0, 0);
+        }
+
+        function clearSystem() {
+            frames = []; curIdx = 0; playing = false; cancelAnimationFrame(playRAF);
+            ctx.clearRect(0, 0, W, H); pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+            document.getElementById('tl-strip').innerHTML = '';
+            document.getElementById('empty-state').style.display = 'block';
+            document.getElementById('sb-frame').textContent = '00/00';
+            document.getElementById('btn-play').classList.remove('playing');
+            document.getElementById('btn-play').textContent = '▶ PLAY';
+            closeAllSheets();
+        }
+
+        // ── PLAYBACK ──
+        function togglePlay() {
+            if (!frames.length) return;
+            playing = !playing;
+            const btn = document.getElementById('btn-play');
+            btn.classList.toggle('playing', playing);
+            btn.textContent = playing ? '■ PAUSE' : '▶ PLAY';
+            if (playing) { lastPlayT = performance.now(); loop(); }
+            else cancelAnimationFrame(playRAF);
+        }
+        function stepFrame(dir) { if (!frames.length || playing) return; curIdx = (curIdx+dir+frames.length)%frames.length; syncUI(); render(); }
+        function adjustFPS(dir) { BASE_FPS = Math.max(1, Math.min(60, BASE_FPS + dir)); syncUI(); }
+        function loop() {
+            if (!playing) return;
+            const now = performance.now();
+            if (now - lastPlayT >= 1000/BASE_FPS) { curIdx = (curIdx+1)%frames.length; lastPlayT = now; syncUI(); }
+            applyMovement();
+            render();
+            playRAF = requestAnimationFrame(loop);
+        }
+
+        // ── 3D RENDER ──
+        function getDepth(f, u, v) {
+            return f.depth[Math.max(0,Math.min(f.h-1,Math.floor(v*f.h))) * f.w + Math.max(0,Math.min(f.w-1,Math.floor(u*f.w)))];
+        }
+
+        function render() {
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
+            if (!frames.length) return;
+            const f = frames[curIdx];
+            if (vMode === 'walk') renderWalk(f);
+            else if (vMode === 'cloud') renderCloud(f);
+            else if (vMode === 'grid') renderGrid(f);
+        }
+
+        function renderWalk(f) {
+            const fovRads = (pFov * Math.PI) / 180;
+            const horizon = H / 2;
+            ctx.fillStyle = '#111'; ctx.fillRect(0, horizon, W, horizon);
+            const numRays = Math.min(W, f.w * 2);
+            const rayWidth = Math.ceil(W / numRays);
+            for (let col = 0; col < numRays; col++) {
+                const rayAngle = pa - fovRads/2 + (col/numRays)*fovRads;
+                let u = ((rayAngle/(Math.PI*2))%1+1)%1;
+                let hitDepth = 0.05;
+                for (let s = 0; s < 5; s++) { const d = getDepth(f, u, 0.2+(s/4)*0.6); if (d > hitDepth) hitDepth = d; }
+                const wallH = Math.floor(hitDepth * H * pDepthMult);
+                if (wallH > 0) {
+                    const top = Math.floor(horizon - wallH/2);
+                    const srcX = Math.floor(u * f.w);
+                    ctx.drawImage(f.srcCanvas, srcX, 0, 1, f.h, col*rayWidth, top, rayWidth, wallH);
+                    const darkness = Math.max(0, 1-(hitDepth*1.5));
+                    if (darkness > 0.1) { ctx.fillStyle = `rgba(0,0,0,${darkness})`; ctx.fillRect(col*rayWidth, top, rayWidth, wallH); }
+                }
+            }
+        }
+
+        function renderCloud(f) {
+            const fovRads = (pFov * Math.PI) / 180;
+            for (let i = 0; i < 2500; i++) {
+                const u = ((i*1.61803)%1), v = ((i*2.71828)%1);
+                const d = getDepth(f, u, v); if (d < 0.05) continue;
+                let relA = (u*Math.PI*2) - pa;
+                while (relA > Math.PI) relA -= Math.PI*2; while (relA < -Math.PI) relA += Math.PI*2;
+                if (Math.abs(relA) > fovRads*0.7) continue;
+                const screenX = Math.floor((relA/fovRads+0.5)*W);
+                const screenY = Math.floor(H/2 + (v-0.5)*H*(0.3+d*pDepthMult));
+                const srcX = Math.floor(u*f.w), srcY = Math.floor(v*f.h), pIdx = (srcY*f.w+srcX)*4;
+                ctx.fillStyle = `rgb(${f.px[pIdx]},${f.px[pIdx+1]},${f.px[pIdx+2]})`;
+                ctx.fillRect(screenX, screenY, Math.max(1,Math.floor(d*4)), Math.max(1,Math.floor(d*4)));
+            }
+        }
+
+        function renderGrid(f) {
+            const scale = Math.min(W/f.w, H/f.h) * 0.9;
+            const drawW = f.w*scale, drawH = f.h*scale;
+            const offsetX = (W-drawW)/2, offsetY = (H-drawH)/2;
+            ctx.drawImage(f.srcCanvas, offsetX, offsetY, drawW, drawH);
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.beginPath();
+            for (let y = 0; y < f.h; y += 4) {
+                for (let x = 0; x < f.w; x += 4) {
+                    const d = getDepth(f, x/f.w, y/f.h);
+                    const ax = offsetX + (x/f.w)*drawW, ay = offsetY + (y/f.h)*drawH - (d*20);
+                    if (x === 0) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay);
+                }
+            }
+            ctx.stroke();
+            const pScreenX = offsetX + px*drawW, pScreenY = offsetY + py*drawH;
+            ctx.fillStyle = '#e60000'; ctx.beginPath(); ctx.arc(pScreenX, pScreenY, 6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#e60000'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(pScreenX, pScreenY);
+            ctx.lineTo(pScreenX+Math.cos(pa)*20, pScreenY+Math.sin(pa)*20); ctx.stroke();
+        }
+
+        // ── CONTROLS ──
+        function resetPlayer() { px = 0.5; py = 0.5; pa = Math.PI/2; render(); closeAllSheets(); }
+        function applyMovement() {
+            let moved = false;
+            if (keys['arrowleft']||keys['a']) { pa -= pTurnSpeed; moved=true; }
+            if (keys['arrowright']||keys['d']) { pa += pTurnSpeed; moved=true; }
+            if (keys['arrowup']||keys['w']) { px+=Math.cos(pa)*pMoveSpeed; py+=Math.sin(pa)*pMoveSpeed; moved=true; }
+            if (keys['arrowdown']||keys['s']) { px-=Math.cos(pa)*pMoveSpeed; py-=Math.sin(pa)*pMoveSpeed; moved=true; }
+            if (Math.abs(tMove.y)>0.1) { px-=Math.cos(pa)*(tMove.y*pMoveSpeed*1.5); py-=Math.sin(pa)*(tMove.y*pMoveSpeed*1.5); moved=true; }
+            if (Math.abs(tMove.x)>0.1) { px+=Math.cos(pa+Math.PI/2)*(tMove.x*pMoveSpeed); py+=Math.sin(pa+Math.PI/2)*(tMove.x*pMoveSpeed); moved=true; }
+            if (Math.abs(tLook.x)>0.05) { pa+=tLook.x*pTurnSpeed*1.5; moved=true; }
+            px=((px%1)+1)%1; py=((py%1)+1)%1;
+            if (moved && !playing && frames.length) render();
+        }
+        window.addEventListener('keydown', e => { keys[e.key.toLowerCase()]=true; if(e.key===' '){e.preventDefault();togglePlay();} if(!playing) applyMovement(); });
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()]=false);
+
+        // Touch zones
+        const tLeft = document.getElementById('touch-left'), tRight = document.getElementById('touch-right');
+        let leftId=null, rightId=null, leftStart={x:0,y:0}, rightStart={x:0,y:0};
+        function setupTouch(el, isLeft) {
+            el.addEventListener('touchstart', e => {
+                e.preventDefault(); const t=e.changedTouches[0];
+                if(isLeft){leftId=t.identifier;leftStart={x:t.clientX,y:t.clientY};} else {rightId=t.identifier;rightStart={x:t.clientX,y:t.clientY};}
+                if(!playing) requestAnimationFrame(function lp(){if(!playing&&(Math.abs(tMove.x)>0||Math.abs(tMove.y)>0||Math.abs(tLook.x)>0)){applyMovement();requestAnimationFrame(lp);}});
+            }, {passive:false});
+            el.addEventListener('touchmove', e => {
+                e.preventDefault();
+                for(let i=0;i<e.changedTouches.length;i++){const t=e.changedTouches[i];
+                    if(isLeft&&t.identifier===leftId){tMove.x=Math.max(-1,Math.min(1,(t.clientX-leftStart.x)/50));tMove.y=Math.max(-1,Math.min(1,(t.clientY-leftStart.y)/50));}
+                    if(!isLeft&&t.identifier===rightId){tLook.x=Math.max(-1,Math.min(1,(t.clientX-rightStart.x)/50));tLook.y=Math.max(-1,Math.min(1,(t.clientY-rightStart.y)/50));}
+                }
+            }, {passive:false});
+            const end = e => { for(let i=0;i<e.changedTouches.length;i++){const t=e.changedTouches[i]; if(isLeft&&t.identifier===leftId){leftId=null;tMove={x:0,y:0};} if(!isLeft&&t.identifier===rightId){rightId=null;tLook={x:0,y:0};}} };
+            el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+        }
+        setupTouch(tLeft, true); setupTouch(tRight, false);
+
+        // Desktop mouse drag
+        let mouseDrag=false, mouseLastX=0;
+        canvas.addEventListener('mousedown', e => { mouseDrag=true; mouseLastX=e.clientX; });
+        window.addEventListener('mousemove', e => { if(!mouseDrag) return; pa+=(e.clientX-mouseLastX)*0.005; mouseLastX=e.clientX; if(!playing&&frames.length) render(); });
+        window.addEventListener('mouseup', () => mouseDrag=false);
+
+        // ── EXPORT ──
+        function exportFrame() {
+            if (!frames.length) return;
+            const a = document.createElement('a'); a.download = `ABC_FLUX_F${curIdx+1}.png`;
+            a.href = canvas.toDataURL('image/png'); a.click(); closeAllSheets();
+        }
+    </script>
+</body>
+</html>

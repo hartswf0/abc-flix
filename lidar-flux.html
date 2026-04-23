@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX · LIDAR</title>
+    <meta name="description" content="ABC FLIX LIDAR — Orbital hologram spatializer for BEFLIX-128 frame sequences and video.">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            /* ABC FLIX Design System — Dark Variant */
+            --bg: #0a0a0a;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #0033cc;
+            --act-b: #c8a800;
+            --act-c: #e60000;
+            --dim: #888888;
+            --border: #333333;
+
+            --bw: 3px;
+            --tab-h: 60px;
+            --status-h: 44px;
+            --tl-h: 110px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0;
+            overflow: hidden; position: fixed; inset: 0;
+            height: 100dvh;
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* ── STATUS BAR ── */
+        #status-bar {
+            flex: 0 0 var(--status-h); display: flex; align-items: stretch;
+            background: var(--black); border-bottom: var(--bw) solid var(--border); z-index: 50;
+        }
+        .sb-group {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-right: var(--bw) solid var(--border); flex: 1; padding: 0 4px;
+        }
+        .sb-label { font-size: 9px; font-weight: 900; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+        .sb-val { font-size: 14px; font-weight: 900; color: var(--white); font-variant-numeric: tabular-nums; }
+
+        #btn-play {
+            flex: 0 0 100px; background: var(--act-c); color: var(--white);
+            border: none; font-size: 14px; font-weight: 900; cursor: pointer;
+            letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center;
+        }
+        #btn-play.playing { background: var(--act-a); }
+        #btn-play:active { filter: brightness(0.8); }
+
+        /* ── CANVAS ZONE ── */
+        #canvas-zone {
+            flex: 1 1 0%; position: relative; overflow: hidden;
+            background: #000; display: flex; align-items: center; justify-content: center;
+            cursor: grab;
+        }
+        #canvas-zone:active { cursor: grabbing; }
+        #render-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+        /* Mode Switcher */
+        #mode-switcher {
+            position: absolute; top: 12px; left: 12px; z-index: 30;
+            display: flex; gap: 4px;
+        }
+        .mode-btn {
+            background: rgba(0,0,0,0.8); border: var(--bw) solid var(--border);
+            color: var(--dim); font-size: 11px; font-weight: 900; padding: 8px 12px;
+            cursor: pointer; text-transform: uppercase;
+        }
+        .mode-btn.active { background: var(--white); color: var(--black); border-color: var(--white); }
+
+        /* PiP */
+        #pip-wrap {
+            position: absolute; top: 12px; right: 12px; z-index: 30;
+            width: 140px; background: #000; border: var(--bw) solid var(--border);
+            display: flex; flex-direction: column;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.9);
+        }
+        #pip-header {
+            flex: 0 0 18px; background: var(--black); color: var(--dim);
+            font-size: 9px; font-weight: 900; text-align: center; line-height: 18px;
+            letter-spacing: 0.08em; cursor: pointer;
+        }
+        .pip-canvas { width: 100%; height: auto; aspect-ratio: 16/9; background: #050505; }
+
+        /* Hint */
+        #ctrl-hint {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); color: var(--act-c);
+            padding: 8px 16px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em;
+            pointer-events: none; border: var(--bw) solid var(--border);
+        }
+
+        /* Empty */
+        #empty-state {
+            position: absolute; display: flex; flex-direction: column;
+            align-items: center; color: var(--dim); pointer-events: none; text-align: center;
+        }
+        #empty-state h2 { font-size: 24px; font-weight: 900; letter-spacing: 2px; margin: 0 0 8px 0; color: var(--white); }
+        #empty-state p { font-size: 13px; font-weight: 900; margin: 0; color: var(--act-c); }
+
+        /* ── TIMELINE ── */
+        #timeline-zone {
+            flex: 0 0 var(--tl-h); background: var(--black);
+            border-top: var(--bw) solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden; z-index: 40;
+        }
+        #tl-controls {
+            display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+            border-bottom: var(--bw) solid var(--border); flex-shrink: 0; background: var(--bg);
+        }
+        .tl-btn {
+            background: var(--black); color: var(--white); border: var(--bw) solid var(--border);
+            padding: 6px 12px; font-size: 12px; font-weight: 900; cursor: pointer; text-transform: uppercase;
+        }
+        .tl-btn:active { background: var(--act-c); color: var(--white); border-color: var(--act-c); }
+
+        #tl-strip {
+            flex: 1; display: flex; gap: 6px; padding: 8px 10px;
+            overflow-x: auto; align-items: center;
+            scrollbar-width: thin; scrollbar-color: var(--border) var(--bg);
+        }
+        .tl-frame {
+            flex: 0 0 96px; height: 54px; border: var(--bw) solid var(--border);
+            cursor: pointer; background: #000; position: relative;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+        .tl-frame.on {
+            border-color: var(--act-c); transform: scale(1.06); z-index: 2;
+            box-shadow: 0 0 12px rgba(230,0,0,0.3);
+        }
+        .tl-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; transition: opacity 0.1s; }
+        .tl-frame.on .tl-thumb { opacity: 1; }
+        .tl-num {
+            position: absolute; bottom: 2px; right: 4px; color: #fff;
+            text-shadow: 1px 1px 0 #000; font-size: 11px; font-weight: 900; pointer-events: none;
+        }
+
+        /* ── TAB BAR ── */
+        #tab-bar {
+            flex: 0 0 calc(var(--tab-h) + var(--safe-b)); display: flex;
+            border-top: var(--bw) solid var(--border); background: var(--black);
+            z-index: 60; padding-bottom: var(--safe-b);
+        }
+        .tab-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: var(--tab-h); font-size: 10px; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--dim); cursor: pointer;
+            background: var(--black); border: none; border-right: var(--bw) solid var(--border);
+        }
+        .tab-btn:last-child { border-right: none; }
+        .tab-btn.on-act { background: var(--bg); color: var(--act-c); border-top: 4px solid var(--act-c); }
+        .tab-letter {
+            font-size: 20px; font-weight: 900; line-height: 1; margin-bottom: 2px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        /* ── SHEETS ── */
+        #sheet-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0);
+            pointer-events: none; z-index: 70; transition: background 0.2s;
+        }
+        #sheet-backdrop.on { background: rgba(0,0,0,0.8); pointer-events: all; }
+
+        .sheet {
+            position: fixed; left: 0; right: 0;
+            bottom: calc(var(--tab-h) + var(--safe-b)); max-height: 80vh;
+            background: var(--bg); border-top: var(--bw) solid var(--border);
+            z-index: 80; display: flex; flex-direction: column;
+            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.2,0.9,0.4,1);
+        }
+        .sheet.on { transform: translateY(0); }
+        .sheet-handle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; background: var(--black); border-bottom: var(--bw) solid var(--border);
+        }
+        .sheet-title { font-size: 14px; font-weight: 900; letter-spacing: 0.1em; color: var(--act-c); text-transform: uppercase; }
+        .sheet-close { font-size: 26px; background: none; border: none; color: var(--white); cursor: pointer; line-height: 1; }
+        .sheet-body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+        .sh-btn {
+            padding: 16px; font-weight: 900; text-transform: uppercase; font-size: 13px;
+            letter-spacing: 0.05em; background: var(--black); border: var(--bw) solid var(--border);
+            color: var(--white); cursor: pointer; text-align: center; width: 100%;
+        }
+        .sh-btn:active { background: var(--border); }
+        .sh-btn.primary { background: var(--act-c); color: var(--white); border-color: var(--act-c); }
+
+        .slider-group { display: flex; flex-direction: column; gap: 6px; }
+        .slider-label {
+            font-size: 11px; font-weight: 900; color: var(--dim); text-transform: uppercase;
+            display: flex; justify-content: space-between;
+        }
+        .slider-val { color: var(--act-b); font-variant-numeric: tabular-nums; }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 24px;
+            background: var(--black); border: var(--bw) solid var(--border); outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 24px; height: 24px;
+            background: var(--act-c); cursor: pointer;
+        }
+
+        /* ── LOADING ── */
+        #loading-overlay {
+            position: absolute; inset: 0; z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95);
+        }
+        #loading-overlay.on { display: flex; }
+        #load-msg { font-size: 16px; font-weight: 900; margin-bottom: 16px; color: var(--white); letter-spacing: 0.1em; }
+        #load-bar { width: 240px; height: 6px; background: var(--border); }
+        #load-fill { height: 100%; background: var(--act-c); width: 0%; transition: width 0.1s; }
+
+        @media (min-width: 768px) {
+            #app { flex-direction: row; }
+            #tab-bar {
+                flex: 0 0 90px; flex-direction: column; border-top: none;
+                border-right: var(--bw) solid var(--border); order: -1; padding-bottom: 0;
+            }
+            .tab-btn { border-right: none; border-bottom: var(--bw) solid var(--border); height: auto; flex: 1; }
+            .sheet {
+                left: 90px; bottom: 0; max-height: 100vh; width: 380px;
+                transform: translateX(-100%); border-top: none; border-right: var(--bw) solid var(--border);
+            }
+            .sheet.on { transform: translateX(0); }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <nav id="tab-bar">
+            <button class="tab-btn" onclick="execNav('A')"><span class="tab-letter">A</span>MEDIA</button>
+            <button class="tab-btn" onclick="execNav('B')"><span class="tab-letter">B</span>TUNE</button>
+            <button class="tab-btn" onclick="execNav('C')"><span class="tab-letter">C</span>EXPORT</button>
+        </nav>
+
+        <div style="flex: 1 1 0%; display: flex; flex-direction: column; min-width: 0; position: relative;">
+            <div id="status-bar">
+                <div class="sb-group"><span class="sb-label">FRAME</span><span class="sb-val" id="sb-frame">00/00</span></div>
+                <div class="sb-group"><span class="sb-label">FPS</span><span class="sb-val" id="sb-fps">15</span></div>
+                <div class="sb-group"><span class="sb-label">MODE</span><span class="sb-val" id="sb-mode">HOLO</span></div>
+                <button id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+            </div>
+
+            <div id="canvas-zone">
+                <canvas id="render-canvas"></canvas>
+                <div id="mode-switcher">
+                    <button class="mode-btn active" id="btn-m-holo" onclick="setMode('holo')">HOLO</button>
+                    <button class="mode-btn" id="btn-m-wire" onclick="setMode('wire')">WIRE</button>
+                </div>
+                <div id="pip-wrap" onclick="togglePip()">
+                    <div id="pip-header">SOURCE</div>
+                    <canvas id="pip-canvas" class="pip-canvas"></canvas>
+                </div>
+                <div id="ctrl-hint">DRAG TO ORBIT · PINCH TO ZOOM</div>
+                <div id="empty-state">
+                    <h2>NO SIGNAL</h2>
+                    <p>TAP A · MEDIA TO LOAD</p>
+                </div>
+            </div>
+
+            <div id="timeline-zone">
+                <div id="tl-controls">
+                    <button class="tl-btn" onclick="stepFrame(-1)">◀</button>
+                    <button class="tl-btn" onclick="stepFrame(1)">▶</button>
+                    <span style="flex:1;"></span>
+                    <span style="font-size:11px; font-weight:900; color:var(--dim);">SPD</span>
+                    <button class="tl-btn" onclick="adjustFPS(-2)">−</button>
+                    <button class="tl-btn" onclick="adjustFPS(2)">+</button>
+                </div>
+                <div id="tl-strip"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHEETS -->
+    <div id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+    <div class="sheet" id="sheet-a">
+        <div class="sheet-handle"><span class="sheet-title">A · MEDIA INGESTION</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <p style="font-size:12px; font-weight:900; color:var(--dim); line-height:1.6; margin:0;">
+                Load video or images. Brightness → depth. Colors preserved in 3D point cloud.
+            </p>
+            <input type="file" id="file-input" accept="video/*,image/*" style="display:none">
+            <button class="sh-btn primary" onclick="document.getElementById('file-input').click()">LOAD VIDEO / IMAGE</button>
+            <input type="file" id="bfx-input" accept=".bfx,.txt,.beflix" style="display:none">
+            <button class="sh-btn" onclick="document.getElementById('bfx-input').click()">LOAD .BFX (FROM ICARO-PRO)</button>
+            <button class="sh-btn" onclick="loadDemo()">GENERATE DEMO</button>
+            <div style="margin-top:12px; border-top:var(--bw) solid var(--border); padding-top:12px;">
+                <button class="sh-btn" style="color:var(--act-c); border-color:var(--act-c);" onclick="clearSystem()">CLEAR SYSTEM</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sheet" id="sheet-b">
+        <div class="sheet-handle"><span class="sheet-title">B · 3D TUNING</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <div class="slider-group">
+                <div class="slider-label"><span>LUMINANCE BOOST</span><span class="slider-val" id="lbl-bright">1.5×</span></div>
+                <input type="range" min="0.5" max="3" step="0.1" value="1.5"
+                    oninput="pBrightness=parseFloat(this.value); document.getElementById('lbl-bright').textContent=this.value+'×'; render();">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>EXTRUSION DEPTH</span><span class="slider-val" id="lbl-ext">60</span></div>
+                <input type="range" min="0" max="150" value="60"
+                    oninput="pExtrusion=parseInt(this.value); document.getElementById('lbl-ext').textContent=this.value; render();">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-psize">3.5</span></div>
+                <input type="range" min="1" max="8" step="0.5" value="3.5"
+                    oninput="pPointSize=parseFloat(this.value); document.getElementById('lbl-psize').textContent=this.value; render();">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>CAMERA ZOOM</span><span class="slider-val" id="lbl-zoom">100%</span></div>
+                <input type="range" min="30" max="250" value="100"
+                    oninput="pZoom=parseInt(this.value); document.getElementById('lbl-zoom').textContent=this.value+'%'; render();">
+            </div>
+            <button class="sh-btn" onclick="resetCamera()">RESET CAMERA</button>
+        </div>
+    </div>
+
+    <div class="sheet" id="sheet-c">
+        <div class="sheet-handle"><span class="sheet-title">C · EXPORT</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+        <div class="sheet-body">
+            <p style="font-size:12px; font-weight:900; color:var(--dim); margin:0;">Capture the 3D hologram as it appears on screen.</p>
+            <button class="sh-btn primary" onclick="exportFrame()">SAVE FRAME (PNG)</button>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loading-overlay">
+        <div id="load-msg">PROCESSING...</div>
+        <div id="load-bar"><div id="load-fill"></div></div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // ABC FLIX · LIDAR — Orbital Hologram Engine
+        // ═══════════════════════════════════════════════════════════
+
+        const canvas = document.getElementById('render-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const pipCanvasEl = document.getElementById('pip-canvas');
+        const pipCtx = pipCanvasEl.getContext('2d', { willReadFrequently: true });
+
+        let W = 0, H = 0;
+        let frames = [];
+        let curIdx = 0;
+        let playing = false;
+        let playRAF = null;
+        let lastPlayT = 0;
+        let BASE_FPS = 15;
+
+        // 3D Engine
+        const MESH_W = 120, MESH_H = 68;
+        let vMode = 'holo';
+        let pExtrusion = 60;
+        let pPointSize = 3.5;
+        let pZoom = 100;
+        let pBrightness = 1.5;
+        let camYaw = 0, camPitch = -0.3;
+        let isDragging = false;
+        let lastMouse = { x: 0, y: 0 };
+        let pipMode = 0; // 0=source, 1=depth, 2=hidden
+
+        function resize() {
+            const rect = document.getElementById('canvas-zone').getBoundingClientRect();
+            W = Math.floor(rect.width); H = Math.floor(rect.height);
+            canvas.width = W; canvas.height = H;
+            if (frames.length) render();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ── UI NAV ──
+        let activeSheet = null;
+        function execNav(id) {
+            if (activeSheet === id) { closeAllSheets(); return; }
+            closeAllSheets();
+            activeSheet = id;
+            document.getElementById('sheet-' + id.toLowerCase()).classList.add('on');
+            document.getElementById('sheet-backdrop').classList.add('on');
+        }
+        function closeAllSheets() {
+            ['a', 'b', 'c'].forEach(id => document.getElementById('sheet-' + id).classList.remove('on'));
+            document.getElementById('sheet-backdrop').classList.remove('on');
+            activeSheet = null;
+        }
+        function setMode(m) {
+            vMode = m;
+            ['holo', 'wire'].forEach(k => document.getElementById('btn-m-' + k).classList.remove('active'));
+            document.getElementById('btn-m-' + m).classList.add('active');
+            document.getElementById('sb-mode').textContent = m.toUpperCase();
+            render();
+        }
+        function togglePip() {
+            pipMode = (pipMode + 1) % 3;
+            const wrap = document.getElementById('pip-wrap');
+            const hdr = document.getElementById('pip-header');
+            if (pipMode === 0) { wrap.style.display = 'flex'; hdr.textContent = 'SOURCE'; }
+            else if (pipMode === 1) { wrap.style.display = 'flex'; hdr.textContent = 'DEPTH'; }
+            else { wrap.style.display = 'none'; }
+            if (frames.length) syncUI();
+        }
+
+        // ── INGESTION ──
+        document.getElementById('file-input').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return; e.target.value = '';
+            closeAllSheets();
+            if (f.type.startsWith('video/')) await loadVideo(f);
+            else if (f.type.startsWith('image/')) await loadImage(f);
+        });
+
+        // BEFLIX ingestion
+        document.getElementById('bfx-input').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return; e.target.value = '';
+            closeAllSheets();
+            showLoad('PARSING BEFLIX...');
+            const text = await f.text();
+            await parseBFX(text);
+            hideLoad();
+            initSequence();
+        });
+
+        function showLoad(msg) {
+            document.getElementById('loading-overlay').classList.add('on');
+            document.getElementById('load-msg').textContent = msg;
+            document.getElementById('load-fill').style.width = '0%';
+        }
+        function hideLoad() { document.getElementById('loading-overlay').classList.remove('on'); }
+
+        async function loadVideo(file) {
+            showLoad('EXTRACTING VIDEO...');
+            const url = URL.createObjectURL(file);
+            const vid = document.createElement('video');
+            vid.muted = true; vid.playsInline = true; vid.src = url;
+            await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; setTimeout(rej, 8000); });
+            const dur = vid.duration;
+            const total = Math.min(Math.floor(dur * BASE_FPS), 100);
+            const interval = dur / total;
+            for (let i = 0; i < total; i++) {
+                vid.currentTime = i * interval;
+                await new Promise(r => { vid.onseeked = r; setTimeout(r, 400); });
+                frames.push(processFrame(vid));
+                document.getElementById('load-fill').style.width = ((i + 1) / total * 100) + '%';
+            }
+            URL.revokeObjectURL(url);
+            hideLoad(); initSequence();
+        }
+
+        async function loadImage(file) {
+            showLoad('PROCESSING IMAGE...');
+            const url = URL.createObjectURL(file);
+            const img = new Image(); img.src = url;
+            await new Promise((r, j) => { img.onload = r; img.onerror = j; setTimeout(j, 5000); });
+            frames.push(processFrame(img));
+            URL.revokeObjectURL(url);
+            hideLoad(); initSequence();
+        }
+
+        function loadDemo() {
+            closeAllSheets(); showLoad('GENERATING...');
+            setTimeout(() => {
+                for (let i = 0; i < 40; i++) {
+                    const c = document.createElement('canvas'); c.width = MESH_W; c.height = MESH_H;
+                    const cx = c.getContext('2d');
+                    cx.fillStyle = '#000'; cx.fillRect(0, 0, MESH_W, MESH_H);
+                    const time = i / 40 * Math.PI * 2;
+                    cx.save(); cx.translate(MESH_W/2, MESH_H/2); cx.rotate(time);
+                    const grad = cx.createLinearGradient(0,0,MESH_H,0);
+                    grad.addColorStop(0,'#ffffff'); grad.addColorStop(1,'#e60000');
+                    cx.fillStyle = grad;
+                    cx.beginPath(); cx.moveTo(0,0); cx.arc(0,0,MESH_H*0.8,0,0.4); cx.fill();
+                    cx.restore();
+                    cx.strokeStyle = '#e60000'; cx.lineWidth = 3;
+                    cx.beginPath(); cx.arc(MESH_W/2, MESH_H/2, (i*2)%(MESH_H/2), 0, Math.PI*2); cx.stroke();
+                    cx.beginPath(); cx.arc(MESH_W/2, MESH_H/2, ((i*2)+MESH_H/4)%(MESH_H/2), 0, Math.PI*2); cx.stroke();
+                    frames.push(processFrame(c));
+                }
+                hideLoad(); initSequence();
+            }, 100);
+        }
+
+        // ── BEFLIX PARSER ──
+        // Reads .bfx files exported from ICARO-PRO and converts to spatial frames
+        const BFX_COLS = 128, BFX_ROWS = 96;
+        const BFX_INKS = [
+            [255,255,255,0], [34,34,34,36], [34,34,34,72], [34,34,34,108],
+            [34,34,34,144], [34,34,34,180], [34,34,34,216], [0,0,0,255]
+        ];
+
+        async function parseBFX(text) {
+            const lines = text.toUpperCase().split('\n');
+            let mat = Array(BFX_ROWS).fill().map(() => Array(BFX_COLS).fill(0));
+            const results = [];
+
+            for (let li = 0; li < lines.length; li++) {
+                let l = lines[li].trim();
+                if (!l || l.startsWith('C') || l.startsWith(';')) continue;
+                const p = l.split(/\s+/), cmd = p[0], a = p.slice(1).map(Number);
+                if (cmd === 'CLR') {
+                    for (let y = 0; y < BFX_ROWS; y++) for (let x = 0; x < BFX_COLS; x++) mat[y][x] = a[0];
+                } else if (cmd === 'PNT') {
+                    for (let y = a[1]; y < a[1]+a[3]; y++) for (let x = a[0]; x < a[0]+a[2]; x++)
+                        if (y >= 0 && y < BFX_ROWS && x >= 0 && x < BFX_COLS) mat[y][x] = a[4];
+                } else if (cmd === 'LIN') {
+                    let lv=a[4], x0=a[0], y0=a[1], x1=a[2], y1=a[3];
+                    let dx=Math.abs(x1-x0), sx=x0<x1?1:-1, dy=-Math.abs(y1-y0), sy=y0<y1?1:-1, err=dx+dy, lim=3000;
+                    while(lim-->0) { if(x0>=0&&x0<BFX_COLS&&y0>=0&&y0<BFX_ROWS) mat[y0][x0]=lv; if(x0===x1&&y0===y1) break; let e2=2*err; if(e2>=dy){err+=dy;x0+=sx;} if(e2<=dx){err+=dx;y0+=sy;} }
+                } else if (cmd === 'REC') {
+                    for (let f = 0; f < Math.min(a[0], 500); f++) results.push(mat.map(r => [...r]));
+                } else if (cmd === 'SHF') {
+                    for (let f = 0; f < Math.min(a[2], 500); f++) {
+                        let n = Array(BFX_ROWS).fill().map(() => Array(BFX_COLS).fill(0));
+                        for (let y=0;y<BFX_ROWS;y++) for (let x=0;x<BFX_COLS;x++) { let nx=x-a[0], ny=y-a[1]; if(nx>=0&&nx<BFX_COLS&&ny>=0&&ny<BFX_ROWS) n[y][x]=mat[ny][nx]; }
+                        mat = n; results.push(mat.map(r => [...r]));
+                    }
+                }
+                if (li % 500 === 0) {
+                    document.getElementById('load-fill').style.width = (li/lines.length*80) + '%';
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            if (!results.length) results.push(mat);
+
+            // Convert BEFLIX grids to canvas frames for the 3D engine
+            for (let i = 0; i < results.length; i++) {
+                const grid = results[i];
+                const c = document.createElement('canvas'); c.width = BFX_COLS; c.height = BFX_ROWS;
+                const cx = c.getContext('2d');
+                const img = cx.createImageData(BFX_COLS, BFX_ROWS);
+                const px = img.data;
+                for (let y = 0; y < BFX_ROWS; y++) {
+                    for (let x = 0; x < BFX_COLS; x++) {
+                        const idx = (y * BFX_COLS + x) * 4;
+                        const ink = BFX_INKS[grid[y][x]] || BFX_INKS[0];
+                        // Convert BEFLIX monochrome to visible grayscale
+                        const lum = Math.round((grid[y][x] / 7) * 255);
+                        px[idx] = lum; px[idx+1] = lum; px[idx+2] = lum; px[idx+3] = 255;
+                    }
+                }
+                cx.putImageData(img, 0, 0);
+                frames.push(processFrame(c));
+                document.getElementById('load-fill').style.width = (80 + (i/results.length*20)) + '%';
+                if (i % 20 === 0) await new Promise(r => setTimeout(r, 0));
+            }
+        }
+
+        // ── CORE DATA PROCESSING ──
+        function processFrame(source) {
+            const c = document.createElement('canvas'); c.width = MESH_W; c.height = MESH_H;
+            const cx = c.getContext('2d');
+            cx.drawImage(source, 0, 0, MESH_W, MESH_H);
+            const imgData = cx.getImageData(0, 0, MESH_W, MESH_H);
+            const px = imgData.data;
+            const pointCount = MESH_W * MESH_H;
+            const baseCols = new Uint8Array(pointCount * 3);
+            const baseZ = new Float32Array(pointCount);
+            const baseX = new Float32Array(pointCount);
+            const baseY = new Float32Array(pointCount);
+
+            const depthCanvas = document.createElement('canvas'); depthCanvas.width = MESH_W; depthCanvas.height = MESH_H;
+            const depthCtx = depthCanvas.getContext('2d');
+            const depthImg = depthCtx.createImageData(MESH_W, MESH_H);
+            const dpx = depthImg.data;
+
+            let pIdx = 0;
+            for (let y = 0; y < MESH_H; y++) {
+                for (let x = 0; x < MESH_W; x++) {
+                    const i = (y * MESH_W + x) * 4;
+                    const r = px[i], g = px[i+1], b = px[i+2];
+                    let lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+                    baseCols[pIdx*3] = Math.min(255, r*1.2);
+                    baseCols[pIdx*3+1] = Math.min(255, g*1.2);
+                    baseCols[pIdx*3+2] = Math.min(255, b*1.2);
+                    baseX[pIdx] = x - MESH_W/2;
+                    baseY[pIdx] = y - MESH_H/2;
+                    baseZ[pIdx] = lum;
+                    const lumPx = Math.floor(lum * 255);
+                    dpx[i] = lumPx; dpx[i+1] = lumPx; dpx[i+2] = lumPx; dpx[i+3] = 255;
+                    pIdx++;
+                }
+            }
+            depthCtx.putImageData(depthImg, 0, 0);
+            return { colorCanvas: c, depthCanvas, cols: baseCols, bx: baseX, by: baseY, bz: baseZ, count: pointCount };
+        }
+
+        function initSequence() {
+            curIdx = 0; resetCamera();
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('ctrl-hint').style.display = 'block';
+            const strip = document.getElementById('tl-strip'); strip.innerHTML = '';
+            frames.forEach((f, i) => {
+                const d = document.createElement('div'); d.className = 'tl-frame';
+                d.onclick = () => { curIdx = i; syncUI(); render(); };
+                const img = document.createElement('img'); img.className = 'tl-thumb'; img.src = f.colorCanvas.toDataURL();
+                const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1;
+                d.appendChild(img); d.appendChild(n); strip.appendChild(d);
+            });
+            syncUI(); render();
+        }
+
+        function syncUI() {
+            if (!frames.length) return;
+            document.getElementById('sb-frame').textContent = `${String(curIdx+1).padStart(2,'0')}/${String(frames.length).padStart(2,'0')}`;
+            document.getElementById('sb-fps').textContent = BASE_FPS;
+            document.querySelectorAll('.tl-frame').forEach((el, i) => {
+                if (i === curIdx) { el.classList.add('on'); el.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'}); }
+                else el.classList.remove('on');
+            });
+            const f = frames[curIdx];
+            pipCanvasEl.width = MESH_W; pipCanvasEl.height = MESH_H;
+            if (pipMode === 0) pipCtx.drawImage(f.colorCanvas, 0, 0);
+            else if (pipMode === 1) pipCtx.drawImage(f.depthCanvas, 0, 0);
+        }
+
+        function clearSystem() {
+            frames = []; curIdx = 0; playing = false; cancelAnimationFrame(playRAF);
+            ctx.clearRect(0, 0, W, H); pipCtx.clearRect(0, 0, MESH_W, MESH_H);
+            document.getElementById('tl-strip').innerHTML = '';
+            document.getElementById('empty-state').style.display = 'flex';
+            document.getElementById('ctrl-hint').style.display = 'none';
+            document.getElementById('sb-frame').textContent = '00/00';
+            document.getElementById('btn-play').classList.remove('playing');
+            document.getElementById('btn-play').textContent = '▶ PLAY';
+            closeAllSheets();
+        }
+
+        // ── PLAYBACK ──
+        function togglePlay() {
+            if (!frames.length) return;
+            playing = !playing;
+            const btn = document.getElementById('btn-play');
+            btn.classList.toggle('playing', playing);
+            btn.textContent = playing ? '■ PAUSE' : '▶ PLAY';
+            if (playing) { lastPlayT = performance.now(); loop(); }
+            else cancelAnimationFrame(playRAF);
+        }
+        function stepFrame(dir) { if (!frames.length || playing) return; curIdx = (curIdx + dir + frames.length) % frames.length; syncUI(); render(); }
+        function adjustFPS(dir) { BASE_FPS = Math.max(1, Math.min(60, BASE_FPS + dir)); syncUI(); }
+        function loop() {
+            if (!playing) return;
+            const now = performance.now();
+            if (now - lastPlayT >= 1000/BASE_FPS) { curIdx = (curIdx+1)%frames.length; lastPlayT = now; syncUI(); render(); }
+            playRAF = requestAnimationFrame(loop);
+        }
+
+        // ── 3D ORBIT ──
+        const zone = document.getElementById('canvas-zone');
+        zone.addEventListener('pointerdown', e => { isDragging = true; lastMouse = {x:e.clientX,y:e.clientY}; zone.setPointerCapture(e.pointerId); });
+        zone.addEventListener('pointermove', e => {
+            if (!isDragging) return;
+            camYaw -= (e.clientX - lastMouse.x) * 0.01;
+            camPitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camPitch - (e.clientY - lastMouse.y) * 0.01));
+            lastMouse = {x:e.clientX,y:e.clientY};
+            if (frames.length && !playing) render();
+        });
+        zone.addEventListener('pointerup', e => { isDragging = false; zone.releasePointerCapture(e.pointerId); });
+        zone.addEventListener('pointercancel', () => { isDragging = false; });
+        function resetCamera() { camYaw = 0; camPitch = -0.15; if (frames.length && !playing) render(); }
+
+        // ── 3D RENDER ──
+        let renderList = [];
+        function render() {
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+            if (!frames.length) return;
+            const f = frames[curIdx], count = f.count;
+            if (renderList.length !== count) { renderList = new Array(count); for (let i=0;i<count;i++) renderList[i]={x:0,y:0,z:0,r:0,g:0,b:0,s:0}; }
+            const cosY=Math.cos(camYaw),sinY=Math.sin(camYaw),cosP=Math.cos(camPitch),sinP=Math.sin(camPitch);
+            const scale=(Math.min(W,H)/MESH_W)*(pZoom/100)*0.85, focal=800;
+            for (let i=0;i<count;i++) {
+                let bx=f.bx[i], by=f.by[i], bz=-(f.bz[i]*pExtrusion);
+                let x1=bx*cosY-bz*sinY, z1=bz*cosY+bx*sinY, y1=by;
+                let x2=x1, y2=y1*cosP-z1*sinP, z2=z1*cosP+y1*sinP;
+                z2+=300;
+                let ps=focal/(focal+z2);
+                const pt=renderList[i];
+                pt.x=(W/2)+(x2*scale*ps); pt.y=(H/2)+(y2*scale*ps); pt.z=z2;
+                let shade=Math.max(0.5,Math.min(1.5,1.4-((z2-100)/500)));
+                pt.r=Math.min(255,Math.floor(f.cols[i*3]*shade*pBrightness));
+                pt.g=Math.min(255,Math.floor(f.cols[i*3+1]*shade*pBrightness));
+                pt.b=Math.min(255,Math.floor(f.cols[i*3+2]*shade*pBrightness));
+                pt.s=Math.max(0.8,pPointSize*scale*0.05*ps);
+            }
+            renderList.sort((a,b)=>b.z-a.z);
+            if (vMode==='holo') { for(let i=0;i<count;i++){const pt=renderList[i]; ctx.fillStyle=`rgb(${pt.r},${pt.g},${pt.b})`; ctx.fillRect(pt.x-pt.s/2,pt.y-pt.s/2,pt.s,pt.s);} }
+            else if (vMode==='wire') {
+                ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.beginPath();
+                for(let i=0;i<count;i++){const pt=renderList[i]; ctx.fillStyle=`rgb(${pt.r},${pt.g},${pt.b})`; ctx.fillRect(pt.x-pt.s/2,pt.y-pt.s/2,pt.s,pt.s); if(i>0&&Math.abs(pt.x-renderList[i-1].x)<30&&Math.abs(pt.y-renderList[i-1].y)<30){ctx.moveTo(pt.x,pt.y);ctx.lineTo(renderList[i-1].x,renderList[i-1].y);}}
+                ctx.stroke();
+            }
+        }
+
+        // ── EXPORT ──
+        function exportFrame() {
+            if (!frames.length) return; render();
+            try { const a=document.createElement('a'); a.download=`ABC_LIDAR_F${curIdx+1}.png`; a.href=canvas.toDataURL('image/png',1.0); a.click(); closeAllSheets(); }
+            catch(e) { console.error('Export Error:',e); }
+        }
+    </script>
+</body>
+</html>
