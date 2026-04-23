@@ -479,8 +479,9 @@ async function parseBFX(text) {
     const results=[];
     for (let li=0; li<lines.length; li++) {
         let l=lines[li].trim();
-        if(!l||l.startsWith('C')||l.startsWith(';')) continue;
+        if(!l||l[0]===';') continue;
         const p=l.split(/\s+/), cmd=p[0], a=p.slice(1).map(Number);
+        if(cmd==='C') continue;
         if(cmd==='CLR') { for(let y=0;y<BFX_ROWS;y++) for(let x=0;x<BFX_COLS;x++) mat[y][x]=a[0]; }
         else if(cmd==='PNT') { for(let y=a[1];y<a[1]+a[3];y++) for(let x=a[0];x<a[0]+a[2];x++) if(y>=0&&y<BFX_ROWS&&x>=0&&x<BFX_COLS) mat[y][x]=a[4]; }
         else if(cmd==='LIN') { let lv=a[4],x0=a[0],y0=a[1],x1=a[2],y1=a[3],dx=Math.abs(x1-x0),sx=x0<x1?1:-1,dy=-Math.abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy,lim=3000; while(lim-->0){if(x0>=0&&x0<BFX_COLS&&y0>=0&&y0<BFX_ROWS)mat[y0][x0]=lv;if(x0===x1&&y0===y1)break;let e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}} }
