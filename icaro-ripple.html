@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX · RIPPLE</title>
+    <meta name="description" content="ABC FLIX RIPPLE — Audio-reactive depth-layer hologram engine. Decompose video into luminance layers, tint, toggle, and drive displacement with sound.">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            --bg: #0a0a0a; --black: #000; --white: #fff;
+            --act-a: #0033cc; --act-b: #c8a800; --act-c: #e60000;
+            --dim: #888; --border: #333;
+            --bw: 3px; --tab-h: 54px; --status-h: 40px; --tl-h: 90px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; border-radius: 0 !important; }
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+            position: fixed; inset: 0; height: 100dvh;
+            background: var(--bg); color: var(--white);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none; -webkit-user-select: none;
+        }
+        #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* STATUS */
+        #status-bar {
+            flex: 0 0 var(--status-h); display: flex; align-items: stretch;
+            background: var(--black); border-bottom: var(--bw) solid var(--border); z-index: 50;
+        }
+        .sb-group {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-right: var(--bw) solid var(--border); flex: 1; padding: 0 2px;
+        }
+        .sb-label { font-size: 8px; font-weight: 900; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; }
+        .sb-val { font-size: 13px; font-weight: 900; color: var(--white); font-variant-numeric: tabular-nums; }
+        #btn-play {
+            flex: 0 0 80px; background: var(--act-c); color: var(--white);
+            border: none; font-size: 13px; font-weight: 900; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #btn-play.playing { background: var(--act-a); }
+        #btn-play:active { filter: brightness(0.8); }
+
+        /* CANVAS */
+        #canvas-zone {
+            flex: 1 1 0%; position: relative; overflow: hidden;
+            background: #000; cursor: grab;
+        }
+        #canvas-zone:active { cursor: grabbing; }
+        #render-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+        /* Audio Indicator */
+        #audio-badge {
+            position: absolute; top: 10px; right: 10px; z-index: 30;
+            background: rgba(0,0,0,0.85); border: var(--bw) solid var(--border);
+            padding: 6px 10px; font-size: 10px; font-weight: 900; color: var(--dim);
+            display: flex; gap: 6px; align-items: center;
+        }
+        #audio-badge.live { color: var(--act-c); border-color: var(--act-c); }
+        #audio-bars { display: flex; gap: 2px; align-items: flex-end; height: 16px; }
+        .a-bar { width: 4px; background: var(--dim); transition: height 0.05s; }
+        #audio-badge.live .a-bar { background: var(--act-c); }
+
+        /* Layer Legend (overlay) */
+        #layer-legend {
+            position: absolute; bottom: 10px; left: 10px; z-index: 30;
+            display: flex; gap: 3px; pointer-events: none;
+        }
+        .ll-chip {
+            width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3);
+            font-size: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+            color: var(--white); pointer-events: all; cursor: pointer;
+        }
+        .ll-chip.off { opacity: 0.2; }
+
+        /* TIMELINE */
+        #timeline-zone {
+            flex: 0 0 var(--tl-h); background: var(--black);
+            border-top: var(--bw) solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden; z-index: 40;
+        }
+        #tl-controls {
+            display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+            border-bottom: var(--bw) solid var(--border); flex-shrink: 0; background: var(--bg);
+        }
+        .tl-btn {
+            background: var(--black); color: var(--white); border: 2px solid var(--border);
+            padding: 5px 10px; font-size: 11px; font-weight: 900; cursor: pointer;
+        }
+        .tl-btn:active { background: var(--act-c); border-color: var(--act-c); }
+        #tl-strip {
+            flex: 1; display: flex; gap: 4px; padding: 6px 8px;
+            overflow-x: auto; align-items: center;
+            scrollbar-width: thin; scrollbar-color: var(--border) var(--bg);
+        }
+        .tl-frame {
+            flex: 0 0 72px; height: 42px; border: var(--bw) solid var(--border);
+            cursor: pointer; background: #000; position: relative;
+        }
+        .tl-frame.on { border-color: var(--act-c); transform: scale(1.05); z-index: 2; box-shadow: 0 0 8px rgba(230,0,0,0.3); }
+        .tl-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; }
+        .tl-frame.on .tl-thumb { opacity: 1; }
+        .tl-num { position: absolute; bottom: 1px; right: 3px; color: #fff; text-shadow: 1px 1px 0 #000; font-size: 10px; font-weight: 900; pointer-events: none; }
+
+        /* TABS */
+        #tab-bar {
+            flex: 0 0 calc(var(--tab-h) + var(--safe-b)); display: flex;
+            border-top: var(--bw) solid var(--border); background: var(--black);
+            z-index: 60; padding-bottom: var(--safe-b);
+        }
+        .tab-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: var(--tab-h); font-size: 9px; font-weight: 900; text-transform: uppercase;
+            color: var(--dim); cursor: pointer; background: var(--black); border: none;
+            border-right: 2px solid var(--border);
+        }
+        .tab-btn:last-child { border-right: none; }
+        .tab-btn.on-act { background: var(--bg); color: var(--act-c); border-top: 3px solid var(--act-c); }
+        .tab-letter { font-size: 18px; font-weight: 900; line-height: 1; margin-bottom: 1px; }
+
+        /* SHEETS */
+        #sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0); pointer-events: none; z-index: 70; transition: background 0.2s; }
+        #sheet-backdrop.on { background: rgba(0,0,0,0.8); pointer-events: all; }
+        .sheet {
+            position: fixed; left: 0; right: 0; bottom: calc(var(--tab-h) + var(--safe-b));
+            max-height: 75vh; background: var(--bg); border-top: var(--bw) solid var(--border);
+            z-index: 80; display: flex; flex-direction: column;
+            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.2,0.9,0.4,1);
+        }
+        .sheet.on { transform: translateY(0); }
+        .sheet-handle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: var(--black); border-bottom: var(--bw) solid var(--border);
+        }
+        .sheet-title { font-size: 13px; font-weight: 900; letter-spacing: 0.1em; color: var(--act-c); text-transform: uppercase; }
+        .sheet-close { font-size: 24px; background: none; border: none; color: var(--white); cursor: pointer; }
+        .sheet-body { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+        .sh-btn {
+            padding: 14px; font-weight: 900; text-transform: uppercase; font-size: 12px;
+            background: var(--black); border: var(--bw) solid var(--border);
+            color: var(--white); cursor: pointer; text-align: center; width: 100%;
+        }
+        .sh-btn:active { background: var(--border); }
+        .sh-btn.primary { background: var(--act-c); border-color: var(--act-c); }
+
+        .slider-group { display: flex; flex-direction: column; gap: 4px; }
+        .slider-label { font-size: 10px; font-weight: 900; color: var(--dim); text-transform: uppercase; display: flex; justify-content: space-between; }
+        .slider-val { color: var(--act-b); font-variant-numeric: tabular-nums; }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 20px; background: var(--black); border: 2px solid var(--border); outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--act-c); cursor: pointer; }
+
+        /* Layer row */
+        .layer-row {
+            display: flex; align-items: center; gap: 6px; padding: 8px;
+            border: 2px solid var(--border); background: var(--black);
+        }
+        .layer-row.off { opacity: 0.35; }
+        .lr-eye { width: 28px; height: 28px; border: 2px solid var(--border); background: none; color: var(--white); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .lr-eye.on { background: var(--act-c); border-color: var(--act-c); }
+        .lr-swatch { width: 28px; height: 28px; border: 2px solid var(--border); cursor: pointer; }
+        .lr-label { font-size: 10px; font-weight: 900; color: var(--dim); flex: 1; text-transform: uppercase; }
+        .lr-density { font-size: 10px; font-weight: 900; color: var(--act-b); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+        .lr-opacity { width: 60px; height: 16px; -webkit-appearance: none; background: var(--border); border: none; }
+        .lr-opacity::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 16px; background: var(--white); cursor: pointer; }
+
+        @media (min-width: 768px) {
+            #app { flex-direction: row; }
+            #tab-bar { flex: 0 0 80px; flex-direction: column; border-top: none; border-right: var(--bw) solid var(--border); order: -1; padding-bottom: 0; }
+            .tab-btn { border-right: none; border-bottom: 2px solid var(--border); height: auto; flex: 1; }
+            .sheet { left: 80px; bottom: 0; max-height: 100vh; width: 360px; transform: translateX(-100%); border-top: none; border-right: var(--bw) solid var(--border); }
+            .sheet.on { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <nav id="tab-bar">
+        <button class="tab-btn" onclick="execNav('A')"><span class="tab-letter">A</span>MEDIA</button>
+        <button class="tab-btn" onclick="execNav('B')"><span class="tab-letter">B</span>LAYERS</button>
+        <button class="tab-btn" onclick="execNav('C')"><span class="tab-letter">C</span>AUDIO</button>
+        <button class="tab-btn" onclick="execNav('D')"><span class="tab-letter">D</span>TUNE</button>
+        <button class="tab-btn" onclick="execNav('E')"><span class="tab-letter">E</span>EXPORT</button>
+    </nav>
+    <div style="flex:1 1 0%;display:flex;flex-direction:column;min-width:0;position:relative;">
+        <div id="status-bar">
+            <div class="sb-group"><span class="sb-label">FRAME</span><span class="sb-val" id="sb-frame">00/00</span></div>
+            <div class="sb-group"><span class="sb-label">FPS</span><span class="sb-val" id="sb-fps">15</span></div>
+            <div class="sb-group"><span class="sb-label">LAYERS</span><span class="sb-val" id="sb-layers">8/8</span></div>
+            <div class="sb-group"><span class="sb-label">AUDIO</span><span class="sb-val" id="sb-audio">OFF</span></div>
+            <button id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+        </div>
+        <div id="canvas-zone">
+            <canvas id="render-canvas"></canvas>
+            <div id="audio-badge">
+                <div id="audio-bars"></div>
+                <span id="audio-label">NO AUDIO</span>
+            </div>
+            <div id="layer-legend"></div>
+        </div>
+        <div id="timeline-zone">
+            <div id="tl-controls">
+                <button class="tl-btn" onclick="stepFrame(-1)">◀</button>
+                <button class="tl-btn" onclick="stepFrame(1)">▶</button>
+                <span style="flex:1"></span>
+                <span style="font-size:10px;font-weight:900;color:var(--dim)">SPD</span>
+                <button class="tl-btn" onclick="adjustFPS(-2)">−</button>
+                <button class="tl-btn" onclick="adjustFPS(2)">+</button>
+            </div>
+            <div id="tl-strip"></div>
+        </div>
+    </div>
+</div>
+
+<div id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+<!-- A · MEDIA -->
+<div class="sheet" id="sheet-a">
+    <div class="sheet-handle"><span class="sheet-title">A · MEDIA</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+    <div class="sheet-body">
+        <p style="font-size:11px;font-weight:900;color:var(--dim);line-height:1.5;margin:0">Load video/image/BFX. Frames decompose into 8 luminance layers for audio-reactive hologram.</p>
+        <input type="file" id="file-input" accept="video/*,image/*" style="display:none">
+        <button class="sh-btn primary" onclick="document.getElementById('file-input').click()">LOAD VIDEO / IMAGE</button>
+        <input type="file" id="bfx-input" accept=".bfx,.txt,.beflix" style="display:none">
+        <button class="sh-btn" onclick="document.getElementById('bfx-input').click()">LOAD .BFX (FROM ICARO-PRO)</button>
+        <button class="sh-btn" onclick="loadDemo()">GENERATE DEMO</button>
+        <div style="margin-top:8px;border-top:var(--bw) solid var(--border);padding-top:8px">
+            <button class="sh-btn" style="color:var(--act-c);border-color:var(--act-c)" onclick="clearSystem()">CLEAR SYSTEM</button>
+        </div>
+    </div>
+</div>
+
+<!-- B · LAYERS -->
+<div class="sheet" id="sheet-b">
+    <div class="sheet-handle"><span class="sheet-title">B · LAYERS</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+    <div class="sheet-body" id="layer-panel"></div>
+</div>
+
+<!-- C · AUDIO -->
+<div class="sheet" id="sheet-c">
+    <div class="sheet-handle"><span class="sheet-title">C · AUDIO REACTIVE</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+    <div class="sheet-body">
+        <button class="sh-btn primary" id="btn-mic" onclick="toggleMic()">🎤 CONNECT MICROPHONE</button>
+        <input type="file" id="audio-input" accept="audio/*" style="display:none">
+        <button class="sh-btn" onclick="document.getElementById('audio-input').click()">LOAD AUDIO FILE</button>
+        <button class="sh-btn" onclick="stopAudio()">STOP AUDIO</button>
+        <div class="slider-group">
+            <div class="slider-label"><span>SENSITIVITY</span><span class="slider-val" id="lbl-sens">100%</span></div>
+            <input type="range" min="0" max="300" value="100" oninput="pSensitivity=parseInt(this.value)/100;document.getElementById('lbl-sens').textContent=this.value+'%'">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>RIPPLE SPEED</span><span class="slider-val" id="lbl-rspd">0.08</span></div>
+            <input type="range" min="0" max="50" value="8" oninput="pRippleSpeed=parseInt(this.value)/100;document.getElementById('lbl-rspd').textContent=(parseInt(this.value)/100).toFixed(2)">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>RIPPLE FREQUENCY</span><span class="slider-val" id="lbl-rfrq">0.15</span></div>
+            <input type="range" min="1" max="50" value="15" oninput="pRippleFreq=parseInt(this.value)/100;document.getElementById('lbl-rfrq').textContent=(parseInt(this.value)/100).toFixed(2)">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>RIPPLE AMPLITUDE</span><span class="slider-val" id="lbl-ramp">20</span></div>
+            <input type="range" min="0" max="80" value="20" oninput="pRippleAmp=parseInt(this.value);document.getElementById('lbl-ramp').textContent=this.value">
+        </div>
+    </div>
+</div>
+
+<!-- D · TUNE -->
+<div class="sheet" id="sheet-d">
+    <div class="sheet-handle"><span class="sheet-title">D · TUNE</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+    <div class="sheet-body">
+        <div class="slider-group">
+            <div class="slider-label"><span>EXTRUSION DEPTH</span><span class="slider-val" id="lbl-ext">50</span></div>
+            <input type="range" min="0" max="120" value="50" oninput="pExtrusion=parseInt(this.value);document.getElementById('lbl-ext').textContent=this.value;render()">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-ps">3.0</span></div>
+            <input type="range" min="10" max="80" value="30" oninput="pPointSize=parseInt(this.value)/10;document.getElementById('lbl-ps').textContent=(parseInt(this.value)/10).toFixed(1);render()">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>ZOOM</span><span class="slider-val" id="lbl-zm">100%</span></div>
+            <input type="range" min="30" max="250" value="100" oninput="pZoom=parseInt(this.value);document.getElementById('lbl-zm').textContent=this.value+'%';render()">
+        </div>
+        <div class="slider-group">
+            <div class="slider-label"><span>LAYER SPACING</span><span class="slider-val" id="lbl-lsp">30</span></div>
+            <input type="range" min="0" max="80" value="30" oninput="pLayerSpacing=parseInt(this.value);document.getElementById('lbl-lsp').textContent=this.value;render()">
+        </div>
+        <button class="sh-btn" onclick="resetCamera()">RESET CAMERA</button>
+    </div>
+</div>
+
+<!-- E · EXPORT -->
+<div class="sheet" id="sheet-e">
+    <div class="sheet-handle"><span class="sheet-title">E · EXPORT</span><button class="sheet-close" onclick="closeAllSheets()">×</button></div>
+    <div class="sheet-body">
+        <button class="sh-btn primary" onclick="exportComposite()">SAVE COMPOSITE (PNG)</button>
+        <button class="sh-btn" onclick="exportAllLayers()">SAVE ALL LAYERS (8 PNGs)</button>
+        <p style="font-size:10px;font-weight:900;color:var(--dim);text-align:center;margin:0">Each layer exported as a separate PNG with transparency.</p>
+    </div>
+</div>
+
+<div id="loading-overlay" style="position:absolute;inset:0;z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.95)">
+    <div id="load-msg" style="font-size:15px;font-weight:900;margin-bottom:14px;color:var(--white);letter-spacing:0.1em">PROCESSING...</div>
+    <div style="width:220px;height:5px;background:var(--border)"><div id="load-fill" style="height:100%;background:var(--act-c);width:0%;transition:width 0.1s"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ABC FLIX · RIPPLE — Audio-Reactive Depth Layer Hologram Engine
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('render-canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+let W = 0, H = 0;
+
+// State
+let frames = [];     // [{srcCanvas, layers: [{pixels:[{x,y,r,g,b,lum}], visible, colorTint, opacity}]}]
+let curIdx = 0;
+let playing = false, playRAF = null, lastPlayT = 0, BASE_FPS = 15;
+
+// Layer defaults
+const LAYER_NAMES = ['SHADOW','DARK','LOW','MID','HIGH','BRIGHT','LIGHT','PEAK'];
+const LAYER_COLORS = [
+    null, null, null, null, null, null, null, null  // null = use original colors
+];
+const LAYER_TINT_PRESETS = [
+    [30,0,60], [0,20,80], [0,60,120], [0,100,80],
+    [120,100,0], [200,80,0], [230,40,40], [255,200,100]
+];
+
+// 3D params
+let pExtrusion = 50, pPointSize = 3.0, pZoom = 100, pLayerSpacing = 30;
+let camYaw = 0, camPitch = -0.25;
+let isDragging = false, lastMouse = {x:0,y:0};
+
+// Audio
+let audioCtx = null, analyser = null, audioSource = null, audioStream = null, audioElement = null;
+let freqData = null, audioActive = false;
+let pSensitivity = 1.0, pRippleSpeed = 0.08, pRippleFreq = 0.15, pRippleAmp = 20;
+let layerPhases = [0,0,0,0,0,0,0,0];
+let bandLevels = [0,0,0,0,0,0,0,0];
+
+// Mesh dimensions
+const MESH_W = 100, MESH_H = 56;
+
+function resize() {
+    const r = document.getElementById('canvas-zone').getBoundingClientRect();
+    W = Math.floor(r.width); H = Math.floor(r.height);
+    canvas.width = W; canvas.height = H;
+    if (frames.length) render();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── UI NAV ──
+let activeSheet = null;
+function execNav(id) {
+    if (activeSheet === id) { closeAllSheets(); return; }
+    closeAllSheets();
+    activeSheet = id;
+    document.getElementById('sheet-' + id.toLowerCase()).classList.add('on');
+    document.getElementById('sheet-backdrop').classList.add('on');
+    if (id === 'B') buildLayerPanel();
+}
+function closeAllSheets() {
+    ['a','b','c','d','e'].forEach(id => document.getElementById('sheet-' + id).classList.remove('on'));
+    document.getElementById('sheet-backdrop').classList.remove('on');
+    activeSheet = null;
+}
+
+// ── INGESTION ──
+document.getElementById('file-input').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = '';
+    closeAllSheets();
+    if (f.type.startsWith('video/')) await loadVideo(f);
+    else if (f.type.startsWith('image/')) await loadImage(f);
+});
+document.getElementById('bfx-input').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = '';
+    closeAllSheets(); showLoad('PARSING BEFLIX...');
+    await parseBFX(await f.text());
+    hideLoad(); initSequence();
+});
+document.getElementById('audio-input').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = '';
+    await loadAudioFile(f);
+});
+
+function showLoad(msg) { const o = document.getElementById('loading-overlay'); o.style.display='flex'; document.getElementById('load-msg').textContent=msg; document.getElementById('load-fill').style.width='0%'; }
+function hideLoad() { document.getElementById('loading-overlay').style.display='none'; }
+
+async function loadVideo(file) {
+    showLoad('EXTRACTING VIDEO...');
+    const url = URL.createObjectURL(file);
+    const vid = document.createElement('video');
+    vid.muted=true; vid.playsInline=true; vid.src=url;
+    await new Promise((r,j) => { vid.onloadedmetadata=r; vid.onerror=j; setTimeout(j,8000); });
+    const total = Math.min(Math.floor(vid.duration * BASE_FPS), 100);
+    const interval = vid.duration / total;
+    for (let i=0; i<total; i++) {
+        vid.currentTime = i*interval;
+        await new Promise(r => { vid.onseeked=r; setTimeout(r,400); });
+        frames.push(processFrame(vid));
+        document.getElementById('load-fill').style.width = ((i+1)/total*100)+'%';
+    }
+    URL.revokeObjectURL(url); hideLoad(); initSequence();
+}
+
+async function loadImage(file) {
+    showLoad('PROCESSING...');
+    const url = URL.createObjectURL(file);
+    const img = new Image(); img.src=url;
+    await new Promise((r,j) => { img.onload=r; img.onerror=j; setTimeout(j,5000); });
+    frames.push(processFrame(img));
+    URL.revokeObjectURL(url); hideLoad(); initSequence();
+}
+
+function loadDemo() {
+    closeAllSheets(); showLoad('GENERATING...');
+    setTimeout(() => {
+        for (let i=0; i<30; i++) {
+            const c = document.createElement('canvas'); c.width=MESH_W; c.height=MESH_H;
+            const cx = c.getContext('2d');
+            // Gradient background
+            const g = cx.createLinearGradient(0,0,0,MESH_H);
+            g.addColorStop(0,'#000'); g.addColorStop(0.5,'#666'); g.addColorStop(1,'#fff');
+            cx.fillStyle=g; cx.fillRect(0,0,MESH_W,MESH_H);
+            // Animated circle
+            const t = i/30*Math.PI*2;
+            cx.fillStyle = '#e60000';
+            cx.beginPath(); cx.arc(MESH_W/2+Math.cos(t)*25, MESH_H/2+Math.sin(t)*15, 12, 0, Math.PI*2); cx.fill();
+            // Another shape
+            cx.fillStyle = '#0033cc';
+            cx.fillRect(10+Math.sin(t)*10, 10, 20, 20+Math.cos(t)*10);
+            frames.push(processFrame(c));
+        }
+        hideLoad(); initSequence();
+    }, 50);
+}
+
+// ── BEFLIX PARSER ──
+const BFX_COLS=128, BFX_ROWS=96;
+async function parseBFX(text) {
+    const lines=text.toUpperCase().split('\n');
+    let mat=Array(BFX_ROWS).fill().map(()=>Array(BFX_COLS).fill(0));
+    const results=[];
+    for (let li=0; li<lines.length; li++) {
+        let l=lines[li].trim();
+        if(!l||l.startsWith('C')||l.startsWith(';')) continue;
+        const p=l.split(/\s+/), cmd=p[0], a=p.slice(1).map(Number);
+        if(cmd==='CLR') { for(let y=0;y<BFX_ROWS;y++) for(let x=0;x<BFX_COLS;x++) mat[y][x]=a[0]; }
+        else if(cmd==='PNT') { for(let y=a[1];y<a[1]+a[3];y++) for(let x=a[0];x<a[0]+a[2];x++) if(y>=0&&y<BFX_ROWS&&x>=0&&x<BFX_COLS) mat[y][x]=a[4]; }
+        else if(cmd==='LIN') { let lv=a[4],x0=a[0],y0=a[1],x1=a[2],y1=a[3],dx=Math.abs(x1-x0),sx=x0<x1?1:-1,dy=-Math.abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy,lim=3000; while(lim-->0){if(x0>=0&&x0<BFX_COLS&&y0>=0&&y0<BFX_ROWS)mat[y0][x0]=lv;if(x0===x1&&y0===y1)break;let e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}} }
+        else if(cmd==='REC') { for(let f=0;f<Math.min(a[0],500);f++) results.push(mat.map(r=>[...r])); }
+        else if(cmd==='SHF') { for(let f=0;f<Math.min(a[2],500);f++){let n=Array(BFX_ROWS).fill().map(()=>Array(BFX_COLS).fill(0));for(let y=0;y<BFX_ROWS;y++)for(let x=0;x<BFX_COLS;x++){let nx=x-a[0],ny=y-a[1];if(nx>=0&&nx<BFX_COLS&&ny>=0&&ny<BFX_ROWS)n[y][x]=mat[ny][nx];}mat=n;results.push(mat.map(r=>[...r]));} }
+        if(li%500===0) { document.getElementById('load-fill').style.width=(li/lines.length*80)+'%'; await new Promise(r=>setTimeout(r,0)); }
+    }
+    if(!results.length) results.push(mat);
+    for(let i=0;i<results.length;i++) {
+        const grid=results[i]; const c=document.createElement('canvas'); c.width=BFX_COLS; c.height=BFX_ROWS;
+        const cx=c.getContext('2d'); const img=cx.createImageData(BFX_COLS,BFX_ROWS); const pxd=img.data;
+        for(let y=0;y<BFX_ROWS;y++) for(let x=0;x<BFX_COLS;x++) { const idx=(y*BFX_COLS+x)*4; const lum=Math.round((grid[y][x]/7)*255); pxd[idx]=lum;pxd[idx+1]=lum;pxd[idx+2]=lum;pxd[idx+3]=255; }
+        cx.putImageData(img,0,0); frames.push(processFrame(c));
+        document.getElementById('load-fill').style.width=(80+(i/results.length*20))+'%';
+        if(i%20===0) await new Promise(r=>setTimeout(r,0));
+    }
+}
+
+// ── CORE: FRAME PROCESSING + LAYER DECOMPOSITION ──
+function processFrame(source) {
+    const c = document.createElement('canvas'); c.width=MESH_W; c.height=MESH_H;
+    const cx = c.getContext('2d'); cx.drawImage(source,0,0,MESH_W,MESH_H);
+    const imgData = cx.getImageData(0,0,MESH_W,MESH_H);
+    const px = imgData.data;
+
+    // Decompose into 8 luminance layers
+    const layers = [];
+    for (let i=0; i<8; i++) layers.push({ pixels: [], visible: true, colorTint: null, opacity: 1.0 });
+
+    for (let y=0; y<MESH_H; y++) {
+        for (let x=0; x<MESH_W; x++) {
+            const idx = (y*MESH_W+x)*4;
+            const r=px[idx], g=px[idx+1], b=px[idx+2];
+            const lum = 0.299*r + 0.587*g + 0.114*b;
+            const li = Math.min(7, Math.floor(lum/32));
+            layers[li].pixels.push({ x: x-MESH_W/2, y: y-MESH_H/2, r, g, b, lum });
+        }
+    }
+
+    return { srcCanvas: c, layers };
+}
+
+function initSequence() {
+    curIdx=0; resetCamera();
+    const strip = document.getElementById('tl-strip'); strip.innerHTML='';
+    frames.forEach((f,i) => {
+        const d=document.createElement('div'); d.className='tl-frame';
+        d.onclick=()=>{ curIdx=i; syncUI(); render(); };
+        const img=document.createElement('img'); img.className='tl-thumb'; img.src=f.srcCanvas.toDataURL();
+        const n=document.createElement('div'); n.className='tl-num'; n.textContent=i+1;
+        d.appendChild(img); d.appendChild(n); strip.appendChild(d);
+    });
+    buildLegend(); syncUI(); render();
+}
+
+function syncUI() {
+    if(!frames.length) return;
+    document.getElementById('sb-frame').textContent=`${String(curIdx+1).padStart(2,'0')}/${String(frames.length).padStart(2,'0')}`;
+    document.getElementById('sb-fps').textContent=BASE_FPS;
+    const vis = frames[curIdx].layers.filter(l=>l.visible).length;
+    document.getElementById('sb-layers').textContent=vis+'/8';
+    document.getElementById('sb-audio').textContent=audioActive?'LIVE':'OFF';
+    document.querySelectorAll('.tl-frame').forEach((el,i)=>{
+        if(i===curIdx){el.classList.add('on');el.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}
+        else el.classList.remove('on');
+    });
+    // Update legend
+    const chips=document.querySelectorAll('.ll-chip');
+    if(frames[curIdx]) frames[curIdx].layers.forEach((l,i)=>{
+        if(chips[i]) { chips[i].classList.toggle('off',!l.visible); chips[i].style.background=l.colorTint?`rgb(${l.colorTint.join(',')})`:LAYER_TINT_PRESETS[i]?`rgba(${LAYER_TINT_PRESETS[i].join(',')},0.6)`:'rgba(255,255,255,0.3)'; }
+    });
+}
+
+function buildLegend() {
+    const el=document.getElementById('layer-legend'); el.innerHTML='';
+    for(let i=0;i<8;i++) {
+        const chip=document.createElement('div'); chip.className='ll-chip'; chip.textContent=i;
+        chip.title=LAYER_NAMES[i];
+        chip.onclick=()=>{ if(!frames.length) return; frames[curIdx].layers[i].visible=!frames[curIdx].layers[i].visible; syncUI(); render(); };
+        el.appendChild(chip);
+    }
+}
+
+// ── LAYER PANEL (Sheet B) ──
+function buildLayerPanel() {
+    const panel=document.getElementById('layer-panel'); panel.innerHTML='';
+    if(!frames.length) { panel.innerHTML='<p style="font-size:11px;font-weight:900;color:var(--dim)">Load media first.</p>'; return; }
+    const f=frames[curIdx]; const totalPx=MESH_W*MESH_H;
+    f.layers.forEach((layer,i)=>{
+        const row=document.createElement('div'); row.className='layer-row'+(layer.visible?'':' off');
+        const density=Math.round(layer.pixels.length/totalPx*100);
+        const tintColor=layer.colorTint||LAYER_TINT_PRESETS[i];
+        row.innerHTML=`
+            <button class="lr-eye ${layer.visible?'on':''}" onclick="toggleLayer(${i})">👁</button>
+            <div class="lr-swatch" style="background:rgb(${tintColor.join(',')})" onclick="cycleColor(${i})" title="Tap to change color"></div>
+            <span class="lr-label">${LAYER_NAMES[i]}</span>
+            <input class="lr-opacity" type="range" min="0" max="100" value="${Math.round(layer.opacity*100)}" oninput="setLayerOpacity(${i},this.value)">
+            <span class="lr-density">${density}%</span>`;
+        panel.appendChild(row);
+    });
+    // Batch controls
+    const btns=document.createElement('div'); btns.style.cssText='display:flex;gap:6px;margin-top:6px';
+    btns.innerHTML=`<button class="sh-btn" style="flex:1" onclick="allLayersVis(true)">ALL ON</button><button class="sh-btn" style="flex:1" onclick="allLayersVis(false)">ALL OFF</button><button class="sh-btn" style="flex:1" onclick="soloLayer()">SOLO</button>`;
+    panel.appendChild(btns);
+    // Apply tints to all frames button
+    const apply=document.createElement('button'); apply.className='sh-btn primary'; apply.textContent='APPLY COLORS TO ALL FRAMES';
+    apply.style.marginTop='6px';
+    apply.onclick=applyColorsToAll;
+    panel.appendChild(apply);
+}
+
+function toggleLayer(i) {
+    if(!frames.length) return;
+    frames[curIdx].layers[i].visible=!frames[curIdx].layers[i].visible;
+    buildLayerPanel(); syncUI(); render();
+}
+
+const COLOR_PALETTE = [
+    null, // original
+    [230,0,0],[0,51,204],[200,168,0],[0,180,80],
+    [180,0,180],[255,120,0],[0,200,200],[255,255,255]
+];
+let colorCycleState = [0,0,0,0,0,0,0,0];
+
+function cycleColor(i) {
+    colorCycleState[i]=(colorCycleState[i]+1)%COLOR_PALETTE.length;
+    const c=COLOR_PALETTE[colorCycleState[i]];
+    frames[curIdx].layers[i].colorTint=c;
+    buildLayerPanel(); syncUI(); render();
+}
+
+function setLayerOpacity(i,v) {
+    frames[curIdx].layers[i].opacity=parseInt(v)/100;
+    render();
+}
+
+function allLayersVis(vis) {
+    if(!frames.length) return;
+    frames[curIdx].layers.forEach(l=>l.visible=vis);
+    buildLayerPanel(); syncUI(); render();
+}
+
+function soloLayer() {
+    if(!frames.length) return;
+    // Find first visible, solo it
+    let found=-1;
+    for(let i=0;i<8;i++) if(frames[curIdx].layers[i].visible){found=i;break;}
+    if(found<0) found=0;
+    // Cycle: if already soloed, move to next
+    const allOff=frames[curIdx].layers.filter(l=>l.visible).length<=1;
+    if(allOff) found=(found+1)%8;
+    frames[curIdx].layers.forEach((l,i)=>l.visible=(i===found));
+    buildLayerPanel(); syncUI(); render();
+}
+
+function applyColorsToAll() {
+    if(!frames.length) return;
+    const src=frames[curIdx].layers;
+    frames.forEach(f=>{
+        f.layers.forEach((l,i)=>{
+            l.colorTint=src[i].colorTint;
+            l.opacity=src[i].opacity;
+            l.visible=src[i].visible;
+        });
+    });
+}
+
+function clearSystem() {
+    frames=[];curIdx=0;playing=false;cancelAnimationFrame(playRAF);
+    ctx.clearRect(0,0,W,H);
+    document.getElementById('tl-strip').innerHTML='';
+    document.getElementById('sb-frame').textContent='00/00';
+    document.getElementById('btn-play').classList.remove('playing');
+    document.getElementById('btn-play').textContent='▶ PLAY';
+    document.getElementById('layer-legend').innerHTML='';
+    closeAllSheets();
+}
+
+// ── PLAYBACK ──
+function togglePlay() {
+    if(!frames.length) return;
+    playing=!playing;
+    const btn=document.getElementById('btn-play');
+    btn.classList.toggle('playing',playing);
+    btn.textContent=playing?'■ PAUSE':'▶ PLAY';
+    if(playing){lastPlayT=performance.now(); animLoop();}
+    else cancelAnimationFrame(playRAF);
+}
+function stepFrame(d){if(!frames.length||playing)return;curIdx=(curIdx+d+frames.length)%frames.length;syncUI();render();}
+function adjustFPS(d){BASE_FPS=Math.max(1,Math.min(60,BASE_FPS+d));syncUI();}
+
+function animLoop() {
+    if(!playing) return;
+    const now=performance.now();
+    if(now-lastPlayT>=1000/BASE_FPS){curIdx=(curIdx+1)%frames.length;lastPlayT=now;syncUI();}
+    updateAudio();
+    render();
+    playRAF=requestAnimationFrame(animLoop);
+}
+
+// ── AUDIO ──
+function ensureAudioCtx() {
+    if(!audioCtx) {
+        audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+        analyser=audioCtx.createAnalyser();
+        analyser.fftSize=256;
+        freqData=new Uint8Array(analyser.frequencyBinCount);
+    }
+    if(audioCtx.state==='suspended') audioCtx.resume();
+}
+
+async function toggleMic() {
+    ensureAudioCtx();
+    if(audioActive && audioStream) { stopAudio(); return; }
+    try {
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        audioStream=stream;
+        audioSource=audioCtx.createMediaStreamSource(stream);
+        audioSource.connect(analyser);
+        audioActive=true;
+        document.getElementById('btn-mic').textContent='🔴 DISCONNECT MIC';
+        document.getElementById('audio-badge').classList.add('live');
+        document.getElementById('audio-label').textContent='MIC LIVE';
+        document.getElementById('sb-audio').textContent='LIVE';
+        // Start render loop if not playing
+        if(!playing) startAudioRenderLoop();
+    } catch(e) { console.error('Mic error:',e); }
+}
+
+async function loadAudioFile(file) {
+    ensureAudioCtx();
+    stopAudio();
+    audioElement=new Audio();
+    audioElement.src=URL.createObjectURL(file);
+    audioElement.crossOrigin='anonymous';
+    const src=audioCtx.createMediaElementSource(audioElement);
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    audioActive=true;
+    audioElement.play();
+    document.getElementById('audio-badge').classList.add('live');
+    document.getElementById('audio-label').textContent='FILE ▶';
+    document.getElementById('sb-audio').textContent='FILE';
+    if(!playing) startAudioRenderLoop();
+}
+
+function stopAudio() {
+    audioActive=false;
+    if(audioStream) { audioStream.getTracks().forEach(t=>t.stop()); audioStream=null; }
+    if(audioElement) { audioElement.pause(); audioElement=null; }
+    if(audioSource) { try{audioSource.disconnect();}catch(e){} audioSource=null; }
+    bandLevels.fill(0);
+    document.getElementById('btn-mic').textContent='🎤 CONNECT MICROPHONE';
+    document.getElementById('audio-badge').classList.remove('live');
+    document.getElementById('audio-label').textContent='NO AUDIO';
+    document.getElementById('sb-audio').textContent='OFF';
+    updateAudioBars();
+}
+
+let audioRenderRAF=null;
+function startAudioRenderLoop() {
+    if(audioRenderRAF) return;
+    function loop() {
+        if(!audioActive||playing){audioRenderRAF=null;return;}
+        updateAudio(); render();
+        audioRenderRAF=requestAnimationFrame(loop);
+    }
+    audioRenderRAF=requestAnimationFrame(loop);
+}
+
+function updateAudio() {
+    if(!audioActive||!analyser) return;
+    analyser.getByteFrequencyData(freqData);
+    const binsPerBand=Math.floor(freqData.length/8);
+    for(let i=0;i<8;i++) {
+        let sum=0;
+        for(let j=i*binsPerBand;j<(i+1)*binsPerBand;j++) sum+=freqData[j];
+        bandLevels[i]=(sum/binsPerBand)/255;
+        layerPhases[i]+=bandLevels[i]*pRippleSpeed;
+    }
+    updateAudioBars();
+}
+
+// Build audio bar indicators
+(function initBars(){
+    const el=document.getElementById('audio-bars');
+    for(let i=0;i<8;i++){const b=document.createElement('div');b.className='a-bar';b.style.height='2px';el.appendChild(b);}
+})();
+
+function updateAudioBars() {
+    const bars=document.querySelectorAll('.a-bar');
+    bars.forEach((b,i)=>{ b.style.height=Math.max(2,Math.round(bandLevels[i]*16))+'px'; });
+}
+
+// ── ORBIT CONTROLS ──
+const zone=document.getElementById('canvas-zone');
+zone.addEventListener('pointerdown',e=>{isDragging=true;lastMouse={x:e.clientX,y:e.clientY};zone.setPointerCapture(e.pointerId);});
+zone.addEventListener('pointermove',e=>{
+    if(!isDragging)return;
+    camYaw-=(e.clientX-lastMouse.x)*0.01;
+    camPitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,camPitch-(e.clientY-lastMouse.y)*0.01));
+    lastMouse={x:e.clientX,y:e.clientY};
+    if(frames.length&&!playing&&!audioActive) render();
+});
+zone.addEventListener('pointerup',e=>{isDragging=false;zone.releasePointerCapture(e.pointerId);});
+zone.addEventListener('pointercancel',()=>isDragging=false);
+function resetCamera(){camYaw=0;camPitch=-0.2;if(frames.length&&!playing)render();}
+
+// ── 3D RENDER ENGINE ──
+function render() {
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    if(!frames.length) return;
+    const f=frames[curIdx];
+    const cosY=Math.cos(camYaw),sinY=Math.sin(camYaw),cosP=Math.cos(camPitch),sinP=Math.sin(camPitch);
+    const scale=(Math.min(W,H)/MESH_W)*(pZoom/100)*0.8;
+    const focal=800;
+
+    // Collect all points with their projected Z for depth sorting
+    const pts=[];
+    for(let li=0;li<8;li++) {
+        const layer=f.layers[li];
+        if(!layer.visible) continue;
+        const alpha=layer.opacity;
+        const tint=layer.colorTint;
+        const baseZ=-(li-3.5)*pLayerSpacing; // Center layers around 0
+        const audioDisp=bandLevels[li]*pSensitivity*pExtrusion;
+        const phase=layerPhases[li];
+
+        for(let pi=0;pi<layer.pixels.length;pi++) {
+            const p=layer.pixels[pi];
+            // Depth from luminance + layer spacing + audio displacement
+            const lumZ=-(p.lum/255)*pExtrusion;
+            const dist=Math.sqrt(p.x*p.x+p.y*p.y);
+            const ripple=Math.sin(dist*pRippleFreq+phase)*pRippleAmp*bandLevels[li]*pSensitivity;
+            let bz=lumZ+baseZ-audioDisp-ripple;
+
+            // 3D rotation
+            let x1=p.x*cosY-bz*sinY, z1=bz*cosY+p.x*sinY;
+            let y1=p.y;
+            let x2=x1, y2=y1*cosP-z1*sinP, z2=z1*cosP+y1*sinP;
+            z2+=300;
+            let ps=focal/(focal+z2);
+
+            // Color
+            let cr,cg,cb;
+            if(tint) { cr=tint[0]; cg=tint[1]; cb=tint[2]; }
+            else { cr=p.r; cg=p.g; cb=p.b; }
+
+            // Shade by depth
+            const shade=Math.max(0.4,Math.min(1.4,1.3-((z2-100)/500)));
+            cr=Math.min(255,Math.floor(cr*shade));
+            cg=Math.min(255,Math.floor(cg*shade));
+            cb=Math.min(255,Math.floor(cb*shade));
+
+            pts.push({
+                sx:(W/2)+(x2*scale*ps),
+                sy:(H/2)+(y2*scale*ps),
+                z:z2,
+                r:cr, g:cg, b:cb, a:alpha,
+                s:Math.max(0.6,pPointSize*scale*0.04*ps)
+            });
+        }
+    }
+
+    // Depth sort back-to-front
+    pts.sort((a,b)=>b.z-a.z);
+
+    // Draw
+    for(let i=0;i<pts.length;i++) {
+        const p=pts[i];
+        if(p.a<1) ctx.globalAlpha=p.a;
+        ctx.fillStyle=`rgb(${p.r},${p.g},${p.b})`;
+        ctx.fillRect(p.sx-p.s/2,p.sy-p.s/2,p.s,p.s);
+        if(p.a<1) ctx.globalAlpha=1;
+    }
+}
+
+// ── EXPORT ──
+function exportComposite() {
+    if(!frames.length)return; render();
+    const a=document.createElement('a'); a.download=`ABC_RIPPLE_F${curIdx+1}.png`;
+    a.href=canvas.toDataURL('image/png',1.0); a.click(); closeAllSheets();
+}
+
+function exportAllLayers() {
+    if(!frames.length) return;
+    const f=frames[curIdx];
+    f.layers.forEach((layer,li)=>{
+        if(!layer.pixels.length) return;
+        const c=document.createElement('canvas'); c.width=MESH_W; c.height=MESH_H;
+        const cx=c.getContext('2d');
+        const img=cx.createImageData(MESH_W,MESH_H);
+        const px=img.data;
+        layer.pixels.forEach(p=>{
+            const x=p.x+MESH_W/2, y=p.y+MESH_H/2;
+            if(x<0||x>=MESH_W||y<0||y>=MESH_H) return;
+            const idx=(Math.floor(y)*MESH_W+Math.floor(x))*4;
+            const tint=layer.colorTint;
+            px[idx]=tint?tint[0]:p.r; px[idx+1]=tint?tint[1]:p.g; px[idx+2]=tint?tint[2]:p.b; px[idx+3]=255;
+        });
+        cx.putImageData(img,0,0);
+        const a=document.createElement('a');
+        a.download=`ABC_RIPPLE_F${curIdx+1}_L${li}_${LAYER_NAMES[li]}.png`;
+        a.href=c.toDataURL('image/png'); a.click();
+    });
+    closeAllSheets();
+}
+</script>
+</body>
+</html>
