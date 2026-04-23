@@ -12,9 +12,29 @@
             --bg: #0a0a0a; --black: #000; --white: #fff;
             --act-a: #0033cc; --act-b: #c8a800; --act-c: #e60000;
             --dim: #888; --border: #333;
+            --canvas-bg: #000;
             --bw: 3px; --tab-h: 54px; --status-h: 40px; --tl-h: 90px;
             --safe-b: env(safe-area-inset-bottom, 0px);
         }
+        /* LIGHT MODE — manila newsprint */
+        .light-mode {
+            --bg: #f0ebe0; --black: #e8e2d4; --white: #1a1611;
+            --act-a: #1a3a7a; --act-b: #8a6e00; --act-c: #b8200a;
+            --dim: #7a7060; --border: #c4b99a;
+            --canvas-bg: #f5f0e5;
+        }
+        .light-mode .sb-val { color: var(--white); }
+        .light-mode .sb-label { color: var(--dim); }
+        .light-mode #btn-play { background: var(--act-c); color: #fff; }
+        .light-mode .tl-btn { color: var(--white); }
+        .light-mode .sh-btn { color: var(--white); }
+        .light-mode .sh-btn.primary { color: #fff; }
+        .light-mode .slider-val { color: #5a4e00; }
+        .light-mode .sheet-close { color: var(--dim); }
+        .light-mode .ll-chip { color: var(--white); border-color: rgba(0,0,0,0.2); }
+        .light-mode .lr-density { color: #5a4e00; }
+        .light-mode #audio-badge { background: rgba(245,240,229,0.9); }
+        .light-mode #theme-toggle { background: rgba(245,240,229,0.9); color: var(--white); border-color: var(--border); }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; border-radius: 0 !important; }
         html, body {
             width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
@@ -47,7 +67,7 @@
         /* CANVAS */
         #canvas-zone {
             flex: 1 1 0%; position: relative; overflow: hidden;
-            background: #000; cursor: grab;
+            background: var(--canvas-bg); cursor: grab;
         }
         #canvas-zone:active { cursor: grabbing; }
         #render-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -213,6 +233,7 @@
         </div>
         <div id="canvas-zone">
             <canvas id="render-canvas"></canvas>
+            <button id="theme-toggle" onclick="toggleTheme()" style="position:absolute;top:10px;left:10px;z-index:30;background:rgba(0,0,0,0.85);border:var(--bw) solid var(--border);padding:6px 12px;font-size:10px;font-weight:900;color:var(--dim);cursor:pointer;text-transform:uppercase">LIGHT</button>
             <div id="audio-badge">
                 <div id="audio-bars"></div>
                 <span id="audio-label">NO AUDIO</span>
@@ -289,20 +310,20 @@
     <div class="sheet-handle"><span class="sheet-title" style="color:#ccc">D · TUNE</span><button class="sheet-close" onclick="closeAllSheets()">X</button></div>
     <div class="sheet-body">
         <div class="slider-group">
-            <div class="slider-label"><span>BRIGHTNESS</span><span class="slider-val" id="lbl-brt">1.8x</span></div>
-            <input type="range" min="5" max="40" value="18" oninput="pBrightness=parseInt(this.value)/10;document.getElementById('lbl-brt').textContent=(parseInt(this.value)/10).toFixed(1)+'x';render()">
+            <div class="slider-label"><span>BRIGHTNESS</span><span class="slider-val" id="lbl-brt">2.2x</span></div>
+            <input type="range" min="5" max="40" value="22" oninput="pBrightness=parseInt(this.value)/10;document.getElementById('lbl-brt').textContent=(parseInt(this.value)/10).toFixed(1)+'x';render()">
         </div>
         <div class="slider-group">
             <div class="slider-label"><span>EXTRUSION DEPTH</span><span class="slider-val" id="lbl-ext">80</span></div>
             <input type="range" min="0" max="150" value="80" oninput="pExtrusion=parseInt(this.value);document.getElementById('lbl-ext').textContent=this.value;render()">
         </div>
         <div class="slider-group">
-            <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-ps">5.0</span></div>
-            <input type="range" min="10" max="100" value="50" oninput="pPointSize=parseInt(this.value)/10;document.getElementById('lbl-ps').textContent=(parseInt(this.value)/10).toFixed(1);render()">
+            <div class="slider-label"><span>POINT SIZE</span><span class="slider-val" id="lbl-ps">6.0</span></div>
+            <input type="range" min="10" max="120" value="60" oninput="pPointSize=parseInt(this.value)/10;document.getElementById('lbl-ps').textContent=(parseInt(this.value)/10).toFixed(1);render()">
         </div>
         <div class="slider-group">
-            <div class="slider-label"><span>ZOOM</span><span class="slider-val" id="lbl-zm">130%</span></div>
-            <input type="range" min="30" max="300" value="130" oninput="pZoom=parseInt(this.value);document.getElementById('lbl-zm').textContent=this.value+'%';render()">
+            <div class="slider-label"><span>ZOOM</span><span class="slider-val" id="lbl-zm">150%</span></div>
+            <input type="range" min="30" max="300" value="150" oninput="pZoom=parseInt(this.value);document.getElementById('lbl-zm').textContent=this.value+'%';render()">
         </div>
         <div class="slider-group">
             <div class="slider-label"><span>LAYER SPACING</span><span class="slider-val" id="lbl-lsp">30</span></div>
@@ -352,7 +373,8 @@ const LAYER_TINT_PRESETS = [
 ];
 
 // 3D params
-let pExtrusion = 80, pPointSize = 5.0, pZoom = 130, pLayerSpacing = 30, pBrightness = 1.8;
+let pExtrusion = 80, pPointSize = 6.0, pZoom = 150, pLayerSpacing = 30, pBrightness = 2.2;
+let lightMode = false;
 let camYaw = 0, camPitch = -0.25;
 let isDragging = false, lastMouse = {x:0,y:0};
 
@@ -790,9 +812,18 @@ zone.addEventListener('pointerup',e=>{isDragging=false;zone.releasePointerCaptur
 zone.addEventListener('pointercancel',()=>isDragging=false);
 function resetCamera(){camYaw=0;camPitch=-0.2;if(frames.length&&!playing)render();}
 
+// ── THEME ──
+function toggleTheme() {
+    lightMode = !lightMode;
+    document.body.classList.toggle('light-mode', lightMode);
+    document.getElementById('theme-toggle').textContent = lightMode ? 'DARK' : 'LIGHT';
+    if(frames.length) render();
+}
+
 // ── 3D RENDER ENGINE ──
 function render() {
-    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = lightMode ? '#f5f0e5' : '#000';
+    ctx.fillRect(0,0,W,H);
     if(!frames.length) return;
     const f=frames[curIdx];
     const cosY=Math.cos(camYaw),sinY=Math.sin(camYaw),cosP=Math.cos(camPitch),sinP=Math.sin(camPitch);
@@ -836,12 +867,20 @@ function render() {
             cg=Math.min(255,Math.floor(cg*shade));
             cb=Math.min(255,Math.floor(cb*shade));
 
+            // Light mode: invert for dark-on-light
+            if(lightMode) {
+                const lum=(cr*0.299+cg*0.587+cb*0.114);
+                // Map bright points to dark charcoal, dim points to warm brown
+                const inv=Math.max(0,255-lum);
+                cr=Math.floor(inv*0.18+30); cg=Math.floor(inv*0.15+25); cb=Math.floor(inv*0.10+15);
+            }
+
             pts.push({
                 sx:(W/2)+(x2*scale*ps),
                 sy:(H/2)+(y2*scale*ps),
                 z:z2,
                 r:cr, g:cg, b:cb, a:alpha,
-                s:Math.max(0.6,pPointSize*scale*0.04*ps)
+                s:Math.max(0.8,pPointSize*scale*0.04*ps)
             });
         }
     }
