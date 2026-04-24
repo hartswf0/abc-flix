@@ -16,10 +16,11 @@ A monochrome **dot-matrix animation machine** for making films on a 128×96 grid
 * **Operate:** Write **BEFLIX-128 scripts** or prompt generative AI text agents to create graphical scripts.
 * **Export:** Process directly via browser to WebM, MP4, GIF, or as contact sheets with perfectly synchronized audio capabilities.
 
-### ICARO-PRO
-A more robust **ABCD video editor** built from 4 letters.
+### ICARO-PRO (BEFLIX Presentation Engine)
+A robust **ABCD video editor** and **Text Presentation Engine** built from 4 letters.
 * **Structure:** A fully featured Multi-clip NLE environment featuring dynamic memory gauges, clip bin ingestion, and a timeline layout.
-* **Tools:** Motion preset generators, ripple/wave procedural rendering engines, text layer rasterizers (up to WorldText 72px rendering limits). 
+* **WorldText Assembler:** The system functions as a high-fidelity 'PowerPoint-killer', transforming large text documents (.txt/.md) into auto-paginated slides rendered natively on the BEFLIX dot-matrix canvas.
+* **Cinematic Generators:** Features 5 core text transitions (Cut, Ripple Reveal, Fade In, Typewriter, Scroll Up) alongside dedicated **Star Wars Crawl** (perspective-scrolled) and **Credits Roll** generators.
 * **Design Philosophy:** Everything operates securely through the strictly enforced **A (Add) · B (Build) · C (Color) · D (Project)** editing pipeline.
 
 ### ICARO-SPIRAL (The Shield / Film Forge)

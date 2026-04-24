@@ -1496,11 +1496,11 @@
             <details open>
                 <summary style="min-height:44px; display:flex; align-items:center; font-size:12px;">TEXT OVERLAY</summary>
                 <div style="display:flex; flex-direction:column; gap:8px; padding-top:6px;">
-                    <textarea id="t-text" placeholder="Type text..." style="
-                        width:100%; min-height:50px; max-height:80px; border:var(--bw) solid var(--black);
-                        padding:10px; font-family:'Helvetica Neue',Helvetica,sans-serif; font-size:14px;
-                        font-weight:900; background:var(--bg); color:var(--black); resize:none; outline:none;
-                        user-select:text; -webkit-user-select:text; text-transform:uppercase;
+                    <textarea id="t-text" placeholder="Paste speech, script, document, or any text here..." style="
+                        width:100%; min-height:200px; max-height:400px; border:var(--bw) solid var(--black);
+                        padding:12px; font-family:'Helvetica Neue',Helvetica,sans-serif; font-size:14px;
+                        font-weight:700; background:var(--bg); color:var(--black); resize:vertical; outline:none;
+                        user-select:text; -webkit-user-select:text; line-height:1.5;
                     ">HELLO WORLD</textarea>
                     <div class="sh-row">
                         <div style="flex:1;"><div class="sh-label">SIZE</div>
@@ -1527,7 +1527,11 @@
                         <div style="flex:1;"><div class="sh-label">TO</div><input type="number" id="t-to" value="1" min="1" style="width:100%;height:36px;border:2px solid var(--black);font-size:13px;font-weight:900;text-align:center;"></div>
                     </div>
                     <button class="sh-btn primary" onclick="stampText()">STAMP TEXT</button>
-                    <button class="sh-btn" onclick="previewTextOnCanvas()" style="font-size:10px;">PREVIEW</button>
+                    <div class="sh-row">
+                        <button class="sh-btn" onclick="previewTextOnCanvas()" style="font-size:10px;">PREVIEW</button>
+                        <button class="sh-btn" onclick="loadTextFile()" style="font-size:10px;">LOAD TEXT FILE</button>
+                    </div>
+                    <input type="file" id="text-file-input" accept=".txt,.md,.text,.csv,.html" style="display:none">
                 </div>
             </details>
 
@@ -1543,6 +1547,47 @@
                         <button class="sh-btn" onclick="motionTypewriter()" style="font-size:10px;">TYPEWRITER</button>
                         <button class="sh-btn" onclick="motionScrollUp()" style="font-size:10px;">SCROLL UP</button>
                     </div>
+                </div>
+            </details>
+
+            <!-- PRESENTATION -->
+            <details>
+                <summary style="min-height:44px; display:flex; align-items:center; font-size:12px;">PRESENTATION</summary>
+                <div style="display:flex; flex-direction:column; gap:6px; padding-top:6px;">
+                    <div class="sh-label">SLIDE SETTINGS</div>
+                    <div class="sh-row">
+                        <div style="flex:1;"><div class="sh-label">HOLD (FRAMES)</div>
+                            <input type="number" id="p-hold" value="36" min="6" max="240" style="width:100%;height:34px;border:2px solid var(--black);font-size:12px;font-weight:900;text-align:center;">
+                        </div>
+                        <div style="flex:1;"><div class="sh-label">TRANSITION</div>
+                            <select id="p-transition" style="width:100%;height:34px;border:2px solid var(--black);font-size:11px;font-weight:900;padding:0 6px;">
+                                <option value="cut">CUT</option>
+                                <option value="ripple" selected>RIPPLE REVEAL</option>
+                                <option value="fade">FADE IN</option>
+                                <option value="typewriter">TYPEWRITER</option>
+                                <option value="scroll">SCROLL UP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="sh-row">
+                        <div style="flex:1;"><div class="sh-label">TRANS FRAMES</div>
+                            <input type="number" id="p-trans-frames" value="12" min="2" max="60" style="width:100%;height:34px;border:2px solid var(--black);font-size:12px;font-weight:900;text-align:center;">
+                        </div>
+                        <div style="flex:1;"><div class="sh-label">FONT SIZE</div>
+                            <select id="p-font-size" style="width:100%;height:34px;border:2px solid var(--black);font-size:11px;font-weight:900;padding:0 6px;">
+                                <option value="8">SM 8</option>
+                                <option value="14" selected>MD 14</option>
+                                <option value="22">LG 22</option>
+                                <option value="36">XL 36</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="sh-btn primary" onclick="generateSlideshow()" style="font-size:11px;">GENERATE SLIDESHOW</button>
+                    <div class="sh-row">
+                        <button class="sh-btn" onclick="generateCrawl()" style="font-size:10px;">STAR WARS CRAWL</button>
+                        <button class="sh-btn" onclick="generateCredits()" style="font-size:10px;">CREDITS ROLL</button>
+                    </div>
+                    <div id="p-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;"></div>
                 </div>
             </details>
 
@@ -4370,6 +4415,399 @@ SHF 2 1 24</textarea>
                 }
                 state.cur = 0; renderOutput(); rebuildTrack(); releaseSystem();
                 fireToast('RIPPLE TEXT · ' + r.frames + ' FRAMES');
+            }, 30);
+        }
+
+        // ── PRESENTATION ENGINE ──
+
+        function loadTextFile() {
+            const input = document.getElementById('text-file-input');
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('t-text').value = ev.target.result;
+                    fireToast('LOADED: ' + file.name + ' (' + Math.round(ev.target.result.length / 1024) + 'KB)');
+                };
+                reader.readAsText(file);
+                input.value = '';
+            };
+            input.click();
+        }
+
+        function paginateText(text, fontSize) {
+            // Calculate how many lines fit on one slide
+            var lineH = Math.ceil(fontSize * 1.2);
+            var padY = 8; // 4px top + 4px bottom in grid coords
+            var maxLines = Math.floor((G_ROWS - padY) / lineH);
+            if (maxLines < 1) maxLines = 1;
+            var maxW = G_COLS - 8; // 4px left/right padding
+
+            // Use the canvas text measurement for accurate word-wrap
+            _textCtx.font = '900 ' + fontSize + 'px Helvetica, Arial, sans-serif';
+
+            // Split into paragraphs, then word-wrap each
+            var paragraphs = text.split(/\n\n+/);
+            var allLines = [];
+
+            for (var pi = 0; pi < paragraphs.length; pi++) {
+                if (allLines.length > 0) allLines.push(''); // blank line between paragraphs
+                var words = paragraphs[pi].replace(/\n/g, ' ').trim().split(/\s+/);
+                var currentLine = '';
+                for (var wi = 0; wi < words.length; wi++) {
+                    var word = words[wi];
+                    var test = currentLine ? currentLine + ' ' + word : word;
+                    if (_textCtx.measureText(test).width > maxW && currentLine) {
+                        allLines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = test;
+                    }
+                }
+                if (currentLine) allLines.push(currentLine);
+            }
+
+            // Chunk lines into pages
+            var pages = [];
+            for (var i = 0; i < allLines.length; i += maxLines) {
+                var page = allLines.slice(i, i + maxLines).join('\n');
+                if (page.trim()) pages.push(page);
+            }
+            return pages;
+        }
+
+        function applyTransitionToFrame(frame, grid, type, t) {
+            frame.scriptLayer.fill(0);
+            switch (type) {
+                case 'cut':
+                    if (t >= 0.5) applyGridToFrame(frame, grid);
+                    break;
+
+                case 'fade':
+                    for (var gy = 0; gy < G_ROWS; gy++) {
+                        for (var gx = 0; gx < G_COLS; gx++) {
+                            var v = grid[gy][gx];
+                            if (v > 0) {
+                                var faded = Math.max(1, Math.round(v * t));
+                                var col = INKS[faded].rgb;
+                                for (var by = 0; by < B_SZ; by++)
+                                    for (var bx = 0; bx < B_SZ; bx++)
+                                        bindPixel(frame.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+                            }
+                        }
+                    }
+                    break;
+
+                case 'typewriter':
+                    var revealCol = Math.floor(t * G_COLS);
+                    for (var gy = 0; gy < G_ROWS; gy++) {
+                        for (var gx = 0; gx < G_COLS; gx++) {
+                            if (gx <= revealCol && grid[gy][gx] > 0) {
+                                var col = INKS[grid[gy][gx]].rgb;
+                                for (var by = 0; by < B_SZ; by++)
+                                    for (var bx = 0; bx < B_SZ; bx++)
+                                        bindPixel(frame.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+                            }
+                        }
+                    }
+                    break;
+
+                case 'ripple':
+                    var cx = G_COLS / 2, cy = G_ROWS / 2;
+                    var maxDist = Math.sqrt(cx * cx + cy * cy);
+                    var phase = t * Math.PI * 4;
+                    for (var gy = 0; gy < G_ROWS; gy++) {
+                        for (var gx = 0; gx < G_COLS; gx++) {
+                            var dist = Math.sqrt((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy));
+                            var norm = dist / maxDist;
+                            var textVal = grid[gy][gx];
+                            var val = 0;
+                            if (textVal > 0 && norm < t * 1.5) {
+                                val = textVal;
+                            } else if (t < 0.8) {
+                                var wave = Math.sin((dist / 15) * Math.PI * 2 - phase);
+                                val = Math.max(0, Math.min(2, Math.round((wave + 1) * 1)));
+                            }
+                            if (val > 0) {
+                                var col = INKS[val].rgb;
+                                for (var by = 0; by < B_SZ; by++)
+                                    for (var bx = 0; bx < B_SZ; bx++)
+                                        bindPixel(frame.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+                            }
+                        }
+                    }
+                    break;
+
+                case 'scroll':
+                    var ease = 1 - Math.pow(1 - t, 3);
+                    var offsetY = Math.round(G_ROWS * (1 - ease));
+                    for (var gy = 0; gy < G_ROWS; gy++) {
+                        var srcY = gy - offsetY;
+                        if (srcY < 0 || srcY >= G_ROWS) continue;
+                        for (var gx = 0; gx < G_COLS; gx++) {
+                            if (grid[srcY] && grid[srcY][gx] > 0) {
+                                var col = INKS[grid[srcY][gx]].rgb;
+                                for (var by = 0; by < B_SZ; by++)
+                                    for (var bx = 0; bx < B_SZ; bx++)
+                                        bindPixel(frame.scriptLayer, gx * B_SZ + bx, (gy) * B_SZ + by, col);
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    applyGridToFrame(frame, grid);
+            }
+        }
+
+        function generateSlideshow() {
+            var text = document.getElementById('t-text').value.trim();
+            if (!text) { fireToast('TYPE OR LOAD TEXT'); return; }
+
+            var hold = parseInt(document.getElementById('p-hold').value) || 36;
+            var transType = document.getElementById('p-transition').value;
+            var transFrames = parseInt(document.getElementById('p-trans-frames').value) || 12;
+            var fontSize = parseInt(document.getElementById('p-font-size').value) || 14;
+            var ink = parseInt(document.getElementById('t-ink').value) || 7;
+
+            pushUndo('slideshow');
+            playThud();
+
+            // Split text into slides that fit the grid
+            var slides = paginateText(text, fontSize);
+            if (!slides.length) { fireToast('NO TEXT'); return; }
+
+            var totalFrames = slides.length * (hold + transFrames);
+            var statusEl = document.getElementById('p-status');
+            if (statusEl) statusEl.textContent = slides.length + ' SLIDES / ' + totalFrames + ' FRAMES';
+
+            lockSystem('GENERATING ' + slides.length + ' SLIDES...', 0);
+
+            setTimeout(function() {
+                // Clear existing frames and create enough
+                state.frames = [];
+                for (var i = 0; i < totalFrames; i++) injectFrame(true);
+
+                var frameIdx = 0;
+                for (var si = 0; si < slides.length; si++) {
+                    var slideText = slides[si];
+                    var grid = rasterizeText(slideText, fontSize, 4, 4, ink);
+
+                    // Transition frames
+                    for (var ti = 0; ti < transFrames; ti++) {
+                        if (frameIdx >= state.frames.length) break;
+                        var t = transFrames > 1 ? ti / (transFrames - 1) : 1;
+                        applyTransitionToFrame(state.frames[frameIdx], grid, transType, t);
+                        frameIdx++;
+                    }
+                    // Hold frames (full text visible)
+                    for (var hi = 0; hi < hold; hi++) {
+                        if (frameIdx >= state.frames.length) break;
+                        applyGridToFrame(state.frames[frameIdx], grid);
+                        frameIdx++;
+                    }
+                }
+
+                state.cur = 0;
+                renderOutput();
+                rebuildTrack();
+                releaseSystem();
+                fireToast(slides.length + ' SLIDES · ' + totalFrames + ' FRAMES');
+            }, 30);
+        }
+
+        function generateCrawl() {
+            var text = document.getElementById('t-text').value.trim();
+            if (!text) { fireToast('TYPE TEXT'); return; }
+            pushUndo('crawl');
+            playThud();
+
+            var fontSize = parseInt(document.getElementById('p-font-size').value) || 14;
+            var totalFrames = parseInt(document.getElementById('p-hold').value) || 120;
+            if (totalFrames < 24) totalFrames = 120; // sensible minimum for crawl
+            var ink = parseInt(document.getElementById('t-ink').value) || 7;
+            var lineH = Math.ceil(fontSize * 1.2);
+
+            // Prepare centered lines
+            var rawLines = text.split('\n');
+            // Word-wrap each line
+            _textCtx.font = '900 ' + fontSize + 'px Helvetica, Arial, sans-serif';
+            var lines = [];
+            var centerX = G_COLS / 2;
+            var wrapW = G_COLS * 0.7; // narrower for perspective effect
+            for (var li = 0; li < rawLines.length; li++) {
+                var words = rawLines[li].trim().split(/\s+/);
+                if (rawLines[li].trim() === '') { lines.push(''); continue; }
+                var cur = '';
+                for (var wi = 0; wi < words.length; wi++) {
+                    var test = cur ? cur + ' ' + words[wi] : words[wi];
+                    if (_textCtx.measureText(test).width > wrapW && cur) {
+                        lines.push(cur);
+                        cur = words[wi];
+                    } else {
+                        cur = test;
+                    }
+                }
+                if (cur) lines.push(cur);
+            }
+
+            var textTotalH = lines.length * lineH;
+            var scrollRange = textTotalH + G_ROWS * 2;
+            var statusEl = document.getElementById('p-status');
+            if (statusEl) statusEl.textContent = 'CRAWL: ' + lines.length + ' LINES / ' + totalFrames + ' FRAMES';
+
+            lockSystem('CRAWL...', 0);
+            setTimeout(function() {
+                state.frames = [];
+                for (var f = 0; f < totalFrames; f++) injectFrame(true);
+
+                for (var fi = 0; fi < totalFrames; fi++) {
+                    var fr = state.frames[fi];
+                    fr.scriptLayer.fill(0);
+                    var scrollY = G_ROWS - (fi / totalFrames) * scrollRange;
+
+                    for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                        var line = lines[lineIdx];
+                        if (!line) continue;
+                        var drawY = scrollY + lineIdx * lineH;
+                        // Skip lines completely off-screen
+                        if (drawY < -lineH * 2 || drawY > G_ROWS + lineH) continue;
+
+                        // Perspective: rows near bottom are normal, rows near top shrink
+                        var rowNorm = Math.max(0, Math.min(1, drawY / G_ROWS)); // 0=top, 1=bottom
+                        var perspScale = 0.2 + rowNorm * 0.8;
+                        var fadeAlpha = Math.min(1, rowNorm * 3); // fade out near top
+
+                        // Measure line width to center it
+                        var lineW = _textCtx.measureText(line).width;
+                        var startGX = Math.round(centerX - (lineW / 2) * perspScale);
+
+                        // Render each character with perspective scaling
+                        for (var ci = 0; ci < line.length; ci++) {
+                            var ch = line[ci];
+                            if (ch === ' ') continue;
+                            var charW = _textCtx.measureText(ch).width;
+                            var charX = _textCtx.measureText(line.substring(0, ci)).width;
+                            // Perspective-mapped position
+                            var gx = Math.round(centerX + (charX - lineW / 2) * perspScale);
+                            var gy = Math.round(drawY);
+                            // Scale character height
+                            var charH = Math.ceil(fontSize * perspScale);
+
+                            if (gx >= 0 && gx < G_COLS && gy >= 0 && gy < G_ROWS && fadeAlpha > 0.1) {
+                                var val = Math.max(1, Math.round(ink * fadeAlpha * perspScale));
+                                if (val > 7) val = 7;
+                                var col = INKS[val].rgb;
+                                // Draw a small block for this character
+                                var cw = Math.max(1, Math.round(charW * perspScale));
+                                var ch2 = Math.max(1, Math.round(lineH * perspScale * 0.8));
+                                for (var py = 0; py < ch2 && (gy + py) < G_ROWS; py++) {
+                                    for (var px = 0; px < cw && (gx + px) < G_COLS; px++) {
+                                        if (gx + px >= 0 && gy + py >= 0) {
+                                            for (var by = 0; by < B_SZ; by++)
+                                                for (var bx = 0; bx < B_SZ; bx++)
+                                                    bindPixel(fr.scriptLayer,
+                                                        (gx + px) * B_SZ + bx,
+                                                        (gy + py) * B_SZ + by, col);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                state.cur = 0; renderOutput(); rebuildTrack(); releaseSystem();
+                fireToast('CRAWL · ' + totalFrames + ' FRAMES');
+            }, 30);
+        }
+
+        function generateCredits() {
+            var text = document.getElementById('t-text').value.trim();
+            if (!text) { fireToast('TYPE TEXT'); return; }
+            pushUndo('credits');
+            playThud();
+
+            var fontSize = parseInt(document.getElementById('p-font-size').value) || 14;
+            var totalFrames = parseInt(document.getElementById('p-hold').value) || 120;
+            if (totalFrames < 24) totalFrames = 120;
+            var ink = parseInt(document.getElementById('t-ink').value) || 7;
+            var lineH = Math.ceil(fontSize * 1.2);
+
+            // Word-wrap lines
+            _textCtx.font = '900 ' + fontSize + 'px Helvetica, Arial, sans-serif';
+            var rawLines = text.split('\n');
+            var lines = [];
+            var maxW = G_COLS - 16;
+            for (var li = 0; li < rawLines.length; li++) {
+                var rawLine = rawLines[li].trim();
+                if (rawLine === '') { lines.push(''); continue; }
+                var words = rawLine.split(/\s+/);
+                var cur = '';
+                for (var wi = 0; wi < words.length; wi++) {
+                    var test = cur ? cur + ' ' + words[wi] : words[wi];
+                    if (_textCtx.measureText(test).width > maxW && cur) {
+                        lines.push(cur);
+                        cur = words[wi];
+                    } else {
+                        cur = test;
+                    }
+                }
+                if (cur) lines.push(cur);
+            }
+
+            var textTotalH = lines.length * lineH;
+            var scrollRange = textTotalH + G_ROWS * 2;
+            var statusEl = document.getElementById('p-status');
+            if (statusEl) statusEl.textContent = 'CREDITS: ' + lines.length + ' LINES / ' + totalFrames + ' FRAMES';
+
+            lockSystem('CREDITS ROLL...', 0);
+            setTimeout(function() {
+                state.frames = [];
+                for (var f = 0; f < totalFrames; f++) injectFrame(true);
+
+                var centerX = G_COLS / 2;
+
+                for (var fi = 0; fi < totalFrames; fi++) {
+                    var fr = state.frames[fi];
+                    fr.scriptLayer.fill(0);
+                    var scrollY = G_ROWS - (fi / totalFrames) * scrollRange;
+
+                    // Render visible lines centered
+                    for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                        var line = lines[lineIdx];
+                        if (!line) continue;
+                        var drawY = Math.round(scrollY + lineIdx * lineH);
+                        if (drawY < -lineH || drawY >= G_ROWS + lineH) continue;
+
+                        // Fade at edges
+                        var edgeFade = 1;
+                        if (drawY < lineH * 2) edgeFade = Math.max(0.15, drawY / (lineH * 2));
+                        if (drawY > G_ROWS - lineH * 3) edgeFade = Math.max(0.15, (G_ROWS - drawY) / (lineH * 3));
+
+                        // Center each line
+                        var lineW = _textCtx.measureText(line).width;
+                        var startX = Math.round(centerX - lineW / 2);
+                        if (startX < 2) startX = 2;
+
+                        // Rasterize this single line
+                        var lineGrid = rasterizeText(line, fontSize, startX, Math.max(0, drawY), Math.max(1, Math.round(ink * edgeFade)));
+
+                        // Apply only non-zero pixels (additive)
+                        for (var gy = Math.max(0, drawY); gy < Math.min(G_ROWS, drawY + lineH + 2); gy++) {
+                            for (var gx = 0; gx < G_COLS; gx++) {
+                                if (lineGrid[gy] && lineGrid[gy][gx] > 0) {
+                                    var col = INKS[lineGrid[gy][gx]].rgb;
+                                    for (var by = 0; by < B_SZ; by++)
+                                        for (var bx = 0; bx < B_SZ; bx++)
+                                            bindPixel(fr.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+                                }
+                            }
+                        }
+                    }
+                }
+                state.cur = 0; renderOutput(); rebuildTrack(); releaseSystem();
+                fireToast('CREDITS · ' + totalFrames + ' FRAMES');
             }, 30);
         }
 
