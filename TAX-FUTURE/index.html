@@ -3,283 +3,207 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAX-FUTURE Operative Index</title>
+<title>TAX-FUTURE · Operative Index</title>
 <style>
-  body {
-    background: #f4f4f0; min-height: 100vh;
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    padding: 32px 24px; color: #1e1e1e; margin: 0;
-  }
-  .header {
-    text-align: center;
-    border-bottom: 3px solid #000;
-    padding-bottom: 24px;
-    margin-bottom: 32px;
-  }
-  h1 {
-    font-weight: 900; 
-    letter-spacing: 0.12em; 
-    text-transform: uppercase;
-    margin: 0 0 12px 0;
-  }
-  p.subtitle {
-    font-size: 14px;
-    font-weight: bold;
-    color: #666;
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-    gap: 24px;
-  }
-  .card {
-    background: #fff;
-    border: 3px solid #000;
-    box-shadow: 4px 4px 0 #000;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .card-header {
-    background: #000; color: #fff;
-    padding: 12px 16px; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center;
-  }
-  .card-title {
-    font-weight: 900; 
-    font-size: 14px; 
-    letter-spacing: 0.08em; 
-    text-transform: uppercase;
-  }
-  .card-link {
-    color: #fff; 
-    text-decoration: none; 
-    font-size: 10px; 
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    border: 2px solid #fff; 
-    padding: 4px 10px;
-    text-transform: uppercase;
-    transition: all 0.1s;
-  }
-  .card-link:hover {
-    background: #e60000; 
-    color: #fff;
-    border-color: #e60000;
-  }
-  .iframe-container {
-    width: 100%;
-    height: 400px;
-    position: relative;
-    background: #fafafa;
-  }
-  iframe {
-    width: 100%; 
-    height: 100%; 
-    border: none; 
-    display: block;
-  }
-  @media (max-width: 600px) {
-    .grid { grid-template-columns: 1fr; }
-  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#f4f4f0;--fg:#1e1e1e;--act:#e60000;--border:3px;--shadow:4px;--white:#fff;--faint:#ccc}
+  html,body{min-height:100vh;background:var(--bg);color:var(--fg);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .site-header{background:var(--fg);color:var(--white);padding:28px 24px 24px;text-align:center;border-bottom:var(--border) solid var(--fg)}
+  .logo{font-size:36px;font-weight:900;letter-spacing:.12em;line-height:1}
+  .logo span{color:var(--act)}
+  .tagline{font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:#888;margin-top:6px}
+
+  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 24px;border-bottom:var(--border) solid var(--fg);background:var(--white);max-width:1400px;margin:0 auto}
+  #search{flex:1;min-width:200px;border:2px solid var(--fg);padding:10px 14px;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;outline:none}
+  #search:focus{border-color:var(--act)}
+  .family-btn{background:var(--bg);color:var(--fg);border:2px solid var(--fg);padding:7px 12px;font:inherit;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+  .family-btn[data-active="true"]{background:var(--fg);color:var(--white)}
+  .family-btn:hover{border-color:var(--act)}
+  .count{font-size:10px;font-weight:900;color:#999;letter-spacing:.06em;margin-left:auto}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:20px;padding:24px;max-width:1400px;margin:0 auto}
+  .card{background:var(--white);border:var(--border) solid var(--fg);box-shadow:var(--shadow) var(--shadow) 0 var(--fg);display:flex;flex-direction:column;overflow:hidden;transition:opacity .2s}
+  .card.hidden{display:none}
+  .card-head{background:var(--fg);color:var(--white);padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  .card-fam{font-size:9px;font-weight:700;letter-spacing:.06em;opacity:.6}
+  .card-open{color:var(--white);text-decoration:none;font-size:9px;font-weight:900;letter-spacing:.1em;border:2px solid var(--white);padding:3px 8px;text-transform:uppercase;transition:all .1s;flex-shrink:0}
+  .card-open:hover{background:var(--act);border-color:var(--act)}
+  .card-desc{padding:10px 14px;font-size:11px;line-height:1.55;color:#555;border-bottom:1px solid #eee}
+  .card-tags{padding:8px 14px;display:flex;flex-wrap:wrap;gap:4px}
+  .tag{font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--faint);color:#777}
+  .tag.fam{border-color:var(--act);color:var(--act)}
+  .iframe-wrap{width:100%;height:340px;background:#fafafa}
+  .iframe-wrap iframe{width:100%;height:100%;border:none;display:block}
+
+  .site-footer{text-align:center;padding:28px 24px 44px;font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#999;border-top:var(--border) solid var(--fg);max-width:1400px;margin:24px auto 0}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}.toolbar{flex-direction:column}}
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>TAX-FUTURE INDEX</h1>
-  <p class="subtitle">Complete Archive of Taxonomy Engine Explorations</p>
+<header class="site-header">
+  <div class="logo">TAX-<span>FUTURE</span></div>
+  <div class="tagline">Stuart Candy Taxonomy of Futures · Operative Engine Archive · 26 Prototypes</div>
+</header>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Search files, families, descriptions..." autocomplete="off">
+  <button class="family-btn" data-fam="all" data-active="true" onclick="filterFamily('all',this)">ALL</button>
+  <button class="family-btn" data-fam="fig47" onclick="filterFamily('fig47',this)">FIG 4.7</button>
+  <button class="family-btn" data-fam="scot" onclick="filterFamily('scot',this)">SCOT</button>
+  <button class="family-btn" data-fam="taxonomy" onclick="filterFamily('taxonomy',this)">TAXONOMY</button>
+  <button class="family-btn" data-fam="sensorama" onclick="filterFamily('sensorama',this)">SENSORAMA</button>
+  <button class="family-btn" data-fam="canvas" onclick="filterFamily('canvas',this)">CANVAS</button>
+  <button class="family-btn" data-fam="mntaf" onclick="filterFamily('mntaf',this)">MNTAF</button>
+  <button class="family-btn" data-fam="epistemic" onclick="filterFamily('epistemic',this)">EPISTEMIC</button>
+  <span class="count" id="resultCount">26 shown</span>
 </div>
 
-<div class="grid">
-  <!-- Dynamic Cards generated by indexer -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">a.html</div>
-      <a href="a.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="a.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">b.html</div>
-      <a href="b.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="b.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">bone-00.html</div>
-      <a href="bone-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="bone-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">c.html</div>
-      <a href="c.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="c.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">d.html</div>
-      <a href="d.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="d.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">exper-00.html</div>
-      <a href="exper-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="exper-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">future_parallel_four_slices_tight.html</div>
-      <a href="future_parallel_four_slices_tight.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="future_parallel_four_slices_tight.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">gemini-code-1777059913357.html</div>
-      <a href="gemini-code-1777059913357.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="gemini-code-1777059913357.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">gemini-code-1777060467757.html</div>
-      <a href="gemini-code-1777060467757.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="gemini-code-1777060467757.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">gemini-code-1777062423049.html</div>
-      <a href="gemini-code-1777062423049.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="gemini-code-1777062423049.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">gemini-code-1777063156713.html</div>
-      <a href="gemini-code-1777063156713.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="gemini-code-1777063156713.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">preview (33).html</div>
-      <a href="preview (33).html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="preview (33).html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">quad-slice-good.html</div>
-      <a href="quad-slice-good.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="quad-slice-good.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">scot-00.html</div>
-      <a href="scot-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="scot-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">sector_instrument.html</div>
-      <a href="sector_instrument.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="sector_instrument.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">single-00.html</div>
-      <a href="single-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="single-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">stacked-00.html</div>
-      <a href="stacked-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="stacked-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">take.html</div>
-      <a href="take.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="take.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-00.html</div>
-      <a href="taxonomy-00.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-00.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-01.html</div>
-      <a href="taxonomy-01.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-01.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-02.html</div>
-      <a href="taxonomy-02.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-02.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-03.html</div>
-      <a href="taxonomy-03.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-03.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-04.html</div>
-      <a href="taxonomy-04.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-04.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-05.html</div>
-      <a href="taxonomy-05.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-05.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-06.html</div>
-      <a href="taxonomy-06.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-06.html" loading="lazy"></iframe></div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">taxonomy-07.html</div>
-      <a href="taxonomy-07.html" target="_blank" class="card-link">⤤ OPEN</a>
-    </div>
-    <div class="iframe-container"><iframe src="taxonomy-07.html" loading="lazy"></iframe></div>
-  </div>
+<div class="grid" id="grid"></div>
 
-</div>
+<footer class="site-footer">TAX-FUTURE · Taxonomy of Futures Engine Archive · ABC FLIX</footer>
+
+<script>
+const FILES = [
+  { file:'a.html', title:'Stratigraphic Taxonomy Unroller', family:'fig47',
+    desc:'Fig 4.7 variant. Morphs four isolated radial origins through vector compression and composite stages into a final stratigraphic core collapse — rectangular sedimentary strata stacked by density. Possible forms the bedrock (widest, fewest slices), Preferable the topsoil (narrowest, most slices). SVG with audio engine and playhead scrub.',
+    tags:['SVG','Audio','Playhead','4-Phase','Stratigraphic'] },
+  { file:'b.html', title:'Radial Taxonomy Collapse', family:'fig47',
+    desc:'Fig 4.7 variant. Same four-phase morph as "a" but Phase 4 collapses all tracks into a single large radial circle at a shared center, rather than rectangular strata. The superposition reveals angular density differences between Possible (360°) and Preferable (90°). SVG with audio.',
+    tags:['SVG','Audio','Radial Collapse','Superposition'] },
+  { file:'c.html', title:'Composite Taxonomy Compilation', family:'fig47',
+    desc:'Fig 4.7 variant. Introduces a "Composite Versions" intermediate phase: slices are staggered into individual Y-slots like a telescope before collapsing into a single flat-capped cone superposition. Perimeter-sampled morphing for seamless shape transitions. Uses inverted magnitude (Preferable most abundant, Possible rarest).',
+    tags:['SVG','Perimeter Sample','Composite','Inverted Magnitude'] },
+  { file:'d.html', title:'Taxonomy of Futures — Sector Collapse', family:'fig47',
+    desc:'Fig 4.7 variant. Pure sector (pie-slice) geometry throughout all phases. Radial possibilities fan out as full 360° circles, fold into proportional sector cones, translate rightward, then collapse all four tracks onto a shared Y-center. Clean sector path rendering with no perimeter sampling.',
+    tags:['SVG','Sector Path','Pure Geometry','Collapse'] },
+  { file:'taxonomy-06.html', title:'Classic Taxonomy — Discrete to Superposition', family:'fig47',
+    desc:'Fig 4.7 master compilation. Four-phase topology morph from discrete cones to superposition using flat-capped vectors. The definitive white-field brutalist diagrammatic tool with a bottom readout panel showing base resolution, composite versions, unit angle, and topology phase.',
+    tags:['SVG','Brutalist','White Field','Master'] },
+  { file:'bone-00.html', title:'Taxonomy of Bicycle Futures — Slice = Bicycle', family:'mntaf',
+    desc:'The MNTAF database engine. Maps 30+ historical bicycle variants (Boneshaker through E-bike) onto four future cones using BDI (Belief-Desire-Intent) and SCOT frameworks. Each slice IS a bicycle. Features an interactive inspector panel with actor perspective inference, social group mapping, and artifact genealogy.',
+    tags:['MNTAF','BDI','SCOT','Bicycle','Inspector','Database'] },
+  { file:'taxonomy-04.html', title:'MNTAF Bicycle Refraction', family:'mntaf',
+    desc:'Two-panel interface: taxonomy diagram on the left, artifact refraction panel on the right. Bicycles are mapped across all four future cones simultaneously, showing how every bicycle form sits inside multiple interpretive possibility fields at once. The refraction model replaces linear evolution.',
+    tags:['MNTAF','Refraction','Two-Panel','Artifact Mapping'] },
+  { file:'taxonomy-05.html', title:'Unified MNTAF Engine', family:'mntaf',
+    desc:'Synthesizes bone-00 (MNTAF database), scot-00 (morph/assimilation/audio), and quad-slice-good (canvas renderer) into a single unified engine. The master refraction engine integrating all three ancestor prototypes into one operative surface.',
+    tags:['MNTAF','Synthesis','Unified','Master Engine'] },
+  { file:'exper-00.html', title:'SCOT Media Archaeology Tool', family:'scot',
+    desc:'Media archaeology instrument mapping the 1885-1890 bicycle timeline. Four RSGs (Industrialists, Traditionalists, Sporting Elite, Pragmatic Commuters) with editable archival records per slice. Features a floating HUD tooltip, click-to-lock inspector panel, and "Technological Closure" overlay. Interactive SVG grid with hover states.',
+    tags:['SVG','SCOT','Inspector','HUD','Editable','RSG'] },
+  { file:'single-00.html', title:'SCOT Timeline Collapse (Single)', family:'scot',
+    desc:'Single-track SCOT timeline collapse instrument. Focused on one RSG trajectory at a time with detailed artifact variant tracking. Morphs from radial origin through cone expansion to flat timeline closure.',
+    tags:['SVG','SCOT','Single Track','Timeline'] },
+  { file:'scot-00.html', title:'SCOT Timeline Geometry', family:'scot',
+    desc:'The original SCOT timeline geometry engine. Provides drag-scrub morphing between circle, cone, and flat representations with assimilation closure narrative logic. Includes an ASMR haptic audio engine that bends frequencies based on morph position. The ancestor that contributed morph mechanics to the unified engine.',
+    tags:['SVG','SCOT','Audio','Haptic','Morph','Ancestor'] },
+  { file:'gemini-code-1777059913357.html', title:'Fig 4.4 — 1885 Bicycle Timeline', family:'scot',
+    desc:'Diagram 4.4: SCOT timeline collapse mapping bicycle artifact trajectories from 1885. Maps SCOT social construction of technology framework onto visual geometry. Clean brutalist white-field layout.',
+    tags:['SVG','SCOT','Fig 4.4','Brutalist'] },
+  { file:'stacked-00.html', title:'Futures Cone — Stacked Interference', family:'canvas',
+    desc:'Canvas-rendered stacked cone interference engine. All four future cones share a single 1885 origin point and fan rightward. Drag X for morph (origin→closure), drag Y for cone separation (fully overlapping→fully spread). Computes and visualizes overlap bands between adjacent cones with red interference zones. Hit-testing per slice with tooltip HUD.',
+    tags:['Canvas','Interference','Overlap','Dual-Axis','Hit Test'] },
+  { file:'quad-slice-good.html', title:'Quad Slice Future Unroller', family:'canvas',
+    desc:'Dark-mode canvas renderer with atmospheric landscape painting. Four-slice unrolling geometry with filament connections between slices. Contributed the canvas rendering pipeline and landscape scaffolding to the unified MNTAF engine. An ancestor prototype.',
+    tags:['Canvas','Dark Mode','Landscape','Filament','Ancestor'] },
+  { file:'future_parallel_four_slices_tight.html', title:'Future Geometry — Parallel Slices', family:'canvas',
+    desc:'Compact four-slice parallel geometry instrument. Tight layout showing all four future categories as parallel strips with readout panels. Minimal, focused proof-of-concept for the slice-as-substrate principle.',
+    tags:['Canvas','Parallel','Compact','Proof of Concept'] },
+  { file:'sector_instrument.html', title:'Sector Instrument — Area Invariance', family:'canvas',
+    desc:'Area-conserving sector instrument. Demonstrates that total area remains constant while form changes — the Archimedes-unrolled principle. A circle sector morphs into a rectangle while maintaining identical area. Core geometric proof underlying all taxonomy morphing.',
+    tags:['SVG','Area Invariance','Archimedes','Core Proof'] },
+  { file:'take.html', title:'Sensorama / VR Fullscreen Futures Cone', family:'sensorama',
+    desc:'Fullscreen Sensorama/VR futures cone with 64+ named units across Pressure, Source, Function, and Form categories. Features four-phase animation (Separate Layers → Unrolled Strips → Composite VR Wheel → Persistent Cone) with inline SVG apparatus illustrations (headset, cabinet, simulator, scent, body, screen). Apparatus lineage timeline at bottom. The most content-rich prototype in the collection.',
+    tags:['SVG','Sensorama','VR','64 Units','Apparatus','Fullscreen'] },
+  { file:'preview (33).html', title:'VR Futures Cone — Static Field', family:'sensorama',
+    desc:'Static-field variant of the Sensorama/VR futures cone. Same taxonomic content as take.html but rendered as a fixed-state reference diagram rather than an animated morph. Useful as a printable reference card.',
+    tags:['SVG','Sensorama','VR','Static','Reference'] },
+  { file:'taxonomy-00.html', title:'Cone Compilation — Genesis', family:'taxonomy',
+    desc:'The genesis prototype. First attempt at compiling the Stuart Candy taxonomy of futures into an interactive cone visualization. Established the four-color palette (Pale Sage, Mid Green, Bright Green, Yellow-Green) and the basic morph paradigm.',
+    tags:['SVG','Genesis','Prototype','Color Palette'] },
+  { file:'taxonomy-01.html', title:'Area-Conserving Compilation', family:'taxonomy',
+    desc:'Second iteration. Introduced Archimedes-unrolled area conservation — proving that a circle sector and its unrolled rectangle preserve identical area. This geometric invariance became the foundational principle for all subsequent morphing engines.',
+    tags:['SVG','Area Conservation','Archimedes','Foundation'] },
+  { file:'taxonomy-02.html', title:'Superimposed Slice Systems', family:'taxonomy',
+    desc:'Third iteration. First attempt at superimposing multiple slice systems (all four cones overlaid on a single center). Explored transparency, layering order, and the visual legibility of nested cones.',
+    tags:['SVG','Superposition','Layering','Transparency'] },
+  { file:'taxonomy-03.html', title:'Holographic Slice Compilation', family:'taxonomy',
+    desc:'Fourth iteration. Introduced the three-column layout: Separate Channels, Composite Merge, and Unrolled Composite Field. Used Archimedes-unrolled alternating triangles. First prototype to show the full compilation pipeline from isolation to superposition.',
+    tags:['SVG','Holographic','Three-Column','Pipeline'] },
+  { file:'taxonomy-07.html', title:'Phase Space Matrix', family:'taxonomy',
+    desc:'Novel 2D Phase Space instrument. Mouse X-axis morphs between circle and strip (Archimedes unrolling). Mouse Y-axis morphs between separate grids and nested superposition. Four corners define: Discrete Radial Islands, Discrete Rectilinear Blocks, Concentric Bullseye, Stepped Ziggurat. Lissajous auto-wander mode.',
+    tags:['SVG','Phase Space','2D Matrix','Lissajous','Crosshair'] },
+  { file:'gemini-code-1777060467757.html', title:'Epistemic Flow — Counter-Factual Timelines', family:'epistemic',
+    desc:'Fig 4.5: Epistemic flow diagram mapping counter-factual timelines. Visualizes how knowledge flows through alternative historical branches, showing what could have happened if different design decisions were made.',
+    tags:['SVG','Epistemic','Counter-Factual','Fig 4.5'] },
+  { file:'gemini-code-1777062423049.html', title:'Taxonomy of Futures — HUD Variant', family:'epistemic',
+    desc:'Taxonomy of futures with an interactive HUD overlay. Compact implementation exploring how to present taxonomy metadata (cone descriptions, probability weights) as a heads-up display layer.',
+    tags:['SVG','HUD','Compact','Metadata'] },
+  { file:'gemini-code-1777063156713.html', title:'Epistemic Compilation Engine', family:'epistemic',
+    desc:'Full epistemic compilation engine. Extends the taxonomy with counter-factual reasoning: each slice can represent not just a future prediction but an entire epistemic stance. The most theoretically ambitious prototype in the epistemic family.',
+    tags:['SVG','Epistemic','Compilation','Theory'] },
+];
+
+const FAMILIES = {
+  all:'All Files',
+  fig47:'Fig 4.7 Diagram Series',
+  scot:'SCOT Timeline',
+  taxonomy:'Taxonomy Series',
+  sensorama:'Sensorama / VR',
+  canvas:'Canvas Renderers',
+  mntaf:'MNTAF Bicycle',
+  epistemic:'Epistemic Flow'
+};
+
+let activeFamily = 'all';
+
+function renderCards(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  let shown = 0;
+
+  FILES.forEach(f => {
+    const searchable = (f.file + ' ' + f.title + ' ' + f.desc + ' ' + f.tags.join(' ') + ' ' + f.family + ' ' + (FAMILIES[f.family]||'')).toLowerCase();
+    const matchesSearch = !q || searchable.includes(q);
+    const matchesFamily = activeFamily === 'all' || f.family === activeFamily;
+    if (!matchesSearch || !matchesFamily) return;
+    shown++;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-head">
+        <div>
+          <div class="card-title">${f.title}</div>
+          <div class="card-fam">${f.file} · ${FAMILIES[f.family]||f.family}</div>
+        </div>
+        <a href="${f.file}" target="_blank" class="card-open">&#x2924; OPEN</a>
+      </div>
+      <div class="card-desc">${f.desc}</div>
+      <div class="card-tags">
+        <span class="tag fam">${FAMILIES[f.family]||f.family}</span>
+        ${f.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+      </div>
+      <div class="iframe-wrap"><iframe src="${f.file}" loading="lazy"></iframe></div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('resultCount').textContent = shown + ' shown';
+}
+
+function filterFamily(fam, btn){
+  activeFamily = fam;
+  document.querySelectorAll('.family-btn').forEach(b => b.dataset.active = 'false');
+  if(btn) btn.dataset.active = 'true';
+  renderCards();
+}
+
+document.getElementById('search').addEventListener('input', renderCards);
+renderCards();
+</script>
 </body>
 </html>
