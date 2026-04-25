@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures · MNTAF Bicycle Refraction</title>
+<style>
+  :root {
+    --bg: #f2efe6;
+    --ink: #1a1a1a;
+    --muted: rgba(26,26,26,.5);
+    --faint: rgba(26,26,26,.1);
+  }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: 'Courier New', Courier, monospace; }
+  body { touch-action: none; user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .chrome { position: fixed; z-index: 5; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; pointer-events: none; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .chrome.top { top: 0; }
+  .chrome.bottom { bottom: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .mark { color: var(--ink); font-weight: 800; font-size: 12px; }
+  .controls { display: flex; gap: 6px; pointer-events: auto; }
+  button { appearance: none; background: transparent; border: 1px solid var(--faint); color: var(--ink); min-height: 28px; padding: 0 9px; font: inherit; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; font-weight: 700; }
+  button:hover, button.active { background: var(--ink); color: var(--bg); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="chrome top">
+  <div><span class="mark">A Taxonomy of Futures</span> &middot; MNTAF bicycle refraction</div>
+  <div class="controls">
+    <button id="loopBtn">loop</button>
+    <button id="prevBtn">&larr;</button>
+    <button id="nextBtn">&rarr;</button>
+  </div>
+</div>
+<div class="chrome bottom">
+  <div>click artifact to refract &middot; drag x: morph</div>
+  <div id="read"></div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const g = canvas.getContext('2d');
+  const read = document.getElementById('read');
+  const loopBtn = document.getElementById('loopBtn');
+
+  // ──── MNTAF ARTIFACT DATABASE ────
+
+  const ARTIFACTS = [
+    {
+      id: 'boneshaker', name: 'Boneshaker', year: '1860s',
+      possible:   { text: 'One morphology: direct pedal-crank on front axle', strength: 0.9 },
+      plausible:  { text: 'Uncomfortable but functionally rideable', strength: 0.5 },
+      probable:   { text: 'No market closure — too rough, too heavy', strength: 0.15 },
+      preferable: { text: 'Rejected: discomfort, exclusion, impracticality', strength: 0.05 }
+    },
+    {
+      id: 'penny', name: 'Penny Farthing', year: '1870s',
+      possible:   { text: 'Huge front wheel = speed through diameter', strength: 0.8 },
+      plausible:  { text: 'Elite sport machine for athletic men', strength: 0.7 },
+      probable:   { text: 'Unstable path: limited mass closure', strength: 0.3 },
+      preferable: { text: 'Rejected by safety/access values, except spectacle', strength: 0.1 }
+    },
+    {
+      id: 'star', name: 'Star Bicycle', year: '1881',
+      possible:   { text: 'Reversed wheel geometry: small front, large rear', strength: 0.85 },
+      plausible:  { text: 'Safer mounting, visible alternative', strength: 0.6 },
+      probable:   { text: 'Brief commercial run, no sustained closure', strength: 0.2 },
+      preferable: { text: 'Safety improvement but still high-wheel logic', strength: 0.25 }
+    },
+    {
+      id: 'kangaroo', name: 'Kangaroo', year: '1884',
+      possible:   { text: 'Lever-driven front wheel, reduced diameter', strength: 0.8 },
+      plausible:  { text: 'Compromise: speed with lower mounting', strength: 0.55 },
+      probable:   { text: 'Transitional — absorbed by chain drive', strength: 0.15 },
+      preferable: { text: 'Partial safety gain but mechanical complexity', strength: 0.2 }
+    },
+    {
+      id: 'safety', name: 'Safety Bicycle', year: '1885',
+      possible:   { text: 'Lower drive, equal wheels, chain mechanism', strength: 0.7 },
+      plausible:  { text: 'Legible to women, elderly, tourists, producers', strength: 0.9 },
+      probable:   { text: 'Dominant stabilization: bundles all closures', strength: 0.95 },
+      preferable: { text: 'Only if connected to access, repair, equity, joy', strength: 0.7 }
+    },
+    {
+      id: 'cargo', name: 'Cargo Bike', year: '2000s',
+      possible:   { text: 'Extended frame geometry for load capacity', strength: 0.75 },
+      plausible:  { text: 'Viable for urban logistics and family transport', strength: 0.8 },
+      probable:   { text: 'Growing in European cities, infrastructure dependent', strength: 0.6 },
+      preferable: { text: 'High value: low-carbon, family access, utility', strength: 0.9 }
+    },
+    {
+      id: 'ebike', name: 'E-Bike', year: '2010s',
+      possible:   { text: 'Electric assist + traditional frame geometry', strength: 0.7 },
+      plausible:  { text: 'Extends cycling to new age/fitness groups', strength: 0.85 },
+      probable:   { text: 'Fastest-growing segment, strong market closure', strength: 0.85 },
+      preferable: { text: 'Contested: access vs battery waste vs car replacement', strength: 0.6 }
+    },
+    {
+      id: 'opensource', name: 'Open-Source Bike', year: 'Now',
+      possible:   { text: 'Distributed design, local fabrication', strength: 0.9 },
+      plausible:  { text: 'Requires maker infrastructure and community', strength: 0.4 },
+      probable:   { text: 'Marginal market share, no mass closure yet', strength: 0.1 },
+      preferable: { text: 'Highest value: repairability, equity, autonomy', strength: 0.95 }
+    }
+  ];
+
+  const LAYERS = [
+    { key: 'possible',   name: 'POSSIBLE',   sub: 'Morphology Space', seg: 5,  fill: [195,200,185], stroke: [140,150,130], question: 'What does this form reveal about the design space?' },
+    { key: 'plausible',  name: 'PLAUSIBLE',  sub: 'Interpreted by Groups', seg: 8,  fill: [140,185,130], stroke: [90,140,80], question: 'Could this variant solve a recognized problem for a recognized group?' },
+    { key: 'probable',   name: 'PROBABLE',   sub: 'Stabilized by Feedback', seg: 12, fill: [80,155,70],   stroke: [50,120,40], question: 'Do multiple feedback loops reinforce this design?' },
+    { key: 'preferable', name: 'PREFERABLE', sub: 'Value-Governed Futures', seg: 20, fill: [190,205,50],  stroke: [150,170,30], question: 'What should this become, for whom, under what values?' }
+  ];
+
+  const state = { morph: 1, density: 1, selected: 4, drag: false, loop: false, hover: -1 };
+  let W = 0, H = 0, DPR = 1, T = 0;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => t * t * (3 - 2 * t);
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const polar = (x, y, r, a) => ({ x: x + r * Math.cos(a), y: y + r * Math.sin(a) });
+
+  // ──── SLICE DRAWING ────
+
+  function drawCircleSlices(x, y, r, seg, fillC, strokeC, alpha) {
+    const theta = Math.PI * 2 / seg;
+    for (let i = 0; i < seg; i++) {
+      const a0 = -Math.PI / 2 + i * theta;
+      const a1 = a0 + theta;
+      g.beginPath(); g.moveTo(x, y);
+      for (let j = 0; j <= 12; j++) g.lineTo(x + r * Math.cos(lerp(a0, a1, j / 12)), y + r * Math.sin(lerp(a0, a1, j / 12)));
+      g.closePath();
+      g.fillStyle = rgba(fillC, alpha); g.fill();
+      g.strokeStyle = rgba(strokeC, alpha * 1.1); g.lineWidth = Math.max(0.4, 1.2 - seg * 0.03); g.stroke();
+    }
+    g.beginPath(); g.arc(x, y, r * 0.06, 0, Math.PI * 2); g.fillStyle = rgba([20,20,20], alpha); g.fill();
+  }
+
+  function drawTriangles(x, y, w, h, seg, fillC, strokeC, alpha) {
+    const sw = w / seg;
+    for (let i = 0; i < seg; i++) {
+      const sx = x + i * sw;
+      g.beginPath();
+      if (i % 2 === 0) { g.moveTo(sx, y + h); g.lineTo(sx + sw, y + h); g.lineTo(sx + sw / 2, y); }
+      else { g.moveTo(sx, y); g.lineTo(sx + sw, y); g.lineTo(sx + sw / 2, y + h); }
+      g.closePath();
+      g.fillStyle = rgba(fillC, alpha); g.fill();
+      g.strokeStyle = rgba(strokeC, alpha * 1.1); g.lineWidth = Math.max(0.3, 0.9 - seg * 0.02); g.stroke();
+    }
+  }
+
+  // ──── REFRACTION BAR ────
+
+  function drawRefractionBar(x, y, w, h, strength, fillC, strokeC) {
+    // Background
+    g.fillStyle = rgba(fillC, 0.08); g.fillRect(x, y, w, h);
+    // Fill bar
+    const barW = w * strength;
+    g.fillStyle = rgba(fillC, 0.55); g.fillRect(x, y, barW, h);
+    g.strokeStyle = rgba(strokeC, 0.4); g.lineWidth = 0.8; g.strokeRect(x, y, w, h);
+  }
+
+  // ──── MAIN DRAW ────
+
+  function draw() {
+    T = performance.now();
+    if (state.loop) state.morph = (Math.sin(T * 0.0003) + 1) / 2;
+
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = '#f2efe6'; g.fillRect(0, 0, W, H);
+
+    const pad = Math.min(W * 0.02, 24);
+    const topY = 50;
+    const botY = H - 55;
+    const areaH = botY - topY;
+
+    // Two major panels: LEFT = separate layers + composite circle | RIGHT = refraction panel
+    const splitX = W * 0.58;
+
+    // ──── LEFT PANEL: SEPARATE LAYERS + COMPOSITE ────
+
+    const leftW = splitX - pad * 2;
+
+    // Section headers
+    g.font = '700 10px "Courier New", monospace';
+    g.letterSpacing = '2px';
+    g.fillStyle = '#1a1a1a';
+    g.fillText('SEPARATE LAYERS', pad, topY - 8);
+
+    g.fillStyle = '#999'; g.font = '400 9px "Courier New", monospace';
+    g.fillText('Four slice systems at different scales', pad, topY + 4);
+
+    // Composite header
+    const compHdrX = pad + leftW * 0.52;
+    g.font = '700 10px "Courier New", monospace'; g.fillStyle = '#1a1a1a';
+    g.fillText('COMPOSITE', compHdrX, topY - 8);
+    g.fillStyle = '#999'; g.font = '400 9px "Courier New", monospace';
+    g.fillText('All channels overlaid into one whole', compHdrX, topY + 4);
+
+    // Draw 4 rows
+    const rowH = areaH / 4;
+    const circR = Math.min(rowH * 0.28, leftW * 0.08);
+    const triW = leftW * 0.22;
+    const triH = circR * 1.2;
+
+    LAYERS.forEach((layer, idx) => {
+      const cy = topY + rowH * idx + rowH * 0.5 + 8;
+      const circX = pad + circR + 4;
+      const seg = Math.max(3, Math.round(layer.seg * state.density));
+
+      // Label
+      g.font = '700 10px "Courier New", monospace';
+      g.fillStyle = rgba(layer.stroke, 1);
+      g.fillText(layer.name, pad, cy - circR - 12);
+      g.font = '400 8px "Courier New", monospace';
+      g.fillStyle = '#888';
+      g.fillText(`${seg} slices`, pad, cy - circR - 1);
+      g.fillText(layer.sub, pad + 52, cy - circR - 1);
+
+      // Circle
+      drawCircleSlices(circX, cy, circR, seg, layer.fill, layer.stroke, 0.65);
+
+      // Arrow
+      const arrowX1 = circX + circR + 8;
+      const triStartX = arrowX1 + 20;
+      g.beginPath(); g.moveTo(arrowX1, cy); g.lineTo(triStartX - 4, cy);
+      g.strokeStyle = '#bbb'; g.lineWidth = 0.8; g.stroke();
+      g.beginPath(); g.moveTo(triStartX - 5, cy - 2.5); g.lineTo(triStartX, cy); g.lineTo(triStartX - 5, cy + 2.5);
+      g.fillStyle = '#bbb'; g.fill();
+
+      // Unrolled triangles
+      drawTriangles(triStartX, cy - triH / 2, triW, triH, seg, layer.fill, layer.stroke, 0.6);
+    });
+
+    // Composite circle
+    const compCX = pad + leftW * 0.62;
+    const compCY = topY + areaH * 0.5 + 8;
+    const compR = Math.min(leftW * 0.16, areaH * 0.28);
+
+    // Flow arrows from each row to composite
+    LAYERS.forEach((layer, idx) => {
+      const cy = topY + rowH * idx + rowH * 0.5 + 8;
+      const triEndX = pad + circR + 32 + triW;
+      g.beginPath();
+      g.moveTo(triEndX + 4, cy);
+      g.bezierCurveTo(triEndX + 30, cy, compCX - compR - 20, compCY, compCX - compR - 4, compCY);
+      g.strokeStyle = rgba(layer.stroke, 0.2); g.lineWidth = 0.7; g.stroke();
+    });
+
+    // Composite circle outline
+    g.beginPath(); g.arc(compCX, compCY, compR, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(26,26,26,.12)'; g.lineWidth = 1; g.stroke();
+    g.beginPath(); g.arc(compCX, compCY, compR * 0.05, 0, Math.PI * 2);
+    g.fillStyle = '#1a1a1a'; g.fill();
+
+    // All layers on composite
+    LAYERS.forEach(layer => {
+      const seg = Math.max(3, Math.round(layer.seg * state.density));
+      drawCircleSlices(compCX, compCY, compR, seg, layer.fill, layer.stroke, 0.3);
+    });
+
+    // Arrow to unrolled field
+    const fieldX = compCX + compR + 16;
+    const fieldW = splitX - fieldX - pad;
+    const fieldH = areaH * 0.72;
+    const fieldY = topY + areaH * 0.12 + 8;
+
+    g.beginPath(); g.moveTo(compCX + compR + 4, compCY); g.lineTo(fieldX - 4, compCY);
+    g.strokeStyle = '#bbb'; g.lineWidth = 0.8; g.stroke();
+    g.beginPath(); g.moveTo(fieldX - 5, compCY - 2.5); g.lineTo(fieldX, compCY); g.lineTo(fieldX - 5, compCY + 2.5);
+    g.fillStyle = '#bbb'; g.fill();
+
+    // Unrolled composite field
+    g.strokeStyle = 'rgba(26,26,26,.15)'; g.lineWidth = 0.8; g.strokeRect(fieldX, fieldY, fieldW, fieldH);
+    LAYERS.forEach((layer, idx) => {
+      const seg = Math.max(3, Math.round(layer.seg * state.density));
+      drawTriangles(fieldX, fieldY, fieldW, fieldH, seg, layer.fill, layer.stroke, 0.22 + idx * 0.04);
+    });
+
+    // Density markers
+    const markers = [
+      { n: '5', sub: 'POSSIBLE', t: 0.12 },
+      { n: '8', sub: 'PLAUSIBLE', t: 0.38 },
+      { n: '12', sub: 'PROBABLE', t: 0.65 },
+      { n: '20+', sub: 'PREFERABLE', t: 0.9 }
+    ];
+    g.textAlign = 'center';
+    markers.forEach(mk => {
+      const mx = fieldX + fieldW * mk.t;
+      g.beginPath(); g.setLineDash([2, 4]); g.moveTo(mx, fieldY); g.lineTo(mx, fieldY + fieldH);
+      g.strokeStyle = 'rgba(26,26,26,.1)'; g.lineWidth = 0.6; g.stroke(); g.setLineDash([]);
+      g.font = '700 8px "Courier New", monospace'; g.fillStyle = '#1a1a1a'; g.fillText(mk.n, mx, fieldY - 5);
+      g.font = '400 7px "Courier New", monospace'; g.fillStyle = '#888'; g.fillText(mk.sub, mx, fieldY + fieldH + 10);
+    });
+    g.textAlign = 'start';
+
+    // ──── RIGHT PANEL: ARTIFACT REFRACTION ────
+
+    const rightX = splitX + pad;
+    const rightW = W - rightX - pad;
+
+    // Divider line
+    g.beginPath(); g.moveTo(splitX, topY - 20); g.lineTo(splitX, botY + 10);
+    g.strokeStyle = 'rgba(26,26,26,.08)'; g.lineWidth = 1; g.stroke();
+
+    // Header
+    g.font = '700 10px "Courier New", monospace'; g.letterSpacing = '2px';
+    g.fillStyle = '#1a1a1a';
+    g.fillText('ARTIFACT REFRACTION', rightX, topY - 8);
+    g.font = '400 9px "Courier New", monospace'; g.fillStyle = '#999';
+    g.fillText('Each artifact is refracted through all cones', rightX, topY + 4);
+
+    // Selected artifact detail
+    const sel = ARTIFACTS[state.selected];
+    const detailY = topY + 28;
+
+    // Artifact name + year
+    g.font = '700 14px "Courier New", monospace'; g.fillStyle = '#1a1a1a';
+    g.fillText(sel.name, rightX, detailY);
+    g.font = '400 11px "Courier New", monospace'; g.fillStyle = '#888';
+    g.fillText(sel.year, rightX + g.measureText(sel.name).width + 12, detailY);
+
+    // Four refraction rows
+    const refRowH = (areaH - 100) / 4;
+    const barX = rightX;
+    const barW = rightW * 0.4;
+    const barH = 14;
+
+    LAYERS.forEach((layer, idx) => {
+      const ry = detailY + 30 + idx * refRowH;
+      const data = sel[layer.key];
+
+      // Layer name + question
+      g.font = '700 10px "Courier New", monospace';
+      g.fillStyle = rgba(layer.stroke, 1);
+      g.fillText(layer.name, barX, ry);
+
+      g.font = '400 8px "Courier New", monospace';
+      g.fillStyle = '#aaa';
+      g.fillText(layer.sub, barX + g.measureText(layer.name).width + 10, ry);
+
+      // Strength bar
+      drawRefractionBar(barX, ry + 6, barW, barH, data.strength, layer.fill, layer.stroke);
+
+      // Strength percentage
+      g.font = '700 9px "Courier New", monospace';
+      g.fillStyle = rgba(layer.stroke, 0.9);
+      g.fillText(`${Math.round(data.strength * 100)}%`, barX + barW + 8, ry + 17);
+
+      // Description text (wrap)
+      g.font = '400 9px "Courier New", monospace';
+      g.fillStyle = '#555';
+      const maxTextW = rightW - 8;
+      wrapText(data.text, barX, ry + 30, maxTextW, 13);
+
+      // Question
+      g.font = '400 8px "Courier New", monospace';
+      g.fillStyle = '#aaa';
+      const qY = ry + refRowH - 20;
+      wrapText(layer.question, barX, qY, maxTextW, 11);
+    });
+
+    // ──── ARTIFACT SELECTOR (clickable nodes) ────
+
+    const selY = botY - 8;
+    const nodeSpacing = rightW / ARTIFACTS.length;
+    const nodeR = Math.min(8, nodeSpacing * 0.35);
+
+    g.font = '400 7px "Courier New", monospace';
+    g.textAlign = 'center';
+
+    ARTIFACTS.forEach((art, i) => {
+      const nx = rightX + nodeSpacing * (i + 0.5);
+      const isSelected = i === state.selected;
+      const isHover = i === state.hover;
+
+      // Node circle sized by composite strength
+      const composite = (art.possible.strength + art.plausible.strength + art.probable.strength + art.preferable.strength) / 4;
+      const r = nodeR * (0.6 + composite * 0.5);
+
+      // Color by dominant layer
+      const strengths = [art.possible.strength, art.plausible.strength, art.probable.strength, art.preferable.strength];
+      const maxIdx = strengths.indexOf(Math.max(...strengths));
+
+      g.beginPath(); g.arc(nx, selY, r, 0, Math.PI * 2);
+      if (isSelected) {
+        g.fillStyle = rgba(LAYERS[maxIdx].stroke, 0.9);
+        g.strokeStyle = '#1a1a1a'; g.lineWidth = 2;
+      } else if (isHover) {
+        g.fillStyle = rgba(LAYERS[maxIdx].fill, 0.7);
+        g.strokeStyle = rgba(LAYERS[maxIdx].stroke, 0.7); g.lineWidth = 1.5;
+      } else {
+        g.fillStyle = rgba(LAYERS[maxIdx].fill, 0.5);
+        g.strokeStyle = rgba(LAYERS[maxIdx].stroke, 0.3); g.lineWidth = 0.8;
+      }
+      g.fill(); g.stroke();
+
+      // Mini refraction ring (4 arcs showing strength in each layer)
+      if (isSelected || isHover) {
+        LAYERS.forEach((layer, li) => {
+          const a0 = -Math.PI / 2 + li * Math.PI / 2;
+          const a1 = a0 + Math.PI / 2;
+          g.beginPath(); g.arc(nx, selY, r + 4, a0, lerp(a0, a1, strengths[li]));
+          g.strokeStyle = rgba(layer.stroke, 0.8); g.lineWidth = 2; g.stroke();
+        });
+      }
+
+      // Label
+      g.fillStyle = isSelected ? '#1a1a1a' : '#999';
+      g.font = isSelected ? '700 7px "Courier New", monospace' : '400 7px "Courier New", monospace';
+      g.fillText(art.name.length > 10 ? art.name.slice(0, 9) + '..' : art.name, nx, selY - r - 5);
+    });
+    g.textAlign = 'start';
+
+    // ──── BOTTOM FORMULA ────
+
+    const formY = botY + 28;
+    g.font = '400 8px "Courier New", monospace';
+    g.fillStyle = '#aaa';
+    g.textAlign = 'center';
+    g.fillText('ARTIFACT GEOMETRY \u2192 RIDING PRACTICE \u2192 SOCIAL GROUP \u2192 PROBLEM DEFINITION \u2192 ACTOR-NETWORK \u2192 BDI \u2192 FEEDBACK \u2192 FUTURES POSITION', W / 2, formY);
+    g.font = '700 8px "Courier New", monospace';
+    g.fillStyle = '#999';
+    g.fillText('THIS IS NOT A PREDICTION. IT IS A NAVIGATION SYSTEM.', W / 2, formY + 14);
+    g.textAlign = 'start';
+
+    read.textContent = `${sel.name} · ${sel.year}`;
+    requestAnimationFrame(draw);
+  }
+
+  function wrapText(text, x, y, maxW, lineH) {
+    const words = text.split(' ');
+    let line = '';
+    let cy = y;
+    for (const word of words) {
+      const test = line + word + ' ';
+      if (g.measureText(test).width > maxW && line) {
+        g.fillText(line.trim(), x, cy);
+        line = word + ' ';
+        cy += lineH;
+      } else {
+        line = test;
+      }
+    }
+    if (line.trim()) g.fillText(line.trim(), x, cy);
+  }
+
+  // ──── INPUT ────
+
+  function getArtifactAtPoint(ex, ey) {
+    const splitX2 = W * 0.58;
+    const rightX2 = splitX2 + Math.min(W * 0.02, 24);
+    const rightW2 = W - rightX2 - Math.min(W * 0.02, 24);
+    const selY2 = H - 55 - 8;
+    const nodeSpacing2 = rightW2 / ARTIFACTS.length;
+    const nodeR2 = Math.min(8, nodeSpacing2 * 0.35);
+
+    for (let i = 0; i < ARTIFACTS.length; i++) {
+      const nx = rightX2 + nodeSpacing2 * (i + 0.5);
+      if (Math.hypot(ex - nx, ey - selY2) < nodeR2 + 6) return i;
+    }
+    return -1;
+  }
+
+  addEventListener('pointerdown', e => {
+    const hit = getArtifactAtPoint(e.clientX, e.clientY);
+    if (hit >= 0) { state.selected = hit; return; }
+    state.drag = true;
+    state.morph = clamp(e.clientX / W, 0, 1);
+    state.density = clamp(0.5 + (1 - e.clientY / H) * 1.8, 0.5, 2.3);
+  });
+  addEventListener('pointermove', e => {
+    state.hover = getArtifactAtPoint(e.clientX, e.clientY);
+    canvas.style.cursor = state.hover >= 0 ? 'pointer' : 'crosshair';
+    if (state.drag) {
+      state.morph = clamp(e.clientX / W, 0, 1);
+      state.density = clamp(0.5 + (1 - e.clientY / H) * 1.8, 0.5, 2.3);
+    }
+  });
+  addEventListener('pointerup', () => state.drag = false);
+  addEventListener('pointercancel', () => state.drag = false);
+  addEventListener('resize', resize);
+  addEventListener('keydown', e => {
+    if (e.key === ' ') { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { state.selected = (state.selected + 1) % ARTIFACTS.length; e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { state.selected = (state.selected - 1 + ARTIFACTS.length) % ARTIFACTS.length; e.preventDefault(); }
+  });
+  loopBtn.onclick = () => { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); };
+  document.getElementById('prevBtn').onclick = () => { state.selected = (state.selected - 1 + ARTIFACTS.length) % ARTIFACTS.length; };
+  document.getElementById('nextBtn').onclick = () => { state.selected = (state.selected + 1) % ARTIFACTS.length; };
+
+  resize();
+  draw();
+})();
+</script>
+</body>
+</html>

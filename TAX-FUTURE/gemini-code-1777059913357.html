@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Diagram 4.4: SCOT Timeline Collapse</title>
+<style>
+  :root{
+    /* Clinical Diagrammatic Palette */
+    --bg:#F4F4F0;
+    --fg:#0A0A0A;
+    --faint:#D0D0CE;
+    --ghost:#E8E8E5;
+    
+    /* Exact Speculative Cone Colors with Transparency for Overlapping */
+    --c3:rgba(255, 224, 178, 0.35);   /* Possible (Pale) */
+    --c2:rgba(255, 204, 128, 0.45);   /* Plausible (Light Orange) */
+    --c1:rgba(255, 167, 38, 0.55);    /* Probable (Orange) */
+    --c0:rgba(67, 160, 71, 0.75);     /* Preferable (Green) */
+    
+    --hot:#D50000; /* Stark red for active elements */
+  }
+  
+  /* BRUTALIST RESET */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent; border-radius:0 !important;}
+  
+  html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--fg);font-family:'Courier New', Courier, ui-monospace, monospace;overflow:hidden;}
+  body{touch-action:none}
+  
+  #app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;background:var(--bg);}
+  
+  header,footer{z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px max(16px,env(safe-area-inset-left)) 14px max(16px,env(safe-area-inset-right));pointer-events:none; border-bottom:1px solid var(--fg);}
+  footer{border-bottom:none; border-top:1px solid var(--fg); padding-bottom:max(14px,env(safe-area-inset-bottom));}
+  
+  header{font-size:12px;letter-spacing:.05em;text-transform:uppercase;}
+  header strong{font-weight:700;}
+  
+  .right{display:flex;align-items:center;gap:0px;pointer-events:auto;}
+  
+  button{background:var(--bg);color:var(--fg);border:1px solid var(--fg);min-height:32px;padding:0 16px;font:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all 0.1s; border-left:none;}
+  button:first-child{border-left:1px solid var(--fg);}
+  button[data-on="true"]{background:var(--fg);color:var(--bg);}
+  
+  main{position:relative;min-height:0}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+  
+  #readout{position:absolute;left:24px;bottom:24px;display:flex;flex-direction:column;gap:-1px;z-index:6;pointer-events:none; border:1px solid var(--fg); background:var(--bg);}
+  .cell{padding:8px 12px;font-size:11px;color:var(--fg);text-transform:uppercase; border-bottom:1px solid var(--fg);}
+  .cell:last-child{border-bottom:none;}
+  .cell b{font-weight:700; float:right; margin-left:24px;}
+  .cell.lock b{color:var(--hot)}
+  
+  .formula{font-weight:700;}
+  
+  /* Mechanical Playhead */
+  .playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--hot);z-index:4;pointer-events:none; transform:translateX(-50%);}
+  .playhead::before{content:'';position:absolute;top:0;left:-4px;width:9px;height:9px;background:var(--hot);}
+  .playhead::after{content:'';position:absolute;bottom:0;left:-4px;width:9px;height:9px;background:var(--hot);}
+  
+  @media(max-width:760px){
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+    #readout{bottom:24px; left:12px; right:12px;}
+    .formula{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div><strong>Fig. 4.4: 1885 Bicycle Timeline Collapse</strong> / Mapping SCOT & Artifact Trajectories</div>
+    <div class="right">
+      <button id="sound">Audio</button>
+      <button id="loop">Auto</button>
+      <button id="reset">Reset</button>
+    </div>
+  </header>
+
+  <main id="field">
+    <svg id="svg" viewBox="0 0 1180 720" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="readout">
+      <div class="cell">RSG Complexity <b id="nText">8</b></div>
+      <div class="cell">Future Projections <b id="totalText">80</b></div>
+      <div class="cell">Historical State <b id="phaseText">Radial</b></div>
+      <div class="cell lock">Timeline Year <b id="timeText">1885.0</b></div>
+    </div>
+    <div class="playhead" id="knob"></div>
+  </main>
+
+  <footer>
+    <div>DRAG X-AXIS: FOLD OUT TIME (1885-1895) &nbsp;&nbsp;|&nbsp;&nbsp; DRAG Y-AXIS: ADJUST RSG COMPLEXITY</div>
+    <div class="formula">THE SAFETY BICYCLE PULLS THE PREFERABLE FUTURE INTO THE PROBABLE, FORCING TECHNOLOGICAL CLOSURE.</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const knob = document.getElementById('knob');
+  const nText = document.getElementById('nText');
+  const totalText = document.getElementById('totalText');
+  const phaseText = document.getElementById('phaseText');
+  const timeText = document.getElementById('timeText');
+  
+  const soundBtn = document.getElementById('sound');
+  const loopBtn = document.getElementById('loop');
+  const resetBtn = document.getElementById('reset');
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const state = { n: 8, morph: 0, dragging: false, looping: false, sound: false, time: 0 };
+  let ctx, master, drone, overtone, noiseFilter;
+
+  const R = 60;
+  const FLAT_WIDTH = 260;
+  const H = 60; 
+  
+  const CONE_START_X = 420;
+  const CONE_END_X = 720;
+  const FLAT_START_X = 1000; 
+
+  const TRACKS = [
+    { cat: 3, name: 'POSSIBLE: MOTORIZED',   artifact: 'Steam Velocipede', rsg: 'Industrialists',      y0: 120, y2: 360, color: 'var(--c3)', mult: 4 },
+    { cat: 2, name: 'PLAUSIBLE: TRICYCLES',  artifact: 'Adult Tricycle',   rsg: 'Traditionalists',     y0: 280, y2: 360, color: 'var(--c2)', mult: 3 },
+    { cat: 1, name: 'PROBABLE: HIGH-WHEEL',  artifact: 'Penny Farthing',   rsg: 'Sporting Elite',      y0: 440, y2: 360, color: 'var(--c1)', mult: 2 },
+    { cat: 0, name: 'PREF: SAFETY BICYCLE',  artifact: 'Rover Safety',     rsg: 'Pragmatic Commuter',  y0: 600, y2: 360, color: 'var(--c0)', mult: 1 }
+  ];
+
+  const L_SIDES = 8;
+  const L_END = 8;
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function ease(t){ return t<.5 ? 2*t*t : -1+(4-2*t)*t; } 
+  function el(tag, attrs={}){ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function polar(cx,cy,r,a){ return {x: cx+r*Math.cos(a), y: cy+r*Math.sin(a)}; }
+  function mixPoint(A, B, t){ return {x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t)}; }
+  function pathStr(pts){ return pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ')+' Z'; }
+
+  function getShapePoints(track, i, slices, phase) {
+    let A, B, C, D, isArc = false, cx, cy, t1, t2;
+    
+    if (phase === 0) {
+      cx = 160; cy = track.y0;
+      t1 = -Math.PI/2 + i * (2*Math.PI/slices);
+      t2 = -Math.PI/2 + (i+1) * (2*Math.PI/slices);
+      A = {x: cx, y: cy};
+      B = polar(cx, cy, R, t1);
+      C = polar(cx, cy, R, t2);
+      D = {x: cx, y: cy};
+      isArc = true;
+    } else if (phase === 1) {
+      let hx = 6; 
+      let ly0 = track.y0 - hx/2 + i * (hx/slices);
+      let ly1 = track.y0 - hx/2 + (i+1) * (hx/slices);
+      let ry0 = track.y0 - R + i * (2*R/slices);
+      let ry1 = track.y0 - R + (i+1) * (2*R/slices);
+      A = {x: CONE_START_X, y: ly0};
+      B = {x: CONE_END_X, y: ry0};
+      C = {x: CONE_END_X, y: ry1};
+      D = {x: CONE_START_X, y: ly1};
+    } else if (phase === 2) {
+      let sx0 = FLAT_START_X - FLAT_WIDTH/2 + i * (FLAT_WIDTH/slices);
+      let sx1 = FLAT_START_X - FLAT_WIDTH/2 + (i+1) * (FLAT_WIDTH/slices);
+      let y0 = track.y0 - H/2;
+      let y1 = track.y0 + H/2;
+      A = {x: sx0, y: y0};
+      B = {x: sx1, y: y0};
+      C = {x: sx1, y: y1};
+      D = {x: sx0, y: y1};
+    } else if (phase === 3) {
+      let sx0 = FLAT_START_X - FLAT_WIDTH/2 + i * (FLAT_WIDTH/slices);
+      let sx1 = FLAT_START_X - FLAT_WIDTH/2 + (i+1) * (FLAT_WIDTH/slices);
+      let y0 = track.y2 - H/2;
+      let y1 = track.y2 + H/2;
+      A = {x: sx0, y: y0};
+      B = {x: sx1, y: y0};
+      C = {x: sx1, y: y1};
+      D = {x: sx0, y: y1};
+    }
+    
+    const pts = [];
+    for(let j=0; j<L_SIDES; j++) pts.push(mixPoint(A, B, j/L_SIDES));
+    for(let j=0; j<L_END; j++) {
+      if(isArc) pts.push(polar(cx, cy, R, lerp(t1, t2, j/L_END)));
+      else pts.push(mixPoint(B, C, j/L_END));
+    }
+    for(let j=0; j<L_SIDES; j++) pts.push(mixPoint(C, D, j/L_SIDES));
+    for(let j=0; j<L_END; j++) pts.push(mixPoint(D, A, j/L_END));
+    return pts;
+  }
+
+  function getBlendedPoints(track, i, slices, m) {
+    if (m <= 1/3) {
+      const p0 = getShapePoints(track, i, slices, 0);
+      const p1 = getShapePoints(track, i, slices, 1);
+      const t = ease(m * 3);
+      return p0.map((p, idx) => mixPoint(p, p1[idx], t));
+    } else if (m <= 2/3) {
+      const p1 = getShapePoints(track, i, slices, 1);
+      const p2 = getShapePoints(track, i, slices, 2);
+      const t = ease((m - 1/3) * 3);
+      return p1.map((p, idx) => mixPoint(p, p2[idx], t));
+    } else {
+      const p2 = getShapePoints(track, i, slices, 2);
+      const p3 = getShapePoints(track, i, slices, 3);
+      const t = ease((m - 2/3) * 3);
+      return p2.map((p, idx) => mixPoint(p, p3[idx], t));
+    }
+  }
+
+  function line(x1,y1,x2,y2,op=1,dash=''){
+    svg.appendChild(el('line', { x1,y1,x2,y2, stroke:`rgba(10,10,10,${op})`, 'stroke-width':1, 'stroke-dasharray':dash, 'vector-effect':'non-scaling-stroke' }));
+  }
+
+  function text(x,y,s,size=11,anchor='middle',weight='700', op=1, color=null){
+    const t = el('text', { x, y, fill: color || `rgba(10,10,10,${op})`, 'font-size':size, 'font-weight':weight, 'text-anchor':anchor });
+    if(color) t.setAttribute('opacity', op);
+    t.textContent = s;
+    svg.appendChild(t);
+    return t;
+  }
+
+  function drawScaffold(m, totalSlices){
+    line(160, 0, 160, 720, 0.15, '2 4');
+    line(CONE_START_X, 0, CONE_START_X, 720, 0.15, '2 4');
+    line(CONE_END_X, 0, CONE_END_X, 720, 0.15, '2 4');
+    
+    const blockL = FLAT_START_X - FLAT_WIDTH/2;
+    const blockR = FLAT_START_X + FLAT_WIDTH/2;
+    line(blockL, 0, blockL, 720, 0.15, '2 4');
+    line(blockR, 0, blockR, 720, 0.15, '2 4');
+
+    text(160, 24, '01: 1885 FLEXIBILITY (RADIAL)', 10, 'middle', '700', 0.5);
+    text((CONE_START_X+CONE_END_X)/2, 24, '02: RSG PROJECTIONS', 10, 'middle', '700', 0.5);
+    text(FLAT_START_X, 24, '03/04: CONTESTED TIMELINES & CLOSURE', 10, 'middle', '700', 0.5);
+
+    if (m > 0.25 && m < 0.75) {
+      const op = clamp((m-0.25)*4, 0, 1) * clamp((0.75-m)*4, 0, 1);
+      TRACKS.forEach(t => {
+        svg.appendChild(el('rect', {
+          x: blockL, y: t.y0 - H/2, width: FLAT_WIDTH, height: H,
+          fill: 'none', stroke: `rgba(10,10,10,${op * 0.4})`, 'stroke-width': 1
+        }));
+      });
+    }
+
+    if (m > 0.6) {
+      const op = clamp((m-0.6)*2.5, 0, 1);
+      svg.appendChild(el('rect', {
+        x: blockL, y: 360 - H/2, width: FLAT_WIDTH, height: H,
+        fill: 'none', stroke: `var(--hot)`, 'stroke-width': 1.5, opacity: op
+      }));
+      text(FLAT_START_X, 360 - H/2 - 28, 'CLOSURE: MODERN ALL-ROAD BICYCLE DNA', 11, 'middle', '900', op, 'var(--hot)');
+    }
+
+    TRACKS.forEach((t, index) => {
+      const slices = state.n * t.mult;
+      
+      line(0, t.y0, CONE_END_X, t.y0, 0.1);
+      text(24, t.y0 - 14, `${t.name}`, 12, 'start', '700', 1);
+      text(24, t.y0 + 4, `RSG: ${t.rsg}`, 10, 'start', '400', 0.8);
+      
+      line(155, t.y0, 165, t.y0, 0.8);
+      line(160, t.y0-5, 160, t.y0+5, 0.8);
+      
+      if (m > 0.1 && m < 0.7) {
+        const compOp = clamp(Math.sin(m * 1.5 * Math.PI) * 0.3, 0, 1);
+        line(CONE_END_X, t.y0, blockL, t.y0, compOp, '4 4');
+      }
+
+      if (m > 0.6) {
+        const collapseOp = clamp((m-0.6)*3, 0, 0.3);
+        line(FLAT_START_X, t.y0, FLAT_START_X, t.y2, collapseOp, '2 4');
+      }
+      
+      text(160, t.y0 + R + 16, `PROJECTIONS: ${slices}`, 10, 'middle', '400', clamp(1 - m*2, 0, 1));
+      
+      if(m > 0.8) {
+        const labelY = t.y2 + 88 + (index * 16);
+        text(FLAT_START_X, labelY, `ABSORBED INFLUENCE: ${slices} Nodes`, 9, 'middle', '700', clamp((m-0.8)*5, 0, 0.4));
+      }
+    });
+  }
+
+  function draw(){
+    svg.innerHTML = '';
+    const { n, morph:m } = state;
+    let totalSlices = 0;
+
+    svg.appendChild(el('rect', { x:0, y:0, width:1180, height:720, fill:'transparent' }));
+    drawScaffold(m);
+
+    // Render underlying timeline volumes
+    TRACKS.forEach(track => {
+      const slices = n * track.mult;
+      totalSlices += slices;
+      for(let i=0; i<slices; i++) {
+        const pts = getBlendedPoints(track, i, slices, m);
+        svg.appendChild(el('path', {
+          d: pathStr(pts),
+          fill: track.color,
+          stroke: `rgba(10,10,10,${0.3 + m*0.3})`,
+          'stroke-width': m > 0.9 ? 0.4 : 0.8, 
+          'vector-effect': 'non-scaling-stroke'
+        }));
+      }
+      if (m > 0.1 && m < 0.9) {
+        svg.appendChild(el('rect', { x:CONE_START_X-2, y:track.y0-2, width:4, height:4, fill:'var(--bg)', stroke:'var(--fg)', 'stroke-width':1 }));
+      }
+    });
+
+    // Trace the exact spatial coordinates of the 4 Bicycle Artifacts
+    TRACKS.forEach((track, index) => {
+      let nodeX, nodeY;
+      
+      if (m <= 1/3) {
+        let t = ease(m * 3);
+        nodeX = lerp(160, 570, t); // 570 is the midpoint of the Futures Cone
+        nodeY = track.y0;
+      } else if (m <= 2/3) {
+        let t = ease((m - 1/3) * 3);
+        nodeX = lerp(570, 1000, t); // 1000 is the center of the Flat timelines
+        nodeY = track.y0;
+      } else {
+        let t = ease((m - 2/3) * 3);
+        nodeX = 1000;
+        nodeY = lerp(track.y0, track.y2, t); // Violently pull down into stabilization coordinate
+      }
+
+      let isWinner = (index === 3);
+
+      // Historical Trail
+      if (m > 0) {
+         let p = `M 160,${track.y0}`;
+         if (m <= 1/3) {
+             p += ` L ${nodeX},${nodeY}`;
+         } else if (m <= 2/3) {
+             p += ` L 570,${track.y0} L ${nodeX},${nodeY}`;
+         } else {
+             p += ` L 570,${track.y0} L 1000,${track.y0} L ${nodeX},${nodeY}`;
+         }
+         let strkWidth = isWinner ? 2 : 1; 
+         let op = isWinner ? 0.8 : 0.3;
+         svg.appendChild(el('path', { d: p, fill: 'none', stroke: isWinner ? 'var(--hot)' : 'var(--fg)', 'stroke-width': strkWidth, 'stroke-dasharray': '2 4', 'opacity': op }));
+      }
+      
+      // Active Tracking Dot
+      svg.appendChild(el('circle', { cx: nodeX, cy: nodeY, r: isWinner ? 6 : 4, fill: isWinner ? 'var(--hot)' : 'var(--bg)', stroke: isWinner ? 'var(--bg)' : 'var(--fg)', 'stroke-width': 2 }));
+      
+      // Winner Pulse
+      if (isWinner) {
+        let pulseR = 8 + Math.sin(state.time * 0.005) * 4;
+        svg.appendChild(el('circle', { cx: nodeX, cy: nodeY, r: pulseR, fill: 'none', stroke: 'var(--hot)', 'stroke-width': 1.5, opacity: 0.8 }));
+      }
+      
+      // Dynamic separating labels during collapse
+      let trackLabel = track.artifact;
+      if (m > 0.9) trackLabel = isWinner ? "STABILIZED: " + track.artifact : "OBSOLETE: " + track.artifact;
+      
+      let yOffset = (index - 1.5) * 16; 
+      let currYOffset = lerp(-16, yOffset, m > 2/3 ? ease((m - 2/3) * 3) : 0);
+      
+      text(nodeX, nodeY + currYOffset, trackLabel, 10, 'middle', isWinner ? '900' : '400', isWinner ? 1 : clamp(1 - (m - 0.66) * 3, 0.3, 1), isWinner ? 'var(--hot)' : null);
+    });
+
+    nText.textContent = n;
+    totalText.textContent = totalSlices;
+    timeText.textContent = (1885 + m * 10).toFixed(1);
+    knob.style.left = (m * field.clientWidth) + 'px';
+    
+    if (m < 0.1) phaseText.textContent = "1885 Flexibility";
+    else if (m < 0.35) phaseText.textContent = "SCOT Projections";
+    else if (m < 0.68) phaseText.textContent = "Parallel Timelines";
+    else phaseText.textContent = "1890s Closure";
+  }
+
+  function setFromPoint(clientX, clientY){
+    const rect = field.getBoundingClientRect();
+    const x = clamp((clientX - rect.left)/rect.width, 0, 1);
+    const y = clamp((clientY - rect.top)/rect.height, 0, 1);
+    state.morph = x;
+    const raw = 2 + (1-y)*14; 
+    state.n = Math.max(2, Math.round(raw));
+    updateSound();
+  }
+
+  function setupSound(){
+    if(ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    
+    drone = ctx.createOscillator();
+    overtone = ctx.createOscillator();
+    noiseFilter = ctx.createBiquadFilter();
+    
+    drone.type = 'square';
+    overtone.type = 'sawtooth';
+    noiseFilter.type = 'lowpass';
+    
+    drone.frequency.value = 55.00; 
+    overtone.frequency.value = 110.00; 
+    noiseFilter.frequency.value = 150;
+    
+    master.gain.value = 0;
+    drone.connect(noiseFilter);
+    overtone.connect(noiseFilter);
+    noiseFilter.connect(master);
+    master.connect(ctx.destination);
+    
+    drone.start();
+    overtone.start();
+  }
+
+  function updateSound(){
+    if(!ctx || !state.sound) return;
+    const now = ctx.currentTime;
+    const filterFreq = 150 + (state.morph * 3000) + (state.n * 20);
+    noiseFilter.frequency.setTargetAtTime(filterFreq, now, 0.05);
+    const root = 55.00 + (state.morph * 15);
+    drone.frequency.setTargetAtTime(root, now, 0.05);
+    overtone.frequency.setTargetAtTime(root * 2.01, now, 0.05);
+    master.gain.setTargetAtTime(0.05 + (state.morph * 0.03), now, 0.05);
+  }
+
+  soundBtn.addEventListener('click', async () => {
+    setupSound();
+    if(ctx.state === 'suspended') await ctx.resume();
+    state.sound = !state.sound;
+    soundBtn.dataset.on = state.sound;
+    if(!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+    else updateSound();
+  });
+
+  loopBtn.addEventListener('click', () => {
+    state.looping = !state.looping;
+    loopBtn.dataset.on = state.looping;
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.n = 8; state.morph = 0; state.looping = false; loopBtn.dataset.on = false;
+    updateSound();
+  });
+
+  field.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    field.setPointerCapture(e.pointerId);
+    setFromPoint(e.clientX, e.clientY);
+  });
+  field.addEventListener('pointermove', e => {
+    if(state.dragging) setFromPoint(e.clientX, e.clientY);
+  });
+  field.addEventListener('pointerup', e => {
+    state.dragging = false;
+    try{ field.releasePointerCapture(e.pointerId); }catch(_){ }
+  });
+  field.addEventListener('pointercancel', () => state.dragging = false);
+
+  window.addEventListener('keydown', e => {
+    if(e.key === 'ArrowRight') state.morph = clamp(state.morph + .05, 0, 1);
+    if(e.key === 'ArrowLeft') state.morph = clamp(state.morph - .05, 0, 1);
+    updateSound();
+  });
+
+  function tick(t){
+    state.time = t;
+    if(state.looping && !state.dragging){
+      state.morph = (Math.sin(t * 0.0006) + 1) / 2;
+      updateSound();
+    }
+    draw(); // Draw every frame to animate the Tracker Pulse
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

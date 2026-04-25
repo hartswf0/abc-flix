@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures · Cone Compilation</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #222222;
+    --muted: rgba(34, 34, 34, 0.56);
+    --faint: rgba(34, 34, 34, 0.14);
+    --paper: rgba(255, 255, 255, 0.95);
+    --grid: rgba(34, 34, 34, 0.04);
+
+    /* Stuart Candy diagram palette */
+    --c-pos: #d3dfd2;
+    --c-pla: #a6c6a2;
+    --c-pro: #77d14b;
+    --c-pre: #d2f23a;
+    --hot: #77d14b;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  body { touch-action: none; }
+
+  #app {
+    position: fixed; inset: 0; display: grid; grid-template-rows: 1fr auto;
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  main { position: relative; min-height: 0; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: ew-resize; }
+
+  .title-block {
+    position: absolute; top: 10%; left: 5%;
+    pointer-events: none; z-index: 10;
+  }
+  .title {
+    font-size: clamp(26px, 3.2vw, 40px); font-weight: 300;
+    letter-spacing: 0.15em; line-height: 1.35; color: var(--ink);
+    text-transform: uppercase;
+  }
+  .credit {
+    font-size: 11px; color: #777; margin-top: 10px; font-weight: 400; line-height: 1.5;
+  }
+  .credit i { font-style: italic; }
+
+  /* Slice interactions */
+  .slice {
+    stroke: rgba(255,255,255,0.5);
+    stroke-width: 0.5px;
+    stroke-linejoin: round;
+    transition: stroke 0.15s, stroke-width 0.15s;
+    pointer-events: all;
+  }
+  .slice:hover {
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+  }
+
+  footer {
+    display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+    padding: 12px max(16px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-right));
+    border-top: 1px solid var(--faint); background: var(--paper); backdrop-filter: blur(8px);
+    z-index: 20;
+  }
+
+  .controls { display: grid; grid-auto-flow: column; gap: 12px 20px; align-items: end; }
+  .group { display: grid; gap: 4px; }
+  .group label { font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700;}
+  input[type="range"] { width: 130px; accent-color: var(--hot); cursor: pointer; }
+
+  button {
+    min-height: 32px; padding: 0 12px; border: 1px solid var(--faint); background: transparent; color: var(--ink);
+    font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: background 0.1s; font-weight: 700; border-radius: 4px !important;
+  }
+  button:hover { background: rgba(34,34,34,0.04); }
+  button[data-on="true"], button:active { background: var(--ink); color: #ffffff; border-color: var(--ink); }
+
+  .meta { display: grid; grid-auto-flow: column; gap: 14px 24px; align-items: center; }
+  .legend { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 14px; align-items: center; }
+  .legendItem { display: grid; grid-template-columns: 9px auto; gap: 7px; align-items: center; font-size: 11px; white-space: nowrap; text-transform: uppercase; cursor: pointer; font-weight: 600; color: var(--muted); transition: color 0.2s;}
+  .legendItem.active, .legendItem:hover { color: var(--ink); }
+  .sw { width: 9px; height: 9px; border-radius: 2px !important; }
+
+  .readout { display: grid; grid-auto-flow: column; gap: 20px; align-items: center; border-left: 1px solid var(--faint); padding-left: 20px;}
+  .readout span { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; font-weight: 700;}
+  .readout strong { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+
+  /* HUD tooltip */
+  #hud {
+    position: absolute; pointer-events: none; z-index: 30;
+    background: rgba(34,34,34,0.92); backdrop-filter: blur(6px);
+    color: #fff; padding: 12px 14px; width: 240px;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.12);
+    display: none;
+  }
+  .hud-cat { font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.04em; }
+  .hud-desc { font-size: 12px; line-height: 1.4; opacity: 0.9; }
+
+  @media (max-width: 1080px) {
+    footer { grid-template-columns: 1fr; gap: 10px; }
+    .controls { grid-template-columns: 1fr 1fr; grid-auto-flow: row; }
+    .meta { grid-template-columns: 1fr; grid-auto-flow: row; justify-items: start; gap: 16px; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .readout { grid-template-columns: repeat(4, auto); grid-auto-flow: row; border-left: none; padding-left: 0; }
+    #hud { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="field">
+    <div class="title-block">
+      <div class="title">A Taxonomy<br>Of Futures</div>
+      <div class="credit">
+        Redrawn from <i>Speculative Everything</i> redrawing Stuart Candy<br>
+        <span style="color: #444; font-weight: 600;">Topological Model: Scrub to compile radial slices into nested overlapping cones.</span>
+      </div>
+    </div>
+    <svg id="svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="hud">
+      <div class="hud-cat" id="hud-cat">--</div>
+      <div class="hud-desc" id="hud-desc">--</div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="controls">
+      <div class="group">
+        <label for="progress">Compile Time</label>
+        <input id="progress" type="range" min="0" max="1000" value="0" />
+      </div>
+      <div class="group">
+        <label for="density">Slice Density</label>
+        <input id="density" type="range" min="6" max="24" value="12" />
+      </div>
+      <div class="group"><label>Animation</label><button id="loopBtn">Auto-Loop</button></div>
+    </div>
+
+    <div class="meta">
+      <div class="legend" id="legend">
+        <div class="legendItem active" data-idx="0"><span class="sw" style="background:var(--c-pos)"></span><span>Possible</span></div>
+        <div class="legendItem" data-idx="1"><span class="sw" style="background:var(--c-pla)"></span><span>Plausible</span></div>
+        <div class="legendItem" data-idx="2"><span class="sw" style="background:var(--c-pro)"></span><span>Probable</span></div>
+        <div class="legendItem" data-idx="3"><span class="sw" style="background:var(--c-pre)"></span><span>Preferable</span></div>
+      </div>
+      <div class="readout">
+        <div><span>Selection</span><strong id="rName">Possible</strong></div>
+        <div><span>Slices</span><strong id="rSlices">19</strong></div>
+        <div><span>Overlap</span><strong id="rOverlap">--</strong></div>
+        <div><span>Phase</span><strong id="rPhase">Radial</strong></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const progressEl = document.getElementById('progress');
+  const densityEl = document.getElementById('density');
+  const loopBtn = document.getElementById('loopBtn');
+  const hud = document.getElementById('hud');
+  const hudCat = document.getElementById('hud-cat');
+  const hudDesc = document.getElementById('hud-desc');
+
+  const rName = document.getElementById('rName');
+  const rSlices = document.getElementById('rSlices');
+  const rOverlap = document.getElementById('rOverlap');
+  const rPhase = document.getElementById('rPhase');
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // NESTED CONE model — all share one apex ("Present"), expand to different widths ("Futures")
+  // At t=0: four separate radial circles on the left
+  // At t=1: four NESTED cones sharing apex at (450, 450), expanding to right wall
+  const APEX_X = 450, APEX_Y = 450;
+  const CONE_END_X = 1200;
+
+  const CONES = [
+    {
+      name: 'possible', color: '#d3dfd2', fillAlpha: 0.6,
+      circleX: 180, circleY: 180, radius: 70,
+      coneTop: 60, coneBot: 840,    // widest
+      mult: 1.6,
+      hatch: 'dots',
+      desc: 'All futures not violating the laws of physics, regardless of probability.'
+    },
+    {
+      name: 'plausible', color: '#a6c6a2', fillAlpha: 0.65,
+      circleX: 180, circleY: 360, radius: 70,
+      coneTop: 180, coneBot: 720,
+      mult: 1.2,
+      hatch: 'diag',
+      desc: 'Futures reasonably achievable given our current socioeconomic mechanics.'
+    },
+    {
+      name: 'probable', color: '#77d14b', fillAlpha: 0.55,
+      circleX: 180, circleY: 540, radius: 70,
+      coneTop: 310, coneBot: 590,   // narrow
+      mult: 0.8,
+      hatch: 'cross',
+      desc: 'Business-as-usual. Where current trajectories and orthodox structures lead.'
+    },
+    {
+      name: 'preferable', color: '#d2f23a', fillAlpha: 0.7,
+      circleX: 180, circleY: 720, radius: 70,
+      coneTop: 330, coneBot: 620,   // cuts across probable/plausible
+      mult: 1.0,
+      hatch: 'solid',
+      desc: 'Normative. What should happen. Cuts across probabilities based on values.'
+    }
+  ];
+
+  const state = { progress: 0, base: 12, active: 0, loop: false, dragging: false };
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = t => t * t * (3 - 2 * t);
+
+  function counts() { return CONES.map(c => Math.max(4, Math.round(state.base * c.mult))); }
+
+  function el(tag, attrs = {}) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function textEl(x, y, str, size = 12, anchor = 'middle', fill = 'var(--ink)', weight = '400', opacity = 1) {
+    const t = el('text', { x, y, fill, 'font-size': size, 'text-anchor': anchor, 'font-weight': weight, 'font-family': 'inherit', opacity });
+    t.textContent = str;
+    return t;
+  }
+
+  // Core: compute slice path for cone `coneIdx`, slice `i` of `n`, at compile time `t`
+  function getSlicePath(cone, i, n, t) {
+    const thetaStart = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    const thetaEnd = -Math.PI / 2 + ((i + 1) / n) * Math.PI * 2;
+    const steps = 8;
+    const pts = [];
+
+    // Apex: lerp from circle center to shared cone apex
+    const apexX = lerp(cone.circleX, APEX_X, t);
+    const apexY = lerp(cone.circleY, APEX_Y, t);
+    pts.push({ x: apexX, y: apexY });
+
+    // Arc points → cone base edge
+    for (let j = 0; j <= steps; j++) {
+      const f = j / steps;
+      const a = lerp(thetaStart, thetaEnd, f);
+      const sliceF = (i + f) / n;
+
+      // Circle arc position
+      const cx = cone.circleX + cone.radius * Math.cos(a);
+      const cy = cone.circleY + cone.radius * Math.sin(a);
+
+      // Cone base position
+      const coneX = CONE_END_X;
+      const coneY = lerp(cone.coneTop, cone.coneBot, sliceF);
+
+      pts.push({ x: lerp(cx, coneX, t), y: lerp(cy, coneY, t) });
+    }
+
+    return pts.map((p, k) => (k === 0 ? 'M' : 'L') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z';
+  }
+
+  // Draw hatch pattern inside a cone shape
+  function drawHatch(type, apexX, apexY, endX, topY, botY, color, alpha) {
+    const g = el('g', { 'clip-path': 'none' });
+    const step = 12;
+
+    if (type === 'dots') {
+      for (let x = apexX; x < endX; x += step * 2) {
+        const frac = (x - apexX) / (endX - apexX);
+        const top = lerp(apexY, topY, frac);
+        const bot = lerp(apexY, botY, frac);
+        for (let y = top; y < bot; y += step * 2) {
+          g.appendChild(el('circle', { cx: x, cy: y, r: 1, fill: color, opacity: alpha * 0.3 }));
+        }
+      }
+    } else if (type === 'diag') {
+      for (let x = apexX; x < endX; x += step) {
+        const frac = (x - apexX) / (endX - apexX);
+        const top = lerp(apexY, topY, frac);
+        const bot = lerp(apexY, botY, frac);
+        const frac2 = Math.min(1, (x + step - apexX) / (endX - apexX));
+        const top2 = lerp(apexY, topY, frac2);
+        g.appendChild(el('line', { x1: x, y1: bot, x2: x + step, y2: top2, stroke: color, opacity: alpha * 0.2, 'stroke-width': 0.5 }));
+      }
+    } else if (type === 'cross') {
+      for (let x = apexX; x < endX; x += step * 1.5) {
+        const frac = (x - apexX) / (endX - apexX);
+        const top = lerp(apexY, topY, frac);
+        const bot = lerp(apexY, botY, frac);
+        g.appendChild(el('line', { x1: x, y1: top, x2: x, y2: bot, stroke: color, opacity: alpha * 0.15, 'stroke-width': 0.5 }));
+      }
+    }
+    // 'solid' = no hatch
+    return g;
+  }
+
+  function draw() {
+    svg.innerHTML = '';
+    const ts = smooth(state.progress);
+    const ns = counts();
+
+    // Invisible hit rect
+    svg.appendChild(el('rect', { x: 0, y: 0, width: 1440, height: 900, fill: 'transparent' }));
+
+    // Trajectory guides (fade as cones compile)
+    const guideG = el('g');
+    CONES.forEach(cone => {
+      guideG.appendChild(el('line', {
+        x1: cone.circleX, y1: cone.circleY, x2: APEX_X, y2: APEX_Y,
+        stroke: 'var(--ink)', 'stroke-dasharray': '3 5', opacity: 0.08 * (1 - ts)
+      }));
+    });
+    svg.appendChild(guideG);
+
+    // Draw cones BACK TO FRONT (possible first = behind)
+    // This ensures nested overlap is visible
+    let overlapInfo = [];
+
+    CONES.forEach((cone, coneIdx) => {
+      const n = ns[coneIdx];
+      const isActive = coneIdx === state.active;
+      const group = el('g', { class: 'cone-group' });
+
+      // Full cone outline (for overlap perception)
+      if (ts > 0.3) {
+        const outlineAlpha = clamp((ts - 0.3) * 1.4, 0, 0.6);
+        const apX = lerp(cone.circleX, APEX_X, ts);
+        const apY = lerp(cone.circleY, APEX_Y, ts);
+        const topY = lerp(cone.circleY - cone.radius, cone.coneTop, ts);
+        const botY = lerp(cone.circleY + cone.radius, cone.coneBot, ts);
+        const endX = lerp(cone.circleX + cone.radius, CONE_END_X, ts);
+
+        // Filled outline
+        group.appendChild(el('path', {
+          d: `M ${apX},${apY} L ${endX},${topY} L ${endX},${botY} Z`,
+          fill: cone.color, opacity: outlineAlpha * cone.fillAlpha * 0.5,
+          'pointer-events': 'none'
+        }));
+
+        // Hatch inside cone
+        if (ts > 0.5) {
+          const hatchGroup = drawHatch(cone.hatch, apX, apY, endX, topY, botY, cone.color, outlineAlpha);
+          group.appendChild(hatchGroup);
+        }
+
+        // Cone edge stroke — thicker when active
+        group.appendChild(el('path', {
+          d: `M ${apX},${apY} L ${endX},${topY} L ${endX},${botY} Z`,
+          fill: 'none', stroke: cone.color, 'stroke-width': isActive ? 2.5 : 1,
+          opacity: outlineAlpha * (isActive ? 1 : 0.5),
+          'pointer-events': 'none'
+        }));
+
+        // Cone label at end
+        const labelAlpha = clamp((ts - 0.6) * 2.5, 0, 1);
+        const labelY = lerp(topY, botY, cone.name === 'preferable' ? 0.85 : 0.15);
+        group.appendChild(textEl(endX - 12, labelY, cone.name, 13, 'end', cone.color, '700', labelAlpha));
+      }
+
+      // Individual slices
+      for (let i = 0; i < n; i++) {
+        const d = getSlicePath(cone, i, n, ts);
+        const pathEl = el('path', {
+          class: 'slice',
+          d,
+          fill: cone.color,
+          'fill-opacity': cone.fillAlpha,
+          'vector-effect': 'non-scaling-stroke'
+        });
+
+        // HUD hover
+        pathEl.addEventListener('pointerenter', (e) => {
+          hudCat.textContent = cone.name.toUpperCase();
+          hudCat.style.color = cone.color;
+          hudDesc.textContent = cone.desc;
+          hud.style.display = 'block';
+          updateHudPos(e);
+        });
+        pathEl.addEventListener('pointermove', updateHudPos);
+        pathEl.addEventListener('pointerleave', () => { hud.style.display = 'none'; });
+        pathEl.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          state.active = coneIdx;
+          updateUI();
+        });
+
+        group.appendChild(pathEl);
+      }
+
+      // Circle label (fades as compiling)
+      const circleLabel = textEl(cone.circleX, cone.circleY - cone.radius - 14, cone.name, 12, 'middle', 'var(--ink)', '600', clamp(1 - ts * 3, 0, 1));
+      circleLabel.style.textTransform = 'capitalize';
+      group.appendChild(circleLabel);
+
+      svg.appendChild(group);
+    });
+
+    // Present/Futures markers
+    const markerAlpha = clamp((ts - 0.7) * 3.3, 0, 1);
+    svg.appendChild(el('circle', { cx: APEX_X, cy: APEX_Y, r: 5, fill: 'var(--ink)', opacity: markerAlpha }));
+    svg.appendChild(textEl(APEX_X - 16, APEX_Y + 4, 'Present', 14, 'end', 'var(--ink)', '600', markerAlpha));
+    svg.appendChild(textEl(CONE_END_X + 16, APEX_Y + 4, 'Futures', 14, 'start', 'var(--ink)', '600', markerAlpha));
+
+    // Overlap area badges (show where cones intersect at the end wall)
+    if (ts > 0.6) {
+      const badgeAlpha = clamp((ts - 0.6) * 2.5, 0, 0.7);
+      let overlapCount = 0;
+
+      // Check adjacent cone pairs for overlap at the end wall
+      for (let i = 0; i < CONES.length; i++) {
+        for (let j = i + 1; j < CONES.length; j++) {
+          const a = CONES[i], b = CONES[j];
+          const aTop = lerp(a.circleY - a.radius, a.coneTop, ts);
+          const aBot = lerp(a.circleY + a.radius, a.coneBot, ts);
+          const bTop = lerp(b.circleY - b.radius, b.coneTop, ts);
+          const bBot = lerp(b.circleY + b.radius, b.coneBot, ts);
+
+          const overlapTop = Math.max(aTop, bTop);
+          const overlapBot = Math.min(aBot, bBot);
+
+          if (overlapBot > overlapTop) {
+            overlapCount++;
+            const endX = lerp(Math.max(a.circleX, b.circleX) + 70, CONE_END_X, ts);
+            // Overlap band
+            svg.appendChild(el('rect', {
+              x: endX - 8, y: overlapTop, width: 8, height: overlapBot - overlapTop,
+              fill: 'rgba(34,34,34,0.08)', opacity: badgeAlpha
+            }));
+            // Label
+            svg.appendChild(textEl(endX - 14, (overlapTop + overlapBot) / 2 + 3, `${a.name[0].toUpperCase()}∩${b.name[0].toUpperCase()}`, 8, 'end', 'var(--ink)', '700', badgeAlpha * 0.5));
+          }
+        }
+      }
+      rOverlap.textContent = overlapCount + ' bands';
+    } else {
+      rOverlap.textContent = '--';
+    }
+
+    // Particles flowing Present → Futures
+    if (ts > 0.5) {
+      const pAlpha = clamp((ts - 0.5) * 2, 0, 0.5);
+      const t2 = (Date.now() % 5000) / 5000;
+      for (let p = 0; p < 40; p++) {
+        const seed = p * 137.5;
+        const px = (seed * 7.3 + t2 * 800) % (CONE_END_X - APEX_X);
+        const frac = px / (CONE_END_X - APEX_X);
+        // Pick a random cone band
+        const ci = p % CONES.length;
+        const cone = CONES[ci];
+        const topY = lerp(APEX_Y, cone.coneTop, frac);
+        const botY = lerp(APEX_Y, cone.coneBot, frac);
+        const py = topY + ((seed * 3.7) % 1) * (botY - topY);
+        svg.appendChild(el('circle', {
+          cx: APEX_X + px, cy: py, r: 1.5,
+          fill: cone.color, opacity: pAlpha * (1 - frac * 0.5)
+        }));
+      }
+    }
+
+    // Phase readout
+    if (state.progress < 0.1) rPhase.textContent = 'Radial Slices';
+    else if (state.progress < 0.5) rPhase.textContent = 'Compiling...';
+    else if (state.progress < 0.8) rPhase.textContent = 'Cone Formation';
+    else rPhase.textContent = 'Taxonomy Cone';
+
+    progressEl.value = Math.round(state.progress * 1000);
+    densityEl.value = state.base;
+  }
+
+  function updateHudPos(e) {
+    let x = e.clientX + 15, y = e.clientY + 15;
+    if (x + 240 > window.innerWidth) x = e.clientX - 255;
+    if (y + 80 > window.innerHeight) y = e.clientY - 95;
+    hud.style.left = x + 'px';
+    hud.style.top = y + 'px';
+  }
+
+  function updateUI() {
+    const cone = CONES[state.active];
+    const n = counts()[state.active];
+    rName.textContent = cone.name.charAt(0).toUpperCase() + cone.name.slice(1);
+    rSlices.textContent = n;
+
+    document.querySelectorAll('.legendItem').forEach((item, i) => {
+      item.classList.toggle('active', i === state.active);
+    });
+  }
+
+  // Input
+  function scrub(clientX) {
+    const rect = svg.getBoundingClientRect();
+    state.progress = clamp((clientX - rect.left) / rect.width, 0, 1);
+    draw();
+  }
+
+  progressEl.addEventListener('input', () => { state.progress = Number(progressEl.value) / 1000; draw(); });
+  densityEl.addEventListener('input', () => { state.base = Number(densityEl.value); draw(); });
+
+  svg.addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('slice')) return;
+    state.dragging = true; svg.setPointerCapture(e.pointerId); scrub(e.clientX);
+  });
+  svg.addEventListener('pointermove', e => { if (state.dragging) scrub(e.clientX); });
+  svg.addEventListener('pointerup', e => { state.dragging = false; try { svg.releasePointerCapture(e.pointerId); } catch (_) {} });
+  svg.addEventListener('pointercancel', () => state.dragging = false);
+
+  document.querySelectorAll('.legendItem').forEach(item => {
+    item.addEventListener('click', () => {
+      state.active = parseInt(item.getAttribute('data-idx'));
+      updateUI();
+      draw();
+    });
+  });
+
+  loopBtn.addEventListener('click', () => {
+    state.loop = !state.loop;
+    loopBtn.dataset.on = state.loop;
+  });
+
+  function tick(t) {
+    if (state.loop && !state.dragging) {
+      state.progress = (Math.sin(t * 0.00018) + 1) / 2;
+      state.base = Math.round(6 + ((Math.sin(t * 0.00018 * 0.91 + 1.2) + 1) / 2) * 18);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  draw();
+  updateUI();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

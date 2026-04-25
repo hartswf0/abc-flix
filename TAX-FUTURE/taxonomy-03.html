@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures · Holographic Slice Compilation</title>
+<style>
+  :root {
+    --bg: #f2efe6;
+    --ink: #1a1a1a;
+    --muted: rgba(26,26,26,.5);
+    --faint: rgba(26,26,26,.12);
+    --paper: #faf8f2;
+    --c-pos: rgba(195,200,185,.55);
+    --c-pla: rgba(140,185,130,.6);
+    --c-pro: rgba(80,155,70,.65);
+    --c-pre: rgba(190,205,50,.7);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: 'Courier New', Courier, ui-monospace, monospace; }
+  body { touch-action: none; user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: ew-resize; }
+
+  .chrome { position: fixed; z-index: 5; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 20px; pointer-events: none; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .chrome.top { top: 0; }
+  .chrome.bottom { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .mark { color: var(--ink); font-weight: 800; font-size: 11px; }
+  .controls { display: flex; gap: 8px; pointer-events: auto; }
+  button { appearance: none; background: transparent; border: 1px solid var(--faint); color: var(--ink); border-radius: 0; min-height: 30px; padding: 0 10px; font: inherit; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; font-weight: 700; }
+  button:hover, button.active { background: var(--ink); color: var(--bg); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="chrome top">
+  <div><span class="mark">A Taxonomy of Futures</span></div>
+  <div class="controls">
+    <button id="loopBtn">loop</button>
+  </div>
+</div>
+<div class="chrome bottom">
+  <div>drag x: morph &nbsp; drag y: density</div>
+  <div id="read">morph 0%</div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const cx = canvas.getContext('2d');
+  const read = document.getElementById('read');
+  const loopBtn = document.getElementById('loopBtn');
+
+  const CHANNELS = [
+    { name: 'POSSIBLE',   sub: 'Coarse / Broad',       seg: 5,  fill: [195,200,185], stroke: [140,150,130] },
+    { name: 'PLAUSIBLE',  sub: 'Medium Coarse',         seg: 8,  fill: [140,185,130], stroke: [90,140,80]   },
+    { name: 'PROBABLE',   sub: 'Fine',                  seg: 12, fill: [80,155,70],   stroke: [50,120,40]   },
+    { name: 'PREFERABLE', sub: 'Very Fine / Detailed',  seg: 20, fill: [190,205,50],  stroke: [150,170,30]  }
+  ];
+
+  const state = { morph: 0, density: 1, drag: false, loop: false };
+  let W = 0, H = 0, DPR = 1, T = 0;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => t * t * (3 - 2 * t);
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const polar = (px, py, r, a) => ({ x: px + r * Math.cos(a), y: py + r * Math.sin(a) });
+
+  // ─── DRAWING HELPERS ───
+
+  function drawCircleSlices(x, y, r, seg, fillC, strokeC, alpha) {
+    const theta = Math.PI * 2 / seg;
+    for (let i = 0; i < seg; i++) {
+      const a0 = -Math.PI / 2 + i * theta;
+      const a1 = a0 + theta;
+      cx.beginPath();
+      cx.moveTo(x, y);
+      for (let j = 0; j <= 12; j++) cx.lineTo(x + r * Math.cos(lerp(a0, a1, j / 12)), y + r * Math.sin(lerp(a0, a1, j / 12)));
+      cx.closePath();
+      cx.fillStyle = rgba(fillC, alpha);
+      cx.fill();
+      cx.strokeStyle = rgba(strokeC, alpha * 1.2);
+      cx.lineWidth = 1;
+      cx.stroke();
+    }
+    // Center dot
+    cx.beginPath(); cx.arc(x, y, r * 0.08, 0, Math.PI * 2);
+    cx.fillStyle = rgba([20,20,20], alpha); cx.fill();
+  }
+
+  // Draw alternating up/down triangles (the Archimedes unrolled sectors)
+  function drawUnrolledTriangles(x, y, w, h, seg, fillC, strokeC, alpha) {
+    const sliceW = w / seg;
+    for (let i = 0; i < seg; i++) {
+      const sx = x + i * sliceW;
+      cx.beginPath();
+      if (i % 2 === 0) {
+        // Point up
+        cx.moveTo(sx, y + h);
+        cx.lineTo(sx + sliceW, y + h);
+        cx.lineTo(sx + sliceW / 2, y);
+      } else {
+        // Point down
+        cx.moveTo(sx, y);
+        cx.lineTo(sx + sliceW, y);
+        cx.lineTo(sx + sliceW / 2, y + h);
+      }
+      cx.closePath();
+      cx.fillStyle = rgba(fillC, alpha);
+      cx.fill();
+      cx.strokeStyle = rgba(strokeC, alpha * 1.2);
+      cx.lineWidth = 0.8;
+      cx.stroke();
+    }
+  }
+
+  // Draw morphing slices: circle sector → unrolled triangle
+  function drawMorphingSlice(circX, circY, r, stripX, stripY, stripW, stripH, seg, fillC, strokeC, alpha, morph) {
+    const theta = Math.PI * 2 / seg;
+    const sliceW = stripW / seg;
+    const sampleN = 30;
+    const m = ease(morph);
+
+    for (let i = 0; i < seg; i++) {
+      const a0 = -Math.PI / 2 + i * theta;
+      const a1 = a0 + theta;
+
+      // Source: pie sector
+      const srcPts = [];
+      srcPts.push({ x: circX, y: circY }); // apex
+      for (let j = 0; j <= sampleN - 2; j++) {
+        const f = j / (sampleN - 2);
+        srcPts.push(polar(circX, circY, r, lerp(a0, a1, f)));
+      }
+
+      // Target: alternating triangle
+      const sx = stripX + i * sliceW;
+      const tgtPts = [];
+      if (i % 2 === 0) {
+        // Up triangle: apex at top center, base at bottom
+        tgtPts.push({ x: sx + sliceW / 2, y: stripY }); // apex
+        for (let j = 0; j <= sampleN - 2; j++) {
+          const f = j / (sampleN - 2);
+          // Walk along base: left → right across bottom
+          if (f < 0.5) {
+            tgtPts.push({ x: lerp(sx, sx + sliceW / 2, f * 2), y: lerp(stripY + stripH, stripY, f * 2) });
+          } else {
+            tgtPts.push({ x: lerp(sx + sliceW / 2, sx + sliceW, (f - 0.5) * 2), y: lerp(stripY, stripY + stripH, (f - 0.5) * 2) });
+          }
+        }
+      } else {
+        // Down triangle: apex at bottom center, base at top
+        tgtPts.push({ x: sx + sliceW / 2, y: stripY + stripH }); // apex
+        for (let j = 0; j <= sampleN - 2; j++) {
+          const f = j / (sampleN - 2);
+          if (f < 0.5) {
+            tgtPts.push({ x: lerp(sx, sx + sliceW / 2, f * 2), y: lerp(stripY, stripY + stripH, f * 2) });
+          } else {
+            tgtPts.push({ x: lerp(sx + sliceW / 2, sx + sliceW, (f - 0.5) * 2), y: lerp(stripY + stripH, stripY, (f - 0.5) * 2) });
+          }
+        }
+      }
+
+      // Interpolate
+      cx.beginPath();
+      for (let j = 0; j < sampleN; j++) {
+        const px = lerp(srcPts[j].x, tgtPts[j].x, m);
+        const py = lerp(srcPts[j].y, tgtPts[j].y, m);
+        if (j === 0) cx.moveTo(px, py); else cx.lineTo(px, py);
+      }
+      cx.closePath();
+      cx.fillStyle = rgba(fillC, alpha);
+      cx.fill();
+      cx.strokeStyle = rgba(strokeC, alpha * 1.2);
+      cx.lineWidth = Math.max(0.5, 1 - seg * 0.02);
+      cx.stroke();
+    }
+  }
+
+  // ─── LAYOUT ───
+
+  function draw() {
+    T = performance.now();
+    if (state.loop) {
+      state.morph = (Math.sin(T * 0.0003) + 1) / 2;
+    }
+
+    cx.clearRect(0, 0, W, H);
+    cx.fillStyle = '#f2efe6';
+    cx.fillRect(0, 0, W, H);
+
+    const m = state.morph;
+    const pad = Math.min(W * 0.03, 40);
+    const topY = 70;
+    const botY = H - 80;
+    const midH = botY - topY;
+
+    // Three-column layout
+    const col1X = pad;
+    const col1W = W * 0.28;
+    const col2X = col1X + col1W + pad;
+    const col2W = W * 0.28;
+    const col3X = col2X + col2W + pad;
+    const col3W = W - col3X - pad;
+
+    // ─── COLUMN HEADERS ───
+    cx.font = '700 11px "Courier New", monospace';
+    cx.letterSpacing = '2px';
+    cx.fillStyle = '#1a1a1a';
+    cx.textAlign = 'center';
+    cx.fillText('1. INSPECTABLE CHANNELS', col1X + col1W / 2, topY - 20);
+    cx.fillText('2. COMPOSITE MERGE', col2X + col2W / 2, topY - 20);
+    cx.fillText('3. UNROLLED COMPOSITE FIELD', col3X + col3W / 2, topY - 20);
+
+    cx.font = '400 9px "Courier New", monospace';
+    cx.fillStyle = '#999';
+    cx.fillText('Isolate any layer and inspect its internal code', col1X + col1W / 2, topY - 6);
+    cx.fillText('Separate channels can be overlaid,', col2X + col2W / 2, topY - 12);
+    cx.fillText('compared, and disambiguated', col2X + col2W / 2, topY);
+    cx.fillText('Multiple layers converge into one study field', col3X + col3W / 2, topY - 6);
+    cx.textAlign = 'start';
+
+    // ─── COLUMN 1: SEPARATE CHANNELS ───
+    const chanH = midH / 4;
+    const circR = Math.min(chanH * 0.3, col1W * 0.18);
+    const triW = col1W * 0.42;
+    const triH = circR * 1.4;
+
+    CHANNELS.forEach((ch, idx) => {
+      const cy0 = topY + chanH * idx + chanH * 0.5;
+      const circX = col1X + circR + 10;
+      const seg = Math.max(3, Math.round(ch.seg * state.density));
+
+      // Label
+      cx.font = '700 11px "Courier New", monospace';
+      cx.fillStyle = '#1a1a1a';
+      cx.fillText(ch.name, col1X, cy0 - circR - 18);
+      cx.font = '400 9px "Courier New", monospace';
+      cx.fillStyle = '#999';
+      cx.fillText(`${seg} slices`, col1X, cy0 - circR - 6);
+      cx.fillText(ch.sub, col1X + 56, cy0 - circR - 6);
+
+      // Circle with slices
+      drawCircleSlices(circX, cy0, circR, seg, ch.fill, ch.stroke, 0.7);
+
+      // Arrow
+      const arrowX = circX + circR + 14;
+      const triStartX = arrowX + 28;
+      cx.beginPath();
+      cx.moveTo(arrowX, cy0);
+      cx.lineTo(triStartX - 8, cy0);
+      cx.strokeStyle = '#bbb';
+      cx.lineWidth = 1;
+      cx.stroke();
+      cx.beginPath();
+      cx.moveTo(triStartX - 8, cy0 - 3);
+      cx.lineTo(triStartX - 2, cy0);
+      cx.lineTo(triStartX - 8, cy0 + 3);
+      cx.fillStyle = '#bbb'; cx.fill();
+
+      // Unrolled triangles (Archimedes)
+      const triX = triStartX;
+      const triY0 = cy0 - triH / 2;
+      drawUnrolledTriangles(triX, triY0, triW, triH, seg, ch.fill, ch.stroke, 0.65);
+
+      // Arrow to composite
+      const arrowEndX = col2X - 10;
+      cx.beginPath();
+      cx.moveTo(triX + triW + 8, cy0);
+      cx.bezierCurveTo(triX + triW + 40, cy0, arrowEndX - 30, topY + midH / 2, arrowEndX, topY + midH / 2);
+      cx.strokeStyle = '#ccc';
+      cx.lineWidth = 0.8;
+      cx.stroke();
+    });
+
+    // ─── COLUMN 2: COMPOSITE MERGE ───
+    const compCX = col2X + col2W / 2;
+    const compCY = topY + midH / 2;
+    const compR = Math.min(col2W * 0.38, midH * 0.36);
+
+    // Circle outline
+    cx.beginPath(); cx.arc(compCX, compCY, compR, 0, Math.PI * 2);
+    cx.strokeStyle = 'rgba(26,26,26,.15)'; cx.lineWidth = 1; cx.stroke();
+    cx.beginPath(); cx.arc(compCX, compCY, compR * 0.08, 0, Math.PI * 2);
+    cx.fillStyle = '#1a1a1a'; cx.fill();
+
+    // All channels overlaid on one circle
+    CHANNELS.forEach(ch => {
+      const seg = Math.max(3, Math.round(ch.seg * state.density));
+      drawCircleSlices(compCX, compCY, compR, seg, ch.fill, ch.stroke, 0.35);
+    });
+
+    // Arrow to field
+    const arrowMidX = col2X + col2W + 10;
+    const arrowFieldX = col3X - 10;
+    cx.beginPath();
+    cx.moveTo(compCX + compR + 8, compCY);
+    cx.lineTo(arrowFieldX - 6, compCY);
+    cx.strokeStyle = '#bbb'; cx.lineWidth = 1; cx.stroke();
+    cx.beginPath();
+    cx.moveTo(arrowFieldX - 6, compCY - 3);
+    cx.lineTo(arrowFieldX, compCY);
+    cx.lineTo(arrowFieldX - 6, compCY + 3);
+    cx.fillStyle = '#bbb'; cx.fill();
+
+    // ─── COLUMN 3: UNROLLED COMPOSITE FIELD ───
+    const fieldX = col3X + 4;
+    const fieldW = col3W - 8;
+    const fieldH = midH * 0.7;
+    const fieldY = topY + midH * 0.08;
+
+    // Field border
+    cx.strokeStyle = 'rgba(26,26,26,.2)';
+    cx.lineWidth = 1;
+    cx.strokeRect(fieldX, fieldY, fieldW, fieldH);
+
+    // Draw all channels' unrolled triangles superimposed, each morphing
+    CHANNELS.forEach((ch, idx) => {
+      const seg = Math.max(3, Math.round(ch.seg * state.density));
+      const layerH = fieldH;
+      const alpha = 0.28 + 0.06 * idx;
+
+      // Use morph to animate from circle to unrolled
+      if (m < 0.01) {
+        // Pure circle overlay inside the field box (as if the composite circle is here)
+        const fCX = fieldX + fieldW / 2;
+        const fCY = fieldY + fieldH / 2;
+        const fR = Math.min(fieldW, fieldH) * 0.4;
+        drawCircleSlices(fCX, fCY, fR, seg, ch.fill, ch.stroke, alpha);
+      } else if (m > 0.99) {
+        // Pure unrolled triangles
+        drawUnrolledTriangles(fieldX, fieldY, fieldW, layerH, seg, ch.fill, ch.stroke, alpha);
+      } else {
+        // Morphing: circle → triangles
+        const fCX = fieldX + fieldW / 2;
+        const fCY = fieldY + fieldH / 2;
+        const fR = Math.min(fieldW, fieldH) * 0.4;
+        drawMorphingSlice(fCX, fCY, fR, fieldX, fieldY, fieldW, layerH, seg, ch.fill, ch.stroke, alpha, m);
+      }
+    });
+
+    // Density markers on composite field
+    const markerY1 = fieldY - 6;
+    const markerY2 = fieldY + fieldH + 14;
+    cx.font = '700 9px "Courier New", monospace';
+    cx.textAlign = 'center';
+
+    const markers = [
+      { label: '5', sub: 'POSSIBLE', x: fieldX + fieldW * 0.12 },
+      { label: '8', sub: 'PLAUSIBLE', x: fieldX + fieldW * 0.38 },
+      { label: '12', sub: 'PROBABLE', x: fieldX + fieldW * 0.65 },
+      { label: '20+', sub: 'PREFERABLE', x: fieldX + fieldW * 0.9 }
+    ];
+
+    markers.forEach(mk => {
+      // Dashed vertical line
+      cx.beginPath();
+      cx.setLineDash([2, 4]);
+      cx.moveTo(mk.x, fieldY);
+      cx.lineTo(mk.x, fieldY + fieldH);
+      cx.strokeStyle = 'rgba(26,26,26,.12)'; cx.lineWidth = 0.8; cx.stroke();
+      cx.setLineDash([]);
+
+      // Top label
+      cx.fillStyle = '#1a1a1a';
+      cx.fillText(mk.label, mk.x, markerY1);
+
+      // Bottom label
+      cx.font = '700 8px "Courier New", monospace';
+      cx.fillStyle = '#888';
+      cx.fillText(mk.sub, mk.x, markerY2);
+      cx.font = '700 9px "Courier New", monospace';
+    });
+    cx.textAlign = 'start';
+
+    // ─── LEGEND BAR ───
+    const legY = botY + 20;
+    const legSpacing = W / 5;
+
+    CHANNELS.forEach((ch, i) => {
+      const lx = legSpacing * (i + 0.6);
+
+      // Swatch
+      cx.fillStyle = rgba(ch.fill, 0.8);
+      cx.strokeStyle = rgba(ch.stroke, 0.6);
+      cx.lineWidth = 1;
+      cx.fillRect(lx, legY, 12, 12);
+      cx.strokeRect(lx, legY, 12, 12);
+
+      // Name
+      cx.font = '700 10px "Courier New", monospace';
+      cx.fillStyle = '#1a1a1a';
+      cx.fillText(ch.name, lx + 18, legY + 10);
+
+      // Sub
+      cx.font = '400 9px "Courier New", monospace';
+      cx.fillStyle = '#999';
+      const seg = Math.max(3, Math.round(ch.seg * state.density));
+      cx.fillText(`${seg} slices`, lx + 18, legY + 22);
+      cx.fillText(ch.sub, lx + 18, legY + 33);
+    });
+
+    read.textContent = `morph ${Math.round(m * 100)}%`;
+    requestAnimationFrame(draw);
+  }
+
+  // ─── INPUT ───
+
+  function pointer(e) {
+    state.morph = clamp(e.clientX / W, 0, 1);
+    state.density = clamp(0.5 + (1 - e.clientY / H) * 1.8, 0.5, 2.3);
+  }
+
+  addEventListener('pointerdown', e => { state.drag = true; pointer(e); });
+  addEventListener('pointermove', e => { if (state.drag) pointer(e); });
+  addEventListener('pointerup', () => state.drag = false);
+  addEventListener('pointercancel', () => state.drag = false);
+  addEventListener('resize', resize);
+  addEventListener('keydown', e => {
+    if (e.key === ' ') { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); e.preventDefault(); }
+    if (e.key === 'ArrowRight') state.morph = clamp(state.morph + 0.04, 0, 1);
+    if (e.key === 'ArrowLeft') state.morph = clamp(state.morph - 0.04, 0, 1);
+  });
+  loopBtn.onclick = () => { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); };
+
+  resize();
+  draw();
+})();
+</script>
+</body>
+</html>

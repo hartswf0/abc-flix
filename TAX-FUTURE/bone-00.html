@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+    <title>Taxonomy of Bicycle Futures — Slice = Bicycle</title>
+    <style>
+        :root {
+            --bg: #efeee8;
+            --ink: #171717;
+            --line: rgba(24, 24, 24, .62);
+
+            --possible: #dddcd2;
+            --plausible: #bfcfa2;
+            --probable: #88c34a;
+            --preferable: #c8cf3c;
+            --selected: #ff8a1c;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Arial Narrow", "Helvetica Neue Condensed", Inter, Arial, sans-serif;
+        }
+
+        #app {
+            width: 100%;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px 10px 18px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .controls button {
+            border: 1px solid rgba(0, 0, 0, .35);
+            background: transparent;
+            color: var(--ink);
+            border-radius: 999px;
+            padding: 9px 12px;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .controls input[type="range"] {
+            width: min(240px, 38vw);
+            accent-color: #5e8f35;
+        }
+
+        .stage {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            padding: 0 10px 20px 10px;
+        }
+
+        svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .title-big {
+            font-weight: 900;
+            font-size: 58px;
+            letter-spacing: .03em;
+        }
+
+        .section-head {
+            font-weight: 800;
+            font-size: 23px;
+            letter-spacing: .03em;
+        }
+
+        .sub {
+            font-size: 14px;
+            opacity: .82;
+            font-family: Inter, Arial, sans-serif;
+        }
+
+        .rowLabel {
+            font-weight: 800;
+            font-size: 22px;
+            letter-spacing: .03em;
+        }
+
+        .small {
+            font-size: 15px;
+            font-family: Inter, Arial, sans-serif;
+            opacity: .78;
+        }
+
+        .tiny {
+            font-size: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .03em;
+            opacity: .82;
+        }
+
+        .micro {
+            font-size: 8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .02em;
+            opacity: .86;
+        }
+
+        .legendTitle {
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: .03em;
+        }
+
+        .legendSmall {
+            font-size: 14px;
+            font-family: Inter, Arial, sans-serif;
+            opacity: .78;
+        }
+
+        .slice,
+        .bikeGlyph,
+        .unifiedBike {
+            cursor: pointer;
+            transition: filter .12s ease, opacity .12s ease;
+        }
+
+        .slice:hover,
+        .bikeGlyph:hover,
+        .unifiedBike:hover {
+            filter: drop-shadow(0 0 4px rgba(0, 0, 0, .25));
+        }
+
+        @media (max-width:1100px) {
+            .title-big {
+                font-size: 44px
+            }
+
+            .section-head {
+                font-size: 18px
+            }
+
+            .rowLabel {
+                font-size: 18px
+            }
+
+            .small {
+                font-size: 13px
+            }
+
+            .legendTitle {
+                font-size: 15px
+            }
+
+            .legendSmall {
+                font-size: 12px
+            }
+        }
+
+        @media (max-width:760px) {
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start
+            }
+
+            .controls {
+                width: 100%;
+                flex-wrap: wrap
+            }
+
+            .controls input[type="range"] {
+                width: 100%
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="topbar">
+            <div class="controls">
+                <span>Phase</span>
+                <input id="phase" type="range" min="0" max="1" step="0.001" value="1" />
+                <button id="play">play</button>
+                <button id="reset">reset</button>
+            </div>
+            <div class="controls">
+                <span id="phaseLabel">unified field</span>
+            </div>
+        </div>
+
+        <div class="stage">
+            <svg id="svg" viewBox="0 0 1600 1280" aria-label="Taxonomy of bicycle futures infographic"></svg>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const svg = document.getElementById('svg');
+            const phaseInput = document.getElementById('phase');
+            const phaseLabel = document.getElementById('phaseLabel');
+            const playBtn = document.getElementById('play');
+            const resetBtn = document.getElementById('reset');
+
+            const NS = 'http://www.w3.org/2000/svg';
+
+            const state = {
+                phase: 1,
+                playing: false,
+                selectedId: 'preferred-01'
+            };
+
+            const bands = [
+                {
+                    key: 'possible',
+                    name: 'POSSIBLE',
+                    detail: 'Coarse / broad bicycle worlds',
+                    color: 'var(--possible)',
+                    ink: '#6f6b73',
+                    bikes: [
+                        bike('possible-01', 'Morph Frame', 'Self-changing geometry', 'Experimental artifact logic', 'shape-shifting frame + adaptive practice', 'AI frame, sensors, rider intent'),
+                        bike('possible-02', 'Swarm Bike', 'Fleet rides as organism', 'Networked mobility belief', 'collective routing + shared ownership', 'mesh fleet, streets, protocols'),
+                        bike('possible-03', 'Bone Echo', 'Historical high-wheel remix', 'Speed as spectacle', 'Penny Farthing problem returns as sport', 'large wheel, gyro, fall-risk culture'),
+                        bike('possible-04', 'Self-Healer', 'Material repairs itself', 'Maintenance disappears', 'repair problem solved by material agency', 'polymer skin, scratches, weather'),
+                        bike('possible-05', 'Walking Wheel', 'Bike folds into walker/cart', 'Mobility across bodies', 'elder/access problem becomes hybrid tool', 'joints, cargo, cane logic')
+                    ]
+                },
+                {
+                    key: 'plausible',
+                    name: 'PLAUSIBLE',
+                    detail: 'Feasible with near materials',
+                    color: 'var(--plausible)',
+                    ink: '#5d7f45',
+                    bikes: [
+                        bike('plausible-01', 'Modular E-Bike', 'Replaceable power + frame units', 'Repairable electrification', 'battery and maintenance problem', 'battery, shop, standard mount'),
+                        bike('plausible-02', 'Swap Battery', 'Shared battery standard', 'Energy as public interface', 'charging friction becomes design target', 'dock, battery, policy'),
+                        bike('plausible-03', 'Smart City Bike', 'Sensing commuter bike', 'Infrastructure-aware riding', 'safety mediated by data', 'sensors, lanes, lights'),
+                        bike('plausible-04', 'Solar Assist', 'Supplemental solar charging', 'Slow energy autonomy', 'range anxiety softened', 'panel, sun, controller'),
+                        bike('plausible-05', 'Adaptive Fit', 'One bike, many bodies', 'Frame as inclusion system', 'gender/age/body fit problem', 'seatpost, joints, memory'),
+                        bike('plausible-06', 'Fold Micro', 'Apartment/train compatible', 'Storage as design constraint', 'urban density problem', 'hinges, trains, elevators'),
+                        bike('plausible-07', 'Suspension Utility', 'Comfort-first daily bike', 'Road vibration becomes social barrier', 'vibration problem', 'fork, tire, spine, street'),
+                        bike('plausible-08', 'Secure Lock Bike', 'Anti-theft embedded frame', 'Trust as adoption condition', 'theft problem', 'lock, registry, insurance')
+                    ]
+                },
+                {
+                    key: 'probable',
+                    name: 'PROBABLE',
+                    detail: 'Likely under current momentum',
+                    color: 'var(--probable)',
+                    ink: '#3d842b',
+                    bikes: [
+                        bike('probable-01', 'Commuter E-Bike', 'Default daily transport upgrade', 'Speed without sweat', 'commute distance problem', 'battery, office, road'),
+                        bike('probable-02', 'Urban Cargo', 'Family/load transport', 'Bike as small car replacement', 'carrying-capacity problem', 'kids, groceries, curb'),
+                        bike('probable-03', 'App Fleet Bike', 'Subscription mobility node', 'Bike as platform service', 'access without ownership', 'app, dock, payment'),
+                        bike('probable-04', 'Delivery Mule', 'Workhorse courier bike', 'Labor logistics machine', 'last-mile delivery problem', 'worker, algorithm, cargo box'),
+                        bike('probable-05', 'Light City Bike', 'Cheap practical commuter', 'Ordinary reliability', 'basic mobility problem', 'frame, rack, lights'),
+                        bike('probable-06', 'Integrated Lights', 'Visibility built into frame', 'Safety as default feature', 'night safety problem', 'LEDs, battery, traffic'),
+                        bike('probable-07', 'Theft Tracker', 'Findable bicycle', 'Security by traceability', 'theft/recovery problem', 'GPS, police, app'),
+                        bike('probable-08', 'School Run Bike', 'Parent-child daily transport', 'Family logistics shift', 'school commute problem', 'child seat, lane, routine'),
+                        bike('probable-09', 'Gravel Commuter', 'Mixed-road everyday bike', 'Adventure domesticated', 'road surface variety', 'tires, trails, asphalt'),
+                        bike('probable-10', 'Compact Cargo', 'Small load bike', 'Apartment cargo compromise', 'storage/load tension', 'short wheelbase, basket'),
+                        bike('probable-11', 'Lease E-Bike', 'Monthly mobility product', 'Ownership becomes service', 'upfront cost problem', 'finance, repair plan'),
+                        bike('probable-12', 'Safety Sensor', 'Alerting commuter frame', 'Risk translated into signals', 'collision anxiety', 'radar, bell, display')
+                    ]
+                },
+                {
+                    key: 'preferable',
+                    name: 'PREFERABLE',
+                    detail: 'Value-aligned detailed paths',
+                    color: 'var(--preferable)',
+                    ink: '#9fa91f',
+                    bikes: [
+                        bike('preferable-01', 'Open Standard', 'Open-source modular bike', 'Shared knowledge as infrastructure', 'proprietary repair problem', 'standards, manuals, shops'),
+                        bike('preferable-02', 'Local Build', 'Made from local materials', 'Resilience over novelty', 'supply-chain dependence', 'workshop, timber/steel, skills'),
+                        bike('preferable-03', 'Step-Through', 'Accessible frame for many bodies', 'Mobility without athletic gatekeeping', 'dress/age/mounting problem', 'frame geometry, clothing'),
+                        bike('preferable-04', 'Community Cargo', 'Shared neighborhood load bike', 'Commons mobility', 'private car dependency', 'library, cargo bay, schedule'),
+                        bike('preferable-05', 'Repair School', 'Bike designed to teach', 'Maintenance as literacy', 'deskilling/disposability problem', 'tools, manual, class'),
+                        bike('preferable-06', 'Low Waste', 'Durable utility bike', 'Long life as value', 'planned obsolescence', 'standard parts, repair loop'),
+                        bike('preferable-07', 'Inclusive Design', 'Adjustable for many riders', 'Plural bodies, one platform', 'body exclusion problem', 'fit range, modular contact points'),
+                        bike('preferable-08', 'Public Fleet', 'Municipal repairable fleet', 'Mobility as civic service', 'equity/access problem', 'city, depot, mechanic'),
+                        bike('preferable-09', 'Weather Bike', 'Rain/cold ready daily bike', 'Comfort expands access', 'climate exposure problem', 'fenders, cover, tires'),
+                        bike('preferable-10', 'No-App Bike', 'Usable without phone', 'Access not locked to platform', 'digital exclusion problem', 'mechanical lock, cash option'),
+                        bike('preferable-11', 'Cargo Coop', 'Worker-owned delivery bike', 'Labor dignity', 'algorithmic labor problem', 'coop, cargo, routes'),
+                        bike('preferable-12', 'Child Safe', 'School-zone bicycle system', 'Safety around children', 'traffic danger problem', 'slow streets, flags'),
+                        bike('preferable-13', 'Elder Glide', 'Stable low-speed mobility', 'Aging as design center', 'balance/access problem', 'trike logic, low step'),
+                        bike('preferable-14', 'Quiet Bike', 'Low-noise urban design', 'Careful street presence', 'noise/aggression problem', 'tires, bell etiquette'),
+                        bike('preferable-15', 'Tool Frame', 'Bike carries its own repair kit', 'Autonomy in breakdown', 'maintenance access problem', 'tools, frame storage'),
+                        bike('preferable-16', 'Library Bike', 'Borrowable utility bike', 'Shared access', 'ownership cost problem', 'cards, racks, steward'),
+                        bike('preferable-17', 'Farm Link', 'Rural cargo bicycle', 'Post-car rural mobility', 'distance/load problem', 'trail, cargo, assist'),
+                        bike('preferable-18', 'Clinic Bike', 'Health/outreach cargo bike', 'Care moves locally', 'service access problem', 'medical kit, cooler'),
+                        bike('preferable-19', 'Flood Bike', 'Climate-adapted utility bike', 'Mobility during disruption', 'flood/infrastructure stress', 'sealed hubs, fat tires'),
+                        bike('preferable-20', 'Preferred Platform', 'Chosen repairable commons bike', 'Commitment becomes closure', 'preferred future bundle', 'policy, funding, repair, riders')
+                    ]
+                }
+            ];
+
+            function bike(id, name, artifact, belief, problem, actors) {
+                const perspective = inferActorPerspective(id, name, artifact, belief, problem, actors);
+                return {
+                    id,
+                    name,
+                    artifact,
+                    practice: inferPractice(name),
+                    belief,
+                    scot: problem,
+                    ant: actors,
+                    actor: perspective.actor,
+                    actorType: perspective.actorType,
+                    seeingAs: perspective.seeingAs,
+                    actorBelief: perspective.actorBelief,
+                    desire: perspective.desire,
+                    intent: perspective.intent,
+                    bdi: perspective.bdi,
+                    closure: inferClosure(id)
+                };
+            }
+
+            function inferActorPerspective(id, name, artifact, belief, problem, actors) {
+                const lower = name.toLowerCase();
+                let actor = 'experimental riders';
+                let actorType = 'early adopter / tester';
+                let seeingAs = 'an unresolved bicycle possibility';
+                let actorBelief = belief;
+                let desire = 'discover what this bicycle form makes newly possible';
+                let intent = 'test the relation between body, machine, street, and social meaning';
+
+                if (/cargo|mule|delivery|compact cargo/.test(lower)) {
+                    actor = /coop/.test(lower) ? 'worker-owned delivery riders' : 'families, couriers, and load-carrying riders';
+                    actorType = 'load-bearing mobility actor';
+                    seeingAs = 'a car-replacement or labor-support machine';
+                    actorBelief = 'bicycles can carry care, work, children, food, and neighborhood logistics';
+                    desire = 'move heavy or precious things without defaulting to a car';
+                    intent = 'adopt cargo geometry when streets, storage, and repair make it dependable';
+                }
+                else if (/commuter|city|school|light|gravel/.test(lower)) {
+                    actor = /school/.test(lower) ? 'parents, children, and school communities' : 'daily urban commuters';
+                    actorType = 'routine rider';
+                    seeingAs = 'a practical daily mobility appliance';
+                    actorBelief = 'the bicycle becomes real when it fits ordinary routines';
+                    desire = 'arrive safely, cheaply, and predictably';
+                    intent = 'choose the bike when it beats friction, weather, traffic, and time pressure';
+                }
+                else if (/step|elder|inclusive|walking|adaptive/.test(lower)) {
+                    actor = /elder/.test(lower) ? 'elder riders and caregivers' : 'excluded or non-default bodies';
+                    actorType = 'access-centered rider';
+                    seeingAs = 'an inclusion technology rather than a sport object';
+                    actorBelief = 'design should bend toward bodies instead of forcing bodies to adapt';
+                    desire = 'ride without athletic gatekeeping, clothing barriers, or balance anxiety';
+                    intent = 'stabilize frame geometry around access, confidence, and dignity';
+                }
+                else if (/open|local|repair|tool|low waste|self-healer/.test(lower)) {
+                    actor = /local/.test(lower) ? 'local builders and repair communities' : 'mechanics, maintainers, and right-to-repair advocates';
+                    actorType = 'maintenance actor';
+                    seeingAs = 'a durable knowledge object';
+                    actorBelief = 'a bicycle is better when its parts, standards, and repairs remain legible';
+                    desire = 'reduce dependency on proprietary parts and throwaway design';
+                    intent = 'make repair, teaching, and standardization part of the artifact itself';
+                }
+                else if (/fleet|library|community|public|swarm/.test(lower)) {
+                    actor = /public/.test(lower) ? 'municipal mobility stewards' : 'neighbors, shared users, and commons organizers';
+                    actorType = 'governance actor';
+                    seeingAs = 'shared infrastructure rather than private object';
+                    actorBelief = 'mobility improves when ownership, care, and access are socially organized';
+                    desire = 'spread access while keeping responsibility visible';
+                    intent = 'build systems of booking, repair, trust, and stewardship around the bike';
+                }
+                else if (/battery|solar|e-bike|smart|sensor|tracker|lock|app|lease/.test(lower)) {
+                    actor = /app|lease/.test(lower) ? 'platform operators and convenience-seeking users' : 'tech-enabled riders and producers';
+                    actorType = 'platform / electrification actor';
+                    seeingAs = 'a friction-reduction interface';
+                    actorBelief = 'adoption rises when effort, range, theft, and uncertainty are engineered away';
+                    desire = 'make cycling easier, faster, trackable, and more reliable';
+                    intent = 'translate mobility problems into batteries, sensors, software, locks, and services';
+                }
+                else if (/bone|morph|walking wheel/.test(lower)) {
+                    actor = /bone/.test(lower) ? 'sport riders, historians, and spectacle builders' : 'speculative designers and prototype riders';
+                    actorType = 'speculative / historical actor';
+                    seeingAs = 'a strange form that reopens a closed design path';
+                    actorBelief = 'discarded bicycle histories can become future experiments';
+                    desire = 'recover lost geometry, danger, play, or bodily sensation';
+                    intent = 'use speculative prototypes to expose assumptions hidden in normal bikes';
+                }
+                else if (/weather|flood/.test(lower)) {
+                    actor = 'climate-stressed riders and resilient-city planners';
+                    actorType = 'climate adaptation actor';
+                    seeingAs = 'mobility for disruption, rain, heat, and broken infrastructure';
+                    actorBelief = 'future bicycles must survive weather, not merely fair-day recreation';
+                    desire = 'keep moving when climate makes ordinary transport fragile';
+                    intent = 'harden the bicycle around comfort, continuity, and emergency usefulness';
+                }
+                else if (/clinic/.test(lower)) {
+                    actor = 'community health workers';
+                    actorType = 'care actor';
+                    seeingAs = 'a mobile care platform';
+                    actorBelief = 'health access can move through streets, not only institutions';
+                    desire = 'bring supplies, screening, and care to people where they are';
+                    intent = 'stabilize the bicycle as neighborhood-scale care infrastructure';
+                }
+
+                return {
+                    actor,
+                    actorType,
+                    seeingAs,
+                    actorBelief,
+                    desire,
+                    intent,
+                    bdi: `BELIEF: ${actorBelief} | DESIRE: ${desire} | INTENT: ${intent}`
+                };
+            }
+
+            function inferPractice(name) {
+                if (/Cargo|Mule|Farm|Clinic/.test(name)) return 'moving loads, care, deliveries, or family matter';
+                if (/Elder|Step|Inclusive|Walking/.test(name)) return 'lower-barrier riding for more bodies';
+                if (/Fleet|Library|Community|Coop|Public/.test(name)) return 'shared use, governance, and maintenance';
+                if (/Commuter|City|Light|School/.test(name)) return 'daily streets, routines, and urban infrastructure';
+                return 'experimental riding practice around an unresolved bicycle problem';
+            }
+
+            function inferBDI(name) {
+                if (/Preferred|Open|Community|Public|Library|Coop/.test(name)) return 'actors intend to stabilize a commons-oriented mobility system';
+                if (/E-Bike|Battery|Smart|Sensor|Tracker|App/.test(name)) return 'actors intend to reduce friction through electrification and data';
+                if (/Step|Elder|Inclusive|Walking/.test(name)) return 'actors intend to widen access beyond athletic/default bodies';
+                return 'actors test a new relation between body, machine, and street';
+            }
+
+            function inferClosure(id) {
+                if (id.startsWith('possible')) return 'open artifact imagination; not yet stabilized';
+                if (id.startsWith('plausible')) return 'technically coherent but not socially closed';
+                if (id.startsWith('probable')) return 'reinforced by markets, infrastructure, and habits';
+                if (id.startsWith('preferable-20')) return 'selected pathway: preferred closure candidate';
+                return 'value-aligned but needs institutional commitment';
+            }
+
+            const allBikes = bands.flatMap(b => b.bikes.map((bike, index) => ({ ...bike, band: b, index })));
+
+            function selectedBike() {
+                return allBikes.find(b => b.id === state.selectedId) || allBikes[0];
+            }
+
+            function el(tag, attrs = {}, parent = svg) {
+                const node = document.createElementNS(NS, tag);
+                for (const k in attrs) {
+                    if (k === 'text') node.textContent = attrs[k];
+                    else node.setAttribute(k, attrs[k]);
+                }
+                if (parent) parent.appendChild(node);
+                return node;
+            }
+
+            function clear() { svg.innerHTML = ''; }
+            function lerp(a, b, t) { return a + (b - a) * t; }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function ease(t) { return t * t * (3 - 2 * t); }
+
+            function polar(cx, cy, r, a) {
+                return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+            }
+
+            function sectorPoints(cx, cy, r, a0, a1, steps = 18) {
+                const pts = [{ x: cx, y: cy }];
+                for (let i = 0; i <= steps; i++) {
+                    const a = lerp(a0, a1, i / steps);
+                    pts.push(polar(cx, cy, r, a));
+                }
+                return pts;
+            }
+
+            function polygonPath(pts) {
+                return pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z';
+            }
+
+            function samplePerimeter(poly, n) {
+                const segs = [];
+                let total = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const a = poly[i];
+                    const b = poly[(i + 1) % poly.length];
+                    const len = Math.hypot(b.x - a.x, b.y - a.y);
+                    segs.push({ a, b, len, start: total });
+                    total += len;
+                }
+                const out = [];
+                for (let k = 0; k < n; k++) {
+                    const target = (k / n) * total;
+                    let s = segs[segs.length - 1];
+                    for (const q of segs) {
+                        if (target >= q.start && target <= q.start + q.len) { s = q; break; }
+                    }
+                    const t = s.len ? (target - s.start) / s.len : 0;
+                    out.push({ x: lerp(s.a.x, s.b.x, t), y: lerp(s.a.y, s.b.y, t) });
+                }
+                return out;
+            }
+
+            function blendedPoly(source, target, t) {
+                const A = samplePerimeter(source, 60);
+                const B = samplePerimeter(target, 60);
+                return A.map((p, i) => ({ x: lerp(p.x, B[i].x, t), y: lerp(p.y, B[i].y, t) }));
+            }
+
+            function text(x, y, content, cls, anchor = 'start', fill = 'var(--ink)', weight = null) {
+                const t = el('text', { x, y, 'text-anchor': anchor, fill, class: cls });
+                if (weight) t.setAttribute('font-weight', weight);
+                t.textContent = content;
+                return t;
+            }
+
+            function wrapText(x, y, width, content, cls, lineHeight = 17, fill = 'var(--ink)') {
+                const words = String(content).split(/\s+/);
+                let line = '';
+                let yy = y;
+                const approx = cls === 'micro' ? 5 : 7;
+                for (const word of words) {
+                    const test = line ? line + ' ' + word : word;
+                    if (test.length * approx > width && line) {
+                        text(x, yy, line, cls, 'start', fill);
+                        yy += lineHeight;
+                        line = word;
+                    } else line = test;
+                }
+                if (line) text(x, yy, line, cls, 'start', fill);
+                return yy + lineHeight;
+            }
+
+            function line(x1, y1, x2, y2, stroke = 'rgba(20,20,20,.55)', width = 1.5, dash = '') {
+                return el('line', { x1, y1, x2, y2, stroke, 'stroke-width': width, 'stroke-dasharray': dash, 'vector-effect': 'non-scaling-stroke' });
+            }
+
+            function arrow(x1, y1, x2, y2, stroke = 'rgba(20,20,20,.8)', width = 1.7) {
+                line(x1, y1, x2, y2, stroke, width);
+                const ang = Math.atan2(y2 - y1, x2 - x1);
+                const s = 9;
+                line(x2, y2, x2 - Math.cos(ang - .45) * s, y2 - Math.sin(ang - .45) * s, stroke, width);
+                line(x2, y2, x2 - Math.cos(ang + .45) * s, y2 - Math.sin(ang + .45) * s, stroke, width);
+            }
+
+            function makeGroup(parent = svg, attrs = {}) {
+                return el('g', attrs, parent);
+            }
+
+            function markSelectable(node, bike) {
+                node.classList.add('slice');
+                node.addEventListener('click', () => {
+                    state.selectedId = bike.id;
+                    state.playing = false;
+                    playBtn.textContent = 'play';
+                    draw();
+                });
+                const title = document.createElementNS(NS, 'title');
+                title.textContent = `${bike.band.name}: ${bike.name}
+WHO SEES IT: ${bike.actor}
+SEEING AS: ${bike.seeingAs}
+ARTIFACT: ${bike.artifact}
+PRACTICE: ${bike.practice}
+BELIEF: ${bike.actorBelief || bike.belief}
+DESIRE: ${bike.desire}
+INTENT: ${bike.intent}
+SCOT: ${bike.scot}`;
+                node.appendChild(title);
+            }
+
+            function bikeGlyph(x, y, scale = 1, stroke = 'rgba(24,24,24,.78)', fill = 'none', bike = null) {
+                const g = makeGroup(svg, { transform: `translate(${x} ${y}) scale(${scale})`, class: 'bikeGlyph' });
+                el('circle', { cx: -13, cy: 9, r: 8, fill: 'none', stroke, 'stroke-width': 1.4 }, g);
+                el('circle', { cx: 15, cy: 9, r: 8, fill: 'none', stroke, 'stroke-width': 1.4 }, g);
+                el('path', { d: 'M -13 9 L -2 -5 L 8 9 L -13 9 M -2 -5 L 11 -5 L 15 9 M -2 -5 L -6 -12 M 7 9 L 1 9 M 11 -5 L 16 -11 M -9 -12 L -3 -12', fill, stroke, 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+                if (bike) markSelectable(g, bike);
+                return g;
+            }
+
+            function circleScaffold(cx, cy, r, row) {
+                for (let k = 3; k >= 1; k--) {
+                    el('circle', { cx: cx + k * 7, cy, r, fill: 'none', stroke: 'rgba(24,24,24,.18)', 'stroke-width': 1.1 });
+                }
+
+                const theta = Math.PI * 2 / row.bikes.length;
+                row.bikes.forEach((bike, i) => {
+                    bike.band = row;
+                    const a0 = -Math.PI / 2 + i * theta;
+                    const a1 = -Math.PI / 2 + (i + 1) * theta;
+                    const mid = (a0 + a1) / 2;
+                    const sector = el('path', {
+                        d: polygonPath(sectorPoints(cx, cy, r, a0, a1, 16)),
+                        fill: row.color,
+                        'fill-opacity': state.selectedId === bike.id ? .98 : .86,
+                        stroke: state.selectedId === bike.id ? 'var(--selected)' : 'rgba(24,24,24,.62)',
+                        'stroke-width': state.selectedId === bike.id ? 2.6 : 1.05
+                    });
+                    markSelectable(sector, bike);
+
+                    const p = polar(cx, cy, r, a0);
+                    line(cx, cy, p.x, p.y, 'rgba(24,24,24,.42)', 0.8);
+
+                    const icon = polar(cx, cy, r * 0.62, mid);
+                    bikeGlyph(icon.x, icon.y, 0.42, row.ink, 'none', bike);
+
+                    const label = polar(cx, cy, r * 0.88, mid);
+                    const n = text(label.x, label.y, `${i + 1}`, 'micro', 'middle', row.ink);
+                    n.setAttribute('dominant-baseline', 'middle');
+                });
+
+                el('circle', { cx, cy, r: 3.4, fill: 'rgba(24,24,24,.85)' });
+            }
+
+            function stripGuide(x, y, w, h) {
+                line(x, y, x + w, y, 'rgba(24,24,24,.42)', 1.1);
+                line(x, y + h, x + w, y + h, 'rgba(24,24,24,.42)', 1.1);
+            }
+
+            function wedgeStrip(x, y, w, h, row, phase, rowIndex) {
+                const count = row.bikes.length;
+                stripGuide(x, y, w, h);
+
+                const cellW = w / count;
+                for (let i = 0; i < count; i++) {
+                    const bike = row.bikes[i];
+                    bike.band = row;
+                    bike.index = i;
+                    const tx = x + i * cellW;
+                    const target = (i % 2 === 0)
+                        ? [{ x: tx, y: y + h }, { x: tx + cellW / 2, y: y }, { x: tx + cellW, y: y + h }]
+                        : [{ x: tx, y: y }, { x: tx + cellW / 2, y: y + h }, { x: tx + cellW, y: y }];
+
+                    const t = ease(clamp((phase - 0.1) / 0.35, 0, 1));
+                    const circleX = 215;
+                    const circleY = 335 + rowIndex * 170;
+                    const circleR = 62;
+                    const theta = Math.PI * 2 / count;
+                    const source = sectorPoints(circleX, circleY, circleR, -Math.PI / 2 + i * theta, -Math.PI / 2 + (i + 1) * theta);
+                    const pts = blendedPoly(source, target, t);
+                    const p = el('path', {
+                        d: polygonPath(pts),
+                        fill: row.color,
+                        'fill-opacity': state.selectedId === bike.id ? .98 : .86,
+                        stroke: state.selectedId === bike.id ? 'var(--selected)' : 'rgba(24,24,24,.22)',
+                        'stroke-width': state.selectedId === bike.id ? 2.2 : .8
+                    });
+                    markSelectable(p, bike);
+
+                    if (t > .85) {
+                        bikeGlyph(tx + cellW / 2, y + h / 2, Math.min(0.34, cellW / 58), row.ink, 'none', bike);
+                        if (cellW > 28) {
+                            const label = text(tx + cellW / 2, y + h + 16, String(i + 1).padStart(2, '0'), 'micro', 'middle', row.ink);
+                            label.setAttribute('opacity', '.7');
+                        }
+                    }
+                }
+            }
+
+            function starLayer(cx, cy, rOuter, row, opacity, rotation = 0) {
+                const count = row.bikes.length;
+                for (let i = 0; i < count; i++) {
+                    const bike = row.bikes[i];
+                    bike.band = row;
+                    bike.index = i;
+                    const a0 = rotation + (-Math.PI / 2) + i * (Math.PI * 2 / count);
+                    const a1 = rotation + (-Math.PI / 2) + (i + 1) * (Math.PI * 2 / count);
+                    const mid = (a0 + a1) / 2;
+                    const p0 = polar(cx, cy, rOuter * 0.18, a0);
+                    const p1 = polar(cx, cy, rOuter, mid);
+                    const p2 = polar(cx, cy, rOuter * 0.18, a1);
+                    const path = el('path', {
+                        d: polygonPath([p0, p1, p2]),
+                        fill: row.color,
+                        'fill-opacity': state.selectedId === bike.id ? Math.min(1, opacity + .35) : opacity,
+                        stroke: state.selectedId === bike.id ? 'var(--selected)' : 'rgba(24,24,24,.10)',
+                        'stroke-width': state.selectedId === bike.id ? 2 : .4
+                    });
+                    markSelectable(path, bike);
+
+                    if (opacity > .18) {
+                        const icon = polar(cx, cy, rOuter * 0.62, mid);
+                        bikeGlyph(icon.x, icon.y, 0.28, row.ink, 'none', bike);
+                    }
+                }
+            }
+
+            function drawComposite(cx, cy, phase) {
+                const t = ease(clamp((phase - 0.45) / 0.30, 0, 1));
+
+                el('circle', { cx, cy, r: 205, fill: 'none', stroke: 'rgba(24,24,24,.55)', 'stroke-width': 1.3, opacity: 0.25 + 0.75 * t });
+
+                starLayer(cx, cy, 190, bands[0], 0.38 * t, 0.00);
+                starLayer(cx, cy, 165, bands[1], 0.42 * t, 0.12);
+                starLayer(cx, cy, 132, bands[2], 0.49 * t, 0.05);
+                starLayer(cx, cy, 103, bands[3], 0.56 * t, 0.02);
+
+                el('circle', { cx, cy, r: 92, fill: 'rgba(255,255,255,.16)', stroke: 'rgba(24,24,24,.18)', 'stroke-width': 1, opacity: t });
+
+                for (let i = 0; i < bands[3].bikes.length; i++) {
+                    const a = -Math.PI / 2 + i * (Math.PI * 2 / bands[3].bikes.length);
+                    const p = polar(cx, cy, 94, a);
+                    line(cx, cy, p.x, p.y, 'rgba(24,24,24,.20)', 0.7);
+                }
+
+                el('circle', { cx, cy, r: 6.5, fill: 'rgba(24,24,24,.95)', opacity: t });
+            }
+
+            function unifiedLayer(rect, row, opacity, vScale, phase) {
+                const t = ease(clamp((phase - 0.68) / 0.26, 0, 1));
+                const { x, y, w, h } = rect;
+                const mid = y + h / 2;
+                const count = row.bikes.length;
+                const step = w / count;
+
+                for (let i = 0; i < count; i++) {
+                    const bike = row.bikes[i];
+                    bike.band = row;
+                    bike.index = i;
+                    const x0 = x + i * step;
+                    const peak = h * vScale * 0.5;
+                    const poly = (i % 2 === 0)
+                        ? [{ x: x0, y: mid }, { x: x0 + step / 2, y: mid - peak }, { x: x0 + step, y: mid }, { x: x0 + step / 2, y: mid + peak }]
+                        : [{ x: x0, y: mid }, { x: x0 + step / 2, y: mid + peak }, { x: x0 + step, y: mid }, { x: x0 + step / 2, y: mid - peak }];
+
+                    const p = el('path', {
+                        d: polygonPath(poly),
+                        fill: row.color,
+                        'fill-opacity': state.selectedId === bike.id ? Math.min(.95, opacity * t + .25) : opacity * t,
+                        stroke: state.selectedId === bike.id ? 'var(--selected)' : 'rgba(24,24,24,.10)',
+                        'stroke-width': state.selectedId === bike.id ? 1.8 : .6,
+                        class: 'unifiedBike'
+                    });
+                    markSelectable(p, bike);
+
+                    if (t > .75 && step > 19) {
+                        bikeGlyph(x0 + step / 2, mid, Math.min(0.25, step / 70), row.ink, 'none', bike);
+                    }
+                }
+            }
+
+            function drawUnifiedField(x, y, w, h, phase) {
+                const t = ease(clamp((phase - 0.68) / 0.26, 0, 1));
+
+                el('rect', { x, y, width: w, height: h, fill: 'none', stroke: 'rgba(24,24,24,.65)', 'stroke-width': 1.4, opacity: t });
+
+                unifiedLayer({ x, y, w, h }, bands[0], 0.44, 1.00, phase);
+                unifiedLayer({ x, y, w, h }, bands[1], 0.44, 0.72, phase);
+                unifiedLayer({ x, y, w, h }, bands[2], 0.49, 0.47, phase);
+                unifiedLayer({ x, y, w, h }, bands[3], 0.58, 0.18, phase);
+
+                line(x, y + h / 2, x + w, y + h / 2, 'rgba(24,24,24,.55)', 1.1);
+
+                const markers = [
+                    { label: '5', name: 'POSSIBLE', color: '#7e7e76', pos: .15 },
+                    { label: '8', name: 'PLAUSIBLE', color: '#78955c', pos: .40 },
+                    { label: '12', name: 'PROBABLE', color: '#559c2d', pos: .67 },
+                    { label: '20', name: 'PREFERABLE', color: '#a7b322', pos: .87 }
+                ];
+
+                markers.forEach(m => {
+                    const px = x + w * m.pos;
+                    line(px, y - 12, px, y, m.color, 1.2, '4 4');
+                    line(px, y + h, px, y + h + 12, m.color, 1.2, '4 4');
+                    text(px, y - 50, m.label, 'rowLabel', 'middle', m.color);
+                    text(px, y - 22, m.name, 'small', 'middle', m.color);
+                    text(px, y + h + 48, m.label, 'rowLabel', 'middle', m.color);
+                    text(px, y + h + 76, m.name, 'small', 'middle', m.color);
+                });
+            }
+
+            function drawLegend() {
+                const baseY = 1032;
+                const startX = 350;
+                const gap = 250;
+
+                bands.forEach((b, i) => {
+                    const x = startX + i * gap;
+                    el('rect', { x, y: baseY - 16, width: 40, height: 40, fill: b.color, stroke: 'rgba(24,24,24,.8)', 'stroke-width': 1.4 });
+                    text(x + 62, baseY + 4, b.name, 'legendTitle', 'start');
+                    text(x + 62, baseY + 33, `${b.bikes.length} bicycle slices`, 'legendSmall', 'start');
+                    text(x + 62, baseY + 58, b.detail, 'legendSmall', 'start');
+                });
+            }
+
+            function drawBracketConnectors() {
+                const roots = [
+                    { x: 548, y: 341 },
+                    { x: 548, y: 511 },
+                    { x: 548, y: 681 },
+                    { x: 548, y: 851 }
+                ];
+
+                const mergeX = 635;
+                const mergeY = 596;
+
+                roots.forEach(r => {
+                    const d = `M ${r.x} ${r.y} C ${r.x + 50} ${r.y}, ${mergeX - 40} ${mergeY}, ${mergeX} ${mergeY}`;
+                    el('path', { d, fill: 'none', stroke: 'rgba(24,24,24,.72)', 'stroke-width': 1.5 });
+                });
+
+                arrow(mergeX, mergeY, 688, mergeY, 'rgba(24,24,24,.82)', 1.6);
+                arrow(958, mergeY, 1008, mergeY, 'rgba(24,24,24,.82)', 1.6);
+            }
+
+            function drawRow(row, i, phase) {
+                const y = 330 + i * 170;
+
+                text(63, y - 3, row.name, 'rowLabel');
+                text(80, y + 33, `${row.bikes.length} bike slices`, 'small');
+                text(47, y + 63, row.detail, 'small');
+
+                circleScaffold(215, y + 25, 62, row);
+                arrow(304, y + 30, 340, y + 30);
+
+                const stripX = 358;
+                const stripY = y - 15;
+                const stripW = 190;
+                const stripH = 76;
+                wedgeStrip(stripX, stripY, stripW, stripH, row, phase, i);
+            }
+
+            function drawInspector() {
+                const b = selectedBike();
+                const x = 40;
+                const y = 955;
+                const w = 1518;
+                const h = 275;
+                const pad = 22;
+
+                // clean reading tray: placed below all diagrams and no longer sharing space with the legend
+                el('rect', { x, y, width: w, height: h, rx: 20, fill: 'rgba(255,255,255,.48)', stroke: 'rgba(24,24,24,.58)', 'stroke-width': 1.4 });
+
+                // header block
+                el('rect', { x: x + pad, y: y + pad, width: 285, height: h - pad * 2, rx: 16, fill: 'rgba(239,238,232,.78)', stroke: 'rgba(24,24,24,.18)', 'stroke-width': 1 });
+                el('rect', { x: x + pad + 16, y: y + pad + 18, width: 62, height: 62, rx: 10, fill: b.band.color, stroke: 'rgba(24,24,24,.75)', 'stroke-width': 1.2 });
+                bikeGlyph(x + pad + 47, y + pad + 48, 0.9, b.band.ink, 'none', b);
+
+                text(x + pad + 94, y + pad + 32, `${b.band.name} / SLICE ${String((b.index || 0) + 1).padStart(2, '0')}`, 'tiny', 'start', b.band.ink);
+                wrapText(x + pad + 94, y + pad + 61, 170, b.name.toUpperCase(), 'section-head', 25, 'var(--ink)');
+                wrapText(x + pad + 16, y + pad + 112, 245, 'ONE SLICE = ONE BICYCLE SEEN THROUGH ONE ACTOR LENS', 'tiny', 15, 'rgba(24,24,24,.64)');
+                wrapText(x + pad + 16, y + pad + 160, 245, 'Click a wedge, bike icon, composite shard, or unified-field shard to inspect another bicycle.', 'legendSmall', 18, 'rgba(24,24,24,.72)');
+
+                // five readable cards instead of one crowded horizontal text band
+                const cardY = y + pad;
+                const cardH = h - pad * 2;
+                const cardGap = 14;
+                const cardW = 224;
+                const cardStart = x + pad + 305;
+
+                const cards = [
+                    {
+                        title: 'ARTIFACT',
+                        body: b.artifact
+                    },
+                    {
+                        title: 'WHO SEES IT',
+                        body: `${b.actor}. They see it as ${b.seeingAs}.`
+                    },
+                    {
+                        title: 'PRACTICE + BELIEF',
+                        body: `Practice: ${b.practice}. Belief: ${b.actorBelief || b.belief}.`
+                    },
+                    {
+                        title: 'DESIRE + INTENT',
+                        body: `Desire: ${b.desire}. Intent: ${b.intent}.`
+                    },
+                    {
+                        title: 'SCOT / ANT / CLOSURE',
+                        body: `Problem: ${b.scot}. Actors: ${b.ant}. Closure: ${b.closure}.`
+                    }
+                ];
+
+                cards.forEach((card, i) => {
+                    const cx = cardStart + i * (cardW + cardGap);
+                    el('rect', { x: cx, y: cardY, width: cardW, height: cardH, rx: 14, fill: 'rgba(239,238,232,.74)', stroke: 'rgba(24,24,24,.18)', 'stroke-width': 1 });
+                    text(cx + 16, cardY + 28, card.title, 'tiny', 'start', b.band.ink);
+                    line(cx + 16, cardY + 40, cx + cardW - 16, cardY + 40, 'rgba(24,24,24,.18)', 1);
+                    wrapText(cx + 16, cardY + 65, cardW - 32, card.body, 'legendSmall', 19, 'rgba(24,24,24,.86)');
+                });
+
+                // reading rule at the very bottom, separated from the data cards
+                const ruleY = y + h + 25;
+                text(x + pad, ruleY, 'SLICE LOGIC: artifact → actor lens → practice/belief → desire/intent → network closure', 'tiny', 'start', 'rgba(24,24,24,.68)');
+            }
+
+            function drawStaticScaffold() {
+                text(40, 83, 'A TAXONOMY', 'title-big');
+                text(40, 150, 'OF BICYCLE FUTURES', 'title-big');
+
+                text(360, 220, '1. INSPECTABLE BICYCLE SLICES', 'section-head', 'middle');
+                text(360, 252, 'Each slice contains artifact + actor lens + practice + BDI intent', 'sub', 'middle');
+
+                text(835, 220, '2. COMPOSITE MERGE', 'section-head', 'middle');
+                text(835, 252, 'Bike-slices overlay as competing interpretations', 'sub', 'middle');
+                text(835, 281, 'click any slice to see who sees it, what they want, and why', 'sub', 'middle');
+
+                text(1290, 220, '3. UNIFIED BICYCLE FIELD', 'section-head', 'middle');
+                text(1290, 252, 'All bike concepts converge into one study field', 'sub', 'middle');
+            }
+
+            function draw() {
+                clear();
+                const phase = state.phase;
+
+                drawStaticScaffold();
+                bands.forEach((b, i) => drawRow(b, i, phase));
+                drawBracketConnectors();
+                drawComposite(835, 596, phase);
+                drawUnifiedField(1018, 390, 560, 450, phase);
+                drawInspector();
+
+                phaseInput.value = phase.toFixed(3);
+                if (phase < 0.33) phaseLabel.textContent = 'inspectable bicycle slices';
+                else if (phase < 0.66) phaseLabel.textContent = 'composite merge';
+                else phaseLabel.textContent = 'unified bicycle field';
+            }
+
+            phaseInput.addEventListener('input', e => {
+                state.phase = parseFloat(e.target.value);
+                state.playing = false;
+                playBtn.textContent = 'play';
+                draw();
+            });
+
+            playBtn.addEventListener('click', () => {
+                state.playing = !state.playing;
+                playBtn.textContent = state.playing ? 'pause' : 'play';
+            });
+
+            resetBtn.addEventListener('click', () => {
+                state.playing = false;
+                state.phase = 1;
+                playBtn.textContent = 'play';
+                draw();
+            });
+
+            function tick() {
+                if (state.playing) {
+                    state.phase += 0.003;
+                    if (state.phase > 1) state.phase = 0;
+                    draw();
+                }
+                requestAnimationFrame(tick);
+            }
+
+            draw();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

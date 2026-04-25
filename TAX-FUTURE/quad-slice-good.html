@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Quad Slice Future Unroller</title>
+    <style>
+        :root {
+            --bg: #020304;
+            --ink: #eef4ef;
+            --dim: rgba(238, 244, 239, .52);
+            --ghost: rgba(238, 244, 239, .08);
+            --hot: #8df3e7;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace
+        }
+
+        body {
+            touch-action: none;
+            user-select: none;
+            background: radial-gradient(circle at 50% 42%, rgba(141, 243, 231, .045), transparent 42%), linear-gradient(180deg, #030506, #000)
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair
+        }
+
+        .chrome {
+            position: fixed;
+            z-index: 5;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 16px;
+            pointer-events: none;
+            color: var(--dim);
+            font-size: 10px;
+            letter-spacing: .18em;
+            text-transform: uppercase
+        }
+
+        .chrome.top {
+            top: 0
+        }
+
+        .chrome.bottom {
+            bottom: 0;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom))
+        }
+
+        .mark {
+            color: var(--ink)
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto
+        }
+
+        button {
+            appearance: none;
+            background: rgba(255, 255, 255, .025);
+            border: 1px solid var(--ghost);
+            color: var(--dim);
+            border-radius: 999px;
+            min-height: 34px;
+            padding: 0 11px;
+            font: inherit;
+            font-size: 10px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        button:hover,
+        button.active {
+            border-color: rgba(141, 243, 231, .5);
+            color: var(--hot)
+        }
+
+        #veil {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            align-items: flex-end;
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(8px)
+        }
+
+        #sheet {
+            width: 100%;
+            height: min(78vh, 720px);
+            background: #f2efe6;
+            color: #111;
+            border-top: 1px solid #111;
+            border-radius: 24px 24px 0 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            box-shadow: 0 -30px 80px rgba(0, 0, 0, .6)
+        }
+
+        #sheetHead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, .14);
+            font-size: 11px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            font-weight: 700
+        }
+
+        #prompt {
+            width: 100%;
+            height: 100%;
+            resize: none;
+            border: 0;
+            outline: 0;
+            padding: 16px;
+            background: #fff;
+            color: #111;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace
+        }
+
+        #sheetFoot {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 12px 16px 16px;
+            border-top: 1px solid rgba(0, 0, 0, .14);
+            background: #f8f5ee
+        }
+
+        #sheetFoot button {
+            background: #111;
+            color: #f4f1e8;
+            border: 0;
+            border-radius: 14px;
+            min-height: 44px
+        }
+
+        .gold {
+            background: #d9a21b !important;
+            color: #111 !important
+        }
+
+        @media(max-width:720px) {
+            .chrome {
+                font-size: 9px;
+                letter-spacing: .12em;
+                padding: 10px
+            }
+
+            .hide-small {
+                display: none
+            }
+
+            button {
+                font-size: 9px;
+                min-height: 32px;
+                padding: 0 9px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+    <div class="chrome top">
+        <div><span class="mark">Quad Slice</span></div>
+        <div class="controls"><button id="loop">loop</button><button id="shuffle">shift</button><button
+                id="export">prompt</button></div>
+    </div>
+    <div class="chrome bottom">
+        <div>drag</div>
+        <div id="read">0%</div>
+    </div>
+    <div id="veil">
+        <section id="sheet">
+            <div id="sheetHead"><span>Prompt Artifact</span><button id="close">close</button></div><textarea
+                id="prompt"></textarea>
+            <div id="sheetFoot"><button class="gold" id="copy">copy</button><button id="download">download</button>
+            </div>
+        </section>
+    </div>
+    <script>
+        (() => {
+            const canvas = document.getElementById('c');
+            const ctx = canvas.getContext('2d');
+            const read = document.getElementById('read');
+            const loopBtn = document.getElementById('loop');
+            const shuffleBtn = document.getElementById('shuffle');
+            const exportBtn = document.getElementById('export');
+            const veil = document.getElementById('veil');
+            const closeBtn = document.getElementById('close');
+            const promptBox = document.getElementById('prompt');
+            const copyBtn = document.getElementById('copy');
+            const downloadBtn = document.getElementById('download');
+
+            const bands = [
+                { name: 'PREFERABLE', seg: 7, hue: [18, 220, 160], calm: .35, detail: .35, route: 'IMAGEWORLD', void: 'black visual field' },
+                { name: 'PROBABLE', seg: 13, hue: [92, 202, 215], calm: .48, detail: .55, route: 'SOUNDWORLD', void: 'silence' },
+                { name: 'POSSIBLE', seg: 25, hue: [150, 196, 197], calm: .62, detail: .78, route: 'TOUCHWORLD', void: 'numb glass' },
+                { name: 'IMPROBABLE', seg: 56, hue: [226, 214, 192], calm: .85, detail: 1.35, route: 'SMELLWORLD', void: 'sterile air' }
+            ];
+
+            const state = { morph: .72, density: 1, drag: false, loop: false, seed: Math.random() * 999, mouse: { x: 0, y: 0 } };
+            let W = 0, H = 0, DPR = 1, T = 0;
+
+            function resize() {
+                DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+                W = innerWidth; H = innerHeight;
+                canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+                canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function lerp(a, b, t) { return a + (b - a) * t }
+            function ease(t) { return t * t * (3 - 2 * t) }
+            function rgb(b, a = 1) { return `rgba(${b.hue[0]},${b.hue[1]},${b.hue[2]},${a})` }
+            function rgba(arr, a = 1) { return `rgba(${arr[0]},${arr[1]},${arr[2]},${a})` }
+            function noise(x) { return Math.sin(x * 12.9898 + state.seed) * 43758.5453 % 1 }
+            function polar(cx, cy, r, a) { return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) } }
+            function pmap(points) { ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for (let i = 1; i < points.length; i++)ctx.lineTo(points[i].x, points[i].y); ctx.closePath() }
+            function mix(a, b, t) { return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) } }
+
+            function perimeter(poly, count) {
+                const seg = []; let total = 0;
+                for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], len = Math.hypot(b.x - a.x, b.y - a.y); seg.push({ a, b, len, start: total }); total += len }
+                const out = [];
+                for (let k = 0; k < count; k++) { const target = (k / count) * total; let s = seg[seg.length - 1]; for (const q of seg) { if (target >= q.start && target <= q.start + q.len) { s = q; break } } const t = s.len ? (target - s.start) / s.len : 0; out.push({ x: lerp(s.a.x, s.b.x, t), y: lerp(s.a.y, s.b.y, t) }) }
+                return out;
+            }
+            function sector(cx, cy, r, a0, a1) { const pts = [{ x: cx, y: cy }]; for (let i = 0; i <= 14; i++) { pts.push(polar(cx, cy, r, lerp(a0, a1, i / 14))) } return pts }
+            function rect(x, y, w, h) { return [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }] }
+
+            function panelRect(i) {
+                const padX = W < 760 ? 18 : 42;
+                const top = W < 760 ? 52 : 62;
+                const bottom = W < 760 ? 56 : 64;
+                const gap = W < 760 ? 18 : 34;
+                const cols = W < 820 ? 1 : 2;
+                const rows = W < 820 ? 4 : 2;
+                const col = i % cols, row = Math.floor(i / cols);
+                const pw = (W - padX * 2 - gap * (cols - 1)) / cols;
+                const ph = (H - top - bottom - gap * (rows - 1)) / rows;
+                return { x: padX + col * (pw + gap), y: top + row * (ph + gap), w: pw, h: ph };
+            }
+
+            function drawBackground() {
+                ctx.clearRect(0, 0, W, H);
+                const g = ctx.createRadialGradient(W * .5, H * .4, 0, W * .5, H * .4, Math.max(W, H) * .75);
+                g.addColorStop(0, 'rgba(141,243,231,.035)'); g.addColorStop(.45, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+                ctx.fillStyle = '#020304'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = 'rgba(255,255,255,.045)';
+                for (let i = 0; i < 120; i++) { const x = (noise(i + T * .00001) + 1) % 1 * W, y = (noise(i * 2.1) + 1) % 1 * H; ctx.fillRect(x, y, .7, .7) }
+            }
+
+            function drawLandscape(b, x, y, w, h, clipCircle = false, cx = 0, cy = 0, r = 0) {
+                ctx.save();
+                if (clipCircle) { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip() } else { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip() }
+                const grad = ctx.createLinearGradient(x, y, x, y + h);
+                grad.addColorStop(0, rgba(b.hue, .02)); grad.addColorStop(.45, rgba(b.hue, .2)); grad.addColorStop(1, rgba(b.hue, .035));
+                ctx.fillStyle = grad; ctx.fillRect(x, y, w, h);
+                const layers = 3 + Math.floor(b.detail * 3);
+                for (let l = 0; l < layers; l++) {
+                    ctx.beginPath();
+                    const base = y + h * (.55 + .11 * l / layers);
+                    ctx.moveTo(x, y + h);
+                    for (let k = 0; k <= 90; k++) {
+                        const px = x + w * k / 90;
+                        const wave = Math.sin(k * .18 + l * 1.7 + state.seed) * h * .035 + Math.sin(k * .07 + l) * h * .05;
+                        const peak = Math.sin(k * .42 + l * 3.1) > 0.72 ? -h * (.08 + .05 * l) : 0;
+                        ctx.lineTo(px, base + wave + peak);
+                    }
+                    ctx.lineTo(x + w, y + h); ctx.closePath();
+                    ctx.fillStyle = rgba(b.hue, .06 + .055 * l);
+                    ctx.fill();
+                }
+                for (let l = 0; l < Math.floor(6 * b.detail); l++) {
+                    ctx.beginPath();
+                    for (let k = 0; k <= 120; k++) {
+                        const px = x + w * k / 120;
+                        const py = y + h * (.18 + .62 * (l / (6 * b.detail))) + Math.sin(k * .12 + l + T * .00025) * h * .018;
+                        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                    }
+                    ctx.strokeStyle = rgba(b.hue, .035 + .03 * b.detail); ctx.lineWidth = .7; ctx.stroke();
+                }
+                const sunX = x + w * (.18 + .46 * ((Math.sin(state.seed + b.seg) + 1) / 2));
+                const sunY = y + h * (.44 + .08 * Math.sin(state.seed));
+                const rg = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, h * .22);
+                rg.addColorStop(0, rgba(b.hue, .55)); rg.addColorStop(.2, rgba(b.hue, .16)); rg.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = rg; ctx.fillRect(sunX - h * .25, sunY - h * .25, h * .5, h * .5);
+                ctx.fillStyle = rgba(b.hue, .8); ctx.beginPath(); ctx.arc(sunX, sunY, Math.max(1.7, h * .018), 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            function drawGlyph(b, i) {
+                const R = panelRect(i);
+                const isMobile = W < 820;
+                const cx = R.x + R.w * (isMobile ? .24 : .22);
+                const cy = R.y + R.h * .43;
+                const radius = Math.min(R.w * (isMobile ? .18 : .19), R.h * .34);
+                const sx = cx + radius * .92;
+                const stripX = cx + radius * 1.22;
+                const stripY = cy - radius * .47;
+                const stripW = R.x + R.w - stripX - 4;
+                const stripH = radius * .94;
+                const seg = Math.max(4, Math.round(b.seg * state.density));
+                const morph = ease(state.morph);
+
+                // atmosphere
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.5);
+                glow.addColorStop(0, rgba(b.hue, .08)); glow.addColorStop(.55, rgba(b.hue, .025)); glow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, radius * 1.55, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+
+                // inner worlds
+                drawLandscape(b, cx - radius, cy - radius, radius * 2, radius * 2, true, cx, cy, radius * .98);
+                drawLandscape(b, stripX, stripY, stripW, stripH, false);
+
+                // strip scaffold
+                ctx.strokeStyle = rgba(b.hue, .22); ctx.lineWidth = 1; ctx.strokeRect(stripX, stripY, stripW, stripH);
+                const rows = b.name === 'IMPROBABLE' ? 8 : b.name === 'POSSIBLE' ? 4 : 1;
+                const cols = Math.max(4, seg);
+                ctx.beginPath();
+                for (let c = 1; c < cols; c++) { const x = stripX + stripW * c / cols; ctx.moveTo(x, stripY); ctx.lineTo(x, stripY + stripH) }
+                for (let r = 1; r < rows; r++) { const y = stripY + stripH * r / rows; ctx.moveTo(stripX, y); ctx.lineTo(stripX + stripW, y) }
+                ctx.strokeStyle = rgba(b.hue, b.name === 'IMPROBABLE' ? .18 : .16); ctx.lineWidth = .8; ctx.stroke();
+
+                // circle scaffold
+                ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.strokeStyle = rgba(b.hue, .55); ctx.lineWidth = 1.2; ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, radius * .58, 0, Math.PI * 2); ctx.strokeStyle = rgba(b.hue, .12); ctx.setLineDash([2, 5]); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, radius * .135, 0, Math.PI * 2); ctx.fill();
+
+                // flowing slice geometry
+                const theta = Math.PI * 2 / seg;
+                const sampleN = 42;
+                for (let s = 0; s < seg; s++) {
+                    const a0 = -Math.PI / 2 + s * theta;
+                    const a1 = a0 + theta;
+                    const source = perimeter(sector(cx, cy, radius, a0, a1), sampleN);
+                    let tx, ty, tw, th;
+                    if (rows === 1) { tx = stripX + stripW * s / seg; ty = stripY; tw = stripW / seg; th = stripH }
+                    else { const cc = s % cols, rr = Math.floor(s / cols) % rows; tx = stripX + stripW * cc / cols; ty = stripY + stripH * rr / rows; tw = stripW / cols; th = stripH / rows }
+                    const target = perimeter(rect(tx, ty, tw, th), sampleN);
+                    const pts = source.map((p, k) => mix(p, target[k], morph));
+                    ctx.globalCompositeOperation = 'source-over';
+                    pmap(pts);
+                    ctx.fillStyle = rgba(b.hue, .018 + .05 * (1 - s / seg)); ctx.fill();
+                    ctx.strokeStyle = rgba(b.hue, s % Math.ceil(seg / 8) === 0 ? .48 : .16); ctx.lineWidth = s % Math.ceil(seg / 8) === 0 ? 1 : .62; ctx.stroke();
+                }
+
+                // filament neck
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const filamentCount = 18 + Math.floor(b.detail * 18);
+                for (let f = 0; f < filamentCount; f++) {
+                    const tt = f / (filamentCount - 1);
+                    const y0 = cy - radius * .42 + tt * radius * .84;
+                    const y1 = stripY + tt * stripH;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, y0);
+                    const bend = radius * .55 * (Math.sin(tt * Math.PI));
+                    ctx.bezierCurveTo(sx + bend, y0, stripX - radius * .18, y1, stripX, y1);
+                    ctx.strokeStyle = rgba(b.hue, .055 + .1 * (1 - Math.abs(tt - .5) * 2));
+                    ctx.lineWidth = .55; ctx.stroke();
+                }
+                ctx.restore();
+
+                // details / particles
+                ctx.fillStyle = rgba(b.hue, .55);
+                const dots = 18 + Math.floor(80 * b.detail);
+                for (let d = 0; d < dots; d++) {
+                    const x = lerp(cx - radius, stripX + stripW, (noise(d * 3.7 + i * 8) + 1) % 1);
+                    const y = lerp(cy - radius, stripY + stripH, (noise(d * 5.1 + i * 4) + 1) % 1);
+                    if (x < cx + radius * .95 && Math.hypot(x - cx, y - cy) > radius) continue;
+                    const a = .16 + .32 * ((noise(d * 2.2) + 1) % 1);
+                    ctx.fillStyle = rgba(b.hue, a); ctx.fillRect(x, y, 1.1, 1.1);
+                }
+
+                // label
+                const labelX = R.x + R.w * .03, labelY = R.y + R.h - 16;
+                ctx.fillStyle = rgba(b.hue, .95); ctx.beginPath(); ctx.arc(labelX, labelY - 3, 4.5, 0, Math.PI * 2); ctx.fill();
+                ctx.font = '10px ui-monospace,SFMono-Regular,Menlo,monospace'; ctx.letterSpacing = '4px'; ctx.fillStyle = rgba(b.hue, .75); ctx.fillText(b.name, labelX + 18, labelY);
+            }
+
+            function draw() {
+                T = performance.now();
+                if (state.loop) { state.morph = (Math.sin(T * .00035) + 1) / 2; state.density = .78 + ((Math.sin(T * .00021 + 2) + 1) / 2) * .54 }
+                drawBackground();
+                for (let i = 0; i < bands.length; i++)drawGlyph(bands[i], i);
+                read.textContent = Math.round(state.morph * 100) + '%';
+                requestAnimationFrame(draw);
+            }
+
+            function pointer(e) {
+                const x = clamp(e.clientX / W, 0, 1), y = clamp(e.clientY / H, 0, 1);
+                state.morph = x; state.density = clamp(.55 + (1 - y) * 1.35, .55, 1.9);
+            }
+            addEventListener('pointerdown', e => { state.drag = true; pointer(e) });
+            addEventListener('pointermove', e => { if (state.drag) pointer(e) });
+            addEventListener('pointerup', () => state.drag = false);
+            addEventListener('pointercancel', () => state.drag = false);
+            addEventListener('resize', resize);
+            addEventListener('keydown', e => {
+                if (e.key === ' ') { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop) }
+                if (e.key === 'p') openPrompt();
+                if (e.key === 'ArrowRight') state.morph = clamp(state.morph + .04, 0, 1);
+                if (e.key === 'ArrowLeft') state.morph = clamp(state.morph - .04, 0, 1);
+            });
+            loopBtn.onclick = () => { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop) };
+            shuffleBtn.onclick = () => { state.seed = Math.random() * 999; bands.push(bands.shift()) };
+            exportBtn.onclick = openPrompt;
+            closeBtn.onclick = () => veil.style.display = 'none';
+            veil.addEventListener('click', e => { if (e.target === veil) veil.style.display = 'none' });
+
+            function openPrompt() {
+                promptBox.value = makePrompt();
+                veil.style.display = 'flex';
+            }
+            function makePrompt() {
+                return `QUAD SLICE FUTURE UNROLLER
+
+Four parallel slice systems. No central cone. Each circle unrolls into its own strip.
+
+PREFERABLE: few broad slices, luminous teal, coherent landscape.
+PROBABLE: medium slices, moonlit cyan, stable panorama.
+POSSIBLE: many slices, pale mist, layered horizons.
+IMPROBABLE: dense slices, off-white/gold, cosmic grid/noise field.
+
+Unroll: ${Math.round(state.morph * 100)}%
+Density: ${state.density.toFixed(2)}
+
+The prompt is the artifact. The strip is the evidence.`;
+            }
+            copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(promptBox.value); copyBtn.textContent = 'copied'; setTimeout(() => copyBtn.textContent = 'copy', 900) } catch (_) { promptBox.select(); document.execCommand('copy') } };
+            downloadBtn.onclick = () => { const blob = new Blob([promptBox.value], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quad-slice-prompt.txt'; a.click(); URL.revokeObjectURL(a.href) };
+
+            resize();
+            draw();
+        })();
+    </script>
+</body>
+
+</html>

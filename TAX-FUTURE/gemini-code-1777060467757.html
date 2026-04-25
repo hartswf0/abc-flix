@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Fig 4.5: Epistemic Flow & Alternatives</title>
+<style>
+  :root {
+    /* Clinical Diagrammatic Palette */
+    --bg: #F4F4F0; 
+    --fg: #0A0A0A; 
+    --faint: #D0D0CE; 
+    --ghost: #E8E8E5;
+    
+    /* Semantic Status Colors */
+    --c3: #E53935; /* Industrialists */
+    --c2: #FB8C00; /* Traditionalists */
+    --c1: #1E88E5; /* Sporting Elite */
+    --c0: #43A047; /* Pragmatic Commuter */
+    --hot: #D50000;
+  }
+  
+  /* BRUTALIST RESET */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; border-radius: 0 !important; margin: 0; padding: 0; }
+  
+  html, body { width: 100%; height: 100%; background: var(--bg); color: var(--fg); font-family: 'Courier New', Courier, ui-monospace, monospace; overflow: hidden; }
+  body { touch-action: none; }
+  
+  #app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto; background: var(--bg); }
+  
+  header, footer { z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px max(16px, env(safe-area-inset-left)) 14px max(16px, env(safe-area-inset-right)); pointer-events: none; border-bottom: 1px solid var(--fg); background: var(--bg); }
+  footer { border-bottom: none; border-top: 1px solid var(--fg); padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  
+  header { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+  header strong { font-weight: 900; }
+  
+  .right { display: flex; align-items: center; gap: 0px; pointer-events: auto; }
+  
+  button { background: var(--bg); color: var(--fg); border: 1px solid var(--fg); min-height: 32px; padding: 0 16px; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: all 0.1s; border-left: none; }
+  button:first-child { border-left: 1px solid var(--fg); }
+  button[data-on="true"], button:active { background: var(--fg); color: var(--bg); }
+  
+  main { position: relative; min-height: 0; cursor: ew-resize; background: var(--bg); }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  
+  /* Semantic Data Readout */
+  #readout { position: absolute; left: 24px; bottom: 24px; display: flex; flex-direction: column; gap: -1px; z-index: 6; pointer-events: none; border: 1px solid var(--fg); background: var(--bg); }
+  .cell { padding: 8px 12px; font-size: 11px; color: var(--fg); text-transform: uppercase; border-bottom: 1px solid var(--fg); min-width: 240px; }
+  .cell:last-child { border-bottom: none; }
+  .cell b { font-weight: 700; float: right; margin-left: 24px; }
+  .cell.lock b { color: var(--hot); transition: color 0.3s; }
+  
+  /* Inspector Panel (Semantic Zoom) */
+  #inspector { position: absolute; right: 24px; top: 24px; width: 320px; pointer-events: none; z-index: 6; border: 1px solid var(--fg); background: var(--bg); box-shadow: 4px 4px 0 rgba(10,10,10,0.1); }
+  
+  /* Interactive Graph SVG */
+  .track-group { cursor: pointer; }
+  .track-visible { fill: none; stroke-linecap: round; transition: d 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), stroke-width 0.3s, opacity 0.3s; }
+  .track-hitbox { fill: none; stroke: transparent; stroke-width: 40; }
+  .track-label { font-size: 11px; font-weight: 700; transition: opacity 0.3s; pointer-events: none; }
+  
+  .track-group:hover .track-visible { opacity: 0.8; stroke-width: 6; }
+  .track-group[data-winner="true"] .track-visible { opacity: 1; stroke-width: 8; }
+  .track-group[data-winner="true"] .track-label { font-weight: 900; }
+  
+  .dead-end-wall { stroke: var(--fg); stroke-width: 3; stroke-linecap: butt; opacity: 0; transition: opacity 0.7s; }
+  .track-group[data-winner="false"] .dead-end-wall { opacity: 1; }
+
+  @media(max-width: 860px) {
+    header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    #inspector { display: none; }
+    #readout { bottom: 24px; left: 12px; right: 12px; }
+    .formula { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div><strong>Fig. 4.5: Epistemic Flow Diagram</strong> / Counter-Factual Timelines</div>
+    <div class="right">
+      <button id="btn-flow" data-on="true">Auto Play</button>
+      <button id="btn-reset">Reset History</button>
+    </div>
+  </header>
+
+  <main id="field">
+    <svg id="svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
+      <g id="scaffold"></g>
+      <g id="tracks"></g>
+      <g id="particles"></g>
+      <g id="intersections"></g>
+      
+      <g id="playhead" style="pointer-events: none;">
+        <line id="playhead-line" y1="0" y2="700" stroke="var(--fg)" stroke-width="1" stroke-dasharray="2 2"></line>
+        <rect id="playhead-box" y="16" width="44" height="20" rx="0" fill="var(--fg)"></rect>
+        <text id="playhead-label" y="30" fill="var(--bg)" font-size="11" font-weight="700" text-anchor="middle">1885</text>
+      </g>
+    </svg>
+
+    <div id="readout">
+      <div class="cell">Timeline Year <b id="ui-year">1885.0</b></div>
+      <div class="cell">Topological Phase <b id="ui-epoch">Divergence</b></div>
+      <div class="cell lock" id="closure-cell">Technological Closure <b id="ui-winner">Safety Bicycle</b></div>
+    </div>
+
+    <div id="inspector">
+      <div class="cell" style="border-bottom: 1px solid var(--fg); display: block; padding: 12px 16px; background: var(--ghost);">
+        <div style="font-weight: 900; font-size: 11px; text-transform: uppercase;">Interpretative Flexibility</div>
+      </div>
+      <div class="cell" style="border-bottom: none; display: block; padding: 16px;">
+        <div style="font-weight: 700; color: var(--c0); margin-bottom: 6px; font-size: 10px; text-transform: uppercase;" id="ins-rsg">Pragmatic Commuter</div>
+        <div style="font-weight: 900; font-size: 14px; margin-bottom: 12px; text-transform: uppercase;" id="ins-name">Rover Safety Bicycle</div>
+        <div style="font-size: 11px; line-height: 1.5; text-transform: none;" id="ins-desc">Equal wheels, chain drive. Practical and safe. Solves the speed/safety paradox and pulls the future into the probable.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div>DRAG X-AXIS: SCRUB TIME &nbsp;&nbsp;|&nbsp;&nbsp; CLICK A TRACK: IMAGINE ALTERNATIVES</div>
+    <div class="formula">RE-CALCULATE HISTORICAL CLOSURE BY SELECTING A NEW ARTIFACT.</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs={}) { const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  
+  // Spatial Coordinates mapping X to Time
+  const START_X = 150, START_Y = 350;
+  const CONE_X = 400;   // Divergence into parallel tracks
+  const FLAT_X = 850;   // Parallel tracks begin collapsing
+  const END_X = 1100, END_Y = 350;
+  
+  const dx1 = (CONE_X - START_X) / 2; 
+  const dx2 = (END_X - FLAT_X) / 2;
+
+  // Domain Model
+  const tracks = [
+    { id: 0, name: 'MOTORIZED', artifact: 'Steam Velocipede', rsg: 'Industrialists', y: 140, color: 'var(--c3)', desc: 'Replaces human power with heavy boiler. Extreme weight and burn risks. Socially viewed as a locomotive, not a personal cycle.' },
+    { id: 1, name: 'TRICYCLES', artifact: 'Adult Tricycle', rsg: 'Traditionalists', y: 280, color: 'var(--c2)', desc: 'Solves danger by adding wheels. Stable, allowing Victorian dress. However, extremely heavy, slow, and mechanically doomed by rutted roads.' },
+    { id: 2, name: 'HIGH-WHEEL', artifact: 'Penny Farthing', rsg: 'Sporting Elite', y: 420, color: 'var(--c1)', desc: 'Maximizes speed via massive front wheel. Highly dangerous. Valued strictly by young, athletic men as an exclusionary sport.' },
+    { id: 3, name: 'SAFETY BICYCLE', artifact: 'Rover Safety', rsg: 'Pragmatic Commuter', y: 560, color: 'var(--c0)', desc: 'Equal-sized wheels with a chain drive. Lowers center of gravity. Pulls the bicycle from elite sport into everyday transport.' }
+  ];
+
+  let winnerId = 3;
+  let scrubberX = 150;
+  let particles = [];
+  const state = { flow: true, dragging: false };
+
+  // Generate cubic beziers. Non-winners get a "flat" curve at the end to match string parameters for CSS transition interpolation.
+  function getTrackPath(track, isWinner) {
+    let d = `M ${START_X},${START_Y} C ${START_X + dx1},${START_Y} ${CONE_X - dx1},${track.y} ${CONE_X},${track.y} `;
+    d += `L ${FLAT_X},${track.y} `;
+    if (isWinner) {
+      d += `C ${FLAT_X + dx2},${track.y} ${END_X - dx2},${END_Y} ${END_X},${END_Y}`;
+    } else {
+      const deadX = FLAT_X + 120;
+      d += `C ${FLAT_X + 40},${track.y} ${deadX - 40},${track.y} ${deadX},${track.y}`;
+    }
+    return d;
+  }
+
+  // Exact vertical intersection logic for the playhead
+  function getTrackYAtX(track, isWinner, x) {
+    if (x <= START_X) return START_Y;
+    if (x >= CONE_X && x <= FLAT_X) return track.y;
+    if (x < CONE_X) {
+      const t = (x - START_X) / (CONE_X - START_X);
+      const mt = 1 - t;
+      return mt*mt*mt*START_Y + 3*mt*mt*t*START_Y + 3*mt*t*t*track.y + t*t*t*track.y;
+    }
+    if (x > FLAT_X) {
+      if (!isWinner && x > FLAT_X + 120) return null; 
+      const targetX = isWinner ? END_X : FLAT_X + 120;
+      const targetY = isWinner ? END_Y : track.y;
+      if (x >= targetX) return targetY;
+      
+      const t = (x - FLAT_X) / (targetX - FLAT_X);
+      const mt = 1 - t;
+      return mt*mt*mt*track.y + 3*mt*mt*t*track.y + 3*mt*t*t*targetY + t*t*t*targetY;
+    }
+    return null;
+  }
+
+  function initScaffold() {
+    const scaffold = document.getElementById('scaffold');
+    scaffold.innerHTML = '';
+    
+    // Abstract Topological Background Volumes
+    scaffold.appendChild(el('path', { d: `M ${START_X},${START_Y} L ${CONE_X},90 L ${CONE_X},610 Z`, fill: 'rgba(10,10,10,0.02)' }));
+    scaffold.appendChild(el('rect', { x: CONE_X, y: 90, width: FLAT_X - CONE_X, height: 520, fill: 'rgba(10,10,10,0.03)' }));
+
+    // Time Milestones
+    const markers = [
+      { x: START_X, label: '1880', desc: 'ORIGIN' },
+      { x: CONE_X, label: '1885', desc: 'DIVERGENCE' },
+      { x: FLAT_X, label: '1892', desc: 'CLOSURE' },
+      { x: END_X, label: '1896', desc: 'STABILIZATION' }
+    ];
+    
+    markers.forEach(pt => {
+       scaffold.appendChild(el('line', { x1: pt.x, y1: 50, x2: pt.x, y2: 650, stroke: 'var(--faint)', 'stroke-dasharray': '4 4' }));
+       let textTop = el('text', { x: pt.x, y: 40, fill: 'var(--fg)', 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700 });
+       textTop.textContent = pt.label;
+       scaffold.appendChild(textTop);
+       
+       let textBot = el('text', { x: pt.x, y: 670, fill: 'var(--fg)', 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 700, opacity: 0.5 });
+       textBot.textContent = pt.desc;
+       scaffold.appendChild(textBot);
+    });
+    
+    scaffold.appendChild(el('circle', { cx: START_X, cy: START_Y, r: 8, fill: 'var(--fg)' }));
+    let originLabel = el('text', { x: START_X - 16, y: START_Y + 4, fill: 'var(--fg)', 'text-anchor': 'end', 'font-size': 11, 'font-weight': 700 });
+    originLabel.textContent = "THE BICYCLE";
+    scaffold.appendChild(originLabel);
+
+    // Final Closure Synthesizer Dot
+    scaffold.appendChild(el('circle', { id: 'end-node', cx: END_X, cy: END_Y, r: 10, fill: 'var(--fg)', stroke: 'var(--bg)', 'stroke-width': 2 }));
+    let finalLbl = el('text', { id: 'end-label', x: END_X + 20, y: END_Y + 4, fill: 'var(--fg)', 'font-size': 11, 'font-weight': 700 });
+    finalLbl.textContent = "STABILIZED";
+    scaffold.appendChild(finalLbl);
+  }
+
+  function initTracks() {
+    const tGroup = document.getElementById('tracks');
+    tGroup.innerHTML = '';
+    
+    tracks.forEach(tr => {
+       const isWinner = tr.id === winnerId;
+       const g = el('g', { id: `track-group-${tr.id}`, class: 'track-group', 'data-winner': isWinner });
+       
+       const path = el('path', { id: `path-${tr.id}`, d: getTrackPath(tr, isWinner), stroke: tr.color, 'stroke-width': isWinner ? 8 : 2, class: 'track-visible', opacity: isWinner ? 1 : 0.4 });
+       const hit = el('path', { id: `hit-${tr.id}`, d: getTrackPath(tr, isWinner), class: 'track-hitbox' });
+       
+       g.appendChild(path);
+       g.appendChild(hit); 
+       
+       // Dead End wall
+       const wall = el('line', { class: 'dead-end-wall', x1: FLAT_X + 120, y1: tr.y - 15, x2: FLAT_X + 120, y2: tr.y + 15 });
+       g.appendChild(wall);
+
+       let lbl = el('text', { class: 'track-label', x: CONE_X + 15, y: tr.y - 12, fill: tr.color, opacity: isWinner ? 1 : 0.6 });
+       lbl.textContent = `${tr.rsg}: ${tr.artifact}`;
+       g.appendChild(lbl);
+       
+       g.addEventListener('pointerdown', (e) => { e.stopPropagation(); setWinner(tr.id); });
+       tGroup.appendChild(g);
+    });
+  }
+
+  // Rewrite History
+  function setWinner(id) {
+    winnerId = id;
+    const trWinner = tracks.find(t => t.id === id);
+    
+    // Update UI Semantic Readout
+    document.getElementById('ui-winner').textContent = trWinner.artifact;
+    document.getElementById('ui-winner').style.color = trWinner.color;
+    document.getElementById('ins-rsg').textContent = `RSG: ${trWinner.rsg}`;
+    document.getElementById('ins-rsg').style.color = trWinner.color;
+    document.getElementById('ins-name').textContent = trWinner.artifact;
+    document.getElementById('ins-desc').textContent = trWinner.desc;
+    
+    // Update Path Geometry via CSS morphing
+    tracks.forEach(tr => {
+       const isWinner = tr.id === winnerId;
+       const dStr = getTrackPath(tr, isWinner);
+       
+       document.getElementById(`track-group-${tr.id}`).setAttribute('data-winner', isWinner);
+       document.getElementById(`path-${tr.id}`).setAttribute('d', dStr);
+       document.getElementById(`hit-${tr.id}`).setAttribute('d', dStr);
+       
+       if(isWinner) {
+         document.getElementById('end-node').setAttribute('fill', tr.color);
+         document.getElementById('end-label').textContent = `STABILIZED: ${tr.artifact}`;
+       }
+    });
+
+    particles = []; // Clear flow buffer to re-route logic immediately
+    updateScrubber(scrubberX);
+  }
+
+  function updateScrubber(x) {
+     scrubberX = Math.max(START_X, Math.min(x, END_X + 50));
+     
+     document.getElementById('playhead-line').setAttribute('x1', scrubberX);
+     document.getElementById('playhead-line').setAttribute('x2', scrubberX);
+     document.getElementById('playhead-box').setAttribute('x', scrubberX - 22);
+     document.getElementById('playhead-label').setAttribute('x', scrubberX);
+     
+     const ratio = Math.max(0, Math.min(1, (scrubberX - START_X) / (END_X - START_X)));
+     const year = 1880 + ratio * 16;
+     document.getElementById('ui-year').textContent = year.toFixed(1);
+     document.getElementById('playhead-label').textContent = Math.floor(year);
+     
+     let epoch = '01: Interpretative Flexibility';
+     if (scrubberX > CONE_X) epoch = '02: Parallel Contestation';
+     if (scrubberX > FLAT_X) epoch = '03: Superposition Collapse';
+     if (scrubberX >= END_X) epoch = '04: Technological Closure';
+     document.getElementById('ui-epoch').textContent = epoch;
+     
+     // Draw cross-section nodes
+     const isects = document.getElementById('intersections');
+     isects.innerHTML = '';
+     tracks.forEach(tr => {
+       const isWinner = tr.id === winnerId;
+       const y = getTrackYAtX(tr, isWinner, scrubberX);
+       if (y !== null && scrubberX < END_X) {
+          isects.appendChild(el('circle', {
+            cx: scrubberX, cy: y, r: isWinner ? 5 : 4,
+            fill: isWinner ? tr.color : 'var(--bg)',
+            stroke: isWinner ? 'var(--bg)' : 'var(--fg)',
+            'stroke-width': 2
+          }));
+       }
+     });
+  }
+
+  function processParticles() {
+    const pGroup = document.getElementById('particles');
+    pGroup.innerHTML = '';
+    
+    // Spawn biased towards the winner to show paradigm momentum
+    if (Math.random() < 0.3) {
+      const isWinner = Math.random() < 0.7; 
+      const trackId = isWinner ? winnerId : Math.floor(Math.random() * tracks.length);
+      particles.push({ trackId, x: START_X, speed: 1.5 + Math.random() * 1.5 });
+    }
+
+    particles = particles.filter(p => {
+       p.x += p.speed;
+       const isWinner = p.trackId === winnerId;
+       const finalX = isWinner ? END_X : FLAT_X + 120;
+       
+       if (p.x >= finalX) return false;
+       
+       const tr = tracks.find(t => t.id === p.trackId);
+       const y = getTrackYAtX(tr, isWinner, p.x);
+       if (y !== null) {
+         pGroup.appendChild(el('circle', { cx: p.x, cy: y, r: 2, fill: isWinner ? 'var(--fg)' : tr.color, opacity: isWinner ? 0.6 : 0.3 }));
+       }
+       return true;
+    });
+  }
+
+  // Pointer Handling
+  function getSVGX(clientX) {
+    const svg = document.getElementById('svg');
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = 0;
+    return pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+  }
+
+  const field = document.getElementById('field');
+  field.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.track-group')) return; 
+    state.dragging = true;
+    field.setPointerCapture(e.pointerId);
+    updateScrubber(getSVGX(e.clientX));
+  });
+  field.addEventListener('pointermove', (e) => { if (state.dragging) updateScrubber(getSVGX(e.clientX)); });
+  field.addEventListener('pointerup', (e) => { state.dragging = false; try { field.releasePointerCapture(e.pointerId); } catch(err){} });
+
+  document.getElementById('btn-flow').addEventListener('click', (e) => {
+    state.flow = !state.flow;
+    e.target.dataset.on = state.flow;
+  });
+  
+  document.getElementById('btn-reset').addEventListener('click', () => { setWinner(3); });
+
+  function tick() {
+    if (state.flow && !state.dragging) {
+      let nx = scrubberX + 0.8;
+      if (nx > END_X + 20) nx = START_X;
+      updateScrubber(nx);
+    }
+    processParticles();
+    requestAnimationFrame(tick);
+  }
+
+  // Boot
+  initScaffold();
+  initTracks();
+  setWinner(3);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

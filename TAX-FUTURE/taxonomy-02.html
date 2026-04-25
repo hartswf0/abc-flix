@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures · Superimposed Slice Systems</title>
+<style>
+  :root {
+    --bg: #020304;
+    --ink: #eef4ef;
+    --dim: rgba(238, 244, 239, .52);
+    --ghost: rgba(238, 244, 239, .08);
+    --hot: #8df3e7;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  body { touch-action: none; user-select: none; background: radial-gradient(circle at 50% 42%, rgba(141, 243, 231, .045), transparent 42%), linear-gradient(180deg, #030506, #000); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  .chrome { position: fixed; z-index: 5; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; pointer-events: none; color: var(--dim); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+  .chrome.top { top: 0; }
+  .chrome.bottom { bottom: 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .mark { color: var(--ink); }
+  .controls { display: flex; gap: 8px; pointer-events: auto; }
+
+  button { appearance: none; background: rgba(255, 255, 255, .025); border: 1px solid var(--ghost); color: var(--dim); border-radius: 999px; min-height: 34px; padding: 0 11px; font: inherit; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+  button:hover, button.active { border-color: rgba(141, 243, 231, .5); color: var(--hot); }
+
+  .legend { position: fixed; z-index: 6; right: 16px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 14px; pointer-events: auto; }
+  .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); transition: all 0.2s; }
+  .legend-item:hover, .legend-item.active { color: var(--ink); }
+  .legend-item .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-item.hidden { opacity: 0.25; }
+  .legend-item.hidden .dot { border: 1px solid currentColor; background: transparent !important; }
+
+  @media(max-width:720px) {
+    .chrome { font-size: 9px; letter-spacing: .12em; padding: 10px; }
+    .legend { top: auto; bottom: 60px; right: 10px; transform: none; flex-direction: row; gap: 10px; }
+    .legend-item { font-size: 8px; }
+    button { font-size: 9px; min-height: 32px; padding: 0 9px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="chrome top">
+  <div><span class="mark">Taxonomy of Futures</span> · superimposed slice systems</div>
+  <div class="controls">
+    <button id="modeBtn">quad</button>
+    <button id="loop">loop</button>
+    <button id="shuffle">shift</button>
+  </div>
+</div>
+
+<div class="chrome bottom">
+  <div>X: unroll &nbsp; Y: density</div>
+  <div id="read">morph 72% · 4 layers</div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const read = document.getElementById('read');
+  const loopBtn = document.getElementById('loop');
+  const shuffleBtn = document.getElementById('shuffle');
+  const modeBtn = document.getElementById('modeBtn');
+  const legendEl = document.getElementById('legend');
+
+  const bands = [
+    { name: 'PREFERABLE', seg: 4,  hue: [18, 220, 160],  detail: .35, visible: true },
+    { name: 'PROBABLE',   seg: 8,  hue: [92, 202, 215],  detail: .55, visible: true },
+    { name: 'PLAUSIBLE',  seg: 16, hue: [150, 196, 197], detail: .78, visible: true },
+    { name: 'POSSIBLE',   seg: 32, hue: [226, 214, 192], detail: 1.1, visible: true }
+  ];
+
+  // MODES: 'super' = all overlaid on one circle/strip, 'quad' = four panels
+  const state = { morph: 0, density: 1, drag: false, loop: false, seed: 42, mode: 'super' };
+  let W = 0, H = 0, DPR = 1, T = 0;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => t * t * (3 - 2 * t);
+  const rgba = (arr, a = 1) => `rgba(${arr[0]},${arr[1]},${arr[2]},${a})`;
+  const noise = x => Math.sin(x * 12.9898 + state.seed) * 43758.5453 % 1;
+  const polar = (cx, cy, r, a) => ({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  const mix = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
+
+  function pmap(points) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.closePath();
+  }
+
+  function perimeter(poly, count) {
+    const segs = []; let total = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      segs.push({ a, b, len, start: total }); total += len;
+    }
+    const out = [];
+    for (let k = 0; k < count; k++) {
+      const target = (k / count) * total;
+      let s = segs[segs.length - 1];
+      for (const q of segs) { if (target >= q.start && target <= q.start + q.len) { s = q; break; } }
+      const t = s.len ? (target - s.start) / s.len : 0;
+      out.push({ x: lerp(s.a.x, s.b.x, t), y: lerp(s.a.y, s.b.y, t) });
+    }
+    return out;
+  }
+
+  function sector(cx, cy, r, a0, a1) {
+    const pts = [{ x: cx, y: cy }];
+    for (let i = 0; i <= 14; i++) pts.push(polar(cx, cy, r, lerp(a0, a1, i / 14)));
+    return pts;
+  }
+
+  function rectPts(x, y, w, h) {
+    return [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+  }
+
+  // ──────────────────────────────────────────────
+  // SUPERIMPOSE MODE: all bands on one shared circle → one shared strip
+  // Each band draws its own slice system at its own density.
+  // Visible bands layer on top of each other with transparency.
+  // ──────────────────────────────────────────────
+
+  function drawSuper() {
+    const cx = W * 0.28;
+    const cy = H * 0.48;
+    const radius = Math.min(W * 0.16, H * 0.32);
+
+    const stripX = cx + radius * 1.45;
+    const stripY = cy - radius * 0.85;
+    const stripW = W * 0.92 - stripX;
+    const stripH = radius * 1.7;
+
+    const morph = ease(state.morph);
+    const sampleN = 42;
+
+    // Atmosphere
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.8);
+    glow.addColorStop(0, 'rgba(141,243,231,.06)');
+    glow.addColorStop(0.5, 'rgba(141,243,231,.015)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Circle scaffold
+    ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(238,244,239,.25)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(238,244,239,.08)'; ctx.setLineDash([2, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, radius * 0.12, 0, Math.PI * 2); ctx.fill();
+
+    // Strip scaffold
+    ctx.strokeStyle = 'rgba(238,244,239,.12)'; ctx.lineWidth = 1;
+    ctx.strokeRect(stripX, stripY, stripW, stripH);
+
+    // Filament bridge
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let f = 0; f < 30; f++) {
+      const tt = f / 29;
+      const y0 = cy - radius * 0.8 + tt * radius * 1.6;
+      const y1 = stripY + tt * stripH;
+      ctx.beginPath();
+      ctx.moveTo(cx + radius, y0);
+      const bend = radius * 0.5 * Math.sin(tt * Math.PI);
+      ctx.bezierCurveTo(cx + radius + bend, y0, stripX - radius * 0.2, y1, stripX, y1);
+      ctx.strokeStyle = `rgba(238,244,239,${0.03 + 0.06 * (1 - Math.abs(tt - 0.5) * 2)})`;
+      ctx.lineWidth = 0.5; ctx.stroke();
+    }
+    ctx.restore();
+
+    // Draw each band's slice system (back to front)
+    const visibleBands = bands.filter(b => b.visible);
+    const visCount = visibleBands.length;
+
+    visibleBands.forEach((b, layerIdx) => {
+      const seg = Math.max(3, Math.round(b.seg * state.density));
+      const theta = Math.PI * 2 / seg;
+      const alpha = visCount === 1 ? 0.35 : 0.12 + 0.08 / visCount;
+      const strokeAlpha = visCount === 1 ? 0.7 : 0.25 + 0.15 / visCount;
+
+      // Strip grid for this band
+      ctx.beginPath();
+      for (let c = 1; c < seg; c++) {
+        const x = stripX + stripW * c / seg;
+        ctx.moveTo(x, stripY); ctx.lineTo(x, stripY + stripH);
+      }
+      ctx.strokeStyle = rgba(b.hue, 0.06); ctx.lineWidth = 0.5; ctx.stroke();
+
+      // Slices
+      for (let s = 0; s < seg; s++) {
+        const a0 = -Math.PI / 2 + s * theta;
+        const a1 = a0 + theta;
+        const source = perimeter(sector(cx, cy, radius, a0, a1), sampleN);
+
+        // Target: column in the shared strip
+        const tx = stripX + stripW * s / seg;
+        const tw = stripW / seg;
+        const target = perimeter(rectPts(tx, stripY, tw, stripH), sampleN);
+
+        const pts = source.map((p, k) => mix(p, target[k], morph));
+
+        ctx.globalCompositeOperation = 'source-over';
+        pmap(pts);
+        ctx.fillStyle = rgba(b.hue, alpha * (1 - s / seg * 0.3));
+        ctx.fill();
+
+        const isAccent = s % Math.max(1, Math.ceil(seg / 6)) === 0;
+        ctx.strokeStyle = rgba(b.hue, isAccent ? strokeAlpha : strokeAlpha * 0.4);
+        ctx.lineWidth = isAccent ? 1.2 : 0.6;
+        ctx.stroke();
+      }
+
+      // Band name at strip edge
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.letterSpacing = '3px';
+      ctx.fillStyle = rgba(b.hue, 0.8);
+      const labelY = stripY + stripH + 16 + layerIdx * 14;
+      ctx.fillText(`${b.name} (${seg})`, stripX, labelY);
+      ctx.restore();
+    });
+
+    // "Present" / "Futures" labels
+    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.letterSpacing = '4px';
+    ctx.fillStyle = 'rgba(238,244,239,.35)';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRESENT', cx, cy + radius + 28);
+    ctx.fillText('FUTURES', stripX + stripW / 2, stripY - 16);
+    ctx.textAlign = 'start';
+
+    // Overlap indicator: count how many bands share each angular zone
+    if (morph < 0.5 && visCount > 1) {
+      const zones = 72;
+      for (let z = 0; z < zones; z++) {
+        const angle = -Math.PI / 2 + (z / zones) * Math.PI * 2;
+        let count = 0;
+        visibleBands.forEach(b => {
+          const seg = Math.max(3, Math.round(b.seg * state.density));
+          const sliceIdx = Math.floor(((angle + Math.PI / 2) / (Math.PI * 2)) * seg);
+          if (sliceIdx % Math.max(1, Math.ceil(seg / 6)) === 0) count++;
+        });
+        if (count > 1) {
+          const pt = polar(cx, cy, radius + 6 + count * 3, angle);
+          ctx.fillStyle = `rgba(141,243,231,${0.15 * count * (1 - morph * 2)})`;
+          ctx.beginPath(); ctx.arc(pt.x, pt.y, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // Area conservation annotation
+    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = 'rgba(238,244,239,.18)';
+    ctx.textAlign = 'center';
+    ctx.fillText('AREA CONSERVED · FORM CHANGES · MEASURE HOLDS', W / 2, H - 50);
+    ctx.fillText('A = πr² = ½C·r (ARCHIMEDES)', W / 2, H - 36);
+    ctx.textAlign = 'start';
+  }
+
+  // ──────────────────────────────────────────────
+  // QUAD MODE: four separate panels (from quad-slice-good)
+  // ──────────────────────────────────────────────
+
+  function panelRect(i) {
+    const padX = W < 760 ? 18 : 42;
+    const top = W < 760 ? 52 : 62;
+    const bottom = W < 760 ? 56 : 64;
+    const gap = W < 760 ? 18 : 34;
+    const cols = W < 820 ? 1 : 2;
+    const rows = W < 820 ? 4 : 2;
+    const col = i % cols, row = Math.floor(i / cols);
+    const pw = (W - padX * 2 - gap * (cols - 1)) / cols;
+    const ph = (H - top - bottom - gap * (rows - 1)) / rows;
+    return { x: padX + col * (pw + gap), y: top + row * (ph + gap), w: pw, h: ph };
+  }
+
+  function drawQuadPanel(b, i) {
+    if (!b.visible) return;
+    const R = panelRect(i);
+    const cx = R.x + R.w * 0.22;
+    const cy = R.y + R.h * 0.43;
+    const radius = Math.min(R.w * 0.19, R.h * 0.34);
+    const sx = cx + radius * 0.92;
+    const stripX = cx + radius * 1.22;
+    const stripY = cy - radius * 0.47;
+    const stripW = R.x + R.w - stripX - 4;
+    const stripH = radius * 0.94;
+    const seg = Math.max(3, Math.round(b.seg * state.density));
+    const morph = ease(state.morph);
+    const sampleN = 42;
+
+    // Glow
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.5);
+    glow.addColorStop(0, rgba(b.hue, 0.08));
+    glow.addColorStop(0.55, rgba(b.hue, 0.025));
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, radius * 1.55, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Strip scaffold
+    ctx.strokeStyle = rgba(b.hue, 0.22); ctx.lineWidth = 1; ctx.strokeRect(stripX, stripY, stripW, stripH);
+    ctx.beginPath();
+    for (let c = 1; c < seg; c++) { const x = stripX + stripW * c / seg; ctx.moveTo(x, stripY); ctx.lineTo(x, stripY + stripH); }
+    ctx.strokeStyle = rgba(b.hue, 0.12); ctx.lineWidth = 0.6; ctx.stroke();
+
+    // Circle scaffold
+    ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = rgba(b.hue, 0.55); ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.58, 0, Math.PI * 2);
+    ctx.strokeStyle = rgba(b.hue, 0.12); ctx.setLineDash([2, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, radius * 0.135, 0, Math.PI * 2); ctx.fill();
+
+    // Slices
+    const theta = Math.PI * 2 / seg;
+    for (let s = 0; s < seg; s++) {
+      const a0 = -Math.PI / 2 + s * theta;
+      const a1 = a0 + theta;
+      const source = perimeter(sector(cx, cy, radius, a0, a1), sampleN);
+      const tx = stripX + stripW * s / seg;
+      const tw = stripW / seg;
+      const target = perimeter(rectPts(tx, stripY, tw, stripH), sampleN);
+      const pts = source.map((p, k) => mix(p, target[k], morph));
+
+      pmap(pts);
+      ctx.fillStyle = rgba(b.hue, 0.02 + 0.06 * (1 - s / seg));
+      ctx.fill();
+      const isAccent = s % Math.max(1, Math.ceil(seg / 8)) === 0;
+      ctx.strokeStyle = rgba(b.hue, isAccent ? 0.5 : 0.18);
+      ctx.lineWidth = isAccent ? 1 : 0.6;
+      ctx.stroke();
+    }
+
+    // Filaments
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const fc = 16 + Math.floor(b.detail * 16);
+    for (let f = 0; f < fc; f++) {
+      const tt = f / (fc - 1);
+      const y0 = cy - radius * 0.42 + tt * radius * 0.84;
+      const y1 = stripY + tt * stripH;
+      ctx.beginPath();
+      ctx.moveTo(sx, y0);
+      const bend = radius * 0.55 * Math.sin(tt * Math.PI);
+      ctx.bezierCurveTo(sx + bend, y0, stripX - radius * 0.18, y1, stripX, y1);
+      ctx.strokeStyle = rgba(b.hue, 0.055 + 0.1 * (1 - Math.abs(tt - 0.5) * 2));
+      ctx.lineWidth = 0.55; ctx.stroke();
+    }
+    ctx.restore();
+
+    // Label
+    ctx.fillStyle = rgba(b.hue, 0.95);
+    ctx.beginPath(); ctx.arc(R.x + R.w * 0.03, R.y + R.h - 16 - 3, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.letterSpacing = '4px';
+    ctx.fillStyle = rgba(b.hue, 0.75);
+    ctx.fillText(`${b.name} (${seg})`, R.x + R.w * 0.03 + 18, R.y + R.h - 16);
+  }
+
+  function drawQuad() {
+    for (let i = 0; i < bands.length; i++) drawQuadPanel(bands[i], i);
+  }
+
+  // ──────────────────────────────────────────────
+  // MAIN LOOP
+  // ──────────────────────────────────────────────
+
+  function drawBackground() {
+    ctx.clearRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.75);
+    g.addColorStop(0, 'rgba(141,243,231,.035)'); g.addColorStop(0.45, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = '#020304'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    // Star dust
+    ctx.fillStyle = 'rgba(255,255,255,.04)';
+    for (let i = 0; i < 100; i++) {
+      const x = (noise(i + T * 0.00001) + 1) % 1 * W;
+      const y = (noise(i * 2.1) + 1) % 1 * H;
+      ctx.fillRect(x, y, 0.7, 0.7);
+    }
+  }
+
+  function draw() {
+    T = performance.now();
+    if (state.loop) {
+      state.morph = (Math.sin(T * 0.00035) + 1) / 2;
+      state.density = 0.78 + ((Math.sin(T * 0.00021 + 2) + 1) / 2) * 0.54;
+    }
+
+    drawBackground();
+
+    if (state.mode === 'super') {
+      drawSuper();
+    } else {
+      drawQuad();
+    }
+
+    const visCount = bands.filter(b => b.visible).length;
+    read.textContent = `morph ${Math.round(state.morph * 100)}% · ${visCount} layer${visCount !== 1 ? 's' : ''} · ${state.mode}`;
+
+    requestAnimationFrame(draw);
+  }
+
+  // ──────────────────────────────────────────────
+  // INTERACTION
+  // ──────────────────────────────────────────────
+
+  function pointer(e) {
+    const x = clamp(e.clientX / W, 0, 1);
+    const y = clamp(e.clientY / H, 0, 1);
+    state.morph = x;
+    state.density = clamp(0.55 + (1 - y) * 1.35, 0.55, 1.9);
+  }
+
+  addEventListener('pointerdown', e => { state.drag = true; pointer(e); });
+  addEventListener('pointermove', e => { if (state.drag) pointer(e); });
+  addEventListener('pointerup', () => state.drag = false);
+  addEventListener('pointercancel', () => state.drag = false);
+  addEventListener('resize', resize);
+
+  addEventListener('keydown', e => {
+    if (e.key === ' ') { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); e.preventDefault(); }
+    if (e.key === 'ArrowRight') state.morph = clamp(state.morph + 0.04, 0, 1);
+    if (e.key === 'ArrowLeft') state.morph = clamp(state.morph - 0.04, 0, 1);
+    if (e.key === 'Tab') { e.preventDefault(); toggleMode(); }
+  });
+
+  loopBtn.onclick = () => { state.loop = !state.loop; loopBtn.classList.toggle('active', state.loop); };
+  shuffleBtn.onclick = () => { state.seed = Math.random() * 999; };
+
+  function toggleMode() {
+    state.mode = state.mode === 'super' ? 'quad' : 'super';
+    modeBtn.textContent = state.mode === 'super' ? 'quad' : 'super';
+    modeBtn.classList.toggle('active', state.mode === 'super');
+  }
+  modeBtn.onclick = toggleMode;
+  modeBtn.classList.add('active');
+
+  // ──────────────────────────────────────────────
+  // LEGEND: toggle individual bands
+  // ──────────────────────────────────────────────
+
+  function buildLegend() {
+    legendEl.innerHTML = '';
+    bands.forEach((b, idx) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item' + (b.visible ? ' active' : ' hidden');
+      item.innerHTML = `<span class="dot" style="background:${rgba(b.hue, 0.9)}"></span><span>${b.name} (${b.seg})</span>`;
+      item.addEventListener('click', () => {
+        b.visible = !b.visible;
+        item.classList.toggle('active', b.visible);
+        item.classList.toggle('hidden', !b.visible);
+      });
+      legendEl.appendChild(item);
+    });
+  }
+
+  // ──────────────────────────────────────────────
+  // BOOT
+  // ──────────────────────────────────────────────
+
+  resize();
+  buildLegend();
+  draw();
+})();
+</script>
+</body>
+</html>

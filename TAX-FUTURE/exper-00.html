@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Diagram 1885: SCOT Timeline Collapse</title>
+    <style>
+        :root {
+            /* Media Archaeology Terminal Palette */
+            --bg: #EBEBE6;
+            --fg: #111111;
+            --faint: #D0D0CE;
+
+            /* Futures Cone Colors (High Contrast) */
+            --c3: rgba(255, 224, 178, 0.45);
+            /* Possible (Pale) */
+            --c2: rgba(255, 204, 128, 0.55);
+            /* Plausible (Light Orange) */
+            --c1: rgba(255, 167, 38, 0.65);
+            /* Probable (Orange) */
+            --c0: rgba(67, 160, 71, 0.85);
+            /* Preferable (Green) */
+
+            --hot: #D50000;
+            /* Stark red for active elements */
+            --grid: rgba(17, 17, 17, 0.08);
+        }
+
+        /* BRUTALIST RESET */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Courier New', Courier, ui-monospace, monospace;
+            overflow: hidden;
+        }
+
+        body {
+            touch-action: none
+        }
+
+        /* Scanning line background to emphasize the tool UI */
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: var(--bg);
+            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        header,
+        footer {
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 16px max(16px, env(safe-area-inset-left)) 14px max(16px, env(safe-area-inset-right));
+            pointer-events: none;
+            border-bottom: 1px solid var(--fg);
+            background: var(--bg);
+        }
+
+        footer {
+            border-bottom: none;
+            border-top: 1px solid var(--fg);
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+        }
+
+        header {
+            font-size: 12px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        header strong {
+            font-weight: 700;
+        }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            pointer-events: auto;
+        }
+
+        button {
+            background: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--fg);
+            min-height: 32px;
+            padding: 0 16px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            border-left: none;
+        }
+
+        button:first-child {
+            border-left: 1px solid var(--fg);
+        }
+
+        button[data-on="true"],
+        button:active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        main {
+            position: relative;
+            min-height: 0;
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Interactive Grid Paths */
+        path.slice {
+            transition: fill 0.1s, stroke-width 0.1s;
+            cursor: crosshair;
+            pointer-events: all;
+            stroke: var(--fg);
+            stroke-width: 0.5px;
+        }
+
+        path.slice:hover,
+        path.slice.active {
+            stroke: var(--hot) !important;
+            stroke-width: 2px !important;
+            z-index: 10;
+        }
+
+        #readout {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: -1px;
+            z-index: 6;
+            pointer-events: none;
+            border: 1px solid var(--fg);
+            background: var(--bg);
+        }
+
+        .cell {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--fg);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        .cell:last-child {
+            border-bottom: none;
+        }
+
+        .cell b {
+            font-weight: 700;
+            float: right;
+            margin-left: 24px;
+        }
+
+        .cell.lock b {
+            color: var(--hot)
+        }
+
+        /* Analytical HUD (Follows Cursor) */
+        #hud {
+            position: absolute;
+            pointer-events: none;
+            z-index: 20;
+            background: var(--fg);
+            color: var(--bg);
+            border: 1px solid var(--fg);
+            padding: 10px 12px;
+            font-size: 10px;
+            width: 240px;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            transform: translate(15px, 15px);
+        }
+
+        .hud-id {
+            font-weight: 700;
+            color: var(--hot);
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hud-group {
+            font-weight: 700;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            border-bottom: 1px dotted var(--bg);
+            padding-bottom: 4px;
+        }
+
+        .hud-text {
+            font-size: 11px;
+            line-height: 1.3;
+            font-weight: 400;
+            color: #FFF;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Inspector Panel (Archival Record) */
+        #inspector {
+            position: absolute;
+            right: 24px;
+            top: 24px;
+            width: 320px;
+            background: var(--bg);
+            border: 1px solid var(--fg);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.15);
+            pointer-events: auto;
+        }
+
+        .ins-header {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .ins-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ins-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--fg);
+            opacity: 0.6;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .ins-value {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        textarea.ins-edit {
+            width: 100%;
+            height: 80px;
+            background: transparent;
+            border: 1px solid var(--fg);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 12px;
+            padding: 8px;
+            resize: none;
+            outline: none;
+            font-weight: 400;
+        }
+
+        textarea.ins-edit:focus {
+            border-color: var(--hot);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        textarea.ins-edit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-style: dashed;
+        }
+
+        .ins-status {
+            font-size: 10px;
+            color: var(--hot);
+            font-weight: 700;
+            text-transform: uppercase;
+            line-height: 1.4;
+            border-top: 1px dotted var(--fg);
+            padding-top: 8px;
+        }
+
+        .formula {
+            font-weight: 700;
+        }
+
+        /* Mechanical Playhead */
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--hot);
+            z-index: 4;
+            pointer-events: none;
+            transform: translateX(-50%);
+        }
+
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--hot);
+        }
+
+        .playhead::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--hot);
+        }
+
+        @media(max-width:760px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px
+            }
+
+            #readout {
+                bottom: 24px;
+                left: 12px;
+                right: 12px;
+            }
+
+            #inspector {
+                top: auto;
+                bottom: 140px;
+                right: 12px;
+                left: 12px;
+                width: auto;
+            }
+
+            #hud {
+                display: none !important;
+            }
+
+            /* Disable HUD on mobile, rely on inspector */
+            .formula {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div><strong>Media Archaeology Tool</strong> / SCOT Artifact Grid Analysis (1885-1890)</div>
+            <div class="right">
+                <button id="sound">Audio</button>
+                <button id="loop">Auto</button>
+                <button id="reset">Reset</button>
+            </div>
+        </header>
+
+        <main id="field">
+            <svg id="svg" viewBox="0 0 1180 720" preserveAspectRatio="xMidYMid meet"></svg>
+
+            <div id="readout">
+                <div class="cell">Grid Resolution <b id="nText">4</b></div>
+                <div class="cell">Active Visions <b id="totalText">40</b></div>
+                <div class="cell">Topology <b id="phaseText">Bijker's Star</b></div>
+                <div class="cell lock">Temporal Morph <b id="timeText">0.00</b></div>
+            </div>
+
+            <!-- Floating HUD -->
+            <div id="hud" class="hidden">
+                <div class="hud-id"><span id="hud-track-name">--</span> <span id="hud-id-num">--</span></div>
+                <div class="hud-group" id="hud-group">--</div>
+                <div class="hud-text" id="hud-text">--</div>
+            </div>
+
+            <!-- Interactive Inspector Panel -->
+            <div id="inspector" class="hidden">
+                <div class="ins-header">
+                    <span id="ins-title">Archival Record</span>
+                    <span id="ins-id">--</span>
+                </div>
+                <div class="ins-body">
+                    <div>
+                        <div class="ins-label">Relevant Social Group (RSG)</div>
+                        <div class="ins-value" id="ins-group">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Trajectory Vector</div>
+                        <div class="ins-value" id="ins-track">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Artifact Variant / Vision</div>
+                        <textarea class="ins-edit" id="ins-text"
+                            placeholder="Transcribe historical vision..."></textarea>
+                    </div>
+                    <div class="ins-status" id="ins-status"></div>
+                </div>
+            </div>
+
+            <div class="playhead" id="knob"></div>
+        </main>
+
+        <footer>
+            <div>DRAG X-AXIS: MORPH TIME &nbsp;&nbsp;|&nbsp;&nbsp; HOVER: SCAN GRID &nbsp;&nbsp;|&nbsp;&nbsp; CLICK:
+                LOCK RECORD</div>
+            <div class="formula">INTERPRETATIVE FLEXIBILITY COLLAPSES INTO A STABILIZED ARTIFACT.</div>
+        </footer>
+    </div>
+
+    <script>
+        (() => {
+            const svg = document.getElementById('svg');
+            const field = document.getElementById('field');
+            const knob = document.getElementById('knob');
+
+            // Readouts
+            const nText = document.getElementById('nText');
+            const totalText = document.getElementById('totalText');
+            const phaseText = document.getElementById('phaseText');
+            const timeText = document.getElementById('timeText');
+
+            // HUD
+            const hud = document.getElementById('hud');
+            const hudIdNum = document.getElementById('hud-id-num');
+            const hudTrackName = document.getElementById('hud-track-name');
+            const hudGroup = document.getElementById('hud-group');
+            const hudText = document.getElementById('hud-text');
+
+            // Inspector
+            const inspector = document.getElementById('inspector');
+            const insId = document.getElementById('ins-id');
+            const insGroup = document.getElementById('ins-group');
+            const insTrack = document.getElementById('ins-track');
+            const insText = document.getElementById('ins-text');
+            const insStatus = document.getElementById('ins-status');
+
+            const soundBtn = document.getElementById('sound');
+            const loopBtn = document.getElementById('loop');
+            const resetBtn = document.getElementById('reset');
+
+            const NS = 'http://www.w3.org/2000/svg';
+
+            // Global State
+            const state = {
+                n: 4,
+                morph: 0,
+                dragging: false,
+                looping: false,
+                sound: false,
+                time: 0,
+                activeSliceId: null,
+                hoverSliceId: null
+            };
+
+            // DOM Cache & Edits
+            let currentN = -1;
+            let sliceDOMCache = [];
+            const userEdits = {};
+            let ctx, master, drone, overtone, noiseFilter;
+
+            // Layout Parameters
+            const R = 60;
+            const FLAT_WIDTH = 260;
+            const H = 60;
+            const CONE_START_X = 420;
+            const CONE_END_X = 720;
+            const FLAT_START_X = 1000;
+
+            // Track Layout mapped to Historical RSGs
+            const TRACKS = [
+                { cat: 3, group: 'INDUSTRIALISTS', projection: 'Motor/Steam Transition', name: 'POSSIBLE', y0: 120, y2: 360, color: 'var(--c3)', mult: 4, bases: ['Steam Velocipede Blueprint', 'Internal Combustion Prototype', 'Electric-battery Tricycle', 'Rail-riding Cycle Mechanism', 'Clockwork Quad Concept', 'Compressed Air Apparatus'] },
+                { cat: 2, group: 'TRADITIONALISTS', projection: 'Multi-wheel Carriages', name: 'PLAUSIBLE', y0: 280, y2: 360, color: 'var(--c2)', mult: 3, bases: ['Sociable (Side-by-side) Tricycle', 'Salvo Quadricycle Variant', 'Lever-driven Tricycle System', 'Tandem Tricycle Layout', 'Front-steering Quadricycle', 'Heavy Iron Wheel-chair'] },
+                { cat: 1, group: 'SPORTING ELITE', projection: 'The High-Wheel "Ordinary"', name: 'PROBABLE', y0: 440, y2: 360, color: 'var(--c1)', mult: 2, bases: ['60-inch Racing Ordinary', 'Geared "Facile" High-wheel', 'Kangaroo (Dwarf Ordinary)', 'American Star (Small wheel front)', 'Crypto Geared Front-drive'] },
+                { cat: 0, group: 'PRAGMATIC COMMUTERS', projection: 'The "Safety Bicycle"', name: 'PREFERABLE', y0: 600, y2: 360, color: 'var(--c0)', mult: 1, bases: ['Rover Safety (Chain drive)', 'Whippet (Frame suspension)', 'Cross-frame Safety Model', 'Bantam Front-drive Safety', 'Drop-frame (Women\'s) Safety'] }
+            ];
+
+            const L_SIDES = 8;
+            const L_END = 8;
+
+            // Math Helpers
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function lerp(a, b, t) { return a + (b - a) * t; }
+            function ease(t) { return t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+            function el(tag, attrs = {}) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+            function polar(cx, cy, r, a) { return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; }
+            function mixPoint(A, B, t) { return { x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t) }; }
+            function pathStrExact(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z'; }
+
+            // Shape Interpolation Logic
+            function getShapePoints(track, i, slices, phase) {
+                let A, B, C, D, isArc = false, cx, cy, t1, t2;
+                if (phase === 0) {
+                    cx = 160; cy = track.y0;
+                    t1 = -Math.PI / 2 + i * (2 * Math.PI / slices);
+                    t2 = -Math.PI / 2 + (i + 1) * (2 * Math.PI / slices);
+                    A = { x: cx, y: cy }; B = polar(cx, cy, R, t1); C = polar(cx, cy, R, t2); D = { x: cx, y: cy };
+                    isArc = true;
+                } else if (phase === 1) {
+                    let hx = 6;
+                    let ly0 = track.y0 - hx / 2 + i * (hx / slices);
+                    let ly1 = track.y0 - hx / 2 + (i + 1) * (hx / slices);
+                    let ry0 = track.y0 - R + i * (2 * R / slices);
+                    let ry1 = track.y0 - R + (i + 1) * (2 * R / slices);
+                    A = { x: CONE_START_X, y: ly0 }; B = { x: CONE_END_X, y: ry0 }; C = { x: CONE_END_X, y: ry1 }; D = { x: CONE_START_X, y: ly1 };
+                } else if (phase === 2) {
+                    let sx0 = FLAT_START_X - FLAT_WIDTH / 2 + i * (FLAT_WIDTH / slices);
+                    let sx1 = FLAT_START_X - FLAT_WIDTH / 2 + (i + 1) * (FLAT_WIDTH / slices);
+                    let y0 = track.y0 - H / 2; let y1 = track.y0 + H / 2;
+                    A = { x: sx0, y: y0 }; B = { x: sx1, y: y0 }; C = { x: sx1, y: y1 }; D = { x: sx0, y: y1 };
+                } else if (phase === 3) {
+                    let sx0 = FLAT_START_X - FLAT_WIDTH / 2 + i * (FLAT_WIDTH / slices);
+                    let sx1 = FLAT_START_X - FLAT_WIDTH / 2 + (i + 1) * (FLAT_WIDTH / slices);
+                    let y0 = track.y2 - H / 2; let y1 = track.y2 + H / 2;
+                    A = { x: sx0, y: y0 }; B = { x: sx1, y: y0 }; C = { x: sx1, y: y1 }; D = { x: sx0, y: y1 };
+                }
+                const pts = [];
+                for (let j = 0; j < L_SIDES; j++) pts.push(mixPoint(A, B, j / L_SIDES));
+                for (let j = 0; j < L_END; j++) { if (isArc) pts.push(polar(cx, cy, R, lerp(t1, t2, j / L_END))); else pts.push(mixPoint(B, C, j / L_END)); }
+                for (let j = 0; j < L_SIDES; j++) pts.push(mixPoint(C, D, j / L_SIDES));
+                for (let j = 0; j < L_END; j++) pts.push(mixPoint(D, A, j / L_END));
+                return pts;
+            }
+
+            function getBlendedPoints(track, i, slices, m) {
+                if (m <= 1 / 3) {
+                    const p0 = getShapePoints(track, i, slices, 0); const p1 = getShapePoints(track, i, slices, 1);
+                    const t = ease(m * 3); return p0.map((p, idx) => mixPoint(p, p1[idx], t));
+                } else if (m <= 2 / 3) {
+                    const p1 = getShapePoints(track, i, slices, 1); const p2 = getShapePoints(track, i, slices, 2);
+                    const t = ease((m - 1 / 3) * 3); return p1.map((p, idx) => mixPoint(p, p2[idx], t));
+                } else {
+                    const p2 = getShapePoints(track, i, slices, 2); const p3 = getShapePoints(track, i, slices, 3);
+                    const t = ease((m - 2 / 3) * 3); return p2.map((p, idx) => mixPoint(p, p3[idx], t));
+                }
+            }
+
+            // Generate Default Text based on combinatorial mapping
+            function generateDefaultVisionText(track, index) {
+                const base = track.bases[index % track.bases.length];
+                const modifier = index >= track.bases.length ? ` (Iterative Variant v.${index})` : '';
+                return `${base}${modifier}`;
+            }
+
+            // Build the DOM Elements
+            function buildSVG() {
+                svg.innerHTML = '';
+                sliceDOMCache = [];
+
+                const scaffoldGroup = el('g', { id: 'scaffold' });
+                const blockL = FLAT_START_X - FLAT_WIDTH / 2;
+                const blockR = FLAT_START_X + FLAT_WIDTH / 2;
+
+                // Grid alignment lines
+                const lines = [
+                    [160, 0, 160, 720, 0.2, '2 4'], [CONE_START_X, 0, CONE_START_X, 720, 0.2, '2 4'],
+                    [CONE_END_X, 0, CONE_END_X, 720, 0.2, '2 4'], [blockL, 0, blockL, 720, 0.2, '2 4'],
+                    [blockR, 0, blockR, 720, 0.2, '2 4']
+                ];
+                lines.forEach(l => {
+                    scaffoldGroup.appendChild(el('line', { x1: l[0], y1: l[1], x2: l[2], y2: l[3], stroke: `rgba(10,10,10,${l[4]})`, 'stroke-width': 1, 'stroke-dasharray': l[5], 'vector-effect': 'non-scaling-stroke' }));
+                });
+
+                // Track labels & Baselines
+                TRACKS.forEach((t) => {
+                    scaffoldGroup.appendChild(el('line', { x1: 0, y1: t.y0, x2: CONE_END_X, y2: t.y0, stroke: `rgba(10,10,10,0.15)`, 'stroke-width': 1 }));
+                    scaffoldGroup.appendChild(el('line', { x1: 155, y1: t.y0, x2: 165, y2: t.y0, stroke: `rgba(10,10,10,0.8)`, 'stroke-width': 1 }));
+                    scaffoldGroup.appendChild(el('line', { x1: 160, y1: t.y0 - 5, x2: 160, y2: t.y0 + 5, stroke: `rgba(10,10,10,0.8)`, 'stroke-width': 1 }));
+
+                    const t1 = el('text', { x: 24, y: t.y0 - 12, fill: 'var(--fg)', 'font-size': 12, 'font-weight': '700' }); t1.textContent = `RSG: ${t.group}`;
+                    const t2 = el('text', { x: 24, y: t.y0 + 2, fill: 'var(--fg)', 'font-size': 10 }); t2.textContent = `Trajectory: ${t.projection}`;
+                    scaffoldGroup.append(t1, t2);
+                });
+
+                const pathGroup = el('g', { id: 'paths' });
+                const dynamicUI = el('g', { id: 'dynamic-ui' });
+
+                svg.append(scaffoldGroup, pathGroup, dynamicUI);
+
+                // Build the interactive grid cells (slices)
+                let globalIndex = 0;
+                TRACKS.forEach((track, tIdx) => {
+                    const slices = state.n * track.mult;
+                    for (let i = 0; i < slices; i++) {
+                        const id = `slice_${tIdx}_${i}`;
+                        const defaultText = generateDefaultVisionText(track, i);
+
+                        const pathEl = el('path', {
+                            'class': 'slice',
+                            'data-id': id,
+                            fill: track.color,
+                            'vector-effect': 'non-scaling-stroke'
+                        });
+
+                        const sliceData = { id, pathEl, track, trackIndex: tIdx, index: i, slicesTotal: slices, globalIndex, defaultText };
+                        sliceDOMCache.push(sliceData);
+                        pathGroup.appendChild(pathEl);
+                        globalIndex++;
+
+                        // HUD Listeners
+                        pathEl.addEventListener('pointerenter', (e) => {
+                            state.hoverSliceId = id;
+                            showHUD(e, sliceData);
+                        });
+                        pathEl.addEventListener('pointermove', (e) => {
+                            updateHUDPosition(e);
+                        });
+                        pathEl.addEventListener('pointerleave', () => {
+                            if (state.hoverSliceId === id) state.hoverSliceId = null;
+                            hideHUD();
+                        });
+
+                        // Click Listener for Inspector
+                        pathEl.addEventListener('pointerdown', (e) => {
+                            e.stopPropagation();
+                            activateSlice(sliceData);
+                        });
+                    }
+                });
+
+                currentN = state.n;
+            }
+
+            // Draw Routine
+            function updateDraw() {
+                if (state.n !== currentN) buildSVG();
+
+                const m = state.morph;
+                const dynamicUI = svg.getElementById('dynamic-ui');
+                dynamicUI.innerHTML = '';
+
+                const blockL = FLAT_START_X - FLAT_WIDTH / 2;
+
+                // Phase Headers
+                const titleTop = el('text', { x: 160, y: 24, fill: 'rgba(10,10,10,0.6)', 'font-size': 10, 'font-weight': '700', 'text-anchor': 'middle' }); titleTop.textContent = '1. RADIAL ORIGIN (1885)';
+                const titleMid = el('text', { x: (CONE_START_X + CONE_END_X) / 2, y: 24, fill: 'rgba(10,10,10,0.6)', 'font-size': 10, 'font-weight': '700', 'text-anchor': 'middle' }); titleMid.textContent = '2. CONE EXPANSION';
+                const titleEnd = el('text', { x: FLAT_START_X, y: 24, fill: 'rgba(10,10,10,0.6)', 'font-size': 10, 'font-weight': '700', 'text-anchor': 'middle' }); titleEnd.textContent = '3. TIMELINE COLLAPSE (1890)';
+                dynamicUI.append(titleTop, titleMid, titleEnd);
+
+                // Closure visual box
+                if (m > 0.6) {
+                    const op = clamp((m - 0.6) * 2.5, 0, 1);
+                    const r = el('rect', { x: blockL, y: 360 - H / 2, width: FLAT_WIDTH, height: H, fill: 'none', stroke: `var(--fg)`, 'stroke-width': 2, opacity: op });
+                    const txt = el('text', { x: FLAT_START_X, y: 360 - H / 2 - 20, fill: `var(--fg)`, 'font-size': 10, 'font-weight': '700', 'text-anchor': 'middle', opacity: op }); txt.textContent = 'TECHNOLOGICAL CLOSURE REACHED';
+                    const sub = el('text', { x: FLAT_START_X, y: 360 - H / 2 - 8, fill: `var(--fg)`, 'font-size': 9, 'text-anchor': 'middle', opacity: op }); sub.textContent = '(Pragmatic Commuter Artifact Dominates)';
+                    dynamicUI.append(r, txt, sub);
+                }
+
+                // Update Grid Paths
+                let totalSlices = 0;
+                sliceDOMCache.forEach(slice => {
+                    const pts = getBlendedPoints(slice.track, slice.index, slice.slicesTotal, m);
+                    slice.pathEl.setAttribute('d', pathStrExact(pts));
+
+                    // Explicit Grid outlines are maintained
+                    if (m > 0.9) {
+                        slice.pathEl.style.strokeWidth = '0.2px';
+                    } else {
+                        slice.pathEl.style.strokeWidth = '';
+                    }
+
+                    // Selection class
+                    if (state.activeSliceId === slice.id) slice.pathEl.classList.add('active');
+                    else slice.pathEl.classList.remove('active');
+                });
+
+                // Connectors
+                TRACKS.forEach((t, index) => {
+                    totalSlices += state.n * t.mult;
+                    if (m > 0.1 && m < 0.7) {
+                        const compOp = clamp(Math.sin(m * 1.5 * Math.PI) * 0.4, 0, 1);
+                        const l1 = el('line', { x1: CONE_END_X, y1: t.y0, x2: blockL, y2: t.y0, stroke: `var(--fg)`, opacity: compOp, 'stroke-width': 1, 'stroke-dasharray': '4 4' });
+                        dynamicUI.appendChild(l1);
+                    }
+                    if (m > 0.6) {
+                        const collapseOp = clamp((m - 0.6) * 3, 0, 0.4);
+                        const l2 = el('line', { x1: FLAT_START_X, y1: t.y0, x2: FLAT_START_X, y2: t.y2, stroke: `var(--fg)`, opacity: collapseOp, 'stroke-width': 1, 'stroke-dasharray': '2 4' });
+                        dynamicUI.appendChild(l2);
+                    }
+
+                    const views = el('text', { x: 160, y: t.y0 + R + 16, fill: `rgba(10,10,10,${clamp(1 - m * 2, 0, 1)})`, 'font-size': 9, 'text-anchor': 'middle', 'font-weight': '700' }); views.textContent = `[ ${state.n * t.mult} VISIONS ]`;
+                    dynamicUI.appendChild(views);
+                });
+
+                nText.textContent = state.n;
+                totalText.textContent = totalSlices;
+                timeText.textContent = m.toFixed(2);
+                knob.style.left = (m * field.clientWidth) + 'px';
+
+                if (m < 0.1) phaseText.textContent = "1885 (Bijker's Star)";
+                else if (m < 0.35) phaseText.textContent = "Cone Mapping";
+                else if (m < 0.68) phaseText.textContent = "Individual Timelines";
+                else phaseText.textContent = "1890s Closure";
+
+                updateInspectorState(m);
+
+                // If HUD is active, update text state if morph crosses threshold
+                if (state.hoverSliceId) {
+                    const slice = sliceDOMCache.find(s => s.id === state.hoverSliceId);
+                    if (slice) forceHUDTextUpdate(slice, m);
+                }
+            }
+
+            // --- HUD Logic (The Tooltip) ---
+            function showHUD(e, slice) {
+                if (state.dragging) return;
+                hud.classList.remove('hidden');
+                hudIdNum.textContent = `REC-${slice.globalIndex}`;
+                hudTrackName.textContent = slice.track.name;
+                hudGroup.textContent = `RSG: ${slice.track.group}`;
+                forceHUDTextUpdate(slice, state.morph);
+                updateHUDPosition(e);
+            }
+
+            function forceHUDTextUpdate(slice, m) {
+                if (m > 0.8) {
+                    hudText.textContent = "STABILIZED: The Safety Bicycle (Diamond Frame, Equal Wheels, Chain Drive)";
+                    hudGroup.textContent = `RSG: PRAGMATIC COMMUTERS (DOMINANT)`;
+                    hudIdNum.style.color = "var(--c0)";
+                } else {
+                    const customText = userEdits[slice.id];
+                    hudText.textContent = customText !== undefined ? customText : slice.defaultText;
+                    hudGroup.textContent = `RSG: ${slice.track.group}`;
+                    hudIdNum.style.color = "var(--hot)";
+                }
+            }
+
+            function updateHUDPosition(e) {
+                // Keep it within bounds
+                let x = e.clientX + 15;
+                let y = e.clientY + 15;
+                if (x + 240 > window.innerWidth) x = e.clientX - 255;
+                if (y + 100 > window.innerHeight) y = e.clientY - 115;
+                hud.style.left = x + 'px';
+                hud.style.top = y + 'px';
+            }
+
+            function hideHUD() {
+                hud.classList.add('hidden');
+            }
+
+            // --- Inspector Logic ---
+            function activateSlice(slice) {
+                state.activeSliceId = slice.id;
+                inspector.classList.remove('hidden');
+                populateInspector(slice);
+                updateDraw();
+            }
+
+            function populateInspector(slice) {
+                if (!slice) return;
+                insId.textContent = `REC-${slice.globalIndex}`;
+                insGroup.textContent = slice.track.group;
+                insTrack.textContent = slice.track.name + ' (' + slice.track.projection + ')';
+
+                const customText = userEdits[slice.id];
+                insText.value = customText !== undefined ? customText : slice.defaultText;
+
+                updateInspectorState(state.morph);
+            }
+
+            function updateInspectorState(m) {
+                if (!inspector.classList.contains('hidden') && state.activeSliceId) {
+                    if (m > 0.8) {
+                        insText.disabled = true;
+                        insStatus.textContent = "RECORD LOCKED: Technological closure reached. Interpretative flexibility ends. All variants collapse into the Safety Bicycle timeline.";
+                        insText.value = "The Safety Bicycle\n(Diamond Frame, Equal Wheels, Chain Drive, Pneumatic Tires)";
+                        insGroup.textContent = "Pragmatic Commuters (Dominant)";
+                        insTrack.textContent = "STABILIZED ARTIFACT";
+                    } else {
+                        insText.disabled = false;
+                        insStatus.textContent = "RECORD OPEN: Projection Mode. This vision is isolated and editable.";
+                        const slice = sliceDOMCache.find(s => s.id === state.activeSliceId);
+                        if (slice) {
+                            const customText = userEdits[slice.id];
+                            insText.value = customText !== undefined ? customText : slice.defaultText;
+                            insGroup.textContent = slice.track.group;
+                            insTrack.textContent = slice.track.name + ' (' + slice.track.projection + ')';
+                        }
+                    }
+                }
+            }
+
+            insText.addEventListener('input', (e) => {
+                if (state.activeSliceId && !insText.disabled) {
+                    userEdits[state.activeSliceId] = e.target.value;
+                    // Mirror to HUD instantly if we are hovering over the one we are editing
+                    if (state.hoverSliceId === state.activeSliceId) {
+                        hudText.textContent = e.target.value;
+                    }
+                }
+            });
+
+            inspector.addEventListener('pointerdown', e => e.stopPropagation());
+
+            // Input Mapping
+            function setFromPoint(clientX, clientY) {
+                const rect = field.getBoundingClientRect();
+                const x = clamp((clientX - rect.left) / rect.width, 0, 1);
+                const y = clamp((clientY - rect.top) / rect.height, 0, 1);
+                state.morph = x;
+                const raw = 2 + (1 - y) * 10;
+                state.n = Math.max(2, Math.round(raw));
+                updateSound();
+                updateDraw();
+            }
+
+            field.addEventListener('pointerdown', e => {
+                if (e.target.tagName !== 'path' && e.target.id !== 'ins-text') {
+                    state.activeSliceId = null;
+                    inspector.classList.add('hidden');
+                    updateDraw();
+                }
+                state.dragging = true;
+                field.setPointerCapture(e.pointerId);
+                setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointermove', e => {
+                if (state.dragging) setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointerup', e => {
+                state.dragging = false;
+                try { field.releasePointerCapture(e.pointerId); } catch (_) { }
+            });
+            field.addEventListener('pointercancel', () => state.dragging = false);
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'ArrowRight') { state.morph = clamp(state.morph + .05, 0, 1); updateDraw(); }
+                if (e.key === 'ArrowLeft') { state.morph = clamp(state.morph - .05, 0, 1); updateDraw(); }
+            });
+
+            // Audio System (Mechanical Data Terminal vibe)
+            function setupSound() {
+                if (ctx) return;
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                master = ctx.createGain();
+                drone = ctx.createOscillator();
+                overtone = ctx.createOscillator();
+                noiseFilter = ctx.createBiquadFilter();
+
+                drone.type = 'square'; overtone.type = 'sawtooth'; noiseFilter.type = 'lowpass';
+                drone.frequency.value = 55.00; overtone.frequency.value = 110.00; noiseFilter.frequency.value = 150;
+
+                master.gain.value = 0;
+                drone.connect(noiseFilter); overtone.connect(noiseFilter); noiseFilter.connect(master); master.connect(ctx.destination);
+                drone.start(); overtone.start();
+            }
+
+            function updateSound() {
+                if (!ctx || !state.sound) return;
+                const now = ctx.currentTime;
+                const filterFreq = 150 + (state.morph * 3000) + (state.n * 20);
+                noiseFilter.frequency.setTargetAtTime(filterFreq, now, 0.05);
+                const root = 55.00 + (state.morph * 15);
+                drone.frequency.setTargetAtTime(root, now, 0.05);
+                overtone.frequency.setTargetAtTime(root * 2.01, now, 0.05);
+                master.gain.setTargetAtTime(0.05 + (state.morph * 0.03), now, 0.05);
+            }
+
+            soundBtn.addEventListener('click', async () => {
+                setupSound();
+                if (ctx.state === 'suspended') await ctx.resume();
+                state.sound = !state.sound;
+                soundBtn.dataset.on = state.sound;
+                if (!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+                else updateSound();
+            });
+
+            loopBtn.addEventListener('click', () => {
+                state.looping = !state.looping;
+                loopBtn.dataset.on = state.looping;
+            });
+
+            resetBtn.addEventListener('click', () => {
+                state.n = 4; state.morph = 0; state.looping = false; loopBtn.dataset.on = false;
+                state.activeSliceId = null; inspector.classList.add('hidden');
+                updateSound(); updateDraw();
+            });
+
+            function tick(t) {
+                state.time = t;
+                if (state.looping && !state.dragging) {
+                    state.morph = (Math.sin(t * 0.0006) + 1) / 2;
+                    updateSound();
+                    updateDraw();
+                }
+                requestAnimationFrame(tick);
+            }
+
+            buildSVG();
+            updateDraw();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

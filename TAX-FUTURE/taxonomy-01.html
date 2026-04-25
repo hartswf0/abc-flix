@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures · Area-Conserving Compilation</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #222222;
+    --muted: rgba(34, 34, 34, 0.56);
+    --faint: rgba(34, 34, 34, 0.14);
+    --paper: rgba(255, 255, 255, 0.95);
+    --grid: rgba(34, 34, 34, 0.04);
+
+    --c-pos: #d3dfd2;
+    --c-pla: #a6c6a2;
+    --c-pro: #77d14b;
+    --c-pre: #d2f23a;
+    --hot: #77d14b;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  body { touch-action: none; }
+
+  #app {
+    position: fixed; inset: 0; display: grid; grid-template-rows: 1fr auto;
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  main { position: relative; min-height: 0; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: ew-resize; }
+
+  .title-block {
+    position: absolute; top: 8%; left: 4.5%;
+    pointer-events: none; z-index: 10;
+  }
+  .title {
+    font-size: clamp(22px, 2.8vw, 36px); font-weight: 300;
+    letter-spacing: 0.15em; line-height: 1.3; color: var(--ink);
+    text-transform: uppercase;
+  }
+  .credit {
+    font-size: 11px; color: #777; margin-top: 8px; font-weight: 400; line-height: 1.5;
+  }
+  .credit i { font-style: italic; }
+
+  .slice {
+    stroke: rgba(255,255,255,0.4);
+    stroke-width: 0.5px;
+    stroke-linejoin: round;
+    pointer-events: all;
+    transition: stroke 0.12s, stroke-width 0.12s;
+  }
+  .slice:hover {
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+  }
+
+  footer {
+    display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+    padding: 10px max(16px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-right));
+    border-top: 1px solid var(--faint); background: var(--paper); backdrop-filter: blur(8px);
+    z-index: 20;
+  }
+
+  .controls { display: grid; grid-auto-flow: column; gap: 12px 20px; align-items: end; }
+  .group { display: grid; gap: 4px; }
+  .group label { font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  input[type="range"] { width: 140px; accent-color: var(--hot); cursor: pointer; }
+
+  button {
+    min-height: 32px; padding: 0 12px; border: 1px solid var(--faint); background: transparent; color: var(--ink);
+    font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; font-weight: 700; border-radius: 4px !important;
+  }
+  button[data-on="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .meta { display: grid; grid-auto-flow: column; gap: 14px 24px; align-items: center; }
+  .legend { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 14px; align-items: center; }
+  .legendItem { display: grid; grid-template-columns: 9px auto; gap: 7px; align-items: center; font-size: 11px; white-space: nowrap; text-transform: uppercase; cursor: pointer; font-weight: 600; color: var(--muted); transition: color 0.2s; }
+  .legendItem.active, .legendItem:hover { color: var(--ink); }
+  .sw { width: 9px; height: 9px; border-radius: 2px !important; }
+
+  .readout { display: grid; grid-auto-flow: column; gap: 18px; align-items: center; border-left: 1px solid var(--faint); padding-left: 18px; }
+  .readout span { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; font-weight: 700; }
+  .readout strong { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+  .readout .invariant { color: var(--hot); }
+
+  @media (max-width: 1080px) {
+    footer { grid-template-columns: 1fr; gap: 10px; }
+    .controls { grid-template-columns: 1fr 1fr; grid-auto-flow: row; }
+    .meta { grid-template-columns: 1fr; grid-auto-flow: row; justify-items: start; gap: 12px; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .readout { grid-template-columns: repeat(5, auto); grid-auto-flow: row; border-left: none; padding-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="field">
+    <div class="title-block">
+      <div class="title">A Taxonomy<br>Of Futures</div>
+      <div class="credit">
+        Redrawn from <i>Speculative Everything</i> redrawing Stuart Candy<br>
+        <span style="color: #444; font-weight: 600;">Circle → Cone → Timeline → Closure. Area conserved. Form changes, measure holds.</span>
+      </div>
+    </div>
+    <svg id="svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid meet"></svg>
+  </main>
+
+  <footer>
+    <div class="controls">
+      <div class="group">
+        <label for="progress">Compile Time</label>
+        <input id="progress" type="range" min="0" max="1000" value="0" />
+      </div>
+      <div class="group">
+        <label for="density">Slice Density</label>
+        <input id="density" type="range" min="6" max="24" value="12" />
+      </div>
+      <div class="group"><label>Animate</label><button id="loopBtn">Auto</button></div>
+      <div class="group"><label>Audio</label><button id="soundBtn">Sound</button></div>
+    </div>
+
+    <div class="meta">
+      <div class="legend" id="legend">
+        <div class="legendItem active" data-idx="0"><span class="sw" style="background:var(--c-pos)"></span><span>Possible</span></div>
+        <div class="legendItem" data-idx="1"><span class="sw" style="background:var(--c-pla)"></span><span>Plausible</span></div>
+        <div class="legendItem" data-idx="2"><span class="sw" style="background:var(--c-pro)"></span><span>Probable</span></div>
+        <div class="legendItem" data-idx="3"><span class="sw" style="background:var(--c-pre)"></span><span>Preferable</span></div>
+      </div>
+      <div class="readout">
+        <div><span>Selection</span><strong id="rName">Possible</strong></div>
+        <div><span>Slices</span><strong id="rSlices">19</strong></div>
+        <div><span>Angle</span><strong id="rAngle">18.9°</strong></div>
+        <div><span>Phase</span><strong id="rPhase">Radial</strong></div>
+        <div><span>Area</span><strong id="rArea" class="invariant">πr²</strong></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const progressEl = document.getElementById('progress');
+  const densityEl = document.getElementById('density');
+  const loopBtn = document.getElementById('loopBtn');
+  const soundBtn = document.getElementById('soundBtn');
+
+  const rName = document.getElementById('rName');
+  const rSlices = document.getElementById('rSlices');
+  const rAngle = document.getElementById('rAngle');
+  const rPhase = document.getElementById('rPhase');
+  const rArea = document.getElementById('rArea');
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // ──────────────────────────────────────────────
+  // TOPOLOGICAL COORDINATE MAP
+  //
+  // Four phases of the same area:
+  //   Phase 0: RADIAL  — wedge sectors of a circle (interpretative flexibility)
+  //   Phase 1: CONE    — wedges stretched into expanding futures cone (projections)
+  //   Phase 2: FLAT    — sectors rearranged into rectangles (parallel contested timelines)
+  //   Phase 3: CLOSURE — rectangles compressed to shared y-coordinate (technological closure)
+  //
+  // Area is invariant across all four phases.
+  // ──────────────────────────────────────────────
+
+  const R = 70;
+  const CONE_APEX_X = 420;    // shared cone apex
+  const CONE_END_X = 720;     // right edge of cones
+  const FLAT_CX = 1000;       // center of flat timeline blocks
+  const FLAT_W = 240;         // width of flat rectangle
+  const FLAT_H = 55;          // height of flat rectangle
+  const CLOSURE_Y = 450;      // all tracks collapse to this Y
+
+  const L_SIDES = 8;  // interpolation samples per edge
+  const L_ARC = 10;   // interpolation samples per arc/curve
+
+  const rows = [
+    {
+      name: 'possible', color: 'var(--c-pos)', fill: '#d3dfd2',
+      circleY: 160, coneTop: 90, coneBot: 810, mult: 1.6,
+      desc: 'All futures not violating the laws of physics.'
+    },
+    {
+      name: 'plausible', color: 'var(--c-pla)', fill: '#a6c6a2',
+      circleY: 340, coneTop: 210, coneBot: 690, mult: 1.2,
+      desc: 'Futures achievable under current social mechanics.'
+    },
+    {
+      name: 'probable', color: 'var(--c-pro)', fill: '#77d14b',
+      circleY: 520, coneTop: 350, coneBot: 550, mult: 0.8,
+      desc: 'Business-as-usual. Where current momentum leads.'
+    },
+    {
+      name: 'preferable', color: 'var(--c-pre)', fill: '#d2f23a',
+      circleY: 700, coneTop: 380, coneBot: 580, mult: 1.0,
+      desc: 'Normative. What should happen. Cuts across probabilities.'
+    }
+  ];
+
+  const state = { progress: 0, base: 12, active: 0, loop: false, sound: false, dragging: false, time: 0 };
+  let ctx, master, drone, overtone, filter, pulseGain;
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = t => t * t * (3 - 2 * t);
+
+  function el(tag, attrs = {}) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function polar(cx, cy, r, a) { return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; }
+  function mixPt(A, B, t) { return { x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t) }; }
+  function pathStr(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z'; }
+
+  function counts() { return rows.map(r => Math.max(4, Math.round(state.base * r.mult))); }
+
+  // ──────────────────────────────────────────────
+  // FOUR PHASE SHAPE FUNCTIONS
+  // Each returns the same number of control points
+  // so they can be linearly interpolated.
+  // ──────────────────────────────────────────────
+
+  function getShapePoints(row, i, n, phase) {
+    const CX = 180; // circle center X (all circles same X)
+    const CY = row.circleY;
+    let A, B, C, D;
+    let isArc = false, arcCX, arcCY, arcT1, arcT2;
+
+    if (phase === 0) {
+      // RADIAL: Wedge sector of circle
+      const t1 = -Math.PI / 2 + i * (2 * Math.PI / n);
+      const t2 = -Math.PI / 2 + (i + 1) * (2 * Math.PI / n);
+      A = { x: CX, y: CY };
+      B = polar(CX, CY, R, t1);
+      C = polar(CX, CY, R, t2);
+      D = { x: CX, y: CY };
+      isArc = true;
+      arcCX = CX; arcCY = CY; arcT1 = t1; arcT2 = t2;
+
+    } else if (phase === 1) {
+      // CONE: Wedge stretched from apex to cone base
+      const squeeze = 6;
+      const ly0 = CY - squeeze / 2 + i * (squeeze / n);
+      const ly1 = CY - squeeze / 2 + (i + 1) * (squeeze / n);
+      const ry0 = row.coneTop + i * ((row.coneBot - row.coneTop) / n);
+      const ry1 = row.coneTop + (i + 1) * ((row.coneBot - row.coneTop) / n);
+      A = { x: CONE_APEX_X, y: ly0 };
+      B = { x: CONE_END_X, y: ry0 };
+      C = { x: CONE_END_X, y: ry1 };
+      D = { x: CONE_APEX_X, y: ly1 };
+
+    } else if (phase === 2) {
+      // FLAT: Sectors rearranged into rectangle (Archimedes proof)
+      const sx0 = FLAT_CX - FLAT_W / 2 + i * (FLAT_W / n);
+      const sx1 = FLAT_CX - FLAT_W / 2 + (i + 1) * (FLAT_W / n);
+      const y0 = CY - FLAT_H / 2;
+      const y1 = CY + FLAT_H / 2;
+      A = { x: sx0, y: y0 };
+      B = { x: sx1, y: y0 };
+      C = { x: sx1, y: y1 };
+      D = { x: sx0, y: y1 };
+
+    } else {
+      // CLOSURE: Same rectangle, but all at CLOSURE_Y
+      const sx0 = FLAT_CX - FLAT_W / 2 + i * (FLAT_W / n);
+      const sx1 = FLAT_CX - FLAT_W / 2 + (i + 1) * (FLAT_W / n);
+      const y0 = CLOSURE_Y - FLAT_H / 2;
+      const y1 = CLOSURE_Y + FLAT_H / 2;
+      A = { x: sx0, y: y0 };
+      B = { x: sx1, y: y0 };
+      C = { x: sx1, y: y1 };
+      D = { x: sx0, y: y1 };
+    }
+
+    // Sample edges uniformly to get matchable point arrays
+    const pts = [];
+
+    // Edge A→B
+    for (let j = 0; j < L_SIDES; j++) pts.push(mixPt(A, B, j / L_SIDES));
+
+    // Edge B→C (arc if phase 0)
+    for (let j = 0; j < L_ARC; j++) {
+      if (isArc) {
+        pts.push(polar(arcCX, arcCY, R, lerp(arcT1, arcT2, j / L_ARC)));
+      } else {
+        pts.push(mixPt(B, C, j / L_ARC));
+      }
+    }
+
+    // Edge C→D
+    for (let j = 0; j < L_SIDES; j++) pts.push(mixPt(C, D, j / L_SIDES));
+
+    // Edge D→A
+    for (let j = 0; j < L_ARC; j++) pts.push(mixPt(D, A, j / L_ARC));
+
+    return pts;
+  }
+
+  // Blend between phases with easing
+  function getBlendedPoints(row, i, n, m) {
+    const ease = t => t * t * (3 - 2 * t);
+
+    if (m <= 1 / 3) {
+      const p0 = getShapePoints(row, i, n, 0);
+      const p1 = getShapePoints(row, i, n, 1);
+      const t = ease(m * 3);
+      return p0.map((p, idx) => mixPt(p, p1[idx], t));
+    } else if (m <= 2 / 3) {
+      const p1 = getShapePoints(row, i, n, 1);
+      const p2 = getShapePoints(row, i, n, 2);
+      const t = ease((m - 1 / 3) * 3);
+      return p1.map((p, idx) => mixPt(p, p2[idx], t));
+    } else {
+      const p2 = getShapePoints(row, i, n, 2);
+      const p3 = getShapePoints(row, i, n, 3);
+      const t = ease((m - 2 / 3) * 3);
+      return p2.map((p, idx) => mixPt(p, p3[idx], t));
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // SCAFFOLD
+  // ──────────────────────────────────────────────
+
+  function textSvg(x, y, s, size = 11, anchor = 'middle', weight = '700', op = 1, color = null) {
+    const t = el('text', { x, y, fill: color || `rgba(34,34,34,${op})`, 'font-size': size, 'font-weight': weight, 'text-anchor': anchor, 'font-family': 'inherit' });
+    t.textContent = s;
+    return t;
+  }
+
+  function lineSvg(x1, y1, x2, y2, op = 0.15, dash = '2 4') {
+    return el('line', { x1, y1, x2, y2, stroke: `rgba(34,34,34,${op})`, 'stroke-width': 1, 'stroke-dasharray': dash, 'vector-effect': 'non-scaling-stroke' });
+  }
+
+  function drawScaffold(m) {
+    const sg = el('g');
+
+    // Phase column markers
+    sg.appendChild(lineSvg(180, 0, 180, 900, 0.12));
+    sg.appendChild(lineSvg(CONE_APEX_X, 0, CONE_APEX_X, 900, 0.12));
+    sg.appendChild(lineSvg(CONE_END_X, 0, CONE_END_X, 900, 0.12));
+
+    const blockL = FLAT_CX - FLAT_W / 2;
+    const blockR = FLAT_CX + FLAT_W / 2;
+    sg.appendChild(lineSvg(blockL, 0, blockL, 900, 0.10));
+    sg.appendChild(lineSvg(blockR, 0, blockR, 900, 0.10));
+
+    // Phase headers
+    sg.appendChild(textSvg(180, 28, '01: RADIAL FLEXIBILITY', 9, 'middle', '700', 0.4));
+    sg.appendChild(textSvg((CONE_APEX_X + CONE_END_X) / 2, 28, '02: CONE PROJECTIONS', 9, 'middle', '700', 0.4));
+    sg.appendChild(textSvg(FLAT_CX, 28, '03: FLAT TIMELINES → 04: CLOSURE', 9, 'middle', '700', 0.4));
+
+    // Row reference lines (faint)
+    rows.forEach(row => {
+      sg.appendChild(lineSvg(0, row.circleY, CONE_END_X, row.circleY, 0.06, ''));
+    });
+
+    // Flat timeline boxes appear during phase 2/3
+    if (m > 0.25 && m < 0.75) {
+      const op = clamp((m - 0.25) * 4, 0, 1) * clamp((0.75 - m) * 4, 0, 1);
+      rows.forEach(row => {
+        sg.appendChild(el('rect', {
+          x: blockL, y: row.circleY - FLAT_H / 2, width: FLAT_W, height: FLAT_H,
+          fill: 'none', stroke: `rgba(34,34,34,${op * 0.3})`, 'stroke-width': 1
+        }));
+      });
+    }
+
+    // Closure box
+    if (m > 0.6) {
+      const op = clamp((m - 0.6) * 2.5, 0, 1);
+      sg.appendChild(el('rect', {
+        x: blockL, y: CLOSURE_Y - FLAT_H / 2, width: FLAT_W, height: FLAT_H,
+        fill: 'none', stroke: '#77d14b', 'stroke-width': 1.5, opacity: op
+      }));
+      sg.appendChild(textSvg(FLAT_CX, CLOSURE_Y - FLAT_H / 2 - 24, 'CLOSURE: ALL FUTURES COLLAPSE', 10, 'middle', '800', op, '#77d14b'));
+    }
+
+    // Convergence guides during closure phase
+    if (m > 0.6 && m < 1.0) {
+      const collapseOp = clamp((m - 0.6) * 2.5, 0, 0.25);
+      rows.forEach(row => {
+        sg.appendChild(lineSvg(FLAT_CX, row.circleY, FLAT_CX, CLOSURE_Y, collapseOp, '2 4'));
+      });
+    }
+
+    // Row labels
+    rows.forEach((row, idx) => {
+      const n = counts()[idx];
+      const isActive = idx === state.active;
+      sg.appendChild(textSvg(20, row.circleY - 12, row.name.toUpperCase(), 11, 'start', isActive ? '800' : '600', isActive ? 1 : 0.5));
+      sg.appendChild(textSvg(20, row.circleY + 4, `${n} slices · A = ${Math.round(Math.PI * R * R * row.mult / 10)}`, 9, 'start', '400', 0.4));
+
+      // Circle ghost
+      sg.appendChild(el('circle', {
+        cx: 180, cy: row.circleY, r: R,
+        fill: 'none', stroke: `rgba(34,34,34,${clamp(0.12 * (1 - m * 1.5), 0, 0.12)})`,
+        'stroke-width': 1, 'vector-effect': 'non-scaling-stroke'
+      }));
+    });
+
+    // Area invariant annotation
+    const areaOp = 0.15 + Math.abs(m - 0.5) * 0.1;
+    sg.appendChild(textSvg(720, 870, 'AREA CONSERVED: FORM CHANGES · MEASURE HOLDS', 11, 'middle', '700', areaOp));
+    sg.appendChild(textSvg(720, 888, 'A = πr² = ½C r (Archimedes)', 10, 'middle', '400', areaOp * 0.7));
+
+    return sg;
+  }
+
+  // ──────────────────────────────────────────────
+  // MAIN DRAW
+  // ──────────────────────────────────────────────
+
+  function draw() {
+    svg.innerHTML = '';
+    const { progress: m, base } = state;
+    const ns = counts();
+    let totalSlices = 0;
+
+    svg.appendChild(el('rect', { x: 0, y: 0, width: 1440, height: 900, fill: 'transparent' }));
+    svg.appendChild(drawScaffold(m));
+
+    // Draw each row's slices
+    rows.forEach((row, rowIdx) => {
+      const n = ns[rowIdx];
+      totalSlices += n;
+      const isActive = rowIdx === state.active;
+
+      const group = el('g', { class: 'row-group' });
+
+      for (let i = 0; i < n; i++) {
+        const pts = getBlendedPoints(row, i, n, m);
+        const pathEl = el('path', {
+          class: 'slice',
+          d: pathStr(pts),
+          fill: row.fill,
+          'fill-opacity': isActive ? 0.85 : 0.6,
+          stroke: isActive ? `rgba(34,34,34,${0.3 + m * 0.3})` : `rgba(255,255,255,${0.3 + m * 0.2})`,
+          'stroke-width': m > 0.9 ? 0.4 : 0.7,
+          'vector-effect': 'non-scaling-stroke'
+        });
+        pathEl.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          state.active = rowIdx;
+          updateUI(); draw();
+        });
+        group.appendChild(pathEl);
+      }
+
+      // Cone apex node (phases 1-2)
+      if (m > 0.1 && m < 0.7) {
+        group.appendChild(el('rect', {
+          x: CONE_APEX_X - 2, y: row.circleY - 2, width: 4, height: 4,
+          fill: 'var(--bg)', stroke: 'var(--ink)', 'stroke-width': 1
+        }));
+      }
+
+      // Convergence trail during closure
+      if (m > 0.6) {
+        const t = smooth(clamp((m - 2 / 3) * 3, 0, 1));
+        const nodeY = lerp(row.circleY, CLOSURE_Y, t);
+        const nodeX = FLAT_CX;
+
+        // Trail from row position to closure
+        const op = clamp((m - 0.6) * 3, 0, 0.4);
+        group.appendChild(el('line', {
+          x1: nodeX, y1: row.circleY, x2: nodeX, y2: nodeY,
+          stroke: row.fill, 'stroke-width': 2, opacity: op,
+          'stroke-dasharray': '2 4'
+        }));
+
+        // Moving dot
+        const isWinner = (rowIdx === 3); // "preferable" wins closure
+        group.appendChild(el('circle', {
+          cx: nodeX, cy: nodeY, r: isWinner ? 6 : 4,
+          fill: isWinner ? '#77d14b' : 'var(--bg)',
+          stroke: isWinner ? 'var(--bg)' : 'var(--ink)',
+          'stroke-width': 2
+        }));
+
+        if (isWinner) {
+          const pulseR = 8 + Math.sin(state.time * 0.005) * 3;
+          group.appendChild(el('circle', {
+            cx: nodeX, cy: nodeY, r: pulseR,
+            fill: 'none', stroke: '#77d14b', 'stroke-width': 1.5, opacity: 0.7
+          }));
+        }
+
+        // Label
+        if (m > 0.8) {
+          const label = isWinner ? 'STABILIZED' : 'ABSORBED';
+          group.appendChild(textSvg(nodeX + 12, nodeY + 4, `${label}: ${row.name}`, 9, 'start', isWinner ? '800' : '400', clamp((m - 0.8) * 5, 0, isWinner ? 1 : 0.4), isWinner ? '#77d14b' : null));
+        }
+      }
+
+      svg.appendChild(group);
+    });
+
+    // Present/Futures markers (appear during cone phase)
+    if (m > 0.05 && m < 0.45) {
+      const op = clamp(Math.sin(m * Math.PI * 3) * 0.6, 0, 0.6);
+      svg.appendChild(el('circle', { cx: CONE_APEX_X, cy: CLOSURE_Y, r: 4, fill: 'var(--ink)', opacity: op }));
+      svg.appendChild(textSvg(CONE_APEX_X - 12, CLOSURE_Y + 4, 'Present', 13, 'end', '600', op));
+      svg.appendChild(textSvg(CONE_END_X + 12, CLOSURE_Y + 4, 'Futures', 13, 'start', '600', op));
+    }
+
+    // Phase readout
+    if (m < 0.1) rPhase.textContent = 'Radial Slices';
+    else if (m < 0.35) rPhase.textContent = 'Cone Projections';
+    else if (m < 0.68) rPhase.textContent = 'Flat Timelines';
+    else rPhase.textContent = 'Closure';
+
+    // Area invariant display
+    const aRow = rows[state.active];
+    const area = Math.round(Math.PI * R * R * aRow.mult / 10);
+    rArea.textContent = `${area} (πr²)`;
+
+    progressEl.value = Math.round(m * 1000);
+    densityEl.value = state.base;
+  }
+
+  function updateUI() {
+    const row = rows[state.active];
+    const n = counts()[state.active];
+    rName.textContent = row.name.charAt(0).toUpperCase() + row.name.slice(1);
+    rSlices.textContent = n;
+    rAngle.textContent = (360 / n).toFixed(1) + '°';
+
+    document.querySelectorAll('.legendItem').forEach((item, i) => {
+      item.classList.toggle('active', i === state.active);
+    });
+  }
+
+  // ──────────────────────────────────────────────
+  // INTERACTION
+  // ──────────────────────────────────────────────
+
+  function scrub(clientX, clientY) {
+    const rect = field.getBoundingClientRect();
+    state.progress = clamp((clientX - rect.left) / rect.width, 0, 1);
+    const y = clamp((clientY - rect.top) / rect.height, 0, 1);
+    const raw = 4 + (1 - y) * 20;
+    state.base = Math.max(6, Math.round(raw));
+    updateSound(true);
+    draw();
+  }
+
+  progressEl.addEventListener('input', () => { state.progress = Number(progressEl.value) / 1000; updateSound(true); draw(); });
+  densityEl.addEventListener('input', () => { state.base = Number(densityEl.value); updateSound(true); draw(); });
+
+  field.addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('slice')) return;
+    state.dragging = true; field.setPointerCapture(e.pointerId);
+    scrub(e.clientX, e.clientY);
+  });
+  field.addEventListener('pointermove', e => { if (state.dragging) scrub(e.clientX, e.clientY); });
+  field.addEventListener('pointerup', e => { state.dragging = false; try { field.releasePointerCapture(e.pointerId); } catch (_) {} });
+  field.addEventListener('pointercancel', () => state.dragging = false);
+
+  document.querySelectorAll('.legendItem').forEach(item => {
+    item.addEventListener('click', () => {
+      state.active = parseInt(item.getAttribute('data-idx'));
+      updateUI(); updateSound(true); draw();
+    });
+  });
+
+  loopBtn.addEventListener('click', () => {
+    state.loop = !state.loop;
+    loopBtn.dataset.on = state.loop;
+  });
+
+  // ──────────────────────────────────────────────
+  // AUDIO ENGINE
+  // ──────────────────────────────────────────────
+
+  function setupSound() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    drone = ctx.createOscillator();
+    overtone = ctx.createOscillator();
+    pulseGain = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    master = ctx.createGain();
+
+    drone.type = 'sine'; overtone.type = 'triangle'; filter.type = 'lowpass';
+    drone.frequency.value = 92; overtone.frequency.value = 138; filter.frequency.value = 900;
+    master.gain.value = 0; pulseGain.gain.value = 0;
+
+    drone.connect(filter);
+    overtone.connect(pulseGain).connect(filter);
+    filter.connect(master).connect(ctx.destination);
+    drone.start(); overtone.start();
+  }
+
+  function updateSound(ping = false) {
+    if (!ctx || !state.sound) return;
+    const now = ctx.currentTime;
+    const root = 84 + state.active * 22 + state.progress * 72;
+
+    drone.frequency.setTargetAtTime(root, now, .03);
+    overtone.frequency.setTargetAtTime(root * (1.38 + state.base / 48), now, .03);
+    filter.frequency.setTargetAtTime(320 + state.base * 52 + state.progress * 1380, now, .05);
+    master.gain.setTargetAtTime(0.018 + state.progress * 0.02, now, .05);
+
+    if (ping) {
+      pulseGain.gain.cancelScheduledValues(now);
+      pulseGain.gain.setValueAtTime(.0001, now);
+      pulseGain.gain.exponentialRampToValueAtTime(.05, now + .015);
+      pulseGain.gain.exponentialRampToValueAtTime(.0001, now + .13);
+    }
+  }
+
+  soundBtn.addEventListener('click', async () => {
+    setupSound();
+    if (ctx.state === 'suspended') await ctx.resume();
+    state.sound = !state.sound;
+    soundBtn.dataset.on = state.sound;
+    if (!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, .03);
+    updateSound(true);
+  });
+
+  // ──────────────────────────────────────────────
+  // LOOP
+  // ──────────────────────────────────────────────
+
+  function tick(t) {
+    state.time = t;
+    if (state.loop && !state.dragging) {
+      const tt = t * 0.00016;
+      state.progress = (Math.sin(tt) + 1) / 2;
+      state.base = Math.round(6 + ((Math.sin(tt * 0.91 + 1.2) + 1) / 2) * 18);
+      densityEl.value = state.base;
+
+      const newActive = Math.floor(((Math.sin(tt * 0.55 + 0.4) + 1) / 2) * 3.999);
+      if (newActive !== state.active) { state.active = newActive; updateUI(); }
+
+      updateSound(false);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  draw();
+  updateUI();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

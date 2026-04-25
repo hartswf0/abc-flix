@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>Taxonomy of Bicycle Futures — Unified Engine</title>
+<style>
+:root{--bg:#030506;--ink:#eef4ef;--dim:rgba(238,244,239,.52);--ghost:rgba(238,244,239,.08);--hot:#8df3e7;
+--c-possible:18,220,160;--c-plausible:92,202,215;--c-probable:150,196,197;--c-preferable:226,214,192;
+--c-closure:46,125,50}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+body{touch-action:none;user-select:none;
+background:radial-gradient(circle at 50% 42%,rgba(141,243,231,.04),transparent 42%),linear-gradient(180deg,#030506,#000)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+
+.chrome{position:fixed;z-index:5;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+gap:10px;padding:12px 16px;pointer-events:none;color:var(--dim);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.chrome.top{top:0}.chrome.bottom{bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.mark{color:var(--ink);font-weight:800;font-size:12px}
+.controls{display:flex;gap:6px;pointer-events:auto}
+button{appearance:none;background:rgba(255,255,255,.02);border:1px solid var(--ghost);color:var(--dim);
+border-radius:999px;min-height:32px;padding:0 11px;font:inherit;font-size:9px;letter-spacing:.14em;
+text-transform:uppercase;cursor:pointer;transition:all .12s}
+button:hover,button.active{border-color:rgba(141,243,231,.5);color:var(--hot)}
+
+#hud{position:fixed;z-index:30;pointer-events:none;display:none;
+background:rgba(8,8,8,.94);backdrop-filter:blur(8px);border:1px solid rgba(141,243,231,.35);
+padding:14px 16px;width:300px;box-shadow:4px 4px 0 rgba(0,0,0,.3);font-size:11px;line-height:1.45}
+.hud-band{font-weight:800;color:var(--hot);margin-bottom:4px;letter-spacing:.08em}
+.hud-name{font-weight:700;font-size:13px;margin-bottom:6px;color:#fff}
+.hud-dim{opacity:.65;font-size:10px}
+.hud-sep{border-top:1px dashed rgba(255,255,255,.15);margin:6px 0}
+
+#inspector{position:fixed;z-index:25;right:16px;bottom:64px;width:340px;display:none;
+background:rgba(12,12,12,.96);backdrop-filter:blur(10px);border:1px solid rgba(141,243,231,.2);
+box-shadow:6px 6px 0 rgba(0,0,0,.3);font-size:11px;flex-direction:column}
+.ins-head{background:rgba(141,243,231,.12);padding:10px 14px;font-weight:800;font-size:11px;
+letter-spacing:.08em;display:flex;justify-content:space-between;align-items:center}
+.ins-body{padding:14px;display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto}
+.ins-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);padding:10px 12px}
+.ins-label{font-size:9px;font-weight:700;color:var(--hot);letter-spacing:.1em;margin-bottom:4px;text-transform:uppercase}
+.ins-val{font-size:12px;line-height:1.4;color:rgba(238,244,239,.85)}
+.ins-status{font-size:10px;font-weight:700;color:var(--hot);padding-top:8px;border-top:1px dashed rgba(255,255,255,.12)}
+.ins-close{background:none;border:none;color:var(--hot);cursor:pointer;font:inherit;font-size:11px;padding:0}
+
+@media(max-width:760px){
+.chrome{font-size:8px;padding:8px 10px}
+#inspector{left:8px;right:8px;width:auto;bottom:52px}
+#hud{display:none!important}
+button{font-size:8px;min-height:28px;padding:0 8px}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="chrome top">
+  <div><span class="mark">Taxonomy of Bicycle Futures</span> · MNTAF refraction engine</div>
+  <div class="controls">
+    <button id="loopBtn">loop</button>
+    <button id="soundBtn">audio</button>
+    <button id="resetBtn">reset</button>
+  </div>
+</div>
+<div class="chrome bottom">
+  <div>drag x: morph · drag y: density</div>
+  <div id="read">0%</div>
+</div>
+
+<div id="hud">
+  <div class="hud-band" id="hudBand">--</div>
+  <div class="hud-name" id="hudName">--</div>
+  <div class="hud-sep"></div>
+  <div class="hud-dim" id="hudActor">--</div>
+  <div class="hud-dim" id="hudSeeAs">--</div>
+  <div class="hud-sep"></div>
+  <div class="hud-dim" id="hudBelief">--</div>
+</div>
+
+<div id="inspector">
+  <div class="ins-head">
+    <span id="insTitle">--</span>
+    <button class="ins-close" id="insClose">✕</button>
+  </div>
+  <div class="ins-body" id="insBody"></div>
+</div>
+
+<script>
+(() => {
+const canvas = document.getElementById('c');
+const g = canvas.getContext('2d');
+const read = document.getElementById('read');
+const loopBtn = document.getElementById('loopBtn');
+const soundBtn = document.getElementById('soundBtn');
+const resetBtn = document.getElementById('resetBtn');
+const hudEl = document.getElementById('hud');
+const insEl = document.getElementById('inspector');
+
+// ──── MNTAF BICYCLE DATABASE (from bone-00) ────
+
+function bike(id,name,artifact,belief,problem,actors){
+  const p = inferActor(id,name,artifact,belief,problem,actors);
+  return {id,name,artifact,practice:inferPractice(name),belief,scot:problem,ant:actors,
+    actor:p.actor,actorType:p.actorType,seeingAs:p.seeingAs,actorBelief:p.actorBelief,
+    desire:p.desire,intent:p.intent,closure:inferClosure(id)};
+}
+
+function inferActor(id,name,artifact,belief,problem,actors){
+  const l=name.toLowerCase();
+  let actor='experimental riders',actorType='early adopter',seeingAs='an unresolved bicycle possibility',
+      actorBelief=belief,desire='discover what this form makes possible',intent='test body-machine-street relation';
+  if(/cargo|mule|delivery/.test(l)){actor=/coop/.test(l)?'worker-owned delivery riders':'families, couriers, load-carriers';actorType='load-bearing';seeingAs='car-replacement or labor-support';actorBelief='bicycles carry care, work, children, food';desire='move heavy/precious things without car';intent='adopt cargo geometry when dependable';}
+  else if(/commuter|city|school|light|gravel/.test(l)){actor=/school/.test(l)?'parents + school communities':'daily urban commuters';actorType='routine rider';seeingAs='practical daily mobility appliance';actorBelief='bicycle becomes real when it fits routines';desire='arrive safely, cheaply, predictably';intent='choose bike when it beats friction + time pressure';}
+  else if(/step|elder|inclusive|walking|adaptive/.test(l)){actor=/elder/.test(l)?'elder riders + caregivers':'excluded/non-default bodies';actorType='access-centered';seeingAs='inclusion technology';actorBelief='design should bend toward bodies';desire='ride without gatekeeping or balance anxiety';intent='stabilize frame geometry around dignity';}
+  else if(/open|local|repair|tool|low waste|self-healer/.test(l)){actor=/local/.test(l)?'local builders + repair communities':'mechanics + right-to-repair advocates';actorType='maintenance actor';seeingAs='durable knowledge object';actorBelief='better when parts and repairs remain legible';desire='reduce proprietary dependency';intent='make repair part of the artifact';}
+  else if(/fleet|library|community|public|swarm/.test(l)){actor=/public/.test(l)?'municipal mobility stewards':'commons organizers';actorType='governance actor';seeingAs='shared infrastructure';actorBelief='mobility improves with social organization';desire='spread access, keep responsibility visible';intent='build stewardship systems around the bike';}
+  else if(/battery|solar|e-bike|smart|sensor|tracker|lock|app|lease/.test(l)){actor=/app|lease/.test(l)?'platform operators':'tech-enabled riders + producers';actorType='platform/electrification';seeingAs='friction-reduction interface';actorBelief='adoption rises when friction is engineered away';desire='make cycling easier, faster, trackable';intent='translate problems into batteries + sensors + services';}
+  else if(/bone|morph/.test(l)){actor=/bone/.test(l)?'sport riders + historians':'speculative designers';actorType='speculative/historical';seeingAs='strange form reopening closed paths';actorBelief='discarded histories can become future experiments';desire='recover lost geometry, danger, play';intent='use prototypes to expose hidden assumptions';}
+  else if(/weather|flood/.test(l)){actor='climate-stressed riders + city planners';actorType='climate adaptation';seeingAs='mobility for disruption';actorBelief='future bikes must survive weather';desire='keep moving when climate breaks transport';intent='harden bike around continuity + emergency usefulness';}
+  else if(/clinic/.test(l)){actor='community health workers';actorType='care actor';seeingAs='mobile care platform';actorBelief='health access can move through streets';desire='bring care to people where they are';intent='stabilize bicycle as care infrastructure';}
+  return {actor,actorType,seeingAs,actorBelief,desire,intent};
+}
+function inferPractice(n){
+  if(/Cargo|Mule|Farm|Clinic/.test(n))return 'moving loads, care, deliveries';
+  if(/Elder|Step|Inclusive|Walking/.test(n))return 'lower-barrier riding for more bodies';
+  if(/Fleet|Library|Community|Coop|Public/.test(n))return 'shared use + governance';
+  if(/Commuter|City|Light|School/.test(n))return 'daily streets + urban infrastructure';
+  return 'experimental practice around unresolved bicycle problem';
+}
+function inferClosure(id){
+  if(id.startsWith('possible'))return 'open artifact imagination; not yet stabilized';
+  if(id.startsWith('plausible'))return 'technically coherent but not socially closed';
+  if(id.startsWith('probable'))return 'reinforced by markets, infrastructure, habits';
+  if(id.endsWith('-20'))return 'selected pathway: preferred closure candidate';
+  return 'value-aligned but needs institutional commitment';
+}
+
+const BANDS = [
+  { key:'possible', name:'POSSIBLE', sub:'Morphology Space', hue:[18,220,160],
+    bikes:[
+      bike('possible-01','Morph Frame','Self-changing geometry','Experimental artifact logic','shape-shifting frame','AI frame, sensors, intent'),
+      bike('possible-02','Swarm Bike','Fleet rides as organism','Networked mobility','collective routing + shared ownership','mesh fleet, protocols'),
+      bike('possible-03','Bone Echo','High-wheel remix','Speed as spectacle','Penny Farthing returns as sport','large wheel, gyro, risk culture'),
+      bike('possible-04','Self-Healer','Material repairs itself','Maintenance disappears','repair solved by material agency','polymer skin, weather'),
+      bike('possible-05','Walking Wheel','Bike folds into walker','Mobility across bodies','elder access becomes hybrid tool','joints, cargo, cane logic')
+    ]},
+  { key:'plausible', name:'PLAUSIBLE', sub:'Interpreted by Groups', hue:[92,202,215],
+    bikes:[
+      bike('plausible-01','Modular E-Bike','Replaceable power units','Repairable electrification','battery + maintenance problem','battery, shop, mount'),
+      bike('plausible-02','Swap Battery','Shared battery standard','Energy as public interface','charging friction','dock, battery, policy'),
+      bike('plausible-03','Smart City Bike','Sensing commuter bike','Infrastructure-aware riding','safety mediated by data','sensors, lanes, lights'),
+      bike('plausible-04','Solar Assist','Supplemental solar','Slow energy autonomy','range anxiety','panel, sun, controller'),
+      bike('plausible-05','Adaptive Fit','One bike many bodies','Frame as inclusion system','gender/age/body fit','seatpost, joints, memory'),
+      bike('plausible-06','Fold Micro','Apartment/train compatible','Storage as constraint','urban density problem','hinges, trains, elevators'),
+      bike('plausible-07','Suspension Utility','Comfort-first daily bike','Vibration as social barrier','vibration problem','fork, tire, spine, street'),
+      bike('plausible-08','Secure Lock Bike','Anti-theft embedded frame','Trust as adoption condition','theft problem','lock, registry, insurance')
+    ]},
+  { key:'probable', name:'PROBABLE', sub:'Stabilized by Feedback', hue:[150,196,197],
+    bikes:[
+      bike('probable-01','Commuter E-Bike','Default daily transport','Speed without sweat','commute distance','battery, office, road'),
+      bike('probable-02','Urban Cargo','Family/load transport','Car replacement','carrying-capacity','kids, groceries, curb'),
+      bike('probable-03','App Fleet Bike','Subscription mobility','Bike as platform','access without ownership','app, dock, payment'),
+      bike('probable-04','Delivery Mule','Workhorse courier','Labor logistics','last-mile delivery','worker, algorithm, box'),
+      bike('probable-05','Light City Bike','Cheap practical commuter','Ordinary reliability','basic mobility','frame, rack, lights'),
+      bike('probable-06','Integrated Lights','Visibility in frame','Safety as default','night safety','LEDs, battery, traffic'),
+      bike('probable-07','Theft Tracker','Findable bicycle','Security by traceability','theft/recovery','GPS, police, app'),
+      bike('probable-08','School Run Bike','Parent-child transport','Family logistics shift','school commute','child seat, lane, routine'),
+      bike('probable-09','Gravel Commuter','Mixed-road everyday','Adventure domesticated','road surface variety','tires, trails, asphalt'),
+      bike('probable-10','Compact Cargo','Small load bike','Apartment cargo compromise','storage/load tension','short wheelbase, basket'),
+      bike('probable-11','Lease E-Bike','Monthly mobility','Ownership becomes service','upfront cost','finance, repair plan'),
+      bike('probable-12','Safety Sensor','Alerting commuter','Risk as signals','collision anxiety','radar, bell, display')
+    ]},
+  { key:'preferable', name:'PREFERABLE', sub:'Value-Governed Futures', hue:[226,214,192],
+    bikes:[
+      bike('preferable-01','Open Standard','Open-source modular','Shared knowledge','proprietary repair','standards, manuals, shops'),
+      bike('preferable-02','Local Build','Local materials','Resilience over novelty','supply-chain dependence','workshop, timber, skills'),
+      bike('preferable-03','Step-Through','Accessible frame','No athletic gatekeeping','dress/age/mounting','frame geometry, clothing'),
+      bike('preferable-04','Community Cargo','Shared load bike','Commons mobility','car dependency','library, cargo, schedule'),
+      bike('preferable-05','Repair School','Bike designed to teach','Maintenance as literacy','deskilling/disposability','tools, manual, class'),
+      bike('preferable-06','Low Waste','Durable utility bike','Long life as value','planned obsolescence','standard parts, repair loop'),
+      bike('preferable-07','Inclusive Design','Adjustable for many','Plural bodies, one platform','body exclusion','fit range, modular contacts'),
+      bike('preferable-08','Public Fleet','Municipal fleet','Mobility as civic service','equity/access','city, depot, mechanic'),
+      bike('preferable-09','Weather Bike','Rain/cold ready','Comfort expands access','climate exposure','fenders, cover, tires'),
+      bike('preferable-10','No-App Bike','Usable without phone','Access not locked to platform','digital exclusion','mechanical lock, cash'),
+      bike('preferable-11','Cargo Coop','Worker-owned delivery','Labor dignity','algorithmic labor','coop, cargo, routes'),
+      bike('preferable-12','Child Safe','School-zone system','Safety around children','traffic danger','slow streets, flags'),
+      bike('preferable-13','Elder Glide','Stable low-speed','Aging as design center','balance/access','trike logic, low step'),
+      bike('preferable-14','Quiet Bike','Low-noise urban','Careful street presence','noise/aggression','tires, bell etiquette'),
+      bike('preferable-15','Tool Frame','Carries own repair kit','Autonomy in breakdown','maintenance access','tools, frame storage'),
+      bike('preferable-16','Library Bike','Borrowable utility','Shared access','ownership cost','cards, racks, steward'),
+      bike('preferable-17','Farm Link','Rural cargo bicycle','Post-car rural mobility','distance/load','trail, cargo, assist'),
+      bike('preferable-18','Clinic Bike','Health outreach cargo','Care moves locally','service access','medical kit, cooler'),
+      bike('preferable-19','Flood Bike','Climate-adapted utility','Mobility during disruption','flood/infrastructure','sealed hubs, fat tires'),
+      bike('preferable-20','Preferred Platform','Chosen repairable commons','Commitment becomes closure','preferred future bundle','policy, funding, repair, riders')
+    ]}
+];
+
+// ──── STATE ────
+const allBikes = [];
+BANDS.forEach(b => b.bikes.forEach((bk,i) => { bk.band = b; bk.idx = i; allBikes.push(bk); }));
+
+const state = {morph:0, density:1, drag:false, loop:false, sound:false,
+  hover:null, selected:null, seed:Math.random()*999};
+let W=0,H=0,DPR=1,T=0;
+
+// ──── MATH ────
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t*t*(3-2*t);
+const rgba=(h,a)=>`rgba(${h[0]},${h[1]},${h[2]},${a})`;
+const polar=(cx,cy,r,a)=>({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});
+const noise=x=>(Math.sin(x*12.9898+state.seed)*43758.5453)%1;
+
+function resize(){
+  DPR=Math.max(1,Math.min(2,devicePixelRatio||1));
+  W=innerWidth;H=innerHeight;
+  canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  g.setTransform(DPR,0,0,DPR,0,0);
+}
+
+// ──── PERIMETER SAMPLING (from quad-slice-good) ────
+function sector(cx,cy,r,a0,a1){const pts=[{x:cx,y:cy}];for(let i=0;i<=14;i++)pts.push(polar(cx,cy,r,lerp(a0,a1,i/14)));return pts;}
+function rect(x,y,w,h){return[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];}
+function perimeter(poly,count){
+  const seg=[];let total=0;
+  for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],len=Math.hypot(b.x-a.x,b.y-a.y);seg.push({a,b,len,start:total});total+=len;}
+  const out=[];
+  for(let k=0;k<count;k++){const target=(k/count)*total;let s=seg[seg.length-1];for(const q of seg){if(target>=q.start&&target<=q.start+q.len){s=q;break;}}const t=s.len?(target-s.start)/s.len:0;out.push({x:lerp(s.a.x,s.b.x,t),y:lerp(s.a.y,s.b.y,t)});}
+  return out;
+}
+function pmap(pts){g.beginPath();g.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);g.closePath();}
+
+// ──── LAYOUT ────
+function panelRect(i){
+  const padX=W<760?14:38, top=W<760?48:58, bot=W<760?48:56, gap=W<760?14:28;
+  const cols=W<820?1:2, rows=W<820?4:2;
+  const col=i%cols, row=Math.floor(i/cols);
+  const pw=(W-padX*2-gap*(cols-1))/cols;
+  const ph=(H-top-bot-gap*(rows-1))/rows;
+  return {x:padX+col*(pw+gap), y:top+row*(ph+gap), w:pw, h:ph};
+}
+
+// ──── LANDSCAPE RENDERER (from quad-slice-good) ────
+function drawLandscape(b,x,y,w,h,clip,cx,cy,r){
+  g.save();
+  if(clip){g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);g.clip();}
+  else{g.beginPath();g.rect(x,y,w,h);g.clip();}
+  const grad=g.createLinearGradient(x,y,x,y+h);
+  grad.addColorStop(0,rgba(b.hue,.02));grad.addColorStop(.45,rgba(b.hue,.18));grad.addColorStop(1,rgba(b.hue,.03));
+  g.fillStyle=grad;g.fillRect(x,y,w,h);
+  const layers=3+Math.floor(b.bikes.length/5);
+  for(let l=0;l<layers;l++){
+    g.beginPath();const base=y+h*(.55+.11*l/layers);g.moveTo(x,y+h);
+    for(let k=0;k<=90;k++){const px=x+w*k/90;const wave=Math.sin(k*.18+l*1.7+state.seed)*h*.035+Math.sin(k*.07+l)*h*.05;
+    const peak=Math.sin(k*.42+l*3.1)>.72?-h*(.08+.05*l):0;g.lineTo(px,base+wave+peak);}
+    g.lineTo(x+w,y+h);g.closePath();g.fillStyle=rgba(b.hue,.05+.05*l);g.fill();
+  }
+  // horizon lines
+  for(let l=0;l<Math.floor(4*b.bikes.length/8);l++){
+    g.beginPath();
+    for(let k=0;k<=120;k++){const px=x+w*k/120;const py=y+h*(.18+.62*(l/(4*b.bikes.length/8)))+Math.sin(k*.12+l+T*.00025)*h*.018;
+    if(k===0)g.moveTo(px,py);else g.lineTo(px,py);}
+    g.strokeStyle=rgba(b.hue,.03+.02*(b.bikes.length/20));g.lineWidth=.6;g.stroke();
+  }
+  // sun
+  const sx=x+w*(.18+.46*((Math.sin(state.seed+b.bikes.length)+1)/2));
+  const sy=y+h*(.44+.08*Math.sin(state.seed));
+  const rg=g.createRadialGradient(sx,sy,0,sx,sy,h*.22);
+  rg.addColorStop(0,rgba(b.hue,.5));rg.addColorStop(.2,rgba(b.hue,.14));rg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=rg;g.fillRect(sx-h*.25,sy-h*.25,h*.5,h*.5);
+  g.fillStyle=rgba(b.hue,.8);g.beginPath();g.arc(sx,sy,Math.max(1.5,h*.016),0,Math.PI*2);g.fill();
+  g.restore();
+}
+
+// ──── BIKE GLYPH ────
+function bikeGlyph(x,y,s,h,a){
+  g.save();g.translate(x,y);g.scale(s,s);
+  g.strokeStyle=rgba(h,a);g.lineWidth=1.4;g.lineCap='round';g.lineJoin='round';
+  g.beginPath();g.arc(-13,9,8,0,Math.PI*2);g.stroke();
+  g.beginPath();g.arc(15,9,8,0,Math.PI*2);g.stroke();
+  g.beginPath();g.moveTo(-13,9);g.lineTo(-2,-5);g.lineTo(8,9);g.lineTo(-13,9);
+  g.moveTo(-2,-5);g.lineTo(11,-5);g.lineTo(15,9);
+  g.moveTo(-2,-5);g.lineTo(-6,-12);g.moveTo(7,9);g.lineTo(1,9);
+  g.moveTo(11,-5);g.lineTo(16,-11);g.moveTo(-9,-12);g.lineTo(-3,-12);
+  g.stroke();g.restore();
+}
+
+// ──── HIT TEST ────
+const hitZones = [];
+
+function buildHitZones(){
+  hitZones.length = 0;
+  BANDS.forEach((band,bi) => {
+    const R = panelRect(bi);
+    const isMobile = W < 820;
+    const cx = R.x + R.w * (isMobile ? .24 : .22);
+    const cy = R.y + R.h * .43;
+    const radius = Math.min(R.w * (isMobile ? .18 : .19), R.h * .34);
+    const seg = Math.max(4, Math.round(band.bikes.length * state.density));
+    const morph = ease(state.morph);
+
+    const stripX = cx + radius * 1.22;
+    const stripY = cy - radius * .47;
+    const stripW = R.x + R.w - stripX - 4;
+    const stripH = radius * .94;
+
+    band.bikes.forEach((bk, si) => {
+      const theta = Math.PI * 2 / seg;
+      const a0 = -Math.PI/2 + si * theta;
+      const amid = a0 + theta/2;
+      // interpolated center
+      const circPt = polar(cx, cy, radius * .6, amid);
+      const stripCx = stripX + stripW * (si + .5) / seg;
+      const stripCy = stripY + stripH / 2;
+      const ix = lerp(circPt.x, stripCx, morph);
+      const iy = lerp(circPt.y, stripCy, morph);
+      const hr = Math.max(8, radius * .25);
+      if (si < seg) hitZones.push({ bike: bk, x: ix, y: iy, r: hr });
+    });
+  });
+}
+
+// ──── MAIN DRAW ────
+function drawPanel(band, bi){
+  const R = panelRect(bi);
+  const isMobile = W < 820;
+  const cx = R.x + R.w * (isMobile ? .24 : .22);
+  const cy = R.y + R.h * .43;
+  const radius = Math.min(R.w * (isMobile ? .18 : .19), R.h * .34);
+  const seg = Math.max(4, Math.round(band.bikes.length * state.density));
+  const morph = ease(state.morph);
+  const sampleN = 42;
+
+  const stripX = cx + radius * 1.22;
+  const stripY = cy - radius * .47;
+  const stripW = R.x + R.w - stripX - 4;
+  const stripH = radius * .94;
+
+  // Assimilation factor (from scot-00)
+  const closureFactor = clamp((state.morph - 0.8) * 5, 0, 1);
+  const isClosing = closureFactor > 0;
+  const isPreferable = (band.key === 'preferable');
+
+  // atmosphere glow
+  g.save();g.globalCompositeOperation='lighter';
+  let glow=g.createRadialGradient(cx,cy,0,cx,cy,radius*1.5);
+  glow.addColorStop(0,rgba(band.hue,.07));glow.addColorStop(.55,rgba(band.hue,.02));glow.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=glow;g.beginPath();g.arc(cx,cy,radius*1.55,0,Math.PI*2);g.fill();
+  g.restore();
+
+  // inner worlds
+  drawLandscape(band,cx-radius,cy-radius,radius*2,radius*2,true,cx,cy,radius*.98);
+  drawLandscape(band,stripX,stripY,stripW,stripH,false);
+
+  // strip scaffold
+  g.strokeStyle=rgba(band.hue,.2);g.lineWidth=1;g.strokeRect(stripX,stripY,stripW,stripH);
+  // grid
+  g.beginPath();
+  for(let c=1;c<seg;c++){const x=stripX+stripW*c/seg;g.moveTo(x,stripY);g.lineTo(x,stripY+stripH);}
+  g.strokeStyle=rgba(band.hue,.12);g.lineWidth=.6;g.stroke();
+
+  // circle scaffold
+  g.beginPath();g.arc(cx,cy,radius,0,Math.PI*2);g.strokeStyle=rgba(band.hue,.5);g.lineWidth=1.2;g.stroke();
+  g.beginPath();g.arc(cx,cy,radius*.58,0,Math.PI*2);g.strokeStyle=rgba(band.hue,.1);g.setLineDash([2,5]);g.stroke();g.setLineDash([]);
+  g.fillStyle='#000';g.beginPath();g.arc(cx,cy,radius*.12,0,Math.PI*2);g.fill();
+
+  // flowing slices
+  const theta = Math.PI * 2 / seg;
+  for(let s=0; s<Math.min(seg, band.bikes.length); s++){
+    const bk = band.bikes[s];
+    const a0 = -Math.PI/2 + s*theta;
+    const a1 = a0 + theta;
+    const source = perimeter(sector(cx,cy,radius,a0,a1), sampleN);
+    const tx = stripX + stripW * s / seg;
+    const tw = stripW / seg;
+    const target = perimeter(rect(tx, stripY, tw, stripH), sampleN);
+    const pts = source.map((p,k) => ({x:lerp(p.x,target[k].x,morph), y:lerp(p.y,target[k].y,morph)}));
+    
+    // Assimilation overlay (from scot-00): non-preferable paths turn green at closure
+    let fillAlpha = .018 + .05*(1-s/seg);
+    let strokeAlpha = s%Math.ceil(seg/8)===0 ? .45 : .15;
+    let hue = band.hue;
+
+    if(isClosing && !isPreferable){
+      hue = [lerp(band.hue[0],46,closureFactor), lerp(band.hue[1],125,closureFactor), lerp(band.hue[2],50,closureFactor)];
+      fillAlpha *= (1 - closureFactor * .6);
+    }
+
+    const isHover = state.hover === bk;
+    const isSel = state.selected === bk;
+    if(isHover || isSel) fillAlpha = Math.min(.25, fillAlpha + .12);
+
+    g.globalCompositeOperation='source-over';
+    pmap(pts);
+    g.fillStyle=rgba(hue, fillAlpha);g.fill();
+    g.strokeStyle=rgba(isHover||isSel?[141,243,231]:hue, isHover||isSel?.7:strokeAlpha);
+    g.lineWidth=isHover||isSel?1.5:(s%Math.ceil(seg/8)===0?1:.5);g.stroke();
+
+    // bike glyph inside slice
+    if(morph > .75 && tw > 16){
+      const amid = (a0+a1)/2;
+      const gx = lerp(polar(cx,cy,radius*.55,amid).x, tx+tw/2, morph);
+      const gy = lerp(polar(cx,cy,radius*.55,amid).y, stripY+stripH/2, morph);
+      bikeGlyph(gx,gy, Math.min(.3,tw/65), hue, .5);
+    }
+  }
+
+  // filament connectors (from quad-slice-good)
+  g.save();g.globalCompositeOperation='lighter';
+  const filCount = 14 + Math.floor(band.bikes.length * .6);
+  for(let f=0;f<filCount;f++){
+    const tt=f/(filCount-1);
+    const y0=cy-radius*.42+tt*radius*.84;
+    const y1=stripY+tt*stripH;
+    const sx=cx+radius*.92;
+    g.beginPath();g.moveTo(sx,y0);
+    const bend=radius*.55*Math.sin(tt*Math.PI);
+    g.bezierCurveTo(sx+bend,y0,stripX-radius*.18,y1,stripX,y1);
+    g.strokeStyle=rgba(band.hue,.04+.08*(1-Math.abs(tt-.5)*2));
+    g.lineWidth=.5;g.stroke();
+  }
+  g.restore();
+
+  // label
+  const lx = R.x + R.w*.03, ly = R.y + R.h - 14;
+  g.fillStyle=rgba(band.hue,.9);g.beginPath();g.arc(lx,ly-3,4,0,Math.PI*2);g.fill();
+  g.font='10px ui-monospace,SFMono-Regular,Menlo,monospace';g.letterSpacing='3px';g.fillStyle=rgba(band.hue,.7);
+  g.fillText(band.name,lx+14,ly);
+  g.letterSpacing='0px';g.font='9px ui-monospace,SFMono-Regular,Menlo,monospace';g.fillStyle=rgba(band.hue,.35);
+  g.fillText(`${band.bikes.length} bicycles · ${band.sub}`, lx+14, ly+13);
+
+  // closure wall (from scot-00)
+  if(isClosing && !isPreferable){
+    g.fillStyle=rgba([46,125,50], closureFactor*.15);
+    g.fillRect(R.x,R.y,R.w,R.h);
+    if(closureFactor > .5){
+      g.font='700 10px ui-monospace,SFMono-Regular,Menlo,monospace';
+      g.fillStyle=rgba([46,125,50], closureFactor*.7);
+      g.textAlign='center';
+      g.fillText('ASSIMILATED → SAFETY BICYCLE', R.x+R.w/2, R.y+R.h/2);
+      g.textAlign='start';
+    }
+  }
+}
+
+function drawBackground(){
+  g.clearRect(0,0,W,H);
+  const bg=g.createRadialGradient(W*.5,H*.4,0,W*.5,H*.4,Math.max(W,H)*.75);
+  bg.addColorStop(0,'rgba(141,243,231,.035)');bg.addColorStop(.45,'rgba(0,0,0,0)');bg.addColorStop(1,'rgba(0,0,0,.55)');
+  g.fillStyle='#020304';g.fillRect(0,0,W,H);g.fillStyle=bg;g.fillRect(0,0,W,H);
+  // stars
+  g.fillStyle='rgba(255,255,255,.04)';
+  for(let i=0;i<80;i++){const x=(noise(i+T*.00001)+1)%1*W,y=(noise(i*2.1)+1)%1*H;g.fillRect(x,y,.7,.7);}
+}
+
+function draw(){
+  T = performance.now();
+  if(state.loop){state.morph=(Math.sin(T*.0003)+1)/2;state.density=.7+((Math.sin(T*.00021+2)+1)/2)*.6;}
+  drawBackground();
+  buildHitZones();
+  for(let i=0;i<BANDS.length;i++) drawPanel(BANDS[i],i);
+  read.textContent=Math.round(state.morph*100)+'%';
+  requestAnimationFrame(draw);
+}
+
+// ──── HUD (from scot-00) ────
+function showHUD(bk,ex,ey){
+  if(!bk)return;
+  const closureFactor = clamp((state.morph-.8)*5,0,1);
+  const assimilated = closureFactor>.8 && bk.band.key!=='preferable';
+  document.getElementById('hudBand').textContent = assimilated?'ASSIMILATED':bk.band.name;
+  document.getElementById('hudName').textContent = assimilated?'→ Safety Bicycle Standard':bk.name;
+  document.getElementById('hudActor').textContent = assimilated?'RSG OVERRIDE: Pragmatic Commuters':('WHO: '+bk.actor);
+  document.getElementById('hudSeeAs').textContent = assimilated?'Diamond frame, chain drive, equal wheels':('SEES AS: '+bk.seeingAs);
+  document.getElementById('hudBelief').textContent = assimilated?'Interpretative flexibility ends':('BELIEF: '+(bk.actorBelief||bk.belief));
+  hudEl.style.display='block';
+  let hx=ex+15,hy=ey+15;
+  if(hx+300>W)hx=ex-315;if(hy+160>H)hy=ey-175;
+  hudEl.style.left=hx+'px';hudEl.style.top=hy+'px';
+}
+function hideHUD(){hudEl.style.display='none';}
+
+// ──── INSPECTOR (from bone-00 card system) ────
+function showInspector(bk){
+  if(!bk)return;
+  state.selected = bk;
+  const closureFactor = clamp((state.morph-.8)*5,0,1);
+  const assimilated = closureFactor>.8 && bk.band.key!=='preferable';
+  document.getElementById('insTitle').textContent = `${bk.band.name} / ${bk.name}`;
+  const body = document.getElementById('insBody');
+  body.innerHTML = '';
+
+  const cards = assimilated ? [
+    {t:'STATUS', v:'ASSIMILATED: This branch was absorbed by the Safety Bicycle standard. Diamond frame, equal wheels, chain drive, pneumatic tires.'},
+    {t:'CLOSURE', v:'Interpretative flexibility ends. Design locks to dominant solution.'}
+  ] : [
+    {t:'ARTIFACT', v:bk.artifact},
+    {t:'WHO SEES IT', v:`${bk.actor}. They see it as ${bk.seeingAs}.`},
+    {t:'PRACTICE + BELIEF', v:`Practice: ${bk.practice}. Belief: ${bk.actorBelief||bk.belief}.`},
+    {t:'DESIRE + INTENT', v:`Desire: ${bk.desire}. Intent: ${bk.intent}.`},
+    {t:'SCOT / ANT / CLOSURE', v:`Problem: ${bk.scot}. Actors: ${bk.ant}. Closure: ${bk.closure}.`}
+  ];
+
+  cards.forEach(c => {
+    const d = document.createElement('div');d.className='ins-card';
+    d.innerHTML=`<div class="ins-label">${c.t}</div><div class="ins-val">${c.v}</div>`;
+    body.appendChild(d);
+  });
+
+  if(!assimilated){
+    const st=document.createElement('div');st.className='ins-status';
+    st.textContent='SLICE LOGIC: artifact → actor lens → practice/belief → desire/intent → network closure';
+    body.appendChild(st);
+  }
+
+  insEl.style.display='flex';
+}
+document.getElementById('insClose').onclick=()=>{insEl.style.display='none';state.selected=null;};
+
+// ──── AUDIO ENGINE (from scot-00) ────
+let aCtx,aDrone,aOver,aFilter,aMaster,aNoiseBuf;
+function setupAudio(){
+  if(aCtx)return;
+  aCtx=new(window.AudioContext||window.webkitAudioContext)();
+  aMaster=aCtx.createGain();aFilter=aCtx.createBiquadFilter();
+  aDrone=aCtx.createOscillator();aOver=aCtx.createOscillator();
+  aDrone.type='sine';aOver.type='triangle';aFilter.type='lowpass';
+  aDrone.frequency.value=88;aOver.frequency.value=132;aFilter.frequency.value=600;
+  aMaster.gain.value=0;
+  const pulse=aCtx.createGain();pulse.gain.value=0;
+  aDrone.connect(aFilter);aOver.connect(pulse);pulse.connect(aFilter);
+  aFilter.connect(aMaster).connect(aCtx.destination);
+  aDrone.start();aOver.start();
+  const sz=aCtx.sampleRate*.05;aNoiseBuf=aCtx.createBuffer(1,sz,aCtx.sampleRate);
+  const d=aNoiseBuf.getChannelData(0);for(let i=0;i<sz;i++)d[i]=Math.random()*2-1;
+}
+function tick(){
+  if(!aCtx||!state.sound)return;
+  const now=aCtx.currentTime;
+  const root=80+state.morph*40;
+  aDrone.frequency.setTargetAtTime(root,now,.05);
+  aOver.frequency.setTargetAtTime(root*(1.35+state.density/2),now,.05);
+  aFilter.frequency.setTargetAtTime(400+state.density*200+state.morph*1000,now,.05);
+  aMaster.gain.setTargetAtTime(.02+state.morph*.015,now,.05);
+}
+function playTick(vol,pitch){
+  if(!aCtx||!state.sound||!aNoiseBuf)return;
+  const t=aCtx.currentTime;
+  const src=aCtx.createBufferSource();src.buffer=aNoiseBuf;src.playbackRate.value=pitch;
+  const nf=aCtx.createBiquadFilter();nf.type='highpass';nf.frequency.value=3500;
+  const gn=aCtx.createGain();gn.gain.setValueAtTime(vol,t);gn.gain.exponentialRampToValueAtTime(.001,t+.03);
+  src.connect(nf);nf.connect(gn);gn.connect(aMaster);src.start(t);
+}
+
+// ──── INPUT ────
+function getHit(ex,ey){
+  for(const z of hitZones){if(Math.hypot(ex-z.x,ey-z.y)<z.r)return z.bike;}
+  return null;
+}
+
+addEventListener('pointerdown',e=>{
+  const hit=getHit(e.clientX,e.clientY);
+  if(hit){showInspector(hit);playTick(.06,.6);return;}
+  state.drag=true;
+  state.morph=clamp(e.clientX/W,0,1);
+  state.density=clamp(.5+(1-e.clientY/H)*1.5,.5,2);
+  tick();playTick(.02,.8+state.morph*.5);
+});
+addEventListener('pointermove',e=>{
+  const hit=getHit(e.clientX,e.clientY);
+  if(hit!==state.hover){state.hover=hit;if(hit)showHUD(hit,e.clientX,e.clientY);else hideHUD();}
+  else if(hit)showHUD(hit,e.clientX,e.clientY);
+  canvas.style.cursor=hit?'pointer':'crosshair';
+  if(state.drag){
+    state.morph=clamp(e.clientX/W,0,1);
+    state.density=clamp(.5+(1-e.clientY/H)*1.5,.5,2);
+    tick();
+  }
+});
+addEventListener('pointerup',()=>state.drag=false);
+addEventListener('pointercancel',()=>state.drag=false);
+addEventListener('resize',resize);
+addEventListener('keydown',e=>{
+  if(e.key===' '){state.loop=!state.loop;loopBtn.classList.toggle('active',state.loop);e.preventDefault();}
+  if(e.key==='ArrowRight')state.morph=clamp(state.morph+.04,0,1);
+  if(e.key==='ArrowLeft')state.morph=clamp(state.morph-.04,0,1);
+});
+
+loopBtn.onclick=()=>{state.loop=!state.loop;loopBtn.classList.toggle('active',state.loop);};
+soundBtn.onclick=async()=>{
+  setupAudio();if(aCtx.state==='suspended')await aCtx.resume();
+  state.sound=!state.sound;soundBtn.classList.toggle('active',state.sound);
+  if(!state.sound&&aMaster)aMaster.gain.setTargetAtTime(0,aCtx.currentTime,.03);else tick();
+};
+resetBtn.onclick=()=>{state.morph=0;state.density=1;state.loop=false;state.selected=null;
+  loopBtn.classList.remove('active');insEl.style.display='none';};
+
+resize();
+draw();
+})();
+</script>
+</body>
+</html>

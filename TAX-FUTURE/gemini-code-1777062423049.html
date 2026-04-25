@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures</title>
+<style>
+  :root {
+    /* Exact colors extracted from the reference image */
+    --bg: #ffffff;
+    --text: #222222;
+    --c-pos: #d3dfd2;
+    --c-pla: #a6c6a2;
+    --c-pro: #77d14b;
+    --c-pre: #d2f23a;
+  }
+  
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  html, body { 
+    margin: 0; width: 100%; height: 100%; overflow: hidden; 
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+  }
+  
+  /* Typography strictly matching the image */
+  .title {
+    position: absolute; top: 12%; left: 8%;
+    font-size: clamp(32px, 4vw, 46px); font-weight: 300;
+    letter-spacing: 0.15em; line-height: 1.35; color: var(--text);
+    text-transform: uppercase; pointer-events: none;
+    z-index: 10;
+  }
+  
+  .credit {
+    position: absolute; bottom: 5%; left: 8%;
+    font-size: 11px; color: #555;
+    pointer-events: none; z-index: 10;
+  }
+  .credit i { font-style: italic; }
+
+  /* SVG Canvas */
+  svg { display: block; width: 100%; height: 100%; touch-action: none; }
+  
+  .axis-label { font-size: 15px; font-weight: 600; fill: var(--text); pointer-events: none; }
+  .cone-label { font-size: 13px; font-weight: 600; fill: #333; pointer-events: none; transition: fill 0.3s; }
+  
+  .cone { transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: pointer; }
+  .cone:hover { filter: brightness(0.95); }
+  .cone.dimmed { opacity: 0.2; }
+  
+  /* Preferable cone uses multiply blend mode to overlap correctly */
+  .cone-preferable { mix-blend-mode: multiply; }
+
+  /* Epistemic Flow Particles */
+  .particle { transition: cx 0.1s linear, cy 0.1s linear, opacity 0.3s; pointer-events: none; }
+
+  /* Info HUD */
+  #hud {
+    position: absolute; top: 12%; right: 8%; width: 280px;
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px;
+    padding: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    z-index: 20;
+  }
+  #hud.visible { opacity: 1; pointer-events: auto; }
+  .hud-title { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .hud-desc { font-size: 12px; line-height: 1.5; color: #555; margin-bottom: 16px; }
+  
+  .btn-reset {
+    background: transparent; border: 1px solid #ccc;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text);
+  }
+  .btn-reset:hover { background: #f0f0f0; }
+
+</style>
+</head>
+<body>
+
+<div class="title">
+  A TAXONOMY<br>OF FUTURES
+</div>
+
+<div class="credit">
+  Redrawn from <i>Speculative Everything</i> redrawing Stuart Candy<br>
+  <span style="color:#888; margin-top:4px; display:inline-block;">Interactive: Ideas flow from the present. Click a cone to force technological closure.</span>
+</div>
+
+<div id="hud">
+  <div class="hud-title" id="hud-title">Possibility Space</div>
+  <div class="hud-desc" id="hud-desc">--</div>
+  <button class="btn-reset" onclick="resetTaxonomy()">Reset Timeline</button>
+</div>
+
+<svg id="canvas" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+  <g id="cones">
+    <path id="cone-pos" class="cone" fill="var(--c-pos)" onclick="selectCone('possible')" />
+    <path id="cone-pla" class="cone" fill="var(--c-pla)" onclick="selectCone('plausible')" />
+    <path id="cone-pro" class="cone" fill="var(--c-pro)" onclick="selectCone('probable')" />
+    <path id="cone-pre" class="cone cone-preferable" fill="var(--c-pre)" onclick="selectCone('preferable')" />
+  </g>
+  
+  <g id="labels">
+    <text id="lbl-pos" x="885" class="cone-label" text-anchor="end">Possible</text>
+    <text id="lbl-pla" x="885" class="cone-label" text-anchor="end">Plausible</text>
+    <text id="lbl-pro" x="885" class="cone-label" text-anchor="end">Probable</text>
+    <text id="lbl-pre" x="885" class="cone-label" text-anchor="end">Preferable</text>
+    
+    <text x="260" y="405" class="axis-label" text-anchor="end">Present</text>
+    <text id="lbl-futures" x="920" y="405" class="axis-label" text-anchor="start">Futures</text>
+  </g>
+
+  <g id="particles"></g>
+</svg>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  
+  // Coordinate Origins mapping to the image geometry
+  const O_X = 280;
+  const O_Y = 400;
+  const E_X = 900;
+
+  // Base state definition matching visual proportions
+  const defaultState = {
+    posT: 120, posB: 680,
+    plaT: 220, plaB: 580,
+    proT: 320, proB: 480,
+    preT: 390, preB: 540
+  };
+
+  let state = { ...defaultState };
+  let selectedCone = null;
+
+  const dataMap = {
+    possible: { title: "The Possible", desc: "Includes all futures that do not violate the laws of physics, regardless of how improbable they may be based on current trends." },
+    plausible: { title: "The Plausible", desc: "Futures that could reasonably happen according to our current understanding of social, political, and economic mechanics." },
+    probable: { title: "The Probable", desc: "The 'business-as-usual' future. Where current momentum and orthodox structures are most likely taking us." },
+    preferable: { title: "The Preferable", desc: "A normative vision of what should happen. This cuts across other probabilities and relies on subjective values and active structural shaping." }
+  };
+
+  // Generate SVG paths for the cones
+  function getPath(t, b) {
+    return `M ${O_X},${O_Y} L ${E_X},${t} L ${E_X},${b} Z`;
+  }
+
+  function renderCones() {
+    document.getElementById('cone-pos').setAttribute('d', getPath(state.posT, state.posB));
+    document.getElementById('cone-pla').setAttribute('d', getPath(state.plaT, state.plaB));
+    document.getElementById('cone-pro').setAttribute('d', getPath(state.proT, state.proB));
+    document.getElementById('cone-pre').setAttribute('d', getPath(state.preT, state.preB));
+
+    document.getElementById('lbl-pos').setAttribute('y', state.posT + 30);
+    document.getElementById('lbl-pla').setAttribute('y', state.plaT + 30);
+    document.getElementById('lbl-pro').setAttribute('y', (state.proT + state.proB) / 2 + 5);
+    document.getElementById('lbl-pre').setAttribute('y', state.preB - 20);
+    
+    // Dim inactive cones if one is selected
+    const allCones = ['possible', 'plausible', 'probable', 'preferable'];
+    allCones.forEach(id => {
+      const el = document.getElementById(`cone-${id.substring(0,3)}`);
+      const lbl = document.getElementById(`lbl-${id.substring(0,3)}`);
+      if (selectedCone && selectedCone !== id) {
+        el.classList.add('dimmed');
+        lbl.style.opacity = 0.2;
+      } else {
+        el.classList.remove('dimmed');
+        lbl.style.opacity = 1;
+      }
+    });
+
+    if (selectedCone) {
+      document.getElementById('lbl-futures').textContent = "Stabilized Future";
+    } else {
+      document.getElementById('lbl-futures').textContent = "Futures";
+    }
+  }
+
+  window.selectCone = function(id) {
+    selectedCone = id;
+    state = { ...defaultState };
+    
+    const hud = document.getElementById('hud');
+    document.getElementById('hud-title').textContent = dataMap[id].title;
+    document.getElementById('hud-desc').textContent = dataMap[id].desc + "\n\nTechnological closure achieved. Competing visions and timelines have been marginalized.";
+    hud.classList.add('visible');
+
+    renderCones();
+    
+    // Force existing particles outside the winning cone to die (simulating closure)
+    particles.forEach(p => {
+      if (p.targetCone !== id && p.progress > 0.1) {
+        p.dead = true;
+        p.el.style.opacity = 0;
+      }
+    });
+  }
+
+  window.resetTaxonomy = function() {
+    selectedCone = null;
+    state = { ...defaultState };
+    document.getElementById('hud').classList.remove('visible');
+    renderCones();
+  }
+
+  // Particle System (Ideas flowing left to right over time)
+  const particles = [];
+  const P_COUNT = 90;
+  const pLayer = document.getElementById('particles');
+
+  for(let i = 0; i < P_COUNT; i++) {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('r', 2.5);
+    c.setAttribute('fill', 'rgba(0,0,0,0.6)');
+    c.setAttribute('opacity', 0);
+    c.classList.add('particle');
+    pLayer.appendChild(c);
+    
+    particles.push({
+      el: c, active: false, progress: 0, speed: 0, targetCone: '', offset: 0, dead: false
+    });
+  }
+
+  function getConeBounds(id) {
+    if (id === 'possible') return [state.posT, state.posB];
+    if (id === 'plausible') return [state.plaT, state.plaB];
+    if (id === 'probable') return [state.proT, state.proB];
+    if (id === 'preferable') return [state.preT, state.preB];
+  }
+
+  function spawnParticle(p) {
+    p.active = true;
+    p.dead = false;
+    p.progress = 0;
+    p.speed = 0.0015 + Math.random() * 0.003;
+    
+    // Distribute logic
+    const r = Math.random();
+    if (selectedCone) {
+      p.targetCone = selectedCone; // Force into winning cone
+    } else {
+      if (r < 0.25) p.targetCone = 'preferable';
+      else if (r < 0.5) p.targetCone = 'probable';
+      else if (r < 0.75) p.targetCone = 'plausible';
+      else p.targetCone = 'possible';
+    }
+    
+    p.offset = Math.random(); 
+    p.el.style.opacity = 0.3 + Math.random() * 0.5;
+  }
+
+  function animateFlow() {
+    particles.forEach(p => {
+      if (!p.active) {
+        if (Math.random() < 0.03) spawnParticle(p);
+        return;
+      }
+
+      p.progress += p.speed;
+      
+      if (p.progress >= 1 || p.dead) {
+        p.active = false;
+        p.el.style.opacity = 0;
+        return;
+      }
+
+      const x = O_X + (E_X - O_X) * p.progress;
+      const bounds = getConeBounds(p.targetCone);
+      
+      // Calculate Y based on expansion of the cone
+      const topY = O_Y + (bounds[0] - O_Y) * p.progress;
+      const botY = O_Y + (bounds[1] - O_Y) * p.progress;
+      const y = topY + (botY - topY) * p.offset;
+
+      p.el.setAttribute('cx', x);
+      p.el.setAttribute('cy', y);
+      
+      if (p.progress > 0.9 && !p.dead) {
+        p.el.style.opacity = (1 - p.progress) * 10;
+      }
+    });
+
+    requestAnimationFrame(animateFlow);
+  }
+
+  renderCones();
+  requestAnimationFrame(animateFlow);
+
+})();
+</script>
+</body>
+</html>

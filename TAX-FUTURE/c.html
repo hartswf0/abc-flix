@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Diagram 4.7: Composite Taxonomy Compilation</title>
+    <style>
+        :root {
+            /* Typography & Clinical Diagrammatic Palette */
+            --bg: #FFFFFF;
+            --fg: #1E1E1E;
+            --faint: #D0D0CE;
+            --ghost: #F0F0F0;
+
+            /* Exact Taxonomy Diagram Colors (Stuart Candy / Dunne & Raby) */
+            --c3: rgba(196, 212, 196, 0.9);
+            /* Possible (Pale Sage) */
+            --c2: rgba(154, 192, 148, 0.9);
+            /* Plausible (Mid Green) */
+            --c1: rgba(111, 205, 75, 0.9);
+            /* Probable (Bright Green) */
+            --c0: rgba(190, 235, 45, 1.0);
+            /* Preferable (Yellow-Green) */
+
+            --hot: #D50000;
+            /* Stark red for active playhead/elements */
+        }
+
+        /* BRUTALIST RESET */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Courier New', Courier, ui-monospace, monospace;
+            overflow: hidden;
+        }
+
+        body {
+            touch-action: none
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: var(--bg);
+        }
+
+        header,
+        footer {
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 16px max(16px, env(safe-area-inset-left)) 14px max(16px, env(safe-area-inset-right));
+            pointer-events: none;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        footer {
+            border-bottom: none;
+            border-top: 1px solid var(--fg);
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+        }
+
+        header {
+            font-size: 12px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        header strong {
+            font-weight: 700;
+        }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            pointer-events: auto;
+        }
+
+        button {
+            background: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--fg);
+            min-height: 32px;
+            padding: 0 16px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            border-left: none;
+        }
+
+        button:first-child {
+            border-left: 1px solid var(--fg);
+        }
+
+        button[data-on="true"] {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        main {
+            position: relative;
+            min-height: 0
+        }
+
+        svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair
+        }
+
+        #readout {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: -1px;
+            z-index: 6;
+            pointer-events: none;
+            border: 1px solid var(--fg);
+            background: var(--bg);
+        }
+
+        .cell {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--fg);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        .cell:last-child {
+            border-bottom: none;
+        }
+
+        .cell b {
+            font-weight: 700;
+            float: right;
+            margin-left: 24px;
+        }
+
+        .cell.lock b {
+            color: var(--hot)
+        }
+
+        .formula {
+            font-weight: 700;
+        }
+
+        /* Mechanical Playhead */
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--hot);
+            z-index: 4;
+            pointer-events: none;
+            transform: translateX(-50%);
+        }
+
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--hot);
+        }
+
+        .playhead::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--hot);
+        }
+
+        @media(max-width:760px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px
+            }
+
+            #readout {
+                bottom: 24px;
+                left: 12px;
+                right: 12px;
+            }
+
+            .formula {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div><strong>Fig. 4.7: Composite Compilation</strong> / Discrete Versions to Superposition</div>
+            <div class="right">
+                <button id="sound">Audio</button>
+                <button id="loop">Auto</button>
+                <button id="reset">Reset</button>
+            </div>
+        </header>
+
+        <main id="field">
+            <svg id="svg" viewBox="0 0 1180 720" preserveAspectRatio="xMidYMid meet"></svg>
+            <div id="readout">
+                <div class="cell">Base Resolution <b id="nText">6</b></div>
+                <div class="cell">Composite Versions <b id="compText">24</b></div>
+                <div class="cell">Unit Angle <b id="angleText">3.75°</b></div>
+                <div class="cell">Topology <b id="phaseText">Radial</b></div>
+                <div class="cell lock">Morph Phase <b id="timeText">0.00</b></div>
+            </div>
+            <div class="playhead" id="knob"></div>
+        </main>
+
+        <footer>
+            <div>DRAG X-AXIS: MORPH TOPOLOGY &nbsp;&nbsp;|&nbsp;&nbsp; DRAG Y-AXIS: ADJUST DISCRETE UNITS</div>
+            <div class="formula">EACH SLICE COMPILES INTO A DISCRETE COMPOSITE FUTURE BEFORE THE FINAL COLLAPSE.</div>
+        </footer>
+    </div>
+
+    <script>
+        (() => {
+            const svg = document.getElementById('svg');
+            const field = document.getElementById('field');
+            const knob = document.getElementById('knob');
+            const nText = document.getElementById('nText');
+            const compText = document.getElementById('compText');
+            const angleText = document.getElementById('angleText');
+            const phaseText = document.getElementById('phaseText');
+            const timeText = document.getElementById('timeText');
+
+            const soundBtn = document.getElementById('sound');
+            const loopBtn = document.getElementById('loop');
+            const resetBtn = document.getElementById('reset');
+
+            const NS = 'http://www.w3.org/2000/svg';
+            const state = { n: 6, morph: 0, dragging: false, looping: false, sound: false, time: 0 };
+            let ctx, master, drone, overtone, noiseFilter;
+
+            // Keyframe X-Axis Milestones
+            const CX_0 = 100;  // Phase 0: Isolated Radial
+            const CX_1 = 360;  // Phase 1: Isolated Category Cones
+            const CX_2 = 640;  // Phase 2: Compiled Composite Versions
+            const CX_3 = 940;  // Phase 3: Taxonomy Collapse
+
+            // Base spread dictates the total angle. mult * base = total cone spread.
+            const BASE_SPREAD = Math.PI / 8; // 22.5 degrees per multiplier
+            const COLLAPSE_Y = 360;
+
+            // Track Layout (INVERTED MAGNITUDE):
+            // Preferable is most abundant (mult: 4), Possible is rarest (mult: 1).
+            const TRACKS = [
+                { cat: 3, name: 'POSSIBLE', y0: 120, color: 'var(--c3)', mult: 1 },
+                { cat: 2, name: 'PLAUSIBLE', y0: 280, color: 'var(--c2)', mult: 2 },
+                { cat: 1, name: 'PROBABLE', y0: 440, color: 'var(--c1)', mult: 3 },
+                { cat: 0, name: 'PREFERABLE', y0: 600, color: 'var(--c0)', mult: 4 }
+            ];
+
+            const L_SIDES = 8;
+            const L_END = 8;
+
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function lerp(a, b, t) { return a + (b - a) * t; }
+            function ease(t) { return t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+            function el(tag, attrs = {}) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+            function polar(cx, cy, r, a) { return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; }
+            function mixPoint(A, B, t) { return { x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t) }; }
+
+            // Unified geometry generator for seamless morphing between arc slices and flat-capped vectors
+            function getShapePoints(track, i, slices, phase) {
+                let cx, cy, t1, t2, isArc = false, w, R;
+                let spread = track.mult * BASE_SPREAD;
+                let UNIT_SPREAD = BASE_SPREAD / state.n;
+                let max_slices = state.n * 4; // Total versions equals the max multiplier tracks
+
+                if (phase === 0) {
+                    // 01: ISOLATED RADIAL (Equal Radii, Full 360)
+                    cx = CX_0; cy = track.y0; R = 45;
+                    t1 = -Math.PI + (i / slices) * 2 * Math.PI;
+                    t2 = -Math.PI + ((i + 1) / slices) * 2 * Math.PI;
+                    isArc = true;
+                } else if (phase === 1) {
+                    // 02: CATEGORY VECTORS (Mapped by Category Y)
+                    cx = CX_1; cy = track.y0; w = 140;
+                    t1 = -spread / 2 + (i / slices) * spread;
+                    t2 = -spread / 2 + ((i + 1) / slices) * spread;
+                } else if (phase === 2) {
+                    // 03: COMPOSITE VERSIONS (Nested by staggered X, mapped to exactly calculated Y slots)
+                    let slot = Math.round(i * (4 / track.mult));
+                    cy = max_slices > 1 ? 100 + (slot / (max_slices - 1)) * 520 : COLLAPSE_Y;
+
+                    // Stagger the origin so they nest like a telescope, maintaining a flat right edge.
+                    let offset = (4 - track.mult) * 20;
+                    cx = CX_2 + offset;
+                    w = 140 - offset;
+
+                    t1 = -UNIT_SPREAD / 2;
+                    t2 = UNIT_SPREAD / 2;
+                } else if (phase === 3) {
+                    // 04: SUPERPOSITION COLLAPSE (All share center Y, fan out based on their total spread)
+                    cx = CX_3; cy = COLLAPSE_Y; w = 140;
+                    t1 = -spread / 2 + (i / slices) * spread;
+                    t2 = -spread / 2 + ((i + 1) / slices) * spread;
+                }
+
+                let A = { x: cx, y: cy };
+                let B, C;
+                if (isArc) {
+                    B = polar(cx, cy, R, t1);
+                    C = polar(cx, cy, R, t2);
+                } else {
+                    // Flat-capped cone edge
+                    B = { x: cx + w, y: cy + w * Math.tan(t1) };
+                    C = { x: cx + w, y: cy + w * Math.tan(t2) };
+                }
+                let D = { x: cx, y: cy };
+
+                const pts = [];
+                for (let j = 0; j < L_SIDES; j++) pts.push(mixPoint(A, B, j / L_SIDES));
+                for (let j = 0; j < L_END; j++) {
+                    if (isArc) pts.push(polar(cx, cy, R, lerp(t1, t2, j / L_END)));
+                    else pts.push(mixPoint(B, C, j / L_END));
+                }
+                for (let j = 0; j < L_SIDES; j++) pts.push(mixPoint(C, D, j / L_SIDES));
+                for (let j = 0; j < L_END; j++) pts.push(mixPoint(D, A, j / L_END));
+                return pts;
+            }
+
+            function perimeterSample(poly, count) {
+                const segs = []; let total = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const a = poly[i], b = poly[(i + 1) % poly.length];
+                    const len = Math.hypot(b.x - a.x, b.y - a.y);
+                    segs.push({ a, b, len, start: total }); total += len;
+                }
+                const out = [];
+                for (let k = 0; k < count; k++) {
+                    const target = (k / count) * total;
+                    let s = segs[segs.length - 1];
+                    for (const q of segs) { if (target >= q.start && target <= q.start + q.len) { s = q; break; } }
+                    const t = s.len ? (target - s.start) / s.len : 0;
+                    out.push({ x: lerp(s.a.x, s.b.x, t), y: lerp(s.a.y, s.b.y, t) });
+                }
+                return out;
+            }
+
+            function getBlendedPoints(track, i, slices, m) {
+                if (m <= 0.333) {
+                    const s1 = perimeterSample(getShapePoints(track, i, slices, 0), 32);
+                    const s2 = perimeterSample(getShapePoints(track, i, slices, 1), 32);
+                    const t = ease(m * 3);
+                    return s1.map((p, k) => mixPoint(p, s2[k], t));
+                } else if (m <= 0.666) {
+                    const s1 = perimeterSample(getShapePoints(track, i, slices, 1), 32);
+                    const s2 = perimeterSample(getShapePoints(track, i, slices, 2), 32);
+                    const t = ease((m - 0.333) * 3);
+                    return s1.map((p, k) => mixPoint(p, s2[k], t));
+                } else {
+                    const s1 = perimeterSample(getShapePoints(track, i, slices, 2), 32);
+                    const s2 = perimeterSample(getShapePoints(track, i, slices, 3), 32);
+                    const t = ease((m - 0.666) * 3);
+                    return s1.map((p, k) => mixPoint(p, s2[k], t));
+                }
+            }
+
+            function line(x1, y1, x2, y2, op = 1, dash = '') {
+                svg.appendChild(el('line', { x1, y1, x2, y2, stroke: `rgba(30,30,30,${op})`, 'stroke-width': 1, 'stroke-dasharray': dash, 'vector-effect': 'non-scaling-stroke' }));
+            }
+
+            function text(x, y, s, size = 11, anchor = 'middle', weight = '700', op = 1) {
+                const t = el('text', { x, y, fill: `rgba(30,30,30,${op})`, 'font-size': size, 'font-weight': weight, 'text-anchor': anchor });
+                t.textContent = s;
+                svg.appendChild(t);
+                return t;
+            }
+
+            function pathStr(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z'; }
+
+            function drawScaffold(m, totalSlices) {
+                // Stage Markers
+                text(CX_0, 24, `01: ISOLATED RADIAL`, 10, 'middle', '700', 0.5);
+                text(CX_1 + 70, 24, '02: CATEGORY VECTORS', 10, 'middle', '700', 0.5);
+                text(CX_2 + 70, 24, '03: COMPOSITE VERSIONS', 10, 'middle', '700', 0.5);
+                text(CX_3 + 70, 24, '04: SUPERPOSITION COLLAPSE', 10, 'middle', '700', 0.5);
+
+                // Stage Verticals
+                line(CX_0, 0, CX_0, 720, 0.1, '2 4');
+                line(CX_1, 0, CX_1, 720, 0.1, '2 4');
+                line(CX_2, 0, CX_2, 720, 0.1, '2 4');
+                line(CX_3, 0, CX_3, 720, 0.1, '2 4');
+
+                // Guide Outline for Phase 4 Superposition (The Inverted Taxonomy Cone)
+                if (m > 0.5) {
+                    const op = clamp((m - 0.5) * 2.5, 0, 1);
+                    const maxSpread = 4 * BASE_SPREAD;
+                    const w = 140;
+                    const y0 = COLLAPSE_Y + w * Math.tan(-maxSpread / 2);
+                    const y1 = COLLAPSE_Y + w * Math.tan(maxSpread / 2);
+                    svg.appendChild(el('path', {
+                        d: `M ${CX_3},${COLLAPSE_Y} L ${CX_3 + w},${y0} L ${CX_3 + w},${y1} Z`,
+                        fill: 'none', stroke: `rgba(30,30,30,${op * 0.4})`, 'stroke-width': 1.5, 'stroke-dasharray': '2 4'
+                    }));
+                }
+
+                let max_slices = state.n * 4;
+
+                TRACKS.forEach((t, index) => {
+                    const slices = state.n * t.mult;
+
+                    // Track Baseline (Fades as we move to composite slots)
+                    line(0, t.y0, CX_1, t.y0, 0.1 * clamp(1 - m * 2.5, 0, 1));
+                    text(16, t.y0 - 12, `${t.name}`, 11, 'start', '700', clamp(1 - m * 1.5, 0, 1));
+
+                    // Connection paths: Phase 1 to Phase 2 (Compiling into individual Y composite slots)
+                    if (m > 0.25 && m < 0.75) {
+                        const compOp = clamp(Math.sin((m - 0.15) * 2 * Math.PI) * 0.15, 0, 1);
+                        for (let i = 0; i < slices; i += Math.ceil(slices / 4)) { // Sample connection lines to prevent clutter
+                            let slot = Math.round(i * (4 / t.mult));
+                            let targetY = max_slices > 1 ? 100 + (slot / (max_slices - 1)) * 520 : COLLAPSE_Y;
+                            line(CX_1 + 140, t.y0, CX_2, targetY, compOp, '2 4');
+                        }
+                    }
+
+                    // Connection paths: Phase 2 to Phase 3 (Collapsing composite versions into origin)
+                    if (m > 0.6) {
+                        const collapseOp = clamp((m - 0.6) * 3, 0, 0.15);
+                        for (let i = 0; i < slices; i += Math.ceil(slices / 4)) {
+                            let slot = Math.round(i * (4 / t.mult));
+                            let sourceY = max_slices > 1 ? 100 + (slot / (max_slices - 1)) * 520 : COLLAPSE_Y;
+                            line(CX_2 + 140, sourceY, CX_3, COLLAPSE_Y, collapseOp, '2 4');
+                        }
+                    }
+
+                    // Final overlapping labels
+                    if (m > 0.8) {
+                        const spread = t.mult * BASE_SPREAD;
+                        const w = 140;
+                        const endY = COLLAPSE_Y + w * Math.tan(spread / 2);
+                        text(CX_3 + w + 16, endY + 4, `${t.name} (${slices} units)`, 9, 'start', '700', clamp((m - 0.8) * 5, 0, 0.8));
+                    }
+                });
+            }
+
+            function draw() {
+                svg.innerHTML = '';
+                const { n, morph: m } = state;
+                let totalSlices = 0;
+
+                svg.appendChild(el('rect', { x: 0, y: 0, width: 1180, height: 720, fill: 'transparent' }));
+                drawScaffold(m);
+
+                // Render layers: Sorted so the largest/most abundant (Preferable, mult=4) draws FIRST.
+                // This allows the smaller, rarer wedges (Possible) to render perfectly on top of them.
+                const renderTracks = [...TRACKS].sort((a, b) => b.mult - a.mult);
+
+                renderTracks.forEach(track => {
+                    const slices = n * track.mult;
+                    totalSlices += slices;
+
+                    for (let i = 0; i < slices; i++) {
+                        const pts = getBlendedPoints(track, i, slices, m);
+                        svg.appendChild(el('path', {
+                            d: pathStr(pts),
+                            fill: track.color,
+                            stroke: `rgba(30,30,30,${0.15 + m * 0.35})`,
+                            'stroke-width': m > 0.8 ? 0.3 : 0.6, // Finer strokes during superposition to highlight density
+                            'vector-effect': 'non-scaling-stroke'
+                        }));
+                    }
+                });
+
+                // UI Updates
+                nText.textContent = n;
+                compText.textContent = n * 4;
+
+                const unitAngleRad = BASE_SPREAD / n;
+                const unitAngleDeg = unitAngleRad * (180 / Math.PI);
+                angleText.textContent = unitAngleDeg.toFixed(2) + '°';
+
+                timeText.textContent = m.toFixed(2);
+                knob.style.left = (m * field.clientWidth) + 'px';
+
+                if (m < 0.1) phaseText.textContent = "01: Radial Areas";
+                else if (m < 0.45) phaseText.textContent = "02: Category Vectors";
+                else if (m < 0.75) phaseText.textContent = "03: Composite Versions";
+                else phaseText.textContent = "04: Taxonomy Superposition";
+            }
+
+            function setFromPoint(clientX, clientY) {
+                const rect = field.getBoundingClientRect();
+                const x = clamp((clientX - rect.left) / rect.width, 0, 1);
+                const y = clamp((clientY - rect.top) / rect.height, 0, 1);
+                state.morph = x;
+                const raw = 1 + (1 - y) * 9; // Base n from 1 to 10
+                state.n = Math.max(1, Math.round(raw));
+                updateSound();
+                draw();
+            }
+
+            function setupSound() {
+                if (ctx) return;
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                master = ctx.createGain();
+
+                drone = ctx.createOscillator();
+                overtone = ctx.createOscillator();
+                noiseFilter = ctx.createBiquadFilter();
+
+                drone.type = 'square';
+                overtone.type = 'sawtooth';
+                noiseFilter.type = 'lowpass';
+
+                drone.frequency.value = 55.00; // A1
+                overtone.frequency.value = 110.00; // A2
+                noiseFilter.frequency.value = 150;
+
+                master.gain.value = 0;
+                drone.connect(noiseFilter);
+                overtone.connect(noiseFilter);
+                noiseFilter.connect(master);
+                master.connect(ctx.destination);
+
+                drone.start();
+                overtone.start();
+            }
+
+            function updateSound() {
+                if (!ctx || !state.sound) return;
+                const now = ctx.currentTime;
+
+                // Filter peaks during compilation and collapse
+                const filterFreq = 150 + (state.morph * 3000) + (state.n * 20);
+                noiseFilter.frequency.setTargetAtTime(filterFreq, now, 0.05);
+
+                // Pitch bending
+                const root = 55.00 + (state.morph * 15);
+                drone.frequency.setTargetAtTime(root, now, 0.05);
+                overtone.frequency.setTargetAtTime(root * 2.01, now, 0.05);
+
+                master.gain.setTargetAtTime(0.04 + (state.morph * 0.03), now, 0.05);
+            }
+
+            soundBtn.addEventListener('click', async () => {
+                setupSound();
+                if (ctx.state === 'suspended') await ctx.resume();
+                state.sound = !state.sound;
+                soundBtn.dataset.on = state.sound;
+                if (!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+                else updateSound();
+            });
+
+            loopBtn.addEventListener('click', () => {
+                state.looping = !state.looping;
+                loopBtn.dataset.on = state.looping;
+            });
+
+            resetBtn.addEventListener('click', () => {
+                state.n = 6; state.morph = 0; state.looping = false; loopBtn.dataset.on = false;
+                updateSound(); draw();
+            });
+
+            field.addEventListener('pointerdown', e => {
+                state.dragging = true;
+                field.setPointerCapture(e.pointerId);
+                setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointermove', e => {
+                if (state.dragging) setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointerup', e => {
+                state.dragging = false;
+                try { field.releasePointerCapture(e.pointerId); } catch (_) { }
+            });
+            field.addEventListener('pointercancel', () => state.dragging = false);
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'ArrowRight') state.morph = clamp(state.morph + .05, 0, 1);
+                if (e.key === 'ArrowLeft') state.morph = clamp(state.morph - .05, 0, 1);
+                updateSound(); draw();
+            });
+
+            function tick(t) {
+                state.time = t;
+                if (state.looping && !state.dragging) {
+                    state.morph = (Math.sin(t * 0.0006) + 1) / 2;
+                    updateSound();
+                    draw();
+                }
+                requestAnimationFrame(tick);
+            }
+
+            draw();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

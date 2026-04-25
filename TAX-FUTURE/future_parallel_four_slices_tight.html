@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Future Geometry</title>
+<style>
+  :root{
+    --bg:#f2f0eb;
+    --ink:#171717;
+    --muted:rgba(23,23,23,.55);
+    --faint:rgba(23,23,23,.14);
+    --grid:rgba(23,23,23,.04);
+    --paper:rgba(247,245,239,.94);
+    --pref:#0a8e77;
+    --prob:#3a857d;
+    --poss:#b88f3b;
+    --impr:#cdbfa4;
+    --hot:#0a8e77;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+  body{touch-action:none}
+  #app{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto;background:
+    linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0)),
+    linear-gradient(180deg,#f3f1eb,#ece8e0)}
+  main{position:relative;min-height:0}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  footer{
+    display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;
+    padding:10px max(12px,env(safe-area-inset-left)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-right));
+    border-top:1px solid var(--faint);background:var(--paper);backdrop-filter:blur(8px)
+  }
+  .controls{display:grid;grid-auto-flow:column;gap:12px 16px;align-items:end}
+  .group{display:grid;gap:4px}
+  .group label,.tiny{font:10px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  input[type="range"]{width:124px;accent-color:var(--hot)}
+  button{
+    min-height:32px;padding:0 10px;border:1px solid var(--faint);background:transparent;color:var(--ink);
+    font:10px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;cursor:pointer
+  }
+  button[data-on="true"]{background:var(--ink);color:#f7f5ef}
+  .meta{display:grid;grid-auto-flow:column;gap:14px 18px;align-items:center}
+  .legend{display:grid;grid-template-columns:repeat(4,auto);gap:8px 14px;align-items:center}
+  .legendItem{display:grid;grid-template-columns:9px auto;gap:7px;align-items:center;font-size:11px;white-space:nowrap}
+  .sw{width:9px;height:9px;border-radius:50%}
+  .readout{display:grid;grid-auto-flow:column;gap:14px;align-items:center}
+  .readout span{display:block;font-size:11px;color:var(--muted)}
+  .readout strong{display:block;font-size:12px;font-weight:600}
+  @media (max-width:980px){
+    footer{grid-template-columns:1fr;gap:10px}
+    .controls{grid-template-columns:1fr 1fr;grid-auto-flow:row}
+    .meta{grid-template-columns:1fr;grid-auto-flow:row;justify-items:start}
+    .legend{grid-template-columns:1fr 1fr}
+    .readout{grid-template-columns:repeat(4,auto);grid-auto-flow:row}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main>
+    <svg id="svg" viewBox="0 0 1440 860" preserveAspectRatio="xMidYMid meet" aria-label="Four equal circles with different slice densities. Each row spreads into a composed end frame made of the same slice shapes."></svg>
+  </main>
+
+  <footer>
+    <div class="controls">
+      <div class="group">
+        <label for="spread">spread</label>
+        <input id="spread" type="range" min="0" max="1000" value="0" />
+      </div>
+      <div class="group">
+        <label for="density">density</label>
+        <input id="density" type="range" min="6" max="24" value="12" />
+      </div>
+      <div class="group"><label>loop</label><button id="loopBtn">loop</button></div>
+      <div class="group"><label>sound</label><button id="soundBtn">sound</button></div>
+    </div>
+    <div class="meta">
+      <div class="legend">
+        <div class="legendItem"><span class="sw" style="background:var(--pref)"></span><span>preferable</span></div>
+        <div class="legendItem"><span class="sw" style="background:var(--prob)"></span><span>probable</span></div>
+        <div class="legendItem"><span class="sw" style="background:var(--poss)"></span><span>possible</span></div>
+        <div class="legendItem"><span class="sw" style="background:var(--impr)"></span><span>improbable</span></div>
+      </div>
+      <div class="readout">
+        <div><span>row</span><strong id="rName">preferable</strong></div>
+        <div><span>slices</span><strong id="rSlices">8</strong></div>
+        <div><span>angle</span><strong id="rAngle">45.0°</strong></div>
+        <div><span>spread</span><strong id="rSpread">0.00</strong></div>
+      </div>
+    </div>
+  </footer>
+</div>
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const spreadEl = document.getElementById('spread');
+  const densityEl = document.getElementById('density');
+  const loopBtn = document.getElementById('loopBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const rName = document.getElementById('rName');
+  const rSlices = document.getElementById('rSlices');
+  const rAngle = document.getElementById('rAngle');
+  const rSpread = document.getElementById('rSpread');
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const rows = [
+    { name:'preferable', color:'#0a8e77', fill:'rgba(10,142,119,.78)', y:130, circleX:180, radius:74, frameX0:850, frameX1:1230, mult:0.68 },
+    { name:'probable',   color:'#3a857d', fill:'rgba(58,133,125,.58)', y:305, circleX:180, radius:74, frameX0:810, frameX1:1230, mult:1.00 },
+    { name:'possible',   color:'#b88f3b', fill:'rgba(184,143,59,.56)', y:500, circleX:180, radius:74, frameX0:760, frameX1:1230, mult:1.46 },
+    { name:'improbable', color:'#cdbfa4', fill:'rgba(205,191,164,.72)', y:695, circleX:180, radius:74, frameX0:700, frameX1:1230, mult:1.92 }
+  ];
+
+  const state = { spread:0, base:12, active:0, loop:false, sound:false, dragging:false };
+  let ctx, drone, over, pulse, filter, master;
+
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const ease = t => t*t*(3-2*t);
+  function el(tag, attrs={}){ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function text(x,y,str,size=12,anchor='middle',fill='rgba(23,23,23,.54)',weight='400'){
+    const t = el('text',{x,y,fill,'font-size':size,'text-anchor':anchor,'font-weight':weight,'font-family':'Inter, system-ui, sans-serif','letter-spacing':size<=11?'.05em':'0'});
+    t.textContent = str; svg.appendChild(t); return t;
+  }
+  function line(x1,y1,x2,y2,stroke='rgba(23,23,23,.12)',dash=''){
+    svg.appendChild(el('line',{x1,y1,x2,y2,stroke,'stroke-width':1,'stroke-dasharray':dash,'vector-effect':'non-scaling-stroke'}));
+  }
+  function path(points){ return points.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ') + ' Z'; }
+  function polar(r,a){ return {x:r*Math.cos(a), y:r*Math.sin(a)}; }
+  function transformPoints(pts, tx, ty, rot){
+    const c = Math.cos(rot), s = Math.sin(rot);
+    return pts.map(p => ({ x: tx + p.x*c - p.y*s, y: ty + p.x*s + p.y*c }));
+  }
+
+  function counts(){ return rows.map(r => Math.max(4, Math.round(state.base * r.mult))); }
+  function makeSliceShape(r, theta){
+    const pts = [{x:0,y:0}];
+    const steps = Math.max(12, Math.ceil(theta * 16));
+    for(let i=0;i<=steps;i++){
+      const a = lerp(-theta/2, theta/2, i/steps);
+      const p = polar(r, a);
+      pts.push({x:p.x, y:p.y});
+    }
+    return pts;
+  }
+  function circlePlacement(row, i, n){
+    const theta = Math.PI * 2 / n;
+    return { x: row.circleX, y: row.y, rot: -Math.PI/2 + i*theta, theta };
+  }
+  function framePlacement(row, i, n){
+    const theta = Math.PI * 2 / n;
+    const pitch = 2 * row.radius * Math.sin(theta/2) * 0.985;
+    const totalWidth = pitch * n;
+    const startX = row.frameX1 - totalWidth;
+    const x = startX + pitch*(i + 0.5);
+    const y = row.y;
+    const rot = (i % 2 === 0) ? -Math.PI/2 : Math.PI/2;
+    return { x, y, rot, pitch, totalWidth, startX, theta };
+  }
+
+  function drawBackground(){
+    svg.innerHTML = '';
+    svg.appendChild(el('rect',{x:0,y:0,width:1440,height:860,fill:'transparent'}));
+    for(let y=70;y<820;y+=40) line(0,y,1440,y,'rgba(23,23,23,.035)');
+    for(let x=120;x<1380;x+=40) line(x,0,x,860,'rgba(23,23,23,.028)');
+  }
+
+  function drawRow(row, idx, n){
+    const active = idx === state.active;
+    const theta = Math.PI * 2 / n;
+    const ghost = active ? .22 : .11;
+    const hit = el('rect',{x:16,y:row.y-74,width:1408,height:148,fill:'transparent'});
+    hit.style.cursor = 'pointer';
+    hit.addEventListener('pointerdown', ev => { ev.stopPropagation(); state.active = idx; refreshReadout(); draw(); });
+    svg.appendChild(hit);
+
+    if(active){ svg.appendChild(el('rect',{x:18,y:row.y-76,width:1404,height:152,fill:'rgba(255,255,255,.12)',stroke:'rgba(23,23,23,.08)','stroke-width':1})); }
+
+    text(34,row.y-28,row.name,12,'start',row.color,'700');
+    text(34,row.y-9,String(n),11,'start','rgba(23,23,23,.48)');
+
+    svg.appendChild(el('circle',{
+      cx:row.circleX, cy:row.y, r:row.radius, fill:'none',
+      stroke: active ? row.color : `rgba(23,23,23,${ghost})`,
+      'stroke-width': active ? 1.5 : 1,
+      'vector-effect':'non-scaling-stroke'
+    }));
+
+    const proto = framePlacement(row, 0, n);
+    const stripH = row.radius * 1.92;
+    svg.appendChild(el('rect',{
+      x: proto.startX, y: row.y - stripH/2, width: proto.totalWidth, height: stripH,
+      fill:'none', stroke: active ? 'rgba(23,23,23,.18)' : 'rgba(23,23,23,.08)',
+      'stroke-width':1, 'stroke-dasharray':'3 8', 'vector-effect':'non-scaling-stroke'
+    }));
+
+    line(row.circleX + row.radius + 30, row.y, proto.startX - 28, row.y, active ? 'rgba(23,23,23,.18)' : 'rgba(23,23,23,.09)', '4 8');
+
+    const baseShape = makeSliceShape(row.radius, theta);
+    const t = ease(state.spread);
+    for(let i=0;i<n;i++){
+      const A = circlePlacement(row, i, n);
+      const B = framePlacement(row, i, n);
+      const tx = lerp(A.x, B.x, t);
+      const ty = lerp(A.y, B.y, t);
+      const rot = lerp(A.rot, B.rot, t);
+      const pts = transformPoints(baseShape, tx, ty, rot);
+      svg.appendChild(el('path',{
+        d: path(pts),
+        fill: row.fill,
+        stroke: active ? row.color : 'rgba(23,23,23,.18)',
+        'stroke-width': active ? .84 : .56,
+        'vector-effect':'non-scaling-stroke'
+      }));
+    }
+  }
+
+  function draw(){
+    drawBackground();
+    const cs = counts();
+    rows.forEach((row, idx) => drawRow(row, idx, cs[idx]));
+    refreshReadout();
+  }
+
+  function refreshReadout(){
+    const row = rows[state.active];
+    const n = counts()[state.active];
+    rName.textContent = row.name;
+    rSlices.textContent = n;
+    rAngle.textContent = (360/n).toFixed(1) + '°';
+    rSpread.textContent = state.spread.toFixed(2);
+  }
+
+  function scrub(clientX, clientY){
+    const rect = svg.getBoundingClientRect();
+    state.spread = clamp((clientX - rect.left) / rect.width, 0, 1);
+    state.base = Math.round(clamp(24 - ((clientY - rect.top) / rect.height) * 18, 6, 24));
+    spreadEl.value = Math.round(state.spread * 1000);
+    densityEl.value = state.base;
+    const localY = (clientY - rect.top) / rect.height * 860;
+    state.active = rows.reduce((best,row,idx) => Math.abs(row.y - localY) < best.d ? {idx, d:Math.abs(row.y - localY)} : best, {idx:0,d:1e9}).idx;
+    updateSound(true);
+    draw();
+  }
+
+  spreadEl.addEventListener('input', () => { state.spread = Number(spreadEl.value)/1000; updateSound(true); draw(); });
+  densityEl.addEventListener('input', () => { state.base = Number(densityEl.value); updateSound(true); draw(); });
+
+  svg.addEventListener('pointerdown', e => { state.dragging = true; svg.setPointerCapture(e.pointerId); scrub(e.clientX, e.clientY); });
+  svg.addEventListener('pointermove', e => { if(state.dragging) scrub(e.clientX, e.clientY); });
+  svg.addEventListener('pointerup', e => { state.dragging = false; try{ svg.releasePointerCapture(e.pointerId);}catch(_){} });
+  svg.addEventListener('pointercancel', () => { state.dragging = false; });
+
+  function setupSound(){
+    if(ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    drone = ctx.createOscillator();
+    over = ctx.createOscillator();
+    pulse = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    master = ctx.createGain();
+    drone.type='sine'; over.type='triangle'; filter.type='lowpass';
+    drone.frequency.value = 96; over.frequency.value = 144; filter.frequency.value = 900; master.gain.value = 0; pulse.gain.value = 0;
+    drone.connect(filter); over.connect(pulse).connect(filter); filter.connect(master).connect(ctx.destination);
+    drone.start(); over.start();
+  }
+  function updateSound(ping=false){
+    if(!ctx || !state.sound) return;
+    const now = ctx.currentTime;
+    const root = 88 + state.active*26 + state.spread*64;
+    drone.frequency.setTargetAtTime(root, now, .03);
+    over.frequency.setTargetAtTime(root*(1.35 + state.base/42), now, .03);
+    filter.frequency.setTargetAtTime(320 + state.base*55 + state.spread*1300, now, .05);
+    master.gain.setTargetAtTime(.02 + state.spread*.018, now, .05);
+    if(ping){
+      pulse.gain.cancelScheduledValues(now);
+      pulse.gain.setValueAtTime(.0001, now);
+      pulse.gain.exponentialRampToValueAtTime(.05, now+.015);
+      pulse.gain.exponentialRampToValueAtTime(.0001, now+.13);
+    }
+  }
+
+  soundBtn.addEventListener('click', async () => {
+    setupSound();
+    if(ctx.state === 'suspended') await ctx.resume();
+    state.sound = !state.sound;
+    soundBtn.dataset.on = state.sound;
+    if(!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, .03);
+    updateSound(true);
+  });
+  loopBtn.addEventListener('click', () => {
+    state.loop = !state.loop;
+    loopBtn.dataset.on = state.loop;
+  });
+
+  function tick(t){
+    if(state.loop && !state.dragging){
+      const tt = t * 0.00025;
+      state.spread = (Math.sin(tt) + 1) / 2;
+      state.base = Math.round(6 + ((Math.sin(tt*0.87 + 1.2) + 1) / 2) * 18);
+      state.active = Math.floor(((Math.sin(tt*0.53 + .4) + 1) / 2) * 3.999);
+      spreadEl.value = Math.round(state.spread * 1000);
+      densityEl.value = state.base;
+      updateSound(false);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  draw();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

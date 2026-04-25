@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Sector Instrument</title>
+<style>
+  :root{
+    --bg:#050607;
+    --fg:#f4f4ee;
+    --dim:rgba(244,244,238,.42);
+    --faint:rgba(244,244,238,.14);
+    --ghost:rgba(244,244,238,.07);
+    --hot:#9fe7ff;
+    --ok:#c7ffb8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;overflow:hidden}
+  body{touch-action:none}
+  #app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;background:
+    radial-gradient(circle at 50% 42%,rgba(159,231,255,.08),transparent 42%),
+    linear-gradient(180deg,#07090b,#030405)}
+  header,footer{z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px max(12px,env(safe-area-inset-left)) 10px max(12px,env(safe-area-inset-left));pointer-events:none}
+  header{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+  header strong{color:var(--fg);font-weight:700}
+  .right{display:flex;align-items:center;gap:8px;pointer-events:auto}
+  button{background:transparent;color:var(--fg);border:1px solid var(--faint);border-radius:999px;min-height:38px;padding:0 12px;font:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  button[data-on="true"]{border-color:rgba(159,231,255,.7);box-shadow:0 0 18px rgba(159,231,255,.12) inset;color:var(--hot)}
+  main{position:relative;min-height:0}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+  #readout{position:absolute;left:50%;bottom:calc(82px + env(safe-area-inset-bottom));transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,auto);gap:6px;z-index:6;pointer-events:none}
+  .cell{border:1px solid var(--faint);background:rgba(5,6,7,.48);backdrop-filter:blur(8px);border-radius:999px;padding:7px 10px;white-space:nowrap;font-size:11px;color:var(--dim)}
+  .cell b{color:var(--fg);font-weight:700}
+  .cell.lock b{color:var(--ok)}
+  footer{padding-bottom:max(10px,env(safe-area-inset-bottom));color:var(--dim);font-size:11px}
+  .hint{pointer-events:none}
+  .formula{color:var(--fg);letter-spacing:.02em}
+  .strip{position:absolute;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(48px + env(safe-area-inset-bottom));height:1px;background:var(--ghost);z-index:4}
+  .knob{position:absolute;bottom:calc(42px + env(safe-area-inset-bottom));width:13px;height:13px;border-radius:50%;background:var(--hot);box-shadow:0 0 22px rgba(159,231,255,.7);z-index:5;transform:translateX(-50%);pointer-events:none}
+  @media(max-width:720px){
+    header{align-items:flex-start}
+    #readout{grid-template-columns:repeat(2,auto);bottom:calc(76px + env(safe-area-inset-bottom));max-width:calc(100% - 24px)}
+    .cell{font-size:10px;padding:6px 8px}
+    .formula{display:none}
+    footer{font-size:10px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div><strong>Sector Instrument</strong> / area held while form changes</div>
+    <div class="right">
+      <button id="sound">sound</button>
+      <button id="loop">loop</button>
+      <button id="reset">reset</button>
+    </div>
+  </header>
+
+  <main id="field">
+    <svg id="svg" viewBox="0 0 1000 680" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Interactive sector rearrangement instrument"></svg>
+    <div id="readout">
+      <div class="cell">n <b id="nText">24</b></div>
+      <div class="cell">morph <b id="mText">0.00</b></div>
+      <div class="cell">r <b id="rText">150</b></div>
+      <div class="cell">½C <b id="cText">471</b></div>
+      <div class="cell lock">A <b>πr²</b></div>
+    </div>
+    <div class="strip"></div>
+    <div class="knob" id="knob"></div>
+  </main>
+
+  <footer>
+    <div class="hint">drag x = rearrange · drag y = more/less sectors · tap sound first</div>
+    <div class="formula">A = (½C)r = πr²</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const knob = document.getElementById('knob');
+  const nText = document.getElementById('nText');
+  const mText = document.getElementById('mText');
+  const rText = document.getElementById('rText');
+  const cText = document.getElementById('cText');
+  const soundBtn = document.getElementById('sound');
+  const loopBtn = document.getElementById('loop');
+  const resetBtn = document.getElementById('reset');
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const R = 150;
+  const state = { n: 24, morph: 0, dragging: false, looping: false, sound: false, time: 0 };
+  let ctx, master, carrier, overtone, pulseGain, filter;
+  let raf = 0;
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function ease(t){ return t*t*(3-2*t); }
+  function el(tag, attrs={}){
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function polar(cx,cy,r,a){ return {x:cx+r*Math.cos(a), y:cy+r*Math.sin(a)}; }
+  function path(points){ return points.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ')+' Z'; }
+
+  function srcSector(i,n){
+    const cx=305, cy=340;
+    const theta=Math.PI*2/n;
+    const a0=-Math.PI/2+i*theta, a1=a0+theta;
+    const pts=[{x:cx,y:cy}];
+    const steps=10;
+    for(let s=0;s<=steps;s++) pts.push(polar(cx,cy,R,lerp(a0,a1,s/steps)));
+    return pts;
+  }
+
+  function dstSector(i,n){
+    const base = (2*Math.PI*R)/n;
+    const start = 500 - Math.PI*R/2;
+    // Interlock the sectors by shifting each successive wedge by half a base.
+    // This produces the classic offset "teeth" instead of stacked pairs.
+    // A tiny symmetric overhang remains at finite n and disappears in the limit.
+    const x0 = start + i*(base/2) - base/4;
+    const x1 = x0 + base;
+    const xm = (x0+x1)/2;
+    const y0 = 340 + R/2;
+    const y1 = 340 - R/2;
+    if(i%2===0) return [{x:x0,y:y0},{x:x1,y:y0},{x:xm,y:y1}];
+    return [{x:x0,y:y1},{x:x1,y:y1},{x:xm,y:y0}];
+  }
+
+  function perimeterSample(poly, count){
+    const segs=[]; let total=0;
+    for(let i=0;i<poly.length;i++){
+      const a=poly[i], b=poly[(i+1)%poly.length];
+      const len=Math.hypot(b.x-a.x,b.y-a.y);
+      segs.push({a,b,len,start:total}); total+=len;
+    }
+    const out=[];
+    for(let k=0;k<count;k++){
+      const target=(k/count)*total;
+      let s=segs[segs.length-1];
+      for(const q of segs){ if(target>=q.start && target<=q.start+q.len){ s=q; break; } }
+      const t=s.len ? (target-s.start)/s.len : 0;
+      out.push({x:lerp(s.a.x,s.b.x,t), y:lerp(s.a.y,s.b.y,t)});
+    }
+    return out;
+  }
+
+  function sector(i,n,m){
+    const a=perimeterSample(srcSector(i,n),28);
+    const b=perimeterSample(dstSector(i,n),28);
+    const t=ease(m);
+    return a.map((p,k)=>({x:lerp(p.x,b[k].x,t), y:lerp(p.y,b[k].y,t)}));
+  }
+
+  function text(x,y,s,size=13,anchor='middle',opacity=.65){
+    const t=el('text',{x,y,fill:'rgba(244,244,238,'+opacity+')','font-size':size,'text-anchor':anchor,'font-family':'ui-monospace,monospace','letter-spacing':'.08em'});
+    t.textContent=s;
+    svg.appendChild(t);
+    return t;
+  }
+
+  function line(x1,y1,x2,y2,op=.3,dash=''){
+    svg.appendChild(el('line',{x1,y1,x2,y2,stroke:'rgba(244,244,238,'+op+')','stroke-width':1.2,'stroke-dasharray':dash,'vector-effect':'non-scaling-stroke'}));
+  }
+
+  function draw(){
+    svg.innerHTML='';
+    const {n,morph:m}=state;
+    const cx=305, cy=340, rx=500-Math.PI*R/2, rw=Math.PI*R, top=340-R/2, bot=340+R/2;
+
+    svg.appendChild(el('rect',{x:0,y:0,width:1000,height:680,fill:'transparent'}));
+
+    // Invisible structure: old curve, target rectangle, invariant axes.
+    svg.appendChild(el('circle',{cx,cy,r:R,fill:'none',stroke:'rgba(244,244,238,'+(0.22*(1-m)+0.04)+')','stroke-width':1.4,'vector-effect':'non-scaling-stroke'}));
+    line(cx,cy,cx+R,cy,.36*(1-m)+.14);
+    text(cx+R/2,cy-8,'r',12,'middle',.56);
+
+    svg.appendChild(el('rect',{x:rx,y:top,width:rw,height:R,fill:'none',stroke:'rgba(159,231,255,'+(0.12+0.45*m)+')','stroke-width':1.2,'stroke-dasharray':'5 7','vector-effect':'non-scaling-stroke'}));
+    line(rx,bot+30,rx+rw,bot+30,.18+0.35*m);
+    line(rx+rw+24,top,rx+rw+24,bot,.18+0.35*m);
+    text(rx+rw/2,bot+55,'½C = πr',12,'middle',.22+0.52*m);
+    text(rx+rw+48,340,'r',12,'start',.22+0.52*m);
+
+    // Limit rails.
+    const railOp = 0.05 + m*0.16;
+    line(70,top,930,top,railOp,'2 12');
+    line(70,bot,930,bot,railOp,'2 12');
+
+    // Sectors: pure two-tone with one hot seam every quarter.
+    for(let i=0;i<n;i++){
+      const p=sector(i,n,m);
+      const hot = i % Math.max(1, Math.floor(n/4)) === 0;
+      svg.appendChild(el('path',{
+        d:path(p),
+        fill: i%2===0 ? 'rgba(244,244,238,.13)' : 'rgba(159,231,255,.10)',
+        stroke: hot ? 'rgba(159,231,255,.82)' : 'rgba(244,244,238,.38)',
+        'stroke-width': hot ? 1.35 : .9,
+        'vector-effect':'non-scaling-stroke'
+      }));
+    }
+
+    // Scallop pressure: disappears as n and morph increase.
+    const pressure = (1/(n/8))*(0.25+0.75*m);
+    const dots = Math.min(96, n);
+    for(let i=0;i<dots;i++){
+      const x=rx + (i/(dots-1))*rw;
+      const y=top - 18 - Math.sin(i*.9+state.time*.04)*pressure*80;
+      svg.appendChild(el('circle',{cx:x,cy:y,r:1.2,fill:'rgba(159,231,255,'+(0.08+m*.35)+')'}));
+    }
+
+    // Central invariant mark.
+    const lockOp = 0.20 + Math.abs(m-.5)*0.12;
+    text(500,615,'AREA CONSERVED',13,'middle',lockOp);
+    text(500,645,'FORM CHANGES / MEASURE HOLDS',10,'middle',0.34);
+
+    nText.textContent=n;
+    mText.textContent=m.toFixed(2);
+    rText.textContent=R;
+    cText.textContent=Math.round(Math.PI*R);
+    knob.style.left = (12 + state.morph*(field.clientWidth-24)) + 'px';
+  }
+
+  function setFromPoint(clientX, clientY){
+    const rect=field.getBoundingClientRect();
+    const x=clamp((clientX-rect.left)/rect.width,0,1);
+    const y=clamp((clientY-rect.top)/rect.height,0,1);
+    state.morph=x;
+    const raw=4 + (1-y)*124;
+    state.n=Math.max(4, Math.round(raw/2)*2);
+    updateSound(true);
+    draw();
+  }
+
+  function setupSound(){
+    if(ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    carrier = ctx.createOscillator();
+    overtone = ctx.createOscillator();
+    pulseGain = ctx.createGain();
+
+    master.gain.value = 0.0;
+    filter.type='lowpass';
+    filter.frequency.value=900;
+    carrier.type='sine';
+    overtone.type='triangle';
+    carrier.frequency.value=120;
+    overtone.frequency.value=180;
+    pulseGain.gain.value=.0;
+
+    carrier.connect(filter);
+    overtone.connect(pulseGain).connect(filter);
+    filter.connect(master).connect(ctx.destination);
+    carrier.start();
+    overtone.start();
+  }
+
+  function updateSound(ping=false){
+    if(!ctx || !state.sound) return;
+    const now=ctx.currentTime;
+    const root=90 + state.morph*90;
+    const density=state.n/128;
+    carrier.frequency.setTargetAtTime(root, now, .025);
+    overtone.frequency.setTargetAtTime(root*(1.5+density), now, .025);
+    filter.frequency.setTargetAtTime(420 + density*2600, now, .03);
+    master.gain.setTargetAtTime(.035 + state.morph*.018, now, .04);
+    if(ping){
+      pulseGain.gain.cancelScheduledValues(now);
+      pulseGain.gain.setValueAtTime(.0001, now);
+      pulseGain.gain.exponentialRampToValueAtTime(.06, now+.015);
+      pulseGain.gain.exponentialRampToValueAtTime(.0001, now+.13);
+    }
+  }
+
+  soundBtn.addEventListener('click', async () => {
+    setupSound();
+    if(ctx.state==='suspended') await ctx.resume();
+    state.sound=!state.sound;
+    soundBtn.dataset.on=state.sound;
+    if(!state.sound && master) master.gain.setTargetAtTime(0,ctx.currentTime,.03);
+    updateSound(true);
+  });
+
+  loopBtn.addEventListener('click', () => {
+    state.looping=!state.looping;
+    loopBtn.dataset.on=state.looping;
+  });
+
+  resetBtn.addEventListener('click', () => {
+    state.n=24; state.morph=0; state.looping=false; loopBtn.dataset.on=false;
+    updateSound(true); draw();
+  });
+
+  field.addEventListener('pointerdown', e => {
+    state.dragging=true;
+    field.setPointerCapture(e.pointerId);
+    setFromPoint(e.clientX,e.clientY);
+  });
+  field.addEventListener('pointermove', e => {
+    if(state.dragging) setFromPoint(e.clientX,e.clientY);
+  });
+  field.addEventListener('pointerup', e => {
+    state.dragging=false;
+    try{ field.releasePointerCapture(e.pointerId); }catch(_){}
+  });
+  field.addEventListener('pointercancel', () => state.dragging=false);
+
+  window.addEventListener('keydown', e => {
+    if(e.key==='ArrowRight') state.morph=clamp(state.morph+.03,0,1);
+    if(e.key==='ArrowLeft') state.morph=clamp(state.morph-.03,0,1);
+    if(e.key==='ArrowUp') state.n=clamp(state.n+2,4,128);
+    if(e.key==='ArrowDown') state.n=clamp(state.n-2,4,128);
+    updateSound(true); draw();
+  });
+
+  function tick(t){
+    state.time=t;
+    if(state.looping && !state.dragging){
+      state.morph = (Math.sin(t*.00055)+1)/2;
+      state.n = Math.round((8 + ((Math.sin(t*.00037+1.2)+1)/2)*120)/2)*2;
+      updateSound(false);
+      draw();
+    }
+    raf=requestAnimationFrame(tick);
+  }
+
+  draw();
+  raf=requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

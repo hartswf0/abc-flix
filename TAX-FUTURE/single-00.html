@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Diagram 1885: SCOT Timeline Collapse</title>
+    <style>
+        :root {
+            /* Media Archaeology Terminal Palette */
+            --bg: #EBEBE6;
+            --fg: #1A1A1A;
+            --dim: rgba(26, 26, 26, .42);
+            --faint: rgba(26, 26, 26, .14);
+            --ghost: rgba(26, 26, 26, .07);
+
+            /* Futures Cone Colors (High Contrast) */
+            --c3: rgba(255, 213, 153, 0.7);
+            /* Possible (Industrialists) */
+            --c2: rgba(255, 183, 77, 0.8);
+            /* Plausible (Traditionalists) */
+            --c1: rgba(245, 124, 0, 0.85);
+            /* Probable (Sporting Elite) */
+            --c0: rgba(46, 125, 50, 0.95);
+            /* Preferable (Commuters - DOMINANT) */
+
+            --hot: #D50000;
+            --grid: rgba(26, 26, 26, 0.08);
+        }
+
+        /* BRUTALIST RESET */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        body {
+            touch-action: none
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: var(--bg);
+            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        header,
+        footer {
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 16px max(20px, env(safe-area-inset-left)) 14px max(20px, env(safe-area-inset-right));
+            pointer-events: none;
+            border-bottom: 1px solid var(--fg);
+            background: var(--bg);
+        }
+
+        footer {
+            border-bottom: none;
+            border-top: 1px solid var(--fg);
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+        }
+
+        header {
+            font-size: 13px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        header strong {
+            font-weight: 800;
+        }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            pointer-events: auto;
+        }
+
+        button {
+            background: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--fg);
+            min-height: 36px;
+            padding: 0 20px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            border-left: none;
+        }
+
+        button:first-child {
+            border-left: 1px solid var(--fg);
+        }
+
+        button[data-on="true"],
+        button:active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        button:hover {
+            background: rgba(26, 26, 26, 0.1);
+        }
+
+        button[data-on="true"]:hover {
+            background: var(--fg);
+        }
+
+        main {
+            position: relative;
+            min-height: 0;
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Interactive Grid Paths */
+        path.slice {
+            transition: stroke-width 0.1s;
+            cursor: crosshair;
+            pointer-events: all;
+            stroke: var(--bg);
+            stroke-width: 1px;
+        }
+
+        path.slice:hover,
+        path.slice.active {
+            stroke: var(--hot) !important;
+            stroke-width: 2.5px !important;
+            z-index: 10;
+        }
+
+        #readout {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: -1px;
+            z-index: 6;
+            pointer-events: none;
+            border: 1px solid var(--fg);
+            background: var(--bg);
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1);
+        }
+
+        .cell {
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--fg);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--fg);
+            font-weight: 500;
+        }
+
+        .cell:last-child {
+            border-bottom: none;
+        }
+
+        .cell b {
+            font-weight: 800;
+            float: right;
+            margin-left: 32px;
+        }
+
+        .cell.lock b {
+            color: var(--hot)
+        }
+
+        /* Analytical HUD (Follows Cursor) */
+        #hud {
+            position: absolute;
+            pointer-events: none;
+            z-index: 20;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(4px);
+            color: #FFF;
+            border: 1px solid var(--fg);
+            padding: 14px 16px;
+            width: 280px;
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.2);
+            transform: translate(15px, 15px);
+        }
+
+        .hud-id {
+            font-weight: 800;
+            color: var(--hot);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-group {
+            font-weight: 700;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
+            padding-bottom: 6px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-text {
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 400;
+            color: #EBEBE6;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Inspector Panel (Archival Record) */
+        #inspector {
+            position: absolute;
+            right: 24px;
+            top: 24px;
+            width: 360px;
+            background: var(--bg);
+            border: 1px solid var(--fg);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.15);
+            pointer-events: auto;
+        }
+
+        .ins-header {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            letter-spacing: 0.05em;
+        }
+
+        .ins-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ins-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--fg);
+            opacity: 0.75;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: 0.05em;
+        }
+
+        .ins-value {
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        textarea.ins-edit {
+            width: 100%;
+            height: 90px;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--fg);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 13px;
+            padding: 10px;
+            resize: none;
+            outline: none;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        textarea.ins-edit:focus {
+            border-color: var(--hot);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        textarea.ins-edit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-style: dashed;
+            color: var(--hot);
+            font-weight: 800;
+        }
+
+        .ins-status {
+            font-size: 11px;
+            color: var(--hot);
+            font-weight: 800;
+            text-transform: uppercase;
+            line-height: 1.5;
+            border-top: 1px dashed var(--faint);
+            padding-top: 12px;
+        }
+
+        .formula {
+            font-weight: 800;
+        }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--hot);
+            z-index: 4;
+            pointer-events: none;
+            transform: translateX(-50%);
+        }
+
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -5px;
+            width: 11px;
+            height: 11px;
+            background: var(--hot);
+        }
+
+        .playhead::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -5px;
+            width: 11px;
+            height: 11px;
+            background: var(--hot);
+        }
+
+        @media(max-width:760px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px
+            }
+
+            #readout {
+                bottom: 24px;
+                left: 12px;
+                right: 12px;
+            }
+
+            #inspector {
+                top: auto;
+                bottom: 160px;
+                right: 12px;
+                left: 12px;
+                width: auto;
+            }
+
+            #hud {
+                display: none !important;
+            }
+
+            .formula {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div><strong>Media Archaeology Tool</strong> / SCOT Slice Migration (1885-1890)</div>
+            <div class="right">
+                <button id="sound">Haptic Audio</button>
+                <button id="loop">Auto Scrub</button>
+                <button id="reset">Reset</button>
+            </div>
+        </header>
+
+        <main id="field">
+            <svg id="svg" viewBox="0 0 1180 720" preserveAspectRatio="xMidYMid meet"></svg>
+
+            <div id="readout">
+                <div class="cell">Visions <b id="nText">24</b></div>
+                <div class="cell">Temporal Morph <b id="mText">0.00</b></div>
+                <div class="cell">Radius / Width <b id="rText">180</b></div>
+                <div class="cell lock">Dominant Class <b>Commuters</b></div>
+            </div>
+
+            <div id="hud" class="hidden">
+                <div class="hud-id"><span id="hud-track-name">--</span> <span id="hud-id-num">--</span></div>
+                <div class="hud-group" id="hud-group">--</div>
+                <div class="hud-text" id="hud-text">--</div>
+            </div>
+
+            <div id="inspector" class="hidden">
+                <div class="ins-header">
+                    <span id="ins-title">Archival Record</span>
+                    <span id="ins-id">--</span>
+                </div>
+                <div class="ins-body">
+                    <div>
+                        <div class="ins-label">Relevant Social Group (RSG)</div>
+                        <div class="ins-value" id="ins-group">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Trajectory Vector</div>
+                        <div class="ins-value" id="ins-track">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Artifact Variant / Vision</div>
+                        <textarea class="ins-edit" id="ins-text"
+                            placeholder="Transcribe historical vision..."></textarea>
+                    </div>
+                    <div class="ins-status" id="ins-status"></div>
+                </div>
+            </div>
+
+            <div class="playhead" id="knob"></div>
+        </main>
+
+        <footer>
+            <div>DRAG X: MORPH TIME &nbsp;|&nbsp; DRAG Y: RESOLUTION &nbsp;|&nbsp; WATCH VISIONS INTERLOCK & MIGRATE
+            </div>
+            <div class="formula">INTERPRETATIVE FLEXIBILITY UNROLLS INTO TECHNOLOGICAL CLOSURE.</div>
+        </footer>
+    </div>
+
+    <script>
+        (() => {
+            const svg = document.getElementById('svg');
+            const field = document.getElementById('field');
+            const knob = document.getElementById('knob');
+
+            const nText = document.getElementById('nText');
+            const mText = document.getElementById('mText');
+
+            const hud = document.getElementById('hud');
+            const hudIdNum = document.getElementById('hud-id-num');
+            const hudTrackName = document.getElementById('hud-track-name');
+            const hudGroup = document.getElementById('hud-group');
+            const hudText = document.getElementById('hud-text');
+
+            const inspector = document.getElementById('inspector');
+            const insId = document.getElementById('ins-id');
+            const insGroup = document.getElementById('ins-group');
+            const insTrack = document.getElementById('ins-track');
+            const insText = document.getElementById('ins-text');
+            const insStatus = document.getElementById('ins-status');
+
+            const soundBtn = document.getElementById('sound');
+            const loopBtn = document.getElementById('loop');
+            const resetBtn = document.getElementById('reset');
+
+            const NS = 'http://www.w3.org/2000/svg';
+
+            const state = {
+                n: 24,
+                morph: 0,
+                dragging: false,
+                looping: false,
+                sound: false,
+                time: 0,
+                activeSliceId: null,
+                hoverSliceId: null
+            };
+
+            let currentN = -1;
+            let sliceDOMCache = [];
+            const userEdits = {};
+
+            let ctx, master, noiseBuffer;
+            let lastMorphScrub = 0;
+            let lastN = -1;
+
+            // Layout Parameters mapping the circle to the rectangle timeline
+            const R = 180;
+            const CX = 260;
+            const CY = 360;
+            const TARGET_CX = 840;
+
+            // Track Layout mapped to Historical RSGs (4 Quadrants of the circle)
+            const TRACKS = [
+                { cat: 3, group: 'INDUSTRIALISTS', projection: 'Motor/Steam Transition', name: 'POSSIBLE', color: 'var(--c3)', bases: ['Steam Velocipede', 'Combustion Prototype', 'Battery Tricycle', 'Rail-riding Cycle'] },
+                { cat: 2, group: 'TRADITIONALISTS', projection: 'Multi-wheel Carriages', name: 'PLAUSIBLE', color: 'var(--c2)', bases: ['Sociable Tricycle', 'Salvo Quadricycle', 'Lever-driven Trike', 'Front-steering Quad'] },
+                { cat: 1, group: 'SPORTING ELITE', projection: 'High-Wheel "Ordinary"', name: 'PROBABLE', color: 'var(--c1)', bases: ['60" Racing Ordinary', 'Geared "Facile"', 'Kangaroo Dwarf', 'American Star'] },
+                { cat: 0, group: 'PRAGMATIC COMMUTERS', projection: 'The "Safety Bicycle"', name: 'PREFERABLE', color: 'var(--c0)', bases: ['Rover Safety (Chain)', 'Whippet (Suspension)', 'Cross-frame Safety', 'Drop-frame Safety'] }
+            ];
+
+            // Math Helpers
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function lerp(a, b, t) { return a + (b - a) * t; }
+            function ease(t) { return t * t * (3 - 2 * t); }
+            function el(tag, attrs = {}) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+            function polar(cx, cy, r, a) { return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; }
+            function path(points) { return points.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z'; }
+
+            // Sector Math (Circle -> Interlocking Rectangle)
+            function srcSector(i, n) {
+                const theta = Math.PI * 2 / n;
+                const a0 = -Math.PI / 2 + i * theta;
+                const a1 = a0 + theta;
+                const pts = [{ x: CX, y: CY }];
+                const steps = 10;
+                for (let s = 0; s <= steps; s++) pts.push(polar(CX, CY, R, lerp(a0, a1, s / steps)));
+                return pts;
+            }
+
+            function dstSector(i, n) {
+                const base = (2 * Math.PI * R) / n;
+                const startX = TARGET_CX - (Math.PI * R) / 2;
+
+                // Offset each successive wedge to create the interlocked timeline blocks
+                const x0 = startX + i * (base / 2) - base / 4;
+                const x1 = x0 + base;
+                const xm = (x0 + x1) / 2;
+
+                // Timeline height boundaries
+                const y0 = CY + R / 2;
+                const y1 = CY - R / 2;
+
+                // Alternate up/down triangles
+                if (i % 2 === 0) return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: xm, y: y1 }];
+                return [{ x: x0, y: y1 }, { x: x1, y: y1 }, { x: xm, y: y0 }];
+            }
+
+            function perimeterSample(poly, count) {
+                const segs = []; let total = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const a = poly[i], b = poly[(i + 1) % poly.length];
+                    const len = Math.hypot(b.x - a.x, b.y - a.y);
+                    segs.push({ a, b, len, start: total }); total += len;
+                }
+                const out = [];
+                for (let k = 0; k < count; k++) {
+                    const target = (k / count) * total;
+                    let s = segs[segs.length - 1];
+                    for (const q of segs) { if (target >= q.start && target <= q.start + q.len) { s = q; break; } }
+                    const t = s.len ? (target - s.start) / s.len : 0;
+                    out.push({ x: lerp(s.a.x, s.b.x, t), y: lerp(s.a.y, s.b.y, t) });
+                }
+                return out;
+            }
+
+            function sector(i, n, m) {
+                const a = perimeterSample(srcSector(i, n), 28);
+                const b = perimeterSample(dstSector(i, n), 28);
+                const t = ease(m);
+                return a.map((p, k) => ({ x: lerp(p.x, b[k].x, t), y: lerp(p.y, b[k].y, t) }));
+            }
+
+            function generateDefaultVisionText(track, index) {
+                const base = track.bases[index % track.bases.length];
+                return `${base} (Variant v.${index})`;
+            }
+
+            // Build DOM Elements
+            function buildSVG() {
+                svg.innerHTML = '';
+                sliceDOMCache = [];
+
+                const scaffoldGroup = el('g', { id: 'scaffold' });
+                const dynamicUI = el('g', { id: 'dynamic-ui' });
+                const pathGroup = el('g', { id: 'paths' });
+                const overlayGroup = el('g', { id: 'overlays' }); // For the migrating closure color
+
+                svg.append(scaffoldGroup, pathGroup, overlayGroup, dynamicUI);
+
+                // Grid alignment lines
+                const W = Math.PI * R;
+                const startX = TARGET_CX - W / 2;
+                const endX = TARGET_CX + W / 2;
+
+                const lines = [
+                    [CX, 0, CX, 720, 0.2, '2 4'],
+                    [startX, 0, startX, 720, 0.2, '2 4'],
+                    [endX, 0, endX, 720, 0.2, '2 4']
+                ];
+                lines.forEach(l => {
+                    scaffoldGroup.appendChild(el('line', { x1: l[0], y1: l[1], x2: l[2], y2: l[3], stroke: `var(--fg)`, opacity: l[4], 'stroke-width': 1, 'stroke-dasharray': l[5], 'vector-effect': 'non-scaling-stroke' }));
+                });
+
+                // Background Circle
+                scaffoldGroup.appendChild(el('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: 'var(--fg)', opacity: 0.1, 'stroke-width': 1.5 }));
+
+                for (let i = 0; i < state.n; i++) {
+                    // Map slice index to one of the 4 RSG tracks (Quadrants)
+                    const trackIndex = Math.floor((i / state.n) * 4);
+                    const track = TRACKS[trackIndex];
+                    const id = `slice_${i}`;
+                    const defaultText = generateDefaultVisionText(track, i);
+
+                    const pathEl = el('path', {
+                        'class': 'slice',
+                        'data-id': id,
+                        fill: track.color,
+                        'vector-effect': 'non-scaling-stroke'
+                    });
+
+                    // Overlay path for the "migration" assimilation effect
+                    const overlayEl = el('path', {
+                        fill: 'var(--c0)', // Dominant safety bicycle color
+                        opacity: 0,
+                        'pointer-events': 'none', // let the bottom path handle interactions
+                        'vector-effect': 'non-scaling-stroke'
+                    });
+
+                    const sliceData = { id, pathEl, overlayEl, track, trackIndex, index: i, defaultText };
+                    sliceDOMCache.push(sliceData);
+
+                    pathGroup.appendChild(pathEl);
+                    overlayGroup.appendChild(overlayEl);
+
+                    pathEl.addEventListener('pointerenter', (e) => {
+                        state.hoverSliceId = id;
+                        showHUD(e, sliceData);
+                        playAsmrTick(0.02, 2.5);
+                    });
+                    pathEl.addEventListener('pointermove', (e) => updateHUDPosition(e));
+                    pathEl.addEventListener('pointerleave', () => {
+                        if (state.hoverSliceId === id) state.hoverSliceId = null;
+                        hideHUD();
+                    });
+                    pathEl.addEventListener('pointerdown', (e) => {
+                        e.stopPropagation();
+                        activateSlice(sliceData);
+                        playAsmrTick(0.1, 0.5);
+                    });
+                }
+                currentN = state.n;
+            }
+
+            // Draw Routine
+            function updateDraw() {
+                if (state.n !== currentN) buildSVG();
+
+                const m = state.morph;
+                const dynamicUI = svg.getElementById('dynamic-ui');
+                dynamicUI.innerHTML = '';
+
+                const W = Math.PI * R;
+                const startX = TARGET_CX - W / 2;
+                const endX = TARGET_CX + W / 2;
+
+                const titleTop = el('text', { x: CX, y: 50, fill: 'var(--fg)', opacity: 0.7, 'font-size': 11, 'font-weight': '800', 'text-anchor': 'middle', 'letter-spacing': '0.05em' }); titleTop.textContent = '1885: BIJKER\'S STAR (CIRCLE)';
+                const titleEnd = el('text', { x: TARGET_CX, y: 50, fill: 'var(--fg)', opacity: 0.7, 'font-size': 11, 'font-weight': '800', 'text-anchor': 'middle', 'letter-spacing': '0.05em' }); titleEnd.textContent = '1890: TIMELINE COLLAPSE (RECTANGLE)';
+                dynamicUI.append(titleTop, titleEnd);
+
+                // Target Rectangle visual boundaries
+                const rectOp = 0.1 + m * 0.3;
+                const top = CY - R / 2;
+                const bot = CY + R / 2;
+                const rLine1 = el('line', { x1: startX, y1: top, x2: endX, y2: top, stroke: 'var(--fg)', opacity: rectOp, 'stroke-width': 1.5, 'stroke-dasharray': '4 6' });
+                const rLine2 = el('line', { x1: startX, y1: bot, x2: endX, y2: bot, stroke: 'var(--fg)', opacity: rectOp, 'stroke-width': 1.5, 'stroke-dasharray': '4 6' });
+                dynamicUI.append(rLine1, rLine2);
+
+                // Calculate assimilation factor (Migration)
+                // Starts migrating heavily after morph 0.7
+                const collapseFactor = clamp((m - 0.7) * 3.33, 0, 1);
+
+                sliceDOMCache.forEach(slice => {
+                    const pts = sector(slice.index, state.n, m);
+                    const dStr = path(pts);
+
+                    slice.pathEl.setAttribute('d', dStr);
+                    slice.overlayEl.setAttribute('d', dStr);
+
+                    // Assimilate non-dominant slices
+                    if (slice.trackIndex !== 3) {
+                        slice.overlayEl.setAttribute('opacity', collapseFactor * 0.95);
+                    }
+
+                    if (state.activeSliceId === slice.id) slice.pathEl.classList.add('active');
+                    else slice.pathEl.classList.remove('active');
+                });
+
+                // Dominant Tracker Line
+                if (m > 0.75) {
+                    const domOp = clamp((m - 0.75) * 4, 0, 1);
+                    const domText = el('text', { x: TARGET_CX, y: bot + 30, fill: 'var(--c0)', opacity: domOp, 'font-size': 12, 'font-weight': '800', 'text-anchor': 'middle', 'letter-spacing': '0.05em' });
+                    domText.textContent = 'SAFETY BICYCLE ASSIMILATES ALL VISIONS';
+                    dynamicUI.append(domText);
+                }
+
+                nText.textContent = state.n;
+                mText.textContent = m.toFixed(2);
+                knob.style.left = (12 + state.morph * (field.clientWidth - 24)) + 'px';
+
+                updateInspectorState(m, collapseFactor);
+
+                if (state.hoverSliceId) {
+                    const slice = sliceDOMCache.find(s => s.id === state.hoverSliceId);
+                    if (slice) forceHUDTextUpdate(slice, m, collapseFactor);
+                }
+            }
+
+            // --- HUD Logic ---
+            function showHUD(e, slice) {
+                if (state.dragging) return;
+                hud.classList.remove('hidden');
+                hudIdNum.textContent = `REC-${slice.index}`;
+                hudTrackName.textContent = slice.track.name;
+                hudGroup.textContent = `RSG: ${slice.track.group}`;
+
+                // Determine assimilation for initial display
+                const collapseFactor = clamp((state.morph - 0.7) * 3.33, 0, 1);
+                forceHUDTextUpdate(slice, state.morph, collapseFactor);
+                updateHUDPosition(e);
+            }
+
+            function forceHUDTextUpdate(slice, m, collapseFactor) {
+                if (collapseFactor > 0.8 && slice.trackIndex !== 3) {
+                    hudText.textContent = "ASSIMILATED: Vision overwritten by Pragmatic Commuters. Design locks to Diamond Frame, Chain Drive, Equal Wheels.";
+                    hudGroup.textContent = `RSG OVERRIDE: COMMUTERS DOMINANT`;
+                    hudIdNum.style.color = "var(--c0)";
+                } else {
+                    const customText = userEdits[slice.id];
+                    hudText.textContent = customText !== undefined ? customText : slice.defaultText;
+                    hudGroup.textContent = `RSG: ${slice.track.group}`;
+                    hudIdNum.style.color = "var(--hot)";
+                }
+            }
+
+            function updateHUDPosition(e) {
+                let x = e.clientX + 15; let y = e.clientY + 15;
+                if (x + 280 > window.innerWidth) x = e.clientX - 295;
+                if (y + 120 > window.innerHeight) y = e.clientY - 135;
+                hud.style.left = x + 'px'; hud.style.top = y + 'px';
+            }
+
+            function hideHUD() { hud.classList.add('hidden'); }
+
+            // --- Inspector Logic ---
+            function activateSlice(slice) {
+                state.activeSliceId = slice.id;
+                inspector.classList.remove('hidden');
+                populateInspector(slice);
+                updateDraw();
+            }
+
+            function populateInspector(slice) {
+                if (!slice) return;
+                insId.textContent = `REC-${slice.index}`;
+                insGroup.textContent = slice.track.group;
+                insTrack.textContent = slice.track.name + ' (' + slice.track.projection + ')';
+
+                const collapseFactor = clamp((state.morph - 0.7) * 3.33, 0, 1);
+                const customText = userEdits[slice.id];
+                insText.value = customText !== undefined ? customText : slice.defaultText;
+                updateInspectorState(state.morph, collapseFactor);
+            }
+
+            function updateInspectorState(m, collapseFactor) {
+                if (!inspector.classList.contains('hidden') && state.activeSliceId) {
+                    const slice = sliceDOMCache.find(s => s.id === state.activeSliceId);
+                    if (!slice) return;
+
+                    if (collapseFactor > 0.8 && slice.trackIndex !== 3) {
+                        insText.disabled = true;
+                        insStatus.textContent = "ARTIFACT ASSIMILATED: Interpretative flexibility ends. This branch was absorbed by the Safety Bicycle standard.";
+                        insText.value = "ASSIMILATED >> THE SAFETY BICYCLE\n(Diamond Frame, Equal Wheels, Chain Drive, Pneumatic Tires)";
+                        insGroup.textContent = "PRAGMATIC COMMUTERS (OVERRIDE)";
+                        insTrack.textContent = "STABILIZED TIMELINE";
+                    } else {
+                        insText.disabled = false;
+                        insStatus.textContent = "RECORD OPEN: Projection Mode. This variant is isolated and editable.";
+                        const customText = userEdits[slice.id];
+                        insText.value = customText !== undefined ? customText : slice.defaultText;
+                        insGroup.textContent = slice.track.group;
+                        insTrack.textContent = slice.track.name + ' (' + slice.track.projection + ')';
+                    }
+                }
+            }
+
+            insText.addEventListener('input', (e) => {
+                if (state.activeSliceId && !insText.disabled) {
+                    userEdits[state.activeSliceId] = e.target.value;
+                    if (state.hoverSliceId === state.activeSliceId) hudText.textContent = e.target.value;
+                }
+            });
+
+            inspector.addEventListener('pointerdown', e => e.stopPropagation());
+
+            // Input & Haptic Mapping
+            function setFromPoint(clientX, clientY) {
+                const rect = field.getBoundingClientRect();
+                const x = clamp((clientX - rect.left) / rect.width, 0, 1);
+                const y = clamp((clientY - rect.top) / rect.height, 0, 1);
+
+                state.morph = x;
+                // Lock n to multiples of 4 (so Quadrants/RSGs are even)
+                const raw = 4 + (1 - y) * 60;
+                state.n = Math.max(4, Math.round(raw / 4) * 4);
+
+                processHapticFeedback();
+                updateDraw();
+            }
+
+            field.addEventListener('pointerdown', e => {
+                if (e.target.tagName !== 'path' && e.target.id !== 'ins-text') {
+                    state.activeSliceId = null;
+                    inspector.classList.add('hidden');
+                    updateDraw();
+                }
+                state.dragging = true;
+                field.setPointerCapture(e.pointerId);
+                setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointermove', e => {
+                if (state.dragging) setFromPoint(e.clientX, e.clientY);
+            });
+            field.addEventListener('pointerup', e => {
+                state.dragging = false;
+                try { field.releasePointerCapture(e.pointerId); } catch (_) { }
+            });
+            field.addEventListener('pointercancel', () => state.dragging = false);
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'ArrowRight') { state.morph = clamp(state.morph + .05, 0, 1); updateDraw(); processHapticFeedback(true); }
+                if (e.key === 'ArrowLeft') { state.morph = clamp(state.morph - .05, 0, 1); updateDraw(); processHapticFeedback(true); }
+            });
+
+            // ASMR Haptic Audio Engine
+            function createNoiseBuffer() {
+                const size = ctx.sampleRate * 0.05;
+                const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+                return buffer;
+            }
+
+            function setupSound() {
+                if (ctx) return;
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                master = ctx.createGain();
+                master.gain.value = 0.8;
+                master.connect(ctx.destination);
+                noiseBuffer = createNoiseBuffer();
+            }
+
+            function playAsmrTick(vol, pitchOffset = 1.0) {
+                if (!ctx || !state.sound || !noiseBuffer) return;
+                const t = ctx.currentTime;
+
+                const noiseSrc = ctx.createBufferSource();
+                noiseSrc.buffer = noiseBuffer;
+                noiseSrc.playbackRate.value = pitchOffset;
+
+                const noiseFilter = ctx.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 4000;
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+
+                noiseSrc.connect(noiseFilter);
+                noiseFilter.connect(gain);
+                gain.connect(master);
+                noiseSrc.start(t);
+
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200 * pitchOffset, t);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.02);
+
+                const oscGain = ctx.createGain();
+                oscGain.gain.setValueAtTime(vol * 1.2, t);
+                oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+
+                osc.connect(oscGain);
+                oscGain.connect(master);
+                osc.start(t);
+                osc.stop(t + 0.03);
+            }
+
+            function processHapticFeedback(force = false) {
+                if (!state.sound) return;
+                let scrubIndex = Math.floor(state.morph * 120);
+                if (scrubIndex !== lastMorphScrub || force) {
+                    playAsmrTick(0.02, 0.8 + (state.morph * 0.5));
+                    lastMorphScrub = scrubIndex;
+                }
+                if (state.n !== lastN && lastN !== -1) {
+                    playAsmrTick(0.08, 0.4 + (state.n * 0.05));
+                    lastN = state.n;
+                } else if (lastN === -1) {
+                    lastN = state.n;
+                }
+            }
+
+            soundBtn.addEventListener('click', async () => {
+                setupSound();
+                if (ctx.state === 'suspended') await ctx.resume();
+                state.sound = !state.sound;
+                soundBtn.dataset.on = state.sound;
+                if (state.sound) playAsmrTick(0.1, 1);
+            });
+
+            loopBtn.addEventListener('click', () => {
+                state.looping = !state.looping;
+                loopBtn.dataset.on = state.looping;
+            });
+
+            resetBtn.addEventListener('click', () => {
+                state.n = 24; state.morph = 0; state.looping = false; loopBtn.dataset.on = false;
+                state.activeSliceId = null; inspector.classList.add('hidden');
+                if (state.sound) playAsmrTick(0.1, 0.5);
+                updateDraw();
+            });
+
+            function tick(t) {
+                state.time = t;
+                if (state.looping && !state.dragging) {
+                    state.morph = (Math.sin(t * 0.0006) + 1) / 2;
+                    processHapticFeedback();
+                    updateDraw();
+                }
+                requestAnimationFrame(tick);
+            }
+
+            buildSVG();
+            updateDraw();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

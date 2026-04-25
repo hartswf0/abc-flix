@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>A Taxonomy of Futures / Epistemic Compilation</title>
+<style>
+  :root {
+    /* Exact Taxonomy Palette based on Stuart Candy's diagram */
+    --bg: #ffffff;
+    --ink: #222222;
+    --muted: rgba(34, 34, 34, 0.56);
+    --faint: rgba(34, 34, 34, 0.14);
+    --paper: rgba(255, 255, 255, 0.95);
+    --grid: rgba(34, 34, 34, 0.04);
+    
+    --c-pos: #d3dfd2;
+    --c-pla: #a6c6a2;
+    --c-pro: #77d14b;
+    --c-pre: #d2f23a;
+    --hot: #77d14b;
+  }
+  
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  html, body {
+    margin: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  body { touch-action: none; }
+  
+  #app { 
+    position: fixed; inset: 0; display: grid; grid-template-rows: 1fr auto; 
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  main { position: relative; min-height: 0; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: ew-resize; }
+  
+  /* Typography Overlay */
+  .title-block {
+    position: absolute; top: 12%; left: 6%;
+    pointer-events: none; z-index: 10;
+  }
+  .title {
+    font-size: clamp(28px, 3.5vw, 42px); font-weight: 300;
+    letter-spacing: 0.15em; line-height: 1.35; color: var(--ink);
+    text-transform: uppercase;
+  }
+  .credit {
+    font-size: 11px; color: #777; margin-top: 12px; font-weight: 400; line-height: 1.5;
+  }
+  .credit i { font-style: italic; }
+  
+  /* Slice Interactions */
+  .slice-group .slice {
+    stroke: var(--bg);
+    stroke-width: 0.5px;
+    stroke-linejoin: round;
+    fill-opacity: 0.85;
+    transition: stroke 0.15s, stroke-width 0.15s, fill-opacity 0.15s;
+  }
+  .slice-group.active .slice, .slice-group:hover .slice {
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+    fill-opacity: 1;
+  }
+
+  /* Footer UI Tool */
+  footer {
+    display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+    padding: 12px max(16px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-right));
+    border-top: 1px solid var(--faint); background: var(--paper); backdrop-filter: blur(8px);
+    z-index: 20;
+  }
+  
+  .controls { display: grid; grid-auto-flow: column; gap: 12px 20px; align-items: end; }
+  .group { display: grid; gap: 4px; }
+  .group label { font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700;}
+  input[type="range"] { width: 130px; accent-color: var(--hot); cursor: pointer; }
+  
+  button {
+    min-height: 32px; padding: 0 12px; border: 1px solid var(--faint); background: transparent; color: var(--ink);
+    font: 10px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: background 0.1s; font-weight: 700; border-radius: 4px !important;
+  }
+  button:hover { background: rgba(34,34,34,0.04); }
+  button[data-on="true"], button:active { background: var(--ink); color: #ffffff; border-color: var(--ink); }
+  
+  .meta { display: grid; grid-auto-flow: column; gap: 14px 24px; align-items: center; }
+  .legend { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 14px; align-items: center; }
+  .legendItem { display: grid; grid-template-columns: 9px auto; gap: 7px; align-items: center; font-size: 11px; white-space: nowrap; text-transform: uppercase; cursor: pointer; font-weight: 600; color: var(--muted); transition: color 0.2s;}
+  .legendItem.active, .legendItem:hover { color: var(--ink); }
+  .sw { width: 9px; height: 9px; border-radius: 2px !important; }
+  
+  .readout { display: grid; grid-auto-flow: column; gap: 20px; align-items: center; border-left: 1px solid var(--faint); padding-left: 20px;}
+  .readout span { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; font-weight: 700;}
+  .readout strong { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+  
+  @media (max-width: 1080px) {
+    footer { grid-template-columns: 1fr; gap: 10px; }
+    .controls { grid-template-columns: 1fr 1fr; grid-auto-flow: row; }
+    .meta { grid-template-columns: 1fr; grid-auto-flow: row; justify-items: start; gap: 16px; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .readout { grid-template-columns: repeat(4, auto); grid-auto-flow: row; border-left: none; padding-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="field">
+    <div class="title-block">
+      <div class="title">A Taxonomy<br>Of Futures</div>
+      <div class="credit">
+        Redrawn from <i>Speculative Everything</i> redrawing Stuart Candy<br>
+        <span style="color: #444; font-weight: 600;">Topological Model: Scrub the timeline to compile radial slices into overlapping future cones.</span>
+      </div>
+    </div>
+    <svg id="svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid meet"></svg>
+  </main>
+  
+  <footer>
+    <div class="controls">
+      <div class="group">
+        <label for="progress">Compile Time</label>
+        <input id="progress" type="range" min="0" max="1000" value="0" />
+      </div>
+      <div class="group">
+        <label for="density">Slice Density</label>
+        <input id="density" type="range" min="6" max="24" value="12" />
+      </div>
+      <div class="group"><label>Animation</label><button id="loopBtn">Auto-Loop</button></div>
+      <div class="group"><label>Haptics</label><button id="soundBtn">Audio</button></div>
+    </div>
+    
+    <div class="meta">
+      <div class="legend" id="legend">
+        <div class="legendItem" data-idx="0"><span class="sw" style="background:var(--c-pos)"></span><span>Possible</span></div>
+        <div class="legendItem" data-idx="1"><span class="sw" style="background:var(--c-pla)"></span><span>Plausible</span></div>
+        <div class="legendItem" data-idx="2"><span class="sw" style="background:var(--c-pro)"></span><span>Probable</span></div>
+        <div class="legendItem" data-idx="3"><span class="sw" style="background:var(--c-pre)"></span><span>Preferable</span></div>
+      </div>
+      <div class="readout">
+        <div><span>Selection</span><strong id="rName">Possible</strong></div>
+        <div><span>Slices</span><strong id="rSlices">19</strong></div>
+        <div><span>Angle</span><strong id="rAngle">18.9°</strong></div>
+        <div><span>Phase</span><strong id="rPhase">Radial Slices</strong></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const progressEl = document.getElementById('progress');
+  const densityEl = document.getElementById('density');
+  const loopBtn = document.getElementById('loopBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  
+  const rName = document.getElementById('rName');
+  const rSlices = document.getElementById('rSlices');
+  const rAngle = document.getElementById('rAngle');
+  const rPhase = document.getElementById('rPhase');
+
+  const NS = 'http://www.w3.org/2000/svg';
+  
+  // Topological Coordinate Map
+  // Links radial circles (t=0) to the final 2D overlapping cones (t=1)
+  const rows = [
+    { name:'possible',   color:'var(--c-pos)', y:180, circleX:200, radius:75, coneTop: 100, coneBot: 800, mult:1.6, labelY: 160 },
+    { name:'plausible',  color:'var(--c-pla)', y:360, circleX:200, radius:75, coneTop: 240, coneBot: 660, mult:1.2, labelY: 280 },
+    { name:'probable',   color:'var(--c-pro)', y:540, circleX:200, radius:75, coneTop: 390, coneBot: 510, mult:0.8, labelY: 450 },
+    { name:'preferable', color:'var(--c-pre)', y:720, circleX:200, radius:75, coneTop: 440, coneBot: 610, mult:1.0, labelY: 560 }
+  ];
+
+  const state = { progress: 0, base: 12, active: 0, loop: false, sound: false, dragging: false };
+  let ctx, drone, over, pulse, filter, master;
+  let domCache = {}; // Stores persistent SVG nodes for O(1) attribute updates
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = t => t * t * (3 - 2 * t);
+  
+  function counts() { return rows.map(r => Math.max(4, Math.round(state.base * r.mult))); }
+
+  function el(tag, attrs={}) { 
+    const e = document.createElementNS(NS, tag); 
+    for(const k in attrs) e.setAttribute(k, attrs[k]); 
+    return e; 
+  }
+
+  function text(x, y, str, size=12, anchor='middle', fill='var(--ink)', weight='400', letter='0') {
+    const t = el('text', { x, y, fill, 'font-size': size, 'text-anchor': anchor, 'font-weight': weight, 'font-family': 'inherit', 'letter-spacing': letter });
+    t.textContent = str; 
+    return t;
+  }
+
+  // --- Core Topological Transformation ---
+  // Maps a 2D wedge of a circle to a vertical segment of the expanding cone.
+  function getSlicePath(row, i, n, t) {
+    const thetaStart = -Math.PI/2 + (i/n) * Math.PI*2;
+    const thetaEnd   = -Math.PI/2 + ((i+1)/n) * Math.PI*2;
+    const steps = 6; // Segments to simulate curvature
+    const pts = [];
+
+    // The apex of the slice travels from the circle's center to the Cone's shared Apex (X=450, Y=450)
+    const apexX = lerp(row.circleX, 450, t);
+    const apexY = lerp(row.y, 450, t);
+    pts.push({ x: apexX, y: apexY });
+    
+    // The arc of the wedge travels to the right wall to form the vertical base of the Cone
+    for (let j = 0; j <= steps; j++) {
+      const f = j / steps;
+      const a = lerp(thetaStart, thetaEnd, f);
+      
+      // Proportion across the 360 circle (maps to height on the final cone base)
+      const sliceF = (i + f) / n; 
+      
+      // Radial Arc point
+      const cx = row.circleX + row.radius * Math.cos(a);
+      const cy = row.y + row.radius * Math.sin(a);
+      
+      // Final Cone Base point
+      const coneX = 1150;
+      const coneY = lerp(row.coneTop, row.coneBot, sliceF);
+      
+      // Interpolate
+      const px = lerp(cx, coneX, t);
+      const py = lerp(cy, coneY, t);
+      
+      pts.push({ x: px, y: py });
+    }
+    
+    return pts.map((p, k) => (k === 0 ? 'M' : 'L') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z';
+  }
+
+  // --- Initial DOM Construction ---
+  function buildSVG() {
+    svg.innerHTML = '';
+    domCache = { tiers: [], guides: [] };
+    
+    // Background Trajectory Guides
+    const guidesG = el('g', { id: 'guides' });
+    rows.forEach(row => {
+      const lineEl = el('line', {
+        x1: row.circleX, y1: row.y, x2: 450, y2: 450,
+        stroke: 'var(--ink)', 'stroke-dasharray': '4 4'
+      });
+      guidesG.appendChild(lineEl);
+      domCache.guides.push(lineEl);
+    });
+    svg.appendChild(guidesG);
+
+    // Grouping for Slices
+    const slicesG = el('g', { id: 'slices-group' });
+    
+    rows.forEach((row, rowIndex) => {
+      const g = el('g', { class: 'slice-group' });
+      const n = counts()[rowIndex];
+      const paths = [];
+      
+      // Event bindings mapped via CSS to avoid SVG DOM thrashing
+      g.addEventListener('pointerenter', () => updateReadout(rowIndex));
+      g.addEventListener('pointerleave', () => updateReadout(state.active));
+      g.addEventListener('pointerdown', () => { state.active = rowIndex; updateUIStates(); });
+      
+      for(let i=0; i<n; i++) {
+        const pathEl = el('path', { class: 'slice', fill: row.color });
+        g.appendChild(pathEl);
+        paths.push(pathEl);
+      }
+      
+      // Label pinned to the circle (t=0)
+      const cLbl = text(row.circleX, row.y - row.radius - 14, row.name, 12, 'middle', 'var(--ink)', '600', '0.05em');
+      cLbl.style.textTransform = 'capitalize';
+      
+      // Label pinned to the cone (t=1)
+      const coneLbl = text(1130, row.labelY, row.name, 13, 'end', 'var(--ink)', '700', '0.05em');
+      coneLbl.style.textTransform = 'capitalize';
+      
+      g.append(cLbl, coneLbl);
+      slicesG.appendChild(g);
+      
+      domCache.tiers.push({ g, paths, cLbl, coneLbl, n });
+    });
+    
+    svg.appendChild(slicesG);
+    
+    // Present / Future Overlay Nodes
+    const pNode = el('circle', { cx: 450, cy: 450, r: 4, fill: 'var(--ink)' });
+    const pLbl = text(430, 455, 'Present', 14, 'end', 'var(--ink)', '600', '0.02em');
+    const fLbl = text(1170, 455, 'Futures', 14, 'start', 'var(--ink)', '600', '0.02em');
+    
+    svg.append(pNode, pLbl, fLbl);
+    domCache.pNode = pNode; domCache.pLbl = pLbl; domCache.fLbl = fLbl;
+    
+    updateUIStates();
+  }
+
+  // --- High-Performance Render Loop ---
+  function draw() {
+    const ts = smooth(state.progress);
+    
+    // 1. Update Trajectory Guides
+    domCache.guides.forEach(line => {
+      line.setAttribute('opacity', 0.1 * (1 - ts));
+    });
+
+    // 2. Morph Geometry Attributes
+    rows.forEach((row, rowIndex) => {
+      const cache = domCache.tiers[rowIndex];
+      const n = cache.n;
+      
+      cache.paths.forEach((pathEl, i) => {
+        pathEl.setAttribute('d', getSlicePath(row, i, n, ts));
+      });
+      
+      // Cross-fade taxonomic labels based on progression state
+      cache.cLbl.setAttribute('opacity', clamp(1 - ts * 3, 0, 1));
+      cache.coneLbl.setAttribute('opacity', clamp((ts - 0.7) * 3.3, 0, 1));
+    });
+    
+    // 3. Reveal Final Horizons
+    const presentOpacity = clamp((ts - 0.8) * 5, 0, 1);
+    domCache.pNode.setAttribute('opacity', presentOpacity);
+    domCache.pLbl.setAttribute('opacity', presentOpacity);
+    domCache.fLbl.setAttribute('opacity', presentOpacity);
+    
+    // 4. Update HUD
+    if(state.progress < 0.1) rPhase.textContent = 'Radial Slices';
+    else if(state.progress < 0.9) rPhase.textContent = 'Compiling...';
+    else rPhase.textContent = 'Taxonomy Cone';
+    
+    progressEl.value = Math.round(state.progress * 1000);
+  }
+
+  // --- Interaction & Readout Logic ---
+  function updateReadout(idx) {
+    if (idx === null || idx === undefined) return;
+    const row = rows[idx];
+    const n = counts()[idx];
+    rName.textContent = row.name.charAt(0).toUpperCase() + row.name.slice(1);
+    rName.style.color = row.color === 'var(--c-pos)' ? '#889e87' : row.color; // Contrast adjustment
+    rSlices.textContent = n;
+    rAngle.textContent = (360 / n).toFixed(1) + '°';
+  }
+
+  function updateUIStates() {
+    document.querySelectorAll('.legendItem').forEach((item, i) => {
+      item.classList.toggle('active', i === state.active);
+    });
+    document.querySelectorAll('.slice-group').forEach((g, i) => {
+      g.classList.toggle('active', i === state.active);
+    });
+    updateReadout(state.active);
+  }
+
+  function scrub(clientX) {
+    const rect = svg.getBoundingClientRect();
+    state.progress = clamp((clientX - rect.left) / rect.width, 0, 1);
+    updateSound(true);
+    draw();
+  }
+
+  // DOM Event Hooks
+  progressEl.addEventListener('input', () => { state.progress = Number(progressEl.value) / 1000; updateSound(true); draw(); });
+  densityEl.addEventListener('input', () => { state.base = Number(densityEl.value); buildSVG(); updateSound(true); draw(); });
+
+  svg.addEventListener('pointerdown', e => { state.dragging = true; svg.setPointerCapture(e.pointerId); scrub(e.clientX); });
+  svg.addEventListener('pointermove', e => { if (state.dragging) scrub(e.clientX); });
+  svg.addEventListener('pointerup', e => { state.dragging = false; try { svg.releasePointerCapture(e.pointerId); } catch(_) {} });
+  svg.addEventListener('pointercancel', () => { state.dragging = false; });
+
+  document.querySelectorAll('.legendItem').forEach(item => {
+    item.addEventListener('click', () => {
+      state.active = parseInt(item.getAttribute('data-idx'));
+      updateUIStates();
+      updateSound(true);
+    });
+  });
+
+  // --- Audio Engine ---
+  function setupSound() {
+    if(ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    drone = ctx.createOscillator();
+    over = ctx.createOscillator();
+    pulse = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    master = ctx.createGain();
+    
+    drone.type = 'sine'; over.type = 'triangle'; filter.type = 'lowpass';
+    drone.frequency.value = 92; over.frequency.value = 138; filter.frequency.value = 900; master.gain.value = 0; pulse.gain.value = 0;
+    
+    drone.connect(filter); over.connect(pulse).connect(filter); filter.connect(master).connect(ctx.destination);
+    drone.start(); over.start();
+  }
+
+  function updateSound(ping = false) {
+    if(!ctx || !state.sound) return;
+    const now = ctx.currentTime;
+    const root = 84 + state.active * 22 + state.progress * 72;
+    
+    drone.frequency.setTargetAtTime(root, now, .03);
+    over.frequency.setTargetAtTime(root * (1.38 + state.base / 48), now, .03);
+    filter.frequency.setTargetAtTime(320 + state.base * 52 + state.progress * 1380, now, .05);
+    master.gain.setTargetAtTime(0.018 + state.progress * 0.02, now, .05);
+    
+    if(ping) {
+      pulse.gain.cancelScheduledValues(now);
+      pulse.gain.setValueAtTime(.0001, now);
+      pulse.gain.exponentialRampToValueAtTime(.05, now + .015);
+      pulse.gain.exponentialRampToValueAtTime(.0001, now + .13);
+    }
+  }
+
+  soundBtn.addEventListener('click', async () => {
+    setupSound();
+    if(ctx.state === 'suspended') await ctx.resume();
+    state.sound = !state.sound;
+    soundBtn.dataset.on = state.sound;
+    if(!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, .03);
+    updateSound(true);
+  });
+
+  loopBtn.addEventListener('click', () => {
+    state.loop = !state.loop;
+    loopBtn.dataset.on = state.loop;
+  });
+
+  function tick(t) {
+    if(state.loop && !state.dragging) {
+      const tt = t * 0.00018;
+      state.progress = (Math.sin(tt) + 1) / 2;
+      
+      // Auto-modulate density slightly
+      state.base = Math.round(6 + ((Math.sin(tt * 0.91 + 1.2) + 1) / 2) * 18);
+      densityEl.value = state.base;
+      buildSVG();
+      
+      // Auto-switch taxonomic selection
+      const newActive = Math.floor(((Math.sin(tt * 0.55 + 0.4) + 1) / 2) * 3.999);
+      if (newActive !== state.active) {
+        state.active = newActive;
+        updateUIStates();
+      }
+      
+      updateSound(false);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Boot Setup
+  buildSVG();
+  draw();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
