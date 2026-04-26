@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Topographical Lock Surface</title>
+    <style>
+        :root {
+            --black: #000000;
+            --white: #FFFFFF
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: #FFFFFF
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000000;
+            color: #FFFFFF;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace
+        }
+
+        body {
+            touch-action: manipulation;
+            user-select: none
+        }
+
+        button,
+        textarea {
+            font: inherit
+        }
+
+        #root {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: 46px 1fr 172px;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            border-bottom: 2px solid #FFFFFF;
+            padding: 0 14px;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        #title {
+            font-size: 13px;
+            letter-spacing: .08em;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        #mode {
+            border-left: 2px solid #FFFFFF;
+            padding-left: 12px;
+            font-size: 12px;
+            font-weight: 900
+        }
+
+        main {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 290px 1fr 330px;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        .panel {
+            min-height: 0;
+            border-right: 2px solid #FFFFFF;
+            display: flex;
+            flex-direction: column
+        }
+
+        .panel.right {
+            border-right: 0;
+            border-left: 2px solid #FFFFFF
+        }
+
+        .panel-title {
+            min-height: 36px;
+            border-bottom: 2px solid #FFFFFF;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 11px;
+            line-height: 1;
+            letter-spacing: .08em;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        .panel-body {
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column
+        }
+
+        .sequence {
+            display: flex;
+            flex-direction: column;
+            height: 100%
+        }
+
+        .seq-item {
+            border-bottom: 2px solid #FFFFFF;
+            padding: 11px 10px;
+            min-height: 68px;
+            cursor: pointer;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        .seq-item:active,
+        .seq-item.focused {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        .seq-k {
+            display: block;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .seq-v {
+            display: block;
+            margin-top: 8px;
+            font-size: 17px;
+            line-height: 1.05;
+            font-weight: 900;
+            word-break: break-word
+        }
+
+        .seq-hint {
+            display: block;
+            margin-top: 8px;
+            font-size: 10px;
+            line-height: 1.15;
+            text-transform: uppercase
+        }
+
+        #rootStage {
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+            display: grid;
+            grid-template-rows: 1fr 54px;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        #payloadBox {
+            min-height: 0;
+            position: relative;
+            display: grid;
+            grid-template-rows: 40px 1fr
+        }
+
+        #payloadLabel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #FFFFFF;
+            padding: 0 10px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase
+        }
+
+        #rootInput {
+            width: 100%;
+            height: 100%;
+            resize: none;
+            border: 0;
+            outline: 0;
+            padding: 16px;
+            background: #000000;
+            color: #FFFFFF;
+            font-size: 22px;
+            line-height: 1.18;
+            font-weight: 900;
+            text-transform: uppercase;
+            caret-color: #FFFFFF
+        }
+
+        #rootInput::selection {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        #controlStrip {
+            border-top: 2px solid #FFFFFF;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            min-height: 54px
+        }
+
+        .control {
+            background: #000000;
+            color: #FFFFFF;
+            border: 0;
+            border-right: 2px solid #FFFFFF;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .04em;
+            text-transform: uppercase
+        }
+
+        .control:last-child {
+            border-right: 0
+        }
+
+        .control:active,
+        .control.on {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        .state-box {
+            border-bottom: 2px solid #FFFFFF;
+            padding: 10px
+        }
+
+        .state-k {
+            display: block;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .state-v {
+            display: block;
+            margin-top: 8px;
+            font-size: 20px;
+            line-height: 1.05;
+            font-weight: 900;
+            word-break: break-word
+        }
+
+        #plan {
+            min-height: 0;
+            flex: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: auto;
+            padding: 10px;
+            font-size: 14px;
+            line-height: 1.2;
+            font-weight: 900;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        #plan::selection {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        #ground {
+            min-height: 0;
+            border-top: 2px solid #FFFFFF;
+            display: grid;
+            grid-template-columns: 290px 1fr 330px;
+            background: #000000;
+            color: #FFFFFF
+        }
+
+        #groundLabel {
+            border-right: 2px solid #FFFFFF;
+            padding: 10px;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1.18;
+            text-transform: uppercase
+        }
+
+        #stackStage {
+            position: relative;
+            min-height: 0;
+            border-right: 2px solid #FFFFFF;
+            overflow: hidden
+        }
+
+        #baseLine {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 14px;
+            background: #FFFFFF;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em
+        }
+
+        #stack {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 18px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 4px
+        }
+
+        .dep {
+            min-height: 23px;
+            border: 2px solid #FFFFFF;
+            background: #000000;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 12px;
+            line-height: 1;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .dep:nth-child(even) {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        #witness {
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.25;
+            font-weight: 900;
+            text-transform: uppercase;
+            overflow: hidden
+        }
+
+        @media(max-width: 900px) {
+            #root {
+                grid-template-rows: 42px 1fr 154px
+            }
+
+            header {
+                padding: 0 10px
+            }
+
+            #title {
+                font-size: 11px
+            }
+
+            #mode {
+                font-size: 10px;
+                padding-left: 8px
+            }
+
+            main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 120px 1fr 142px
+            }
+
+            .panel {
+                border-right: 0;
+                border-bottom: 2px solid #FFFFFF
+            }
+
+            .panel.right {
+                border-left: 0;
+                border-bottom: 0
+            }
+
+            .panel-title {
+                min-height: 26px;
+                font-size: 10px
+            }
+
+            .sequence {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr)
+            }
+
+            .seq-item {
+                min-height: 94px;
+                border-bottom: 0;
+                border-right: 2px solid #FFFFFF;
+                padding: 7px
+            }
+
+            .seq-item:last-child {
+                border-right: 0
+            }
+
+            .seq-v {
+                font-size: 13px
+            }
+
+            .seq-hint {
+                display: none
+            }
+
+            #rootInput {
+                font-size: 18px;
+                padding: 12px
+            }
+
+            #controlStrip {
+                min-height: 46px
+            }
+
+            .control {
+                font-size: 10px
+            }
+
+            .state-box {
+                display: none
+            }
+
+            #plan {
+                font-size: 12px;
+                padding: 8px
+            }
+
+            #ground {
+                grid-template-columns: 1fr;
+                grid-template-rows: 0 1fr 42px
+            }
+
+            #groundLabel {
+                display: none
+            }
+
+            #stackStage {
+                border-right: 0
+            }
+
+            #witness {
+                border-top: 2px solid #FFFFFF;
+                padding: 7px 10px;
+                font-size: 10px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root" tabindex="0" aria-label="Root viewport control surface">
+        <header>
+            <div id="title">TOPOGRAPHICAL LOCK SURFACE</div>
+            <div id="mode">ROOT NODE ACTIVE</div>
+        </header>
+        <main>
+            <section class="panel" aria-label="Interrogation sequence">
+                <div class="panel-title">INTERROGATION SEQUENCE</div>
+                <div class="panel-body">
+                    <div class="sequence" id="sequence"></div>
+                </div>
+            </section>
+            <section id="rootStage" aria-label="Payload control surface">
+                <div id="payloadBox">
+                    <div id="payloadLabel">
+                        <span>MESSAGE PAYLOAD</span>
+                        <span>TEXT IS CONTROL</span>
+                    </div>
+                    <textarea id="rootInput" spellcheck="false" autocomplete="off" autocapitalize="characters">SYSTEM: ARC CARTRIDGE BENCH
+DO: EDIT MEDIA CLIPS AS ABSOLUTE-TIME BARREL SECTIONS
+DO_NOT: USE SIDE VIEW AS A FLAT SPREADSHEET
+DEP: IMPORTED MEDIA OBJECTS
+DEP: SELECTED CLIP
+DEP: ABSOLUTE TIMEBASE
+DEP: LOCAL ROLL FACE
+ACTION: OPERATOR WRITES THE PLAN INTO THE ROOT VIEWPORT</textarea>
+                </div>
+                <div id="controlStrip">
+                    <button class="control" id="freezeBtn" type="button">FREEZE PAYLOAD</button>
+                    <button class="control" id="copyBtn" type="button">COPY PLAN</button>
+                    <button class="control" id="clearBtn" type="button">CLEAR ROOT</button>
+                </div>
+            </section>
+            <section class="panel right" aria-label="State and plan">
+                <div class="panel-title">ANALYTICAL MAPPING</div>
+                <div class="panel-body">
+                    <div class="state-box">
+                        <span class="state-k">INNER FIRST-ORDER STATE</span>
+                        <span class="state-v" id="innerState">UNSET</span>
+                    </div>
+                    <div class="state-box">
+                        <span class="state-k">OUTER SECOND-ORDER STATE</span>
+                        <span class="state-v" id="outerState">NULL ARCHITECTURE</span>
+                    </div>
+                    <pre id="plan"></pre>
+                </div>
+            </section>
+        </main>
+        <section id="ground" aria-label="Base-anchored dependency stack">
+            <div id="groundLabel">
+                CAMERA LOCKED TO BASE.<br>
+                STACK GROWS FROM GROUND.<br>NO PERSPECTIVE DRIFT.
+            </div>
+            <div id="stackStage">
+                <div id="stack"></div>
+                <div id="baseLine">GROUND / DEPENDENCY BASE</div>
+            </div>
+            <div id="witness">WITNESS: PAYLOAD WAITING.</div>
+        </section>
+    </div>
+    <script>
+        (function () {
+            "use strict";
+            var root = document.getElementById("root")
+                , input = document.getElementById("rootInput")
+                , seq = document.getElementById("sequence")
+                , innerState = document.getElementById("innerState")
+                , outerState = document.getElementById("outerState")
+                , plan = document.getElementById("plan")
+                , stack = document.getElementById("stack")
+                , witness = document.getElementById("witness")
+                , freezeBtn = document.getElementById("freezeBtn")
+                , copyBtn = document.getElementById("copyBtn")
+                , clearBtn = document.getElementById("clearBtn")
+                , frozen = false
+                , lastFocus = "SYSTEM"
+                , prompts = [{
+                    key: "SYSTEM",
+                    label: "SYSTEM",
+                    hint: "literal identity"
+                }, {
+                    key: "DO",
+                    label: "DO",
+                    hint: "required operation"
+                }, {
+                    key: "DO_NOT",
+                    label: "DO_NOT",
+                    hint: "rejected operation"
+                }, {
+                    key: "DEP",
+                    label: "DEP",
+                    hint: "dependency line"
+                }, {
+                    key: "ACTION",
+                    label: "ACTION",
+                    hint: "operator action"
+                }];
+            function clean(v) {
+                return (v || "").replace(/\s+/g, " ").trim().toUpperCase()
+            }
+            function firstValue(lines, keys) {
+                var i, m, k;
+                for (i = 0; i < lines.length; i++) {
+                    m = lines[i].match(/^([A-Z_ ]+)\s*:\s*(.*)$/);
+                    if (!m)
+                        continue;
+                    k = clean(m[1]).replace(/ /g, "_");
+                    if (keys.indexOf(k) !== -1 && clean(m[2]))
+                        return clean(m[2])
+                }
+                return ""
+            }
+            function allValues(lines, keys) {
+                var out = [], i, m, k, v;
+                for (i = 0; i < lines.length; i++) {
+                    m = lines[i].match(/^([A-Z_ ]+)\s*:\s*(.*)$/);
+                    if (!m)
+                        continue;
+                    k = clean(m[1]).replace(/ /g, "_");
+                    v = clean(m[2]);
+                    if (keys.indexOf(k) !== -1 && v)
+                        out.push(v)
+                }
+                return out
+            }
+            function parsePayload() {
+                var lines = input.value.split(/\n+/).map(function (x) {
+                    return x.trim()
+                }).filter(Boolean);
+                return {
+                    system: firstValue(lines, ["SYSTEM", "IDENTITY", "INNER"]),
+                    do: firstValue(lines, ["DO", "MUST", "OPERATION"]),
+                    not: firstValue(lines, ["DO_NOT", "NOT", "MUST_NOT", "NON_GOAL"]),
+                    action: firstValue(lines, ["ACTION", "OPERATOR", "RESPONSE"]),
+                    deps: allValues(lines, ["DEP", "DEPENDENCY", "DEPENDS_ON"])
+                }
+            }
+            function insertTemplate(key) {
+                var template = "";
+                if (key === "SYSTEM")
+                    template = "SYSTEM: ";
+                if (key === "DO")
+                    template = "DO: ";
+                if (key === "DO_NOT")
+                    template = "DO_NOT: ";
+                if (key === "DEP")
+                    template = "DEP: ";
+                if (key === "ACTION")
+                    template = "ACTION: ";
+                input.focus();
+                var start = input.selectionStart
+                    , end = input.selectionEnd
+                    , before = input.value.slice(0, start)
+                    , after = input.value.slice(end)
+                    , prefix = before && !before.endsWith("\n") ? "\n" : "";
+                input.value = before + prefix + template + after;
+                var pos = (before + prefix + template).length;
+                input.selectionStart = pos;
+                input.selectionEnd = pos;
+                lastFocus = key;
+                frozen = false;
+                render()
+            }
+            function renderSequence(data) {
+                seq.innerHTML = "";
+                prompts.forEach(function (p) {
+                    var value = "";
+                    if (p.key === "SYSTEM")
+                        value = data.system || "UNSET";
+                    if (p.key === "DO")
+                        value = data.do || "UNSET";
+                    if (p.key === "DO_NOT")
+                        value = data.not || "UNSET";
+                    if (p.key === "DEP")
+                        value = data.deps.length ? String(data.deps.length) + " SET" : "UNSET";
+                    if (p.key === "ACTION")
+                        value = data.action || "UNSET";
+                    var el = document.createElement("div");
+                    el.className = "seq-item" + (lastFocus === p.key ? " focused" : "");
+                    el.setAttribute("data-key", p.key);
+                    el.innerHTML = '<span class="seq-k">' + p.label + '</span><span class="seq-v">' + value + '</span><span class="seq-hint">' + p.hint + '</span>';
+                    el.addEventListener("click", function (ev) {
+                        ev.stopPropagation();
+                        insertTemplate(p.key)
+                    });
+                    seq.appendChild(el)
+                })
+            }
+            function buildPlan(data) {
+                var missing = [];
+                if (!data.system)
+                    missing.push("SYSTEM");
+                if (!data.do)
+                    missing.push("DO");
+                if (!data.not)
+                    missing.push("DO_NOT");
+                if (!data.action)
+                    missing.push("ACTION");
+                var out = [];
+                out.push("PLAN PAYLOAD");
+                out.push("");
+                out.push("INNER_FIRST_ORDER_STATE: " + (data.system || "UNSET"));
+                out.push("OUTER_SECOND_ORDER_STATE: " + (missing.length ? "NULL ARCHITECTURE // WAITING FOR SHARED UNDERSTANDING" : "SHARED TERMS SET // ARCHITECTURE MAY BE DRAWN"));
+                out.push("");
+                out.push("MESSAGE:");
+                out.push("SYSTEM: " + (data.system || "UNSET"));
+                out.push("DO: " + (data.do || "UNSET"));
+                out.push("DO_NOT: " + (data.not || "UNSET"));
+                out.push("ACTION: " + (data.action || "UNSET"));
+                out.push("");
+                out.push("DEPENDENCIES:");
+                if (data.deps.length) {
+                    data.deps.forEach(function (d, i) {
+                        out.push(String(i + 1) + ". " + d)
+                    })
+                } else {
+                    out.push("NONE SET")
+                }
+                out.push("");
+                out.push("VALIDATION:");
+                out.push("PALETTE: #FFFFFF / #000000");
+                out.push("PAGINATION: ABSENT");
+                out.push("CAMERA: BASE LOCKED");
+                out.push("CONTROL: ROOT TEXT NODE");
+                out.push("METAPHORICAL DEFINITIONS: REJECTED");
+                out.push("");
+                out.push("STATUS: " + (frozen ? "FROZEN" : "LIVE"));
+                if (missing.length)
+                    out.push("MISSING: " + missing.join(", "));
+                return out.join("\n")
+            }
+            function renderStack(data) {
+                stack.innerHTML = "";
+                if (!data.deps.length) {
+                    var empty = document.createElement("div");
+                    empty.className = "dep";
+                    empty.textContent = "NO DEPENDENCIES SET";
+                    stack.appendChild(empty);
+                    return
+                }
+                data.deps.slice(0, 8).forEach(function (d, i) {
+                    var el = document.createElement("div");
+                    el.className = "dep";
+                    el.textContent = String(i + 1) + " / " + d;
+                    stack.appendChild(el)
+                })
+            }
+            function render() {
+                var data = parsePayload()
+                    , missing = [];
+                if (!data.system)
+                    missing.push("SYSTEM");
+                if (!data.do)
+                    missing.push("DO");
+                if (!data.not)
+                    missing.push("DO_NOT");
+                if (!data.action)
+                    missing.push("ACTION");
+                innerState.textContent = data.system || "UNSET";
+                outerState.textContent = missing.length ? "NULL ARCHITECTURE" : "SHARED TERMS SET";
+                renderSequence(data);
+                renderStack(data);
+                plan.textContent = buildPlan(data);
+                if (frozen) {
+                    witness.textContent = "WITNESS: PAYLOAD FROZEN. ROOT NODE HOLDS THE PLAN."
+                } else if (missing.length) {
+                    witness.textContent = "WITNESS: LIVE PAYLOAD. REQUIRED LINE: " + missing[0] + ".";
+                    lastFocus = missing[0]
+                } else {
+                    witness.textContent = "WITNESS: LIVE PAYLOAD COMPLETE. PRESS CTRL+ENTER OR FREEZE PAYLOAD."
+                }
+            }
+            function freeze() {
+                frozen = true;
+                freezeBtn.classList.add("on");
+                setTimeout(function () {
+                    freezeBtn.classList.remove("on")
+                }, 160);
+                render()
+            }
+            function copyPlan() {
+                var txt = plan.textContent;
+                copyBtn.classList.add("on");
+                setTimeout(function () {
+                    copyBtn.classList.remove("on")
+                }, 160);
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(txt).then(function () {
+                        witness.textContent = "WITNESS: PLAN COPIED."
+                    }).catch(function () {
+                        witness.textContent = "WITNESS: COPY BLOCKED. SELECT PLAN TEXT."
+                    })
+                } else {
+                    witness.textContent = "WITNESS: COPY NOT AVAILABLE. SELECT PLAN TEXT."
+                }
+            }
+            function clearRoot() {
+                input.value = "";
+                frozen = false;
+                clearBtn.classList.add("on");
+                setTimeout(function () {
+                    clearBtn.classList.remove("on")
+                }, 160);
+                input.focus();
+                render()
+            }
+            input.addEventListener("input", function () {
+                frozen = false;
+                render()
+            });
+            input.addEventListener("keydown", function (ev) {
+                if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                    ev.preventDefault();
+                    freeze()
+                }
+                if (ev.key === "Tab") {
+                    ev.preventDefault();
+                    var data = parsePayload();
+                    if (!data.system)
+                        return insertTemplate("SYSTEM");
+                    if (!data.do)
+                        return insertTemplate("DO");
+                    if (!data.not)
+                        return insertTemplate("DO_NOT");
+                    if (!data.deps.length)
+                        return insertTemplate("DEP");
+                    if (!data.action)
+                        return insertTemplate("ACTION");
+                    insertTemplate("DEP")
+                }
+            });
+            root.addEventListener("pointerdown", function (ev) {
+                if (ev.target.tagName === "BUTTON" || ev.target.closest(".seq-item"))
+                    return;
+                input.focus()
+            });
+            freezeBtn.addEventListener("click", freeze);
+            copyBtn.addEventListener("click", copyPlan);
+            clearBtn.addEventListener("click", clearRoot);
+            document.addEventListener("keydown", function (ev) {
+                if (ev.key === "Escape")
+                    input.focus()
+            });
+            render();
+            input.focus()
+        }
+        )();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NSDS RL · Single-Agent Centralized Pipeline</title>
+<style>
+:root{--bg:#efeee8;--ink:#080808;--mut:#6c6a62;--paper:#fffdf3;--line:#080808;--red:#d71920;--blue:#0057c2;--gold:#d5a900;--green:#14824c;--bar:46px;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;border-radius:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none}
+button,input,select{font:inherit}input[type="file"]{display:none}
+button,.fileBtn{border:2px solid var(--line);background:var(--paper);color:var(--ink);font-weight:900;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;min-height:38px;padding:0 10px;box-shadow:2px 2px 0 var(--line);display:flex;align-items:center;justify-content:center;font-size:11px}
+button:active,.fileBtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--line)}
+button.on{background:var(--ink);color:var(--paper)}button.primary{background:var(--red);color:white}
+.blue{background:var(--blue)!important;color:white!important}.gold{background:var(--gold)!important;color:var(--ink)!important}.green{background:var(--green)!important;color:white!important}
+
+#app{height:100dvh;display:grid;grid-template-rows:var(--bar) minmax(0,1fr) auto;background:var(--bg)}
+header{height:var(--bar);display:grid;grid-template-columns:1fr auto;align-items:center;background:var(--ink);color:white;border-bottom:3px solid var(--line);overflow:hidden}
+.title{font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{height:100%;display:flex;align-items:center;border-left:1px solid #333}
+.stat{height:100%;display:flex;align-items:center;gap:5px;padding:0 10px;border-right:1px solid #333;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.stat b{color:var(--gold);font-variant-numeric:tabular-nums}
+
+main{min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 320px;overflow:hidden}
+#stage{position:relative;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px;background:linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px),linear-gradient(0deg,rgba(0,0,0,.045) 1px,transparent 1px),#dedbd1;background-size:24px 24px;overflow:hidden}
+#canvasWrap{position:relative;background:var(--paper);border:3px solid var(--line);box-shadow:8px 8px 0 rgba(0,0,0,.18);max-width:100%;max-height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none;image-rendering:pixelated}
+#hud{position:absolute;left:10px;top:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none;gap:8px}
+.hudBox{background:rgba(255,253,243,.88);border:2px solid var(--line);padding:7px 9px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.hudBox b{color:var(--red)}
+
+#side{border-left:3px solid var(--line);background:var(--paper);min-width:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.panel{border:2px solid var(--line);background:var(--paper)}
+.panel h2{margin:0;padding:8px 9px;background:var(--ink);color:white;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.body{padding:9px;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+label{display:grid;gap:4px;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+input[type="range"]{width:100%;accent-color:var(--ink)}
+select{width:100%;background:var(--paper);border:2px solid var(--line);min-height:36px;font-weight:900;text-transform:uppercase;padding:0 8px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;line-height:1.35;white-space:pre-wrap;color:#111;background:#f4f2e8;border:2px solid var(--line);padding:8px;min-height:50px;max-height:180px;overflow:auto}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;font-weight:900;text-transform:uppercase;color:var(--mut)}
+.chip{display:flex;align-items:center;gap:6px}
+.dot{width:13px;height:13px;border:2px solid var(--line);display:inline-block}
+.dtarget{background:var(--blue)}.dagent{background:var(--red)}.dmatch{background:var(--green)}.dvalue{background:#8844cc}
+video{display:none}
+footer{display:none}
+
+/* Reward chart */
+#chartWrap{width:100%;height:70px;border:2px solid var(--line);background:#f4f2e8;position:relative;overflow:hidden}
+#chartCanvas{width:100%;height:100%;display:block}
+
+@media(max-width:860px){
+:root{--bar:42px}
+header{grid-template-columns:1fr}.stats{display:none}.title{font-size:11px;padding-left:10px}
+main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+#stage{padding:8px 8px 6px}
+#side{border-left:0;border-top:3px solid var(--line);max-height:43dvh;padding:8px;display:grid;grid-template-columns:1fr;gap:8px}
+.panel{display:none}.panel.hot{display:block}
+button,.fileBtn{min-height:36px;font-size:10px;padding:0 8px}
+.mono{min-height:40px;font-size:9px}
+.hudBox{font-size:9px;padding:5px 7px}
+footer{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:3px solid var(--line);padding-bottom:var(--safe);background:var(--paper)}
+footer button{border:0;border-right:2px solid var(--line);box-shadow:none;min-height:46px;background:var(--paper)}
+footer button.on{background:var(--ink);color:white}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="title">NSDS RL · Single-Agent Centralized · one shared Q-table</div>
+  <div class="stats">
+    <div class="stat">TICK <b id="st_frame">0</b></div>
+    <div class="stat">AGENTS <b id="st_agents">0</b></div>
+    <div class="stat">R <b id="st_reward">0.00</b></div>
+    <div class="stat">Q<sub>max</sub> <b id="st_qmax">0.00</b></div>
+    <div class="stat">MATCH <b id="st_match">0%</b></div>
+    <div class="stat">MSE <b id="st_mse">0.000</b></div>
+  </div>
+</header>
+<main>
+  <section id="stage">
+    <div id="canvasWrap"><canvas id="c"></canvas></div>
+    <div id="hud">
+      <div class="hudBox">target: <b id="hudTarget">demo field</b></div>
+      <div class="hudBox">policy: <b id="hudPolicy">centralized</b></div>
+    </div>
+  </section>
+  <aside id="side">
+    <section class="panel hot" data-tab="run">
+      <h2>Run</h2>
+      <div class="body">
+        <div class="row"><label class="fileBtn blue">Load Video<input id="videoFile" type="file" accept="video/*"></label><label class="fileBtn green">Load Policy<input id="loadPolicy" type="file" accept="*"></label></div>
+        <div class="row"><button id="btnTrain" class="primary">Train</button><button id="btnStep">Step</button></div>
+        <div class="row"><button id="btnPlay">Video Play</button><button id="btnReset">Reset</button></div>
+        <label>Train speed <input id="speed" type="range" min="1" max="500" value="120"></label>
+        <div class="mono" id="readout"></div>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="video">
+      <h2>Video / Target</h2>
+      <div class="body">
+        <label>Scrub <input id="scrub" type="range" min="0" max="1" step="0.001" value="0"></label>
+        <label>Brightness threshold <input id="threshold" type="range" min="0" max="1" step="0.01" value="0.22"></label>
+        <label>Contrast <input id="contrast" type="range" min="0.3" max="3" step="0.1" value="1.4"></label>
+        <label>View <select id="viewMode">
+          <option value="composite">Target + Agents</option>
+          <option value="target">Target Only</option>
+          <option value="agents">Agents Only</option>
+          <option value="error">Error Residue</option>
+          <option value="policy">Policy Arrows</option>
+          <option value="value">Value Function</option>
+          <option value="advantage">Advantage Map</option>
+        </select></label>
+        <div class="legend">
+          <span class="chip"><i class="dot dtarget"></i>Target</span>
+          <span class="chip"><i class="dot dagent"></i>Agent</span>
+          <span class="chip"><i class="dot dmatch"></i>Match</span>
+          <span class="chip"><i class="dot dvalue"></i>Value</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="learn">
+      <h2>Single-Agent RL</h2>
+      <div class="body">
+        <label>Particle count <input id="agentCount" type="range" min="16" max="600" step="4" value="200"></label>
+        <label>Alpha / learning rate <input id="alpha" type="range" min="0.01" max="1" step="0.01" value="0.28"></label>
+        <label>Gamma / discount <input id="gamma" type="range" min="0" max="0.99" step="0.01" value="0.86"></label>
+        <label>Epsilon / exploration <input id="epsilon" type="range" min="0" max="1" step="0.01" value="0.20"></label>
+        <label>Epsilon decay <select id="epsDecay">
+          <option value="none">None (fixed)</option>
+          <option value="linear" selected>Linear decay</option>
+          <option value="exp">Exponential decay</option>
+        </select></label>
+        <label>Q fade / temporal adapt <input id="qfade" type="range" min="0.980" max="1.000" step="0.001" value="0.996"></label>
+        <label>Reward: crowding penalty <input id="crowdPen" type="range" min="0" max="1" step="0.01" value="0.22"></label>
+        <label>Reward: gradient climb <input id="climbBonus" type="range" min="0" max="1" step="0.01" value="0.42"></label>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="io">
+      <h2>State / Diagnostics</h2>
+      <div class="body">
+        <div class="row"><button id="btnResetQ">Reset Q</button><button id="btnScatter">Scatter</button></div>
+        <button id="btnExport" class="gold">Export Policy JSON</button>
+        <div id="chartWrap"><canvas id="chartCanvas"></canvas></div>
+        <div class="mono">Architecture: Single-Agent Centralized RL
+
+ONE global Q-table: Q(state, action).
+State = cell position on the 128x96 grid.
+Actions = {up, right, down, left, stay}.
+All particles share the same learned policy.
+
+Reward = target(next) * 1.15
+       + climb_bonus * (target(next) - target(cur))
+       - crowd_penalty * occupancy(next)
+       - 0.008 step cost.
+
+The value function V(s) = max_a Q(s,a)
+shows where the policy has learned to
+direct flow. Advantage A(s,a) = Q(s,a) - V(s)
+shows which actions are better than average.
+
+Epsilon decays over training to shift
+from exploration to exploitation.
+
+Compare with the multi-agent version
+to see centralized vs decentralized
+swarm learning tradeoffs.</div>
+      </div>
+    </section>
+  </aside>
+</main>
+<footer>
+  <button class="tab on" data-tab="run">Run</button>
+  <button class="tab" data-tab="video">Video</button>
+  <button class="tab" data-tab="learn">Learn</button>
+  <button class="tab" data-tab="io">State</button>
+</footer>
+</div>
+
+<video id="vid" muted loop playsinline></video>
+<canvas id="sample" style="display:none"></canvas>
+
+<script>
+(() => {
+  // ── GRID ──
+  // ── GRID (NSDS-128 COMPLIANT: 128x96, B_SZ=5) ──
+  const G_COLS = 128, G_ROWS = 96, B_SZ = 5;
+  const N = G_COLS * G_ROWS;
+  const A = 5;
+  const dirs = [[0,-1],[1,0],[0,1],[-1,0],[0,0]];
+  const INK_ALPHA = [0,40,80,120,160,200,230,255];
+
+  const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+  const sample = document.getElementById('sample');
+  sample.width = G_COLS; sample.height = G_ROWS;
+  const sctx = sample.getContext('2d', { willReadFrequently: true });
+  const vid = document.getElementById('vid');
+  const chartCanvas = document.getElementById('chartCanvas');
+  const chartCtx = chartCanvas.getContext('2d');
+  const el = id => document.getElementById(id);
+
+  // ── STATE ──
+  let Q = new Float32Array(N * A);
+  let target = new Float32Array(N);
+  let occ = new Float32Array(N);
+  let errField = new Float32Array(N);
+  let agents = [];
+  let running = false, videoLoaded = false, videoPlaying = false;
+  let frame = 0, totalReward = 0, lastLoss = 0, globalMatch = 0;
+  let raf = 0, lastTick = 0, demoT = 0;
+  let currentEpsilon;
+  let rewardHistory = [];
+  let matchHistory = [];
+
+  function xy(x, y) { return y * G_COLS + x; }
+  function sx(s) { return s % G_COLS; }
+  function sy(s) { return Math.floor(s / G_COLS); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function params() {
+    return {
+      speed: +el('speed').value, alpha: +el('alpha').value, gamma: +el('gamma').value,
+      epsilon: +el('epsilon').value, qfade: +el('qfade').value,
+      threshold: +el('threshold').value, contrast: +el('contrast').value,
+      agentCount: +el('agentCount').value, crowdPen: +el('crowdPen').value,
+      climbBonus: +el('climbBonus').value, epsDecay: el('epsDecay').value
+    };
+  }
+
+  function initAgents() {
+    const n = +el('agentCount').value;
+    agents = Array.from({ length: n }, () => Math.floor(Math.random() * N));
+    computeOcc();
+  }
+
+  function ensureAgents() {
+    const want = +el('agentCount').value;
+    while (agents.length < want) agents.push(Math.floor(Math.random() * N));
+    while (agents.length > want) agents.pop();
+    computeOcc();
+  }
+
+  function scatterAgents() {
+    agents = Array.from({ length: +el('agentCount').value }, () => Math.floor(Math.random() * N));
+    computeOcc(); draw(); updateReadout();
+  }
+
+  // ── TARGET FIELD ──
+  function updateTarget() {
+    const p = params();
+    if (videoLoaded && vid.readyState >= 2) {
+      sctx.drawImage(vid, 0, 0, G_COLS, G_ROWS);
+      const data = sctx.getImageData(0, 0, G_COLS, G_ROWS).data;
+      for (let i = 0; i < N; i++) {
+        const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+        let v = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
+        v = Math.pow(clamp((v - p.threshold) / Math.max(0.001, 1-p.threshold), 0, 1), p.contrast);
+        target[i] = v;
+      }
+      el('hudTarget').textContent = 'video frame';
+      if (vid.duration) el('scrub').value = String(vid.currentTime / vid.duration);
+    } else {
+      demoT += 0.03;
+      for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+        const cx = G_COLS * (.5 + .28 * Math.sin(demoT * .7));
+        const cy = G_ROWS * (.5 + .22 * Math.cos(demoT * .55));
+        const dx = x - cx, dy = y - cy;
+        const eye = Math.exp(-(dx*dx + dy*dy) / (G_COLS * 1.5));
+        const wave = .5 + .5 * Math.sin(x * .42 + y * .31 + demoT * 2.8);
+        const ring = .5 + .5 * Math.sin(Math.sqrt(dx*dx + dy*dy) * .85 - demoT * 3.5);
+        target[xy(x,y)] = Math.pow(clamp(eye * .8 + wave * ring * .3 - .15, 0, 1), 1.1);
+      }
+      el('hudTarget').textContent = 'demo field';
+    }
+  }
+
+  // ── OCCUPANCY & ERROR ──
+  function computeOcc() {
+    occ.fill(0);
+    for (const s of agents) occ[s]++;
+    const norm = Math.max(1, Math.ceil(agents.length / 100));
+    for (let i = 0; i < N; i++) occ[i] = clamp(occ[i] / norm, 0, 1);
+  }
+
+  function computeError() {
+    let mse = 0, hit = 0, mass = 0;
+    for (let i = 0; i < N; i++) {
+      const e = Math.abs(target[i] - occ[i]);
+      errField[i] = e; mse += e * e;
+      hit += Math.min(target[i], occ[i]); mass += target[i];
+    }
+    mse /= N;
+    globalMatch = mass > 0 ? clamp(hit / mass, 0, 1) : 0;
+    return mse;
+  }
+
+  // ── Q-LEARNING ──
+  function maxQ(s) { const o = s * A; return Math.max(Q[o], Q[o+1], Q[o+2], Q[o+3], Q[o+4]); }
+  function bestA(s) { const o = s * A; let b = 0, v = Q[o]; for (let a = 1; a < A; a++) if (Q[o+a] > v) { v = Q[o+a]; b = a; } return b; }
+
+  function chooseA(s) {
+    return Math.random() < currentEpsilon ? Math.floor(Math.random() * A) : bestA(s);
+  }
+
+  function move(s, a) {
+    const x = sx(s), y = sy(s);
+    return xy(clamp(x + dirs[a][0], 0, G_COLS-1), clamp(y + dirs[a][1], 0, G_ROWS-1));
+  }
+
+  function updateEpsilon() {
+    const p = params();
+    if (p.epsDecay === 'linear') {
+      currentEpsilon = Math.max(0.02, p.epsilon * (1 - frame / 10000));
+    } else if (p.epsDecay === 'exp') {
+      currentEpsilon = Math.max(0.02, p.epsilon * Math.pow(0.9997, frame));
+    } else {
+      currentEpsilon = p.epsilon;
+    }
+  }
+
+  function learnOne(i) {
+    const p = params();
+    const s = agents[i];
+    const a = chooseA(s);
+    const ns = move(s, a);
+    const qIdx = s * A + a;
+    const old = Q[qIdx];
+
+    const crowd = occ[ns] * p.crowdPen;
+    const climb = (target[ns] - target[s]) * p.climbBonus;
+    const r = target[ns] * 1.15 + climb - crowd - 0.008;
+
+    const td = r + p.gamma * maxQ(ns) - old;
+    Q[qIdx] = old + p.alpha * td;
+
+    agents[i] = ns;
+    totalReward += r;
+    lastLoss = Math.abs(td);
+  }
+
+  function trainBatch() {
+    ensureAgents();
+    const p = params();
+
+    // Fade Q for temporal adaptation
+    for (let k = 0; k < Q.length; k++) Q[k] *= p.qfade;
+
+    computeOcc();
+    updateEpsilon();
+
+    const passes = p.speed > 320 ? 4 : p.speed > 180 ? 2 : 1;
+    for (let pass = 0; pass < passes; pass++) {
+      for (let i = 0; i < agents.length; i++) learnOne(i);
+    }
+    computeOcc();
+    const mse = computeError();
+    frame++;
+
+    // Record history
+    if (frame % 10 === 0) {
+      rewardHistory.push(totalReward / Math.max(1, frame));
+      matchHistory.push(globalMatch);
+      if (rewardHistory.length > 200) { rewardHistory.shift(); matchHistory.shift(); }
+    }
+  }
+
+  // ── RENDERING ──
+  function resize() {
+    const stage = el('stage').getBoundingClientRect();
+    const maxW = stage.width - 24, maxH = stage.height - 24, aspect = G_COLS / G_ROWS;
+    let w = maxW, h = w / aspect;
+    if (h > maxH) { h = maxH; w = h * aspect; }
+    w = Math.max(260, Math.floor(w)); h = Math.floor(w / aspect);
+    canvas.width = Math.floor(w * devicePixelRatio);
+    canvas.height = Math.floor(h * devicePixelRatio);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    el('canvasWrap').style.width = w + 'px'; el('canvasWrap').style.height = h + 'px';
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+    // Chart
+    const cw = el('chartWrap');
+    chartCanvas.width = cw.clientWidth * devicePixelRatio;
+    chartCanvas.height = 70 * devicePixelRatio;
+    chartCanvas.style.width = '100%'; chartCanvas.style.height = '70px';
+
+    draw();
+  }
+
+  function draw() {
+    const W = parseFloat(canvas.style.width) || 640;
+    const H = parseFloat(canvas.style.height) || 360;
+    const cw = W / G_COLS, ch = H / G_ROWS;
+    const mode = el('viewMode').value;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#f4f4f0'; ctx.fillRect(0, 0, W, H);
+    const maxR = Math.min(cw,ch) * 0.45;
+
+    // Background layers
+    for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+      const s = xy(x, y), t = target[s], o = occ[s], e = errField[s];
+
+      if (mode === 'error') {
+        ctx.fillStyle = `rgba(${Math.floor(215*e)},${Math.floor(169*(1-e))},0,${0.08+e*.75})`;
+      } else if (mode === 'value') {
+        const v = clamp((maxQ(s) + 0.5) / 2.0, 0, 1);
+        const r = Math.floor(136 * (1-v));
+        const g = Math.floor(68 * v);
+        const b = Math.floor(204 * v);
+        ctx.fillStyle = `rgba(${r},${g},${b},${0.08+v*.6})`;
+      } else if (mode === 'advantage') {
+        const val = maxQ(s);
+        for (let a = 0; a < A; a++) {
+          const adv = Q[s*A+a] - val;
+          if (a === bestA(s) && Math.abs(val) > 0.01) {
+            const v = clamp(adv + 0.5, 0, 1);
+            ctx.fillStyle = `rgba(20,130,76,${0.05+v*.4})`;
+          }
+        }
+        ctx.fillStyle = ctx.fillStyle || 'transparent';
+      // Composite: use dot-matrix rendering for target
+      if (mode === 'composite' || mode === 'target') {
+        const ink = Math.round(t * 7);
+        if (ink > 0) {
+          const alpha = INK_ALPHA[ink] / 255;
+          const r = maxR * (ink / 7);
+          ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+          ctx.beginPath(); ctx.arc(x*cw+cw/2, y*ch+ch/2, Math.max(.4,r), 0, Math.PI*2); ctx.fill();
+        }
+      }
+
+      // Agent overlay as dots
+      if (mode !== 'target' && mode !== 'value' && o > 0) {
+        const ar = maxR * clamp(o, .3, 1);
+        ctx.fillStyle = `rgba(215,25,32,${0.25+o*.55})`;
+        ctx.beginPath(); ctx.arc(x*cw+cw/2, y*ch+ch/2, Math.max(.5,ar*.7), 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // Policy arrows
+    if (mode === 'policy' || mode === 'advantage') {
+      ctx.lineWidth = 1.2;
+      const step = Math.max(2, Math.floor(4 / Math.max(cw * 0.5, 0.5)));
+      for (let y = 1; y < G_ROWS; y += step) for (let x = 1; x < G_COLS; x += step) {
+        const s = xy(x, y);
+        const a = bestA(s);
+        const mq = maxQ(s);
+        if (a === 4 || Math.abs(mq) < 0.01) continue;
+
+        if (mode === 'advantage') {
+          const adv = Q[s*A+a] - mq;
+          const opacity = clamp(0.2 + Math.abs(adv) * 2, 0, 0.8);
+          ctx.strokeStyle = `rgba(0,0,0,${opacity})`;
+          ctx.fillStyle = ctx.strokeStyle;
+        } else {
+          ctx.strokeStyle = 'rgba(0,0,0,.5)';
+          ctx.fillStyle = 'rgba(0,0,0,.55)';
+        }
+
+        const cx = x*cw + cw/2, cy = y*ch + ch/2;
+        const len = Math.min(cw, ch) * .7;
+        ctx.save(); ctx.translate(cx, cy);
+        ctx.rotate([-Math.PI/2, 0, Math.PI/2, Math.PI][a]);
+        ctx.beginPath(); ctx.moveTo(-len*.4, 0); ctx.lineTo(len*.4, 0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(len*.4, 0); ctx.lineTo(len*.15, -len*.18); ctx.lineTo(len*.15, len*.18); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Sparse agent dots for composite (larger dots)
+    if (mode === 'composite' && agents.length < 100) {
+      ctx.fillStyle = '#d71920'; ctx.strokeStyle = '#080808'; ctx.lineWidth = 1;
+      const r = Math.max(1.5, Math.min(cw, ch) * .12);
+      for (const s of agents) {
+        const ax = sx(s)*cw + cw/2, ay = sy(s)*ch + ch/2;
+        ctx.beginPath(); ctx.arc(ax, ay, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      }
+    }
+
+    // Grid
+    ctx.strokeStyle = 'rgba(0,0,0,.05)'; ctx.lineWidth = 0.5;
+    for (let x = 0; x <= G_COLS; x += 16) { ctx.beginPath(); ctx.moveTo(x*cw, 0); ctx.lineTo(x*cw, H); ctx.stroke(); }
+    for (let y = 0; y <= G_ROWS; y += 16) { ctx.beginPath(); ctx.moveTo(0, y*ch); ctx.lineTo(W, y*ch); ctx.stroke(); }
+  }
+
+  function drawChart() {
+    const cw = chartCanvas.width / devicePixelRatio;
+    const ch = 70;
+    chartCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    chartCtx.clearRect(0, 0, cw, ch);
+    chartCtx.fillStyle = '#f4f2e8'; chartCtx.fillRect(0, 0, cw, ch);
+
+    if (matchHistory.length < 2) return;
+
+    // Match line (green)
+    chartCtx.strokeStyle = '#14824c'; chartCtx.lineWidth = 1.5;
+    chartCtx.beginPath();
+    for (let i = 0; i < matchHistory.length; i++) {
+      const x = (i / (matchHistory.length - 1)) * cw;
+      const y = ch - matchHistory[i] * ch;
+      i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+    }
+    chartCtx.stroke();
+
+    // Reward line (red)
+    if (rewardHistory.length > 1) {
+      const minR = Math.min(...rewardHistory), maxR = Math.max(...rewardHistory);
+      const range = maxR - minR || 1;
+      chartCtx.strokeStyle = '#d71920'; chartCtx.lineWidth = 1;
+      chartCtx.beginPath();
+      for (let i = 0; i < rewardHistory.length; i++) {
+        const x = (i / (rewardHistory.length - 1)) * cw;
+        const y = ch - ((rewardHistory[i] - minR) / range) * ch;
+        i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
+      }
+      chartCtx.stroke();
+    }
+
+    // Labels
+    chartCtx.font = 'bold 8px monospace'; chartCtx.fillStyle = '#14824c';
+    chartCtx.fillText('MATCH', 3, 10);
+    chartCtx.fillStyle = '#d71920';
+    chartCtx.fillText('REWARD', 3, 20);
+  }
+
+  function updateReadout() {
+    const p = params();
+    let qMax = 0;
+    for (let i = 0; i < Q.length; i++) if (Q[i] > qMax) qMax = Q[i];
+
+    el('st_frame').textContent = frame;
+    el('st_agents').textContent = agents.length;
+    el('st_reward').textContent = (totalReward / Math.max(1, frame)).toFixed(2);
+    el('st_qmax').textContent = qMax.toFixed(2);
+    el('st_match').textContent = Math.round(globalMatch * 100) + '%';
+    el('st_mse').textContent = lastLoss.toFixed(3);
+    el('hudPolicy').textContent = running ? `training (e=${(currentEpsilon||p.epsilon).toFixed(2)})` : 'paused';
+
+    el('readout').textContent =
+`grid: ${G_COLS}x${G_ROWS} (NSDS-128) B_SZ: ${B_SZ}
+cells: ${N}  canvas: ${G_COLS*B_SZ}x${G_ROWS*B_SZ}
+Q-table: ${N}x${A} = ${(N*A).toLocaleString()} entries
+agents: ${agents.length}  video: ${videoLoaded?'loaded':'demo'}
+match: ${Math.round(globalMatch*100)}%
+Q_max: ${qMax.toFixed(3)}  TD: ${lastLoss.toFixed(3)}
+epsilon: ${(currentEpsilon||p.epsilon).toFixed(3)} (${p.epsDecay})
+alpha ${p.alpha.toFixed(2)}  gamma ${p.gamma.toFixed(2)}
+crowd_pen ${p.crowdPen.toFixed(2)}  climb ${p.climbBonus.toFixed(2)}`;
+  }
+
+  // ── MAIN LOOP ──
+  function tick(t) {
+    updateTarget();
+    if (running) {
+      const interval = 1000 / params().speed;
+      if (t - lastTick > interval) {
+        const passes = params().speed > 300 ? 3 : params().speed > 150 ? 2 : 1;
+        for (let i = 0; i < passes; i++) trainBatch();
+        lastTick = t;
+      }
+    } else {
+      computeOcc(); computeError();
+    }
+    draw(); drawChart(); updateReadout();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function setRunning(v) {
+    running = v;
+    el('btnTrain').textContent = v ? 'Pause' : 'Train';
+    el('btnTrain').classList.toggle('on', v);
+    el('btnTrain').classList.toggle('primary', !v);
+  }
+
+  // ── EVENTS ──
+  el('videoFile').onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    vid.src = URL.createObjectURL(f); vid.load(); videoLoaded = true;
+    el('hudTarget').textContent = f.name.replace(/\.[^.]+$/, '').slice(0, 28);
+    vid.onloadeddata = () => { vid.currentTime = 0; updateTarget(); draw(); updateReadout(); };
+  };
+  el('btnPlay').onclick = async () => {
+    if (!videoLoaded) return;
+    try { if (videoPlaying) { vid.pause(); videoPlaying = false; el('btnPlay').textContent = 'Video Play'; }
+    else { await vid.play(); videoPlaying = true; el('btnPlay').textContent = 'Video Pause'; } }
+    catch(e) { el('readout').textContent = 'browser blocked autoplay'; }
+  };
+  el('scrub').oninput = () => { if (videoLoaded && vid.duration) { vid.currentTime = +el('scrub').value * vid.duration; updateTarget(); draw(); } };
+  el('btnTrain').onclick = () => setRunning(!running);
+  el('btnStep').onclick = () => { updateTarget(); trainBatch(); draw(); drawChart(); updateReadout(); };
+  el('btnReset').onclick = () => { Q.fill(0); frame = 0; totalReward = 0; lastLoss = 0; rewardHistory = []; matchHistory = []; initAgents(); draw(); updateReadout(); };
+  el('btnScatter').onclick = scatterAgents;
+  el('btnResetQ').onclick = () => { Q.fill(0); totalReward = 0; lastLoss = 0; frame = 0; rewardHistory = []; matchHistory = []; draw(); updateReadout(); };
+  el('btnExport').onclick = () => {
+    const data = {
+      type: 'single-agent-rl', grid: { cols: G_COLS, rows: G_ROWS },
+      actions: ['up','right','down','left','stay'], frame,
+      match: globalMatch, qTableSize: N * A,
+      epsilon: currentEpsilon, Q: [...Q]
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'single-agent-policy.json'; a.click(); URL.revokeObjectURL(a.href);
+  };
+  el('agentCount').oninput = () => { ensureAgents(); draw(); updateReadout(); };
+  ['threshold','contrast','viewMode','alpha','gamma','epsilon','qfade','speed','crowdPen','climbBonus','epsDecay'].forEach(id =>
+    el(id).addEventListener('input', () => { updateTarget(); computeOcc(); computeError(); draw(); updateReadout(); }));
+
+  document.querySelectorAll('.tab').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hot', p.dataset.tab === btn.dataset.tab));
+  });
+
+  // Load policy from exported JSON
+  el('loadPolicy').onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const reader = new FileReader(); reader.onload = ev => {
+      try {
+        const d = JSON.parse(ev.target.result);
+        if (d.Q) Q = new Float32Array(d.Q);
+        if (d.frame) frame = d.frame;
+        if (d.epsilon) currentEpsilon = d.epsilon;
+        draw(); updateReadout();
+        el('hudTarget').textContent = `loaded: ${f.name.slice(0,20)}`;
+      } catch(e) { console.error(e); }
+    }; reader.readAsText(f);
+  };
+
+  window.addEventListener('resize', resize);
+  currentEpsilon = +el('epsilon').value;
+  initAgents(); resize(); raf = requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

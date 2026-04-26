@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Minimal Video RL Lab</title>
+    <style>
+        :root {
+            --bg: #efeee8;
+            --ink: #080808;
+            --muted: #6c6a62;
+            --paper: #fffdf3;
+            --line: #080808;
+            --red: #d71920;
+            --blue: #0057c2;
+            --gold: #d5a900;
+            --green: #14824c;
+            --bar: 46px;
+            --safe: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            border-radius: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Helvetica, Arial, sans-serif;
+            user-select: none
+        }
+
+        button,
+        input,
+        select {
+            font: inherit
+        }
+
+        input[type="file"] {
+            display: none
+        }
+
+        button,
+        .fileBtn {
+            border: 2px solid var(--line);
+            background: var(--paper);
+            color: var(--ink);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            cursor: pointer;
+            min-height: 38px;
+            padding: 0 10px;
+            box-shadow: 2px 2px 0 var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 11px
+        }
+
+        button:active,
+        .fileBtn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 var(--line)
+        }
+
+        button.on {
+            background: var(--ink);
+            color: var(--paper)
+        }
+
+        button.primary {
+            background: var(--red);
+            color: white
+        }
+
+        .blue {
+            background: var(--blue) !important;
+            color: white !important
+        }
+
+        .gold {
+            background: var(--gold) !important;
+            color: var(--ink) !important
+        }
+
+        .green {
+            background: var(--green) !important;
+            color: white !important
+        }
+
+        #app {
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: var(--bar) minmax(0, 1fr) auto;
+            background: var(--bg)
+        }
+
+        header {
+            height: var(--bar);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            background: var(--ink);
+            color: white;
+            border-bottom: 3px solid var(--line);
+            overflow: hidden
+        }
+
+        .title {
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            padding-left: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .stats {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            border-left: 1px solid #333
+        }
+
+        .stat {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0 10px;
+            border-right: 1px solid #333;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap
+        }
+
+        .stat b {
+            color: var(--gold);
+            font-variant-numeric: tabular-nums
+        }
+
+        main {
+            min-height: 0;
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            overflow: hidden
+        }
+
+        #stage {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: linear-gradient(90deg, rgba(0, 0, 0, .045) 1px, transparent 1px), linear-gradient(0deg, rgba(0, 0, 0, .045) 1px, transparent 1px), #dedbd1;
+            background-size: 24px 24px;
+            overflow: hidden
+        }
+
+        #canvasWrap {
+            position: relative;
+            background: var(--paper);
+            border: 3px solid var(--line);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, .18);
+            max-width: 100%;
+            max-height: 100%
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            image-rendering: pixelated
+        }
+
+        #hud {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            gap: 8px
+        }
+
+        .hudBox {
+            background: rgba(255, 253, 243, .88);
+            border: 2px solid var(--line);
+            padding: 7px 9px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em
+        }
+
+        .hudBox b {
+            color: var(--red)
+        }
+
+        #side {
+            border-left: 3px solid var(--line);
+            background: var(--paper);
+            min-width: 0;
+            overflow: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .panel {
+            border: 2px solid var(--line);
+            background: var(--paper)
+        }
+
+        .panel h2 {
+            margin: 0;
+            padding: 8px 9px;
+            background: var(--ink);
+            color: white;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        .body {
+            padding: 9px;
+            display: grid;
+            gap: 8px
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px
+        }
+
+        .row3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px
+        }
+
+        label {
+            display: grid;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--muted)
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--ink)
+        }
+
+        select {
+            width: 100%;
+            background: var(--paper);
+            border: 2px solid var(--line);
+            min-height: 36px;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 0 8px
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            color: #111;
+            background: #f4f2e8;
+            border: 2px solid var(--line);
+            padding: 8px;
+            min-height: 66px
+        }
+
+        .hint {
+            font-size: 10px;
+            line-height: 1.3;
+            color: var(--muted);
+            font-weight: 800
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: var(--muted)
+        }
+
+        .chip {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .dot {
+            width: 13px;
+            height: 13px;
+            border: 2px solid var(--line);
+            display: inline-block
+        }
+
+        .dtarget {
+            background: var(--blue)
+        }
+
+        .dagent {
+            background: var(--red)
+        }
+
+        .dmatch {
+            background: var(--green)
+        }
+
+        .dmiss {
+            background: var(--gold)
+        }
+
+        video {
+            display: none
+        }
+
+        footer {
+            display: none
+        }
+
+        @media (max-width:860px) {
+            :root {
+                --bar: 42px
+            }
+
+            header {
+                grid-template-columns: 1fr
+            }
+
+            .stats {
+                display: none
+            }
+
+            .title {
+                font-size: 12px;
+                padding-left: 10px
+            }
+
+            main {
+                grid-template-columns: 1fr;
+                grid-template-rows: minmax(0, 1fr) auto
+            }
+
+            #stage {
+                padding: 8px 8px 6px
+            }
+
+            #side {
+                border-left: 0;
+                border-top: 3px solid var(--line);
+                max-height: 43dvh;
+                padding: 8px;
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px
+            }
+
+            .panel {
+                display: none
+            }
+
+            .panel.hot {
+                display: block
+            }
+
+            .body {
+                gap: 7px
+            }
+
+            .row,
+            .row3 {
+                gap: 6px
+            }
+
+            button,
+            .fileBtn {
+                min-height: 36px;
+                font-size: 10px;
+                padding: 0 8px
+            }
+
+            .mono {
+                min-height: 46px;
+                font-size: 10px
+            }
+
+            .hudBox {
+                font-size: 9px;
+                padding: 5px 7px
+            }
+
+            footer {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0;
+                border-top: 3px solid var(--line);
+                padding-bottom: var(--safe);
+                background: var(--paper)
+            }
+
+            footer button {
+                border: 0;
+                border-right: 2px solid var(--line);
+                box-shadow: none;
+                min-height: 46px;
+                background: var(--paper)
+            }
+
+            footer button.on {
+                background: var(--ink);
+                color: white
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div class="title">Minimal Video RL Lab · video → target field → learned swarm</div>
+            <div class="stats">
+                <div class="stat">FR <b id="fr">0</b></div>
+                <div class="stat">R <b id="ret">0.00</b></div>
+                <div class="stat">ε <b id="eps">0.22</b></div>
+                <div class="stat">LOSS <b id="loss">0.000</b></div>
+                <div class="stat">MATCH <b id="match">0%</b></div>
+            </div>
+        </header>
+
+        <main>
+            <section id="stage">
+                <div id="canvasWrap"><canvas id="c"></canvas></div>
+                <div id="hud">
+                    <div class="hudBox">target: <b id="targetLabel">demo field</b></div>
+                    <div class="hudBox">policy: <b id="policyLabel">learning</b></div>
+                </div>
+            </section>
+
+            <aside id="side">
+                <section class="panel hot" data-tab="run">
+                    <h2>Run</h2>
+                    <div class="body">
+                        <label class="fileBtn blue">Load Video<input id="videoFile" type="file"
+                                accept="video/*" /></label>
+                        <div class="row"><button id="toggle" class="primary">Train</button><button
+                                id="step">Step</button></div>
+                        <div class="row"><button id="playVideo">Video Play</button><button id="resetAgents">Reset
+                                Agents</button></div>
+                        <label>Train speed <input id="speed" type="range" min="1" max="500" value="150" /></label>
+                        <div class="mono" id="readout"></div>
+                    </div>
+                </section>
+
+                <section class="panel" data-tab="video">
+                    <h2>Video Field</h2>
+                    <div class="body">
+                        <label>Scrub <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" /></label>
+                        <label>Brightness threshold <input id="threshold" type="range" min="0" max="1" step="0.01"
+                                value="0.24" /></label>
+                        <label>Contrast <input id="contrast" type="range" min="0.3" max="3" step="0.1"
+                                value="1.4" /></label>
+                        <label>View <select id="viewMode">
+                                <option value="swarm">Target + Swarm</option>
+                                <option value="target">Target Only</option>
+                                <option value="error">Error / Residue</option>
+                                <option value="policy">Policy Field</option>
+                            </select></label>
+                        <div class="legend"><span class="chip"><i class="dot dtarget"></i>Target</span><span
+                                class="chip"><i class="dot dagent"></i>Agent</span><span class="chip"><i
+                                    class="dot dmatch"></i>Match</span><span class="chip"><i
+                                    class="dot dmiss"></i>Miss</span></div>
+                    </div>
+                </section>
+
+                <section class="panel" data-tab="learn">
+                    <h2>Learning</h2>
+                    <div class="body">
+                        <label>Particles <input id="agentCount" type="range" min="16" max="420" step="4"
+                                value="160" /></label>
+                        <label>Alpha / learning rate <input id="alpha" type="range" min="0.01" max="1" step="0.01"
+                                value="0.28" /></label>
+                        <label>Gamma / future value <input id="gamma" type="range" min="0" max="0.99" step="0.01"
+                                value="0.86" /></label>
+                        <label>Epsilon / exploration <input id="epsilon" type="range" min="0" max="1" step="0.01"
+                                value="0.22" /></label>
+                        <label>Q fade / adapt to new frame <input id="qfade" type="range" min="0.980" max="1.000"
+                                step="0.001" value="0.996" /></label>
+                    </div>
+                </section>
+
+                <section class="panel" data-tab="io">
+                    <h2>State</h2>
+                    <div class="body">
+                        <div class="row"><button id="resetQ">Reset Q</button><button id="randomize">Scatter</button>
+                        </div>
+                        <button id="exportQ" class="gold">Export Policy JSON</button>
+                        <div class="mono">reward = target(next) − crowding − step cost
+
+                            This is not magic video understanding. It is a small local RL loop learning where particles
+                            should move to reduce mismatch with the current video frame.</div>
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <footer><button class="tab on" data-tab="run">Run</button><button class="tab"
+                data-tab="video">Video</button><button class="tab" data-tab="learn">Learn</button><button class="tab"
+                data-tab="io">State</button></footer>
+    </div>
+
+    <video id="vid" muted loop playsinline></video>
+    <canvas id="sample" width="48" height="27"></canvas>
+
+    <script>
+        (() => {
+            const COLS = 48, ROWS = 27, N = COLS * ROWS, A = 5;
+            const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [0, 0]], arrows = ['↑', '→', '↓', '←', '•'];
+            const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+            const sample = document.getElementById('sample'), sctx = sample.getContext('2d', { willReadFrequently: true });
+            const vid = document.getElementById('vid');
+            const el = id => document.getElementById(id);
+            const ui = { fr: el('fr'), ret: el('ret'), eps: el('eps'), loss: el('loss'), match: el('match'), readout: el('readout'), targetLabel: el('targetLabel'), policyLabel: el('policyLabel'), videoFile: el('videoFile'), toggle: el('toggle'), step: el('step'), playVideo: el('playVideo'), resetAgents: el('resetAgents'), speed: el('speed'), scrub: el('scrub'), threshold: el('threshold'), contrast: el('contrast'), viewMode: el('viewMode'), agentCount: el('agentCount'), alpha: el('alpha'), gamma: el('gamma'), epsilon: el('epsilon'), qfade: el('qfade'), resetQ: el('resetQ'), randomize: el('randomize'), exportQ: el('exportQ') };
+
+            let Q = new Float32Array(N * A), target = new Float32Array(N), occ = new Float32Array(N), err = new Float32Array(N);
+            let agents = [], running = false, videoLoaded = false, videoPlaying = false, frame = 0, totalReward = 0, lastLoss = 0, matchScore = 0, raf = 0, lastTick = 0, demoT = 0;
+
+            function xy(x, y) { return y * COLS + x } function sx(s) { return s % COLS } function sy(s) { return Math.floor(s / COLS) } function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function params() { return { speed: +ui.speed.value, alpha: +ui.alpha.value, gamma: +ui.gamma.value, epsilon: +ui.epsilon.value, qfade: +ui.qfade.value, threshold: +ui.threshold.value, contrast: +ui.contrast.value, agents: +ui.agentCount.value } }
+            function ensureAgents() { const want = +ui.agentCount.value; while (agents.length < want) agents.push(Math.floor(Math.random() * N)); while (agents.length > want) agents.pop(); computeOcc() }
+            function scatterAgents() { agents = Array.from({ length: +ui.agentCount.value }, () => Math.floor(Math.random() * N)); computeOcc(); draw(); updateReadout() }
+
+            function computeOcc() { occ.fill(0); for (const s of agents) occ[s]++; const norm = Math.max(1, Math.ceil(agents.length / 80)); for (let i = 0; i < N; i++) occ[i] = clamp(occ[i] / norm, 0, 1) }
+            function maxQ(s) { const o = s * A; return Math.max(Q[o], Q[o + 1], Q[o + 2], Q[o + 3], Q[o + 4]) }
+            function bestA(s) { const o = s * A; let b = 0, v = Q[o]; for (let a = 1; a < A; a++)if (Q[o + a] > v) { v = Q[o + a]; b = a } return b }
+            function chooseA(s) { return Math.random() < +ui.epsilon.value ? Math.floor(Math.random() * A) : bestA(s) }
+            function move(s, a) { const x = sx(s), y = sy(s); return xy(clamp(x + dirs[a][0], 0, COLS - 1), clamp(y + dirs[a][1], 0, ROWS - 1)) }
+
+            function updateTarget() {
+                const p = params();
+                if (videoLoaded && vid.readyState >= 2) {
+                    sctx.drawImage(vid, 0, 0, COLS, ROWS);
+                    const data = sctx.getImageData(0, 0, COLS, ROWS).data;
+                    for (let i = 0; i < N; i++) {
+                        const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+                        let v = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                        v = Math.pow(clamp((v - p.threshold) / Math.max(0.001, 1 - p.threshold), 0, 1), p.contrast);
+                        target[i] = v;
+                    }
+                    ui.targetLabel.textContent = 'video frame';
+                    if (vid.duration) ui.scrub.value = String(vid.currentTime / vid.duration);
+                } else {
+                    demoT += 0.035;
+                    for (let y = 0; y < ROWS; y++)for (let x = 0; x < COLS; x++) {
+                        const cx = COLS * (.5 + .26 * Math.sin(demoT * .72)), cy = ROWS * (.5 + .24 * Math.cos(demoT * .61));
+                        const dx = x - cx, dy = y - cy;
+                        const eye = Math.exp(-(dx * dx + dy * dy) / 58);
+                        const wave = .5 + .5 * Math.sin(x * .55 + y * .38 + demoT * 3.0);
+                        const ring = .5 + .5 * Math.sin(Math.sqrt(dx * dx + dy * dy) * 1.15 - demoT * 4);
+                        target[xy(x, y)] = Math.pow(clamp(eye * .75 + wave * ring * .35 - .18, 0, 1), 1.15);
+                    }
+                    ui.targetLabel.textContent = 'demo field';
+                }
+            }
+
+            function learnOne(i) {
+                const s = agents[i], a = chooseA(s), ns = move(s, a), o = s * A + a, old = Q[o];
+                const crowd = occ[ns] * 0.22;
+                const climb = (target[ns] - target[s]) * 0.42;
+                const r = target[ns] * 1.15 + climb - crowd - 0.008;
+                const td = r + +ui.gamma.value * maxQ(ns) - old;
+                Q[o] = old + +ui.alpha.value * td;
+                agents[i] = ns; totalReward += r; lastLoss = Math.abs(td);
+            }
+
+            function trainBatch() {
+                ensureAgents();
+                for (let k = 0; k < Q.length; k++) Q[k] *= +ui.qfade.value;
+                computeOcc();
+                const p = params();
+                const passes = p.speed > 320 ? 4 : p.speed > 180 ? 2 : 1;
+                for (let pass = 0; pass < passes; pass++) for (let i = 0; i < agents.length; i++) learnOne(i);
+                computeOcc();
+                computeError(); frame++;
+            }
+
+            function computeError() {
+                let mse = 0, hit = 0, mass = 0;
+                for (let i = 0; i < N; i++) {
+                    const e = Math.abs(target[i] - occ[i]); err[i] = e; mse += e * e; hit += Math.min(target[i], occ[i]); mass += target[i];
+                }
+                mse /= N;
+                matchScore = mass > 0 ? clamp(hit / mass, 0, 1) : 0;
+            }
+
+            function resize() {
+                const stage = el('stage').getBoundingClientRect(), maxW = stage.width - 24, maxH = stage.height - 24, aspect = 16 / 9;
+                let w = maxW, h = w / aspect; if (h > maxH) { h = maxH; w = h * aspect } w = Math.max(260, Math.floor(w)); h = Math.floor(w / aspect);
+                canvas.width = Math.floor(w * devicePixelRatio); canvas.height = Math.floor(h * devicePixelRatio); canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+                el('canvasWrap').style.width = w + 'px'; el('canvasWrap').style.height = h + 'px'; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); draw();
+            }
+
+            function draw() {
+                const W = parseFloat(canvas.style.width) || 640, H = parseFloat(canvas.style.height) || 360, cw = W / COLS, ch = H / ROWS, mode = ui.viewMode.value;
+                ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#fffdf3'; ctx.fillRect(0, 0, W, H);
+                for (let y = 0; y < ROWS; y++)for (let x = 0; x < COLS; x++) {
+                    const s = xy(x, y), t = target[s], o = occ[s], e = err[s];
+                    if (mode === 'error') ctx.fillStyle = `rgba(${Math.floor(215 * e)},${Math.floor(169 * (1 - e))},0,${0.12 + e * .75})`;
+                    else if (mode === 'policy') ctx.fillStyle = `rgba(0,87,194,${0.04 + clamp((maxQ(s) + .2) / 1.2, 0, 1) * .28})`;
+                    else ctx.fillStyle = `rgba(0,87,194,${0.04 + t * .58})`;
+                    ctx.fillRect(x * cw, y * ch, cw, ch);
+                    if (mode !== 'target' && o > 0) { ctx.fillStyle = `rgba(215,25,32,${0.18 + o * .68})`; ctx.fillRect(x * cw + cw * .13, y * ch + ch * .13, cw * .74, ch * .74); }
+                }
+                if (mode === 'policy') drawPolicy(W, H, cw, ch);
+                if (mode === 'swarm') drawAgents(cw, ch);
+                ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1;
+                for (let x = 0; x <= COLS; x += 4) { ctx.beginPath(); ctx.moveTo(x * cw, 0); ctx.lineTo(x * cw, H); ctx.stroke() } for (let y = 0; y <= ROWS; y += 3) { ctx.beginPath(); ctx.moveTo(0, y * ch); ctx.lineTo(W, y * ch); ctx.stroke() }
+            }
+            function drawAgents(cw, ch) { ctx.fillStyle = '#d71920'; ctx.strokeStyle = '#080808'; ctx.lineWidth = 1.5; for (const s of agents) { const x = sx(s) * cw + cw / 2, y = sy(s) * ch + ch / 2, r = Math.max(1.7, Math.min(cw, ch) * .14); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke() } }
+            function drawPolicy(W, H, cw, ch) { ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.lineWidth = 1.5; for (let y = 1; y < ROWS; y += 2)for (let x = 1; x < COLS; x += 2) { const s = xy(x, y), a = bestA(s); if (a === 4 || Math.abs(maxQ(s)) < .01) continue; const cx = x * cw + cw / 2, cy = y * ch + ch / 2, len = Math.min(cw, ch) * .34; ctx.save(); ctx.translate(cx, cy); ctx.rotate([-Math.PI / 2, 0, Math.PI / 2, Math.PI][a]); ctx.beginPath(); ctx.moveTo(-len * .5, 0); ctx.lineTo(len * .5, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(len * .5, 0); ctx.lineTo(len * .17, -len * .2); ctx.lineTo(len * .17, len * .2); ctx.closePath(); ctx.fill(); ctx.restore() } }
+
+            function updateReadout() {
+                const p = params(); ui.fr.textContent = frame; ui.ret.textContent = totalReward.toFixed(1); ui.eps.textContent = (+ui.epsilon.value).toFixed(2); ui.loss.textContent = lastLoss.toFixed(3); ui.match.textContent = Math.round(matchScore * 100) + '%';
+                ui.policyLabel.textContent = running ? 'learning' : 'paused';
+                ui.readout.textContent = `grid: ${COLS}×${ROWS}
+particles: ${agents.length}
+video: ${videoLoaded ? 'loaded' : 'demo'}
+match: ${Math.round(matchScore * 100)}%
+α ${p.alpha.toFixed(2)}  γ ${p.gamma.toFixed(2)}  ε ${p.epsilon.toFixed(2)}`;
+            }
+
+            function tick(t) {
+                updateTarget();
+                if (running) { const interval = 1000 / params().speed; if (t - lastTick > interval) { trainBatch(); lastTick = t } }
+                else { computeOcc(); computeError() }
+                draw(); updateReadout(); raf = requestAnimationFrame(tick);
+            }
+            function setRunning(v) { running = v; ui.toggle.textContent = v ? 'Pause' : 'Train'; ui.toggle.classList.toggle('on', v); ui.toggle.classList.toggle('primary', !v) }
+
+            ui.videoFile.onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; vid.src = URL.createObjectURL(f); vid.load(); videoLoaded = true; ui.targetLabel.textContent = f.name.replace(/\.[^.]+$/, '').slice(0, 28); vid.onloadeddata = () => { vid.currentTime = 0; updateTarget(); draw(); updateReadout() } };
+            ui.playVideo.onclick = async () => { if (!videoLoaded) return; try { if (videoPlaying) { vid.pause(); videoPlaying = false; ui.playVideo.textContent = 'Video Play' } else { await vid.play(); videoPlaying = true; ui.playVideo.textContent = 'Video Pause' } } catch (e) { ui.readout.textContent = 'browser blocked autoplay; tap again' } };
+            ui.scrub.oninput = () => { if (videoLoaded && vid.duration) { vid.currentTime = +ui.scrub.value * vid.duration; updateTarget(); draw() } };
+            ui.toggle.onclick = () => setRunning(!running); ui.step.onclick = () => { updateTarget(); trainBatch(); draw(); updateReadout() }; ui.resetAgents.onclick = scatterAgents; ui.randomize.onclick = scatterAgents; ui.resetQ.onclick = () => { Q.fill(0); totalReward = 0; lastLoss = 0; frame = 0; draw(); updateReadout() };
+            ui.agentCount.oninput = () => { ensureAgents(); draw(); updateReadout() };['threshold', 'contrast', 'viewMode', 'alpha', 'gamma', 'epsilon', 'qfade', 'speed'].forEach(id => el(id).addEventListener('input', () => { updateTarget(); computeError(); draw(); updateReadout() }));
+            ui.exportQ.onclick = () => { const blob = new Blob([JSON.stringify({ cols: COLS, rows: ROWS, actions: ['up', 'right', 'down', 'left', 'stay'], frame, match: matchScore, Q: [...Q] }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'video-rl-policy.json'; a.click(); URL.revokeObjectURL(a.href) };
+            document.querySelectorAll('.tab').forEach(btn => btn.onclick = () => { document.querySelectorAll('.tab').forEach(b => b.classList.remove('on')); btn.classList.add('on'); document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hot', p.dataset.tab === btn.dataset.tab)) });
+            window.addEventListener('resize', resize);
+
+            scatterAgents(); resize(); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

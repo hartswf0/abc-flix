@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Operator Mosaic Assembly</title>
+    <style>
+        :root {
+            --paper: #fff;
+            --ink: #000;
+            --hot: #e00000
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: Courier New, ui-monospace, monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #fff;
+            cursor: crosshair
+        }
+
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 54px;
+            background: #fff;
+            border-bottom: 4px solid #000;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            pointer-events: none
+        }
+
+        #title {
+            font: 900 15px Courier New, monospace;
+            letter-spacing: .10em;
+            text-transform: uppercase;
+            color: #000
+        }
+
+        #surfaces {
+            display: flex;
+            gap: 0;
+            pointer-events: auto;
+            border: 3px solid #000
+        }
+
+        button {
+            height: 36px;
+            min-width: 58px;
+            padding: 0 12px;
+            background: #fff;
+            color: #000;
+            border: 0;
+            border-right: 3px solid #000;
+            font: 900 13px Courier New, monospace;
+            cursor: pointer;
+            text-transform: uppercase
+        }
+
+        button:last-child {
+            border-right: 0
+        }
+
+        button.on {
+            background: #000;
+            color: #fff
+        }
+
+        button.hot {
+            background: var(--hot);
+            color: #fff
+        }
+
+        #focus {
+            position: fixed;
+            left: 16px;
+            bottom: 16px;
+            height: 34px;
+            min-width: 112px;
+            padding: 0 14px;
+            background: #fff;
+            border: 4px solid #000;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: 900 15px Courier New, monospace;
+            color: #000;
+            pointer-events: none
+        }
+
+        #focus.hot {
+            border-color: var(--hot);
+            color: var(--hot)
+        }
+
+        #monitor {
+            position: fixed;
+            right: 16px;
+            top: 72px;
+            width: 198px;
+            height: 104px;
+            border: 4px solid #000;
+            background: #fff;
+            z-index: 18;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: 900 24px Courier New, monospace;
+            color: #000;
+            pointer-events: none
+        }
+
+        #pulse {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            transform: translate(-50%, -50%);
+            border: 4px solid #000;
+            background: #fff;
+            z-index: 10;
+            pointer-events: none
+        }
+
+        #pulse:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            background: #000;
+            transform: translate(-50%, -50%)
+        }
+
+        #pulse.on {
+            border-color: var(--hot);
+            outline: 8px solid var(--hot)
+        }
+
+        @media(max-width:760px) {
+            #hud {
+                height: 50px;
+                padding: 0 8px
+            }
+
+            #title {
+                font-size: 10px;
+                letter-spacing: .04em
+            }
+
+            button {
+                height: 32px;
+                min-width: 42px;
+                font-size: 10px;
+                padding: 0 8px;
+                border-right-width: 2px
+            }
+
+            #surfaces {
+                border-width: 2px
+            }
+
+            #monitor {
+                display: none
+            }
+
+            #focus {
+                left: 10px;
+                bottom: 10px;
+                height: 30px;
+                min-width: 78px;
+                font-size: 12px;
+                border-width: 3px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+    <div id="pulse"></div>
+    <div id="hud">
+        <div id="title">Operator Mosaic Assembly</div>
+        <div id="surfaces">
+            <button id="editBtn" class="on">Edit</button>
+            <button id="mapBtn">Map</button>
+            <button id="tubeBtn">Tube</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+    </div>
+    <div id="monitor">NO SIGNAL</div>
+    <div id="focus">-</div>
+    <script>
+        (function () {
+            'use strict';
+            var canvas = document.getElementById('c'), ctx = canvas.getContext('2d', { alpha: false });
+            var focusEl = document.getElementById('focus'), monitor = document.getElementById('monitor'), pulseEl = document.getElementById('pulse');
+            var SNAP = 50, MAX_Z = 7200, LANE_H = 92, FAR = 2600, TUBE_R = 220, FOV = 720;
+            var tracks = [[], [], [], []], rendered = [], nextId = 1, hover = null, drag = null, raf = 0, dirty = true;
+            var S = { W: 0, H: 0, CX: 0, CY: 0, dpr: 1, view: 'edit', z: 0, speed: 0, active: 0, selected: null, cohort: null, cohortStart: null, cohortEnd: null, origin: null, target: null, rollPreview: null, pulseUntil: 0 };
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function snap(v) { return Math.round(v / SNAP) * SNAP }
+            function q(v) { return Math.round(v / (Math.PI / 2)) * (Math.PI / 2) }
+            function det(v) { return ((Math.round(v / (Math.PI / 2)) % 4) + 4) % 4 }
+            function norm(a) { while (a < -Math.PI) a += Math.PI * 2; while (a >= Math.PI) a -= Math.PI * 2; return a }
+            function id() { return 'C' + String(nextId++).padStart(3, '0') }
+            function mark() { dirty = true; if (!raf) raf = requestAnimationFrame(tick) }
+            function pulse() { pulseEl.classList.add('on'); S.pulseUntil = performance.now() + 110; setTimeout(function () { pulseEl.classList.remove('on') }, 110) }
+            function resize() { S.dpr = Math.min(devicePixelRatio || 1, 1.5); S.W = innerWidth; S.H = innerHeight; S.CX = S.W / 2; S.CY = S.H / 2; canvas.width = Math.floor(S.W * S.dpr); canvas.height = Math.floor(S.H * S.dpr); canvas.style.width = S.W + 'px'; canvas.style.height = S.H + 'px'; ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0); mark() }
+            function init() { var t, z, d; nextId = 1; for (t = 0; t < 4; t++) { tracks[t] = []; z = 0; while (z < MAX_Z) { d = snap(120 + Math.random() * 180); tracks[t].push({ id: id(), start: z, dur: d, track: t, roll: 0 }); z += d } } S.z = 0; S.active = 0; S.selected = null; S.cohort = null; S.origin = null; S.target = null; mark() }
+            function visible() { var out = [], a = S.z - 500, b = S.z + FAR, t, i, c; for (t = 0; t < 4; t++) { for (i = 0; i < tracks[t].length; i++) { c = tracks[t][i]; if (c.start + c.dur >= a && c.start <= b) out.push({ track: t, index: i, clip: c }) } } return out }
+            function overlap(a0, a1, b0, b1) { return a0 < b1 && b0 < a1 }
+            function buildCohort(item) { var a = item.clip.start, b = item.clip.start + item.clip.dur, out = [], t, i, c; for (t = 0; t < 4; t++) { for (i = 0; i < tracks[t].length; i++) { c = tracks[t][i]; if (overlap(a, b, c.start, c.start + c.dur)) out.push({ track: t, index: i, clip: c, base: c.roll || 0 }) } } S.cohortStart = a; S.cohortEnd = b; return out }
+            function isCohort(c) { return S.cohort && S.cohort.some(function (o) { return o.clip === c }) }
+            function laneY(t) { return S.CY + (t - 1.5) * LANE_H }
+            function zToX(z) { var left = 88, right = S.W - 80, span = 2200; return left + ((z - S.z + 260) / span) * (right - left) }
+            function xToZ(x) { var left = 88, right = S.W - 80, span = 2200; return S.z - 260 + ((x - left) / (right - left)) * span }
+            function rect(item) { var y = laneY(item.track), x0 = zToX(item.clip.start), x1 = zToX(item.clip.start + item.clip.dur), h = 54; return { x0: x0, x1: x1, y0: y - h / 2, y1: y + h / 2, cx: (x0 + x1) / 2, cy: y } }
+            function rollPoint(r) { return { x: r.cx, y: r.y0 - 46 } }
+            function project(x, y, z) { var D = 980, camZ = S.z - D * .62, vz = z - camZ, sc; if (vz < 20) return null; sc = FOV / vz; return { x: S.CX + x * sc, y: S.CY + y * sc, s: sc, d: vz } }
+            function tubePoly(item) { var c = item.clip, t = item.track, base = t * Math.PI / 2 - Math.PI / 2 + (c.roll || 0), a0 = base - Math.PI / 4 + .06, a1 = base + Math.PI / 4 - .06, z0 = c.start, z1 = c.start + c.dur, pts = [], i, a, p; for (i = 0; i <= 3; i++) { a = a0 + (a1 - a0) * i / 3; p = project(TUBE_R * Math.cos(a), TUBE_R * Math.sin(a), z0); if (!p) return null; pts.push(p) } for (i = 3; i >= 0; i--) { a = a0 + (a1 - a0) * i / 3; p = project(TUBE_R * Math.cos(a), TUBE_R * Math.sin(a), z1); if (!p) return null; pts.push(p) } return pts }
+            function path(pts) { var i; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (i = 1; i < pts.length; i++)ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath() }
+            function inside(x, y, pts) { var inn = false, i, j, xi, yi, xj, yj; for (i = 0, j = pts.length - 1; i < pts.length; j = i++) { xi = pts[i].x; yi = pts[i].y; xj = pts[j].x; yj = pts[j].y; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || .001) + xi)) inn = !inn } return inn }
+            function drawHandle(x, y, kind, on) { ctx.save(); ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fillStyle = on ? '#e00000' : '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = on ? '#fff' : '#000'; ctx.font = '900 13px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(kind, x, y + 1); ctx.restore() }
+            function drawRoll(p, c, on) { var r = on ? 32 : 25, idx = det(c.roll || 0), preview = S.rollPreview && S.rollPreview.clip === c ? det(S.rollPreview.delta) : idx, i, a; ctx.save(); ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(p.x, p.y, r + 13, 0, Math.PI * 2); ctx.stroke(); for (i = 0; i < 4; i++) { a = -Math.PI / 2 + i * Math.PI / 2; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * (r + 17), p.y + Math.sin(a) * (r + 17), i === preview ? 8 : 5, 0, Math.PI * 2); ctx.fillStyle = i === preview ? '#e00000' : '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.stroke() } ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = on ? '#e00000' : '#000'; ctx.lineWidth = 4; ctx.stroke(); a = -Math.PI / 2 + preview * Math.PI / 2; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(a) * (r - 4), p.y + Math.sin(a) * (r - 4)); ctx.strokeStyle = on ? '#e00000' : '#000'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore() }
+            function drawGrid() { var i, z, x, major; for (i = 0; i < 4; i++) { ctx.strokeStyle = '#000'; ctx.lineWidth = i === S.active ? 4 : 2; ctx.beginPath(); ctx.moveTo(72, laneY(i)); ctx.lineTo(S.W - 60, laneY(i)); ctx.stroke() } for (z = snap(S.z - 520); z < S.z + 2600; z += SNAP) { x = zToX(z); if (x < 72 || x > S.W - 60) continue; major = Math.round(z / SNAP) % 4 === 0; ctx.strokeStyle = '#000'; ctx.lineWidth = major ? 3 : 1; ctx.beginPath(); ctx.moveTo(x, 88); ctx.lineTo(x, major ? 142 : 116); ctx.moveTo(x, S.H - 116); ctx.lineTo(x, major ? S.H - 168 : S.H - 140); ctx.stroke() } }
+            function drawCohortBand() { if (!S.cohort || S.cohortStart == null) return; var xa = zToX(S.cohortStart), xb = zToX(S.cohortEnd); ctx.save(); ctx.fillStyle = '#000'; ctx.globalAlpha = .08; ctx.fillRect(Math.min(xa, xb), 88, Math.abs(xb - xa), S.H - 204); ctx.globalAlpha = 1; ctx.strokeStyle = '#e00000'; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(xa, 88); ctx.lineTo(xa, S.H - 116); ctx.moveTo(xb, 88); ctx.lineTo(xb, S.H - 116); ctx.stroke(); ctx.setLineDash([]); ctx.restore() }
+            function drawOriginTarget() { if (!drag || drag.type !== 'body') return; var o = S.origin, t = S.target; if (!o || !t) return; ctx.save(); ctx.strokeStyle = '#e00000'; ctx.lineWidth = 3; ctx.setLineDash([8, 7]); ctx.strokeRect(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0); ctx.setLineDash([]); ctx.globalAlpha = .10; ctx.fillStyle = '#e00000'; ctx.fillRect(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0); ctx.globalAlpha = 1; ctx.strokeStyle = '#e00000'; ctx.lineWidth = 4; ctx.strokeRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0); ctx.beginPath(); ctx.moveTo((o.x0 + o.x1) / 2, (o.y0 + o.y1) / 2); ctx.lineTo((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2); ctx.stroke(); ctx.restore() }
+            function drawEdit() { var items = visible(), i, item, r, sel, cohort, show; rendered = []; drawGrid(); drawCohortBand(); drawOriginTarget(); for (i = 0; i < items.length; i++) { item = items[i]; r = rect(item); if (r.x1 < 60 || r.x0 > S.W - 40) continue; sel = S.selected && S.selected.clip === item.clip; cohort = isCohort(item.clip); show = sel || cohort || hover && hover.clip === item.clip; ctx.save(); ctx.globalAlpha = (item.track === S.active || sel || cohort) ? .98 : .35; ctx.fillStyle = '#fff'; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); ctx.strokeStyle = cohort ? '#e00000' : '#000'; ctx.lineWidth = sel || cohort ? 4 : 3; ctx.strokeRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); ctx.restore(); if (show) { drawHandle(r.x0, r.cy, 'S', hover && hover.type === 'start' && hover.clip === item.clip); drawHandle(r.x1, r.cy, 'E', hover && hover.type === 'end' && hover.clip === item.clip); drawRoll(rollPoint(r), item.clip, sel || drag && drag.type === 'roll' && drag.item.clip === item.clip) } rendered.push({ view: 'edit', item: item, rect: r }) } }
+            function drawMap() { var scale = (S.W - 150) / MAX_Z, t, i, c, x0, x1, y; rendered = []; for (t = 0; t < 4; t++) { y = 118 + t * 86; ctx.strokeStyle = '#000'; ctx.lineWidth = t === S.active ? 4 : 2; ctx.beginPath(); ctx.moveTo(90, y); ctx.lineTo(S.W - 60, y); ctx.stroke(); for (i = 0; i < tracks[t].length; i++) { c = tracks[t][i]; x0 = 90 + c.start * scale; x1 = 90 + (c.start + c.dur) * scale; if (x1 < 60 || x0 > S.W - 40) continue; ctx.fillStyle = '#fff'; ctx.fillRect(x0, y - 24, x1 - x0, 48); ctx.strokeStyle = isCohort(c) ? '#e00000' : '#000'; ctx.lineWidth = S.selected && S.selected.clip === c ? 4 : 2; ctx.strokeRect(x0, y - 24, x1 - x0, 48); rendered.push({ view: 'map', item: { track: t, index: i, clip: c }, rect: { x0: x0, x1: x1, y0: y - 24, y1: y + 24, cx: (x0 + x1) / 2, cy: y } }) } } x0 = 90 + S.z * scale; ctx.strokeStyle = '#e00000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, 80); ctx.lineTo(x0, 420); ctx.stroke() }
+            function drawTube() { var items = visible(), queue = [], i, item, pts, j, avg, sel, cohort, p; rendered = []; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; for (i = 1; i < 12; i++) { p = project(0, 0, S.z + i * 240); if (p) { ctx.beginPath(); ctx.arc(p.x, p.y, TUBE_R * p.s, 0, Math.PI * 2); ctx.stroke() } } for (i = 0; i < items.length; i++) { pts = tubePoly(items[i]); if (!pts) continue; avg = 0; for (j = 0; j < pts.length; j++)avg += pts[j].d; queue.push({ item: items[i], pts: pts, depth: avg / pts.length }) } queue.sort(function (a, b) { return b.depth - a.depth }); for (i = 0; i < queue.length; i++) { item = queue[i].item; pts = queue[i].pts; sel = S.selected && S.selected.clip === item.clip; cohort = isCohort(item.clip); path(pts); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = cohort ? '#e00000' : '#000'; ctx.lineWidth = sel || cohort ? 4 : 2; ctx.stroke(); rendered.push({ view: 'tube', item: item, pts: pts }) } }
+            function draw() { dirty = false; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, S.W, S.H); if (S.view === 'edit') drawEdit(); else if (S.view === 'map') drawMap(); else drawTube(); updateHUD() }
+            function updateHUD() { var c = null, i; for (i = 0; i < tracks[S.active].length; i++) { c = tracks[S.active][i]; if (c.start <= S.z && c.start + c.dur > S.z) break; c = null } monitor.textContent = c ? c.id : 'NO SIGNAL'; focusEl.textContent = hover ? (hover.type === 'roll' ? 'ROLL' : hover.type.toUpperCase()) : (S.selected ? S.selected.clip.id : '-'); focusEl.classList.toggle('hot', !!hover || !!S.selected); document.querySelectorAll('button').forEach(function (b) { b.classList.remove('on') }); document.getElementById(S.view + 'Btn').classList.add('on') }
+            function tick(now) { raf = 0; if (Math.abs(S.speed) > .03) { S.z = clamp(S.z + S.speed, 0, MAX_Z - 300); S.speed *= .82; dirty = true } if (now < S.pulseUntil) dirty = true; if (dirty) draw(); if (Math.abs(S.speed) > .03 || dirty) mark() }
+            function setView(v) { S.view = v; mark() }
+            function hit(x, y) { var i, o, r, rp; for (i = rendered.length - 1; i >= 0; i--) { o = rendered[i]; if (o.view === 'edit' || o.view === 'map') { r = o.rect; if (o.view === 'edit') { rp = rollPoint(r); if (Math.hypot(x - rp.x, y - rp.y) < 38) return { type: 'roll', obj: o }; if (Math.abs(x - r.x0) < 20 && y >= r.y0 && y <= r.y1) return { type: 'start', obj: o }; if (Math.abs(x - r.x1) < 20 && y >= r.y0 && y <= r.y1) return { type: 'end', obj: o } } if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return { type: 'body', obj: o } } else if (inside(x, y, o.pts)) return { type: 'body', obj: o } } return null }
+            function select(item) { S.selected = item; S.active = item.track; S.cohort = null; mark() }
+            function begin(e) { e.preventDefault(); var h = hit(e.clientX, e.clientY), r, p; if (h) { select(h.obj.item); if (h.type === 'roll') { S.cohort = buildCohort(h.obj.item); r = h.obj.rect || rect(h.obj.item); p = rollPoint(r); drag = { type: 'roll', item: h.obj.item, cx: p.x, cy: p.y, startAng: Math.atan2(e.clientY - p.y, e.clientX - p.x), lastDet: det(h.obj.item.clip.roll || 0), cohort: S.cohort.map(function (o) { return { clip: o.clip, base: o.clip.roll || 0 } }) } } else { drag = { type: h.type, item: h.obj.item, x: e.clientX, y: e.clientY, startZ: S.z, startStart: h.obj.item.clip.start, startDur: h.obj.item.clip.dur, startTrack: h.obj.item.track }; if (h.type === 'body') { S.origin = Object.assign({}, h.obj.rect); S.target = Object.assign({}, h.obj.rect) } } } else { drag = { type: 'scrub', x: e.clientX, y: e.clientY, startZ: S.z }; S.selected = null; S.cohort = null } canvas.setPointerCapture(e.pointerId); mark() }
+            function move(e) { var h, dx, dy, c, newStart, newDur, newTrack, newZ, r, ang, delta, d, i; if (drag) { dx = e.clientX - drag.x; dy = e.clientY - drag.y; if (drag.type === 'scrub') { S.z = clamp(drag.startZ - dx * 3, 0, MAX_Z - 300); S.speed = 0 } else if (drag.type === 'end') { c = drag.item.clip; newDur = Math.max(SNAP, snap(drag.startDur + dx * 2)); if (newDur !== c.dur) { c.dur = newDur; pulse() } } else if (drag.type === 'start') { c = drag.item.clip; newStart = clamp(snap(drag.startStart + dx * 2), 0, drag.startStart + drag.startDur - SNAP); newDur = drag.startStart + drag.startDur - newStart; if (newStart !== c.start) { c.start = newStart; c.dur = newDur; pulse() } } else if (drag.type === 'body') { newTrack = clamp(drag.startTrack + Math.round(dy / 72), 0, 3); newZ = clamp(snap(drag.startStart + dx * 2), 0, MAX_Z - SNAP); drag.item.track = newTrack; drag.item.clip.track = newTrack; drag.item.clip.start = newZ; S.active = newTrack; r = rect(drag.item); S.target = { x0: r.x0, x1: r.x1, y0: laneY(newTrack) - 27, y1: laneY(newTrack) + 27 } } else if (drag.type === 'roll') { ang = Math.atan2(e.clientY - drag.cy, e.clientX - drag.cx); delta = q(norm(ang - drag.startAng)); d = det(delta); S.rollPreview = { clip: drag.item.clip, delta: delta }; if (d !== drag.lastDet) { drag.lastDet = d; pulse() } for (i = 0; i < drag.cohort.length; i++)drag.cohort[i].clip.roll = drag.cohort[i].base + delta } mark(); return } h = hit(e.clientX, e.clientY); if (h) { hover = { type: h.type, clip: h.obj.item.clip }; canvas.style.cursor = h.type === 'roll' ? 'alias' : h.type === 'start' || h.type === 'end' ? 'ew-resize' : 'grab' } else { hover = null; canvas.style.cursor = 'crosshair' } mark() }
+            function end(e) { var item, old, idx, i; if (drag && drag.type === 'body') { item = drag.item; old = tracks[drag.startTrack]; idx = old.indexOf(item.clip); if (idx >= 0) old.splice(idx, 1); tracks[item.track].push(item.clip); tracks[item.track].sort(function (a, b) { return a.start - b.start }); pulse() } else if (drag && drag.type === 'roll') { for (i = 0; i < drag.cohort.length; i++)drag.cohort[i].clip.roll = q(drag.cohort[i].clip.roll || 0); pulse() } drag = null; S.origin = null; S.target = null; S.rollPreview = null; try { canvas.releasePointerCapture(e.pointerId) } catch (err) { } mark() }
+            canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); return false });
+            canvas.addEventListener('pointerdown', begin); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+            window.addEventListener('wheel', function (e) { S.z = clamp(S.z + e.deltaY * 1.2, 0, MAX_Z - 300); S.speed = e.deltaY * .06; mark() }, { passive: true });
+            document.getElementById('editBtn').onclick = function () { setView('edit') };
+            document.getElementById('mapBtn').onclick = function () { setView('map') };
+            document.getElementById('tubeBtn').onclick = function () { setView('tube') };
+            document.getElementById('resetBtn').onclick = function () { init(); setView('edit') };
+            window.addEventListener('keydown', function (e) { if (e.key === '1') setView('edit'); if (e.key === '2') setView('map'); if (e.key === '3') setView('tube') });
+            resize(); init(); window.addEventListener('resize', resize); mark();
+        })();
+    </script>
+</body>
+
+</html>

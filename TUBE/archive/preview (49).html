@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>ICARO · Video → BEFLIX Sampler</title>
+<style>
+:root{
+  --bg:#050505;--panel:#10100f;--panel2:#171716;--ink:#f5f5ef;--muted:#9b9b92;--line:#34342f;
+  --red:#ff3030;--gold:#ffd447;--blue:#3da1ff;--green:#73ff7a;--orange:#ff9b2f;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,Arial,Helvetica,sans-serif;user-select:none}
+#app{height:100dvh;width:100vw;display:grid;grid-template-rows:1fr auto;background:#050505}
+#stage{position:relative;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#070707;touch-action:none}
+#view{max-width:100%;max-height:100%;width:auto;height:auto;display:block;background:#000;image-rendering:auto}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#fff;background:radial-gradient(circle at center,#151515,#050505 70%)}
+#empty b{font-size:clamp(26px,8vw,70px);letter-spacing:-.05em;display:block;margin-bottom:12px}
+#empty span{font-size:clamp(13px,3.3vw,20px);color:#aaa;font-weight:850;text-transform:uppercase;letter-spacing:.12em}
+#hud{position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;z-index:5;max-width:calc(100vw - 20px)}
+.badge{background:rgba(0,0,0,.78);border:2px solid #333;color:#fff;font-size:10px;font-weight:950;letter-spacing:.08em;padding:7px 9px;text-transform:uppercase;backdrop-filter:blur(5px)}
+.badge.green{border-color:rgba(115,255,122,.6);color:var(--green)}
+.badge.gold{border-color:rgba(255,212,71,.7);color:var(--gold)}
+.badge.red{border-color:rgba(255,48,48,.8);color:var(--red)}
+.badge.blue{border-color:rgba(61,161,255,.8);color:var(--blue)}
+#progress{position:absolute;left:0;right:0;bottom:0;height:6px;background:#222;z-index:6;display:none}
+#progress.on{display:block}
+#bar{height:100%;width:0%;background:linear-gradient(90deg,var(--red),var(--gold),var(--green));transition:width .08s linear}
+#controls{background:#0d0d0c;border-top:3px solid #222;padding:9px 9px calc(9px + var(--safe-b));display:grid;grid-template-columns:1fr;gap:8px;z-index:10;max-height:48dvh;overflow:auto}
+.row{display:flex;gap:8px;align-items:center;min-width:0;overflow-x:auto;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
+button,.filebtn,select,input[type=range]{height:44px;border:2px solid #3a3a35;background:#171716;color:#fff;font-weight:950;text-transform:uppercase;letter-spacing:.08em;border-radius:0;font-size:11px;white-space:nowrap}
+button,.filebtn{padding:0 12px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 0 #000;flex:0 0 auto}
+button:active,.filebtn:active{transform:translateY(2px);box-shadow:none}
+button.primary,.filebtn.primary{background:#fff;color:#000;border-color:#fff}
+button.red{background:var(--red);color:#fff;border-color:#ff7777}
+button.gold{background:var(--gold);color:#000;border-color:#ffe98f}
+button.green{background:#0f3;color:#000;border-color:#9fffaa}
+button.blue{background:var(--blue);color:#000;border-color:#9bd0ff}
+button.on{background:#fff;color:#000;border-color:#fff}
+button:disabled,select:disabled,textarea:disabled{opacity:.35;cursor:not-allowed}
+.filebtn input{display:none}
+select{padding:0 10px;min-width:134px}
+#signalBtns button,#styleBtns button{min-width:78px}
+#opacityWrap{display:flex;align-items:center;gap:8px;color:#aaa;font-size:11px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;min-width:190px;flex:1}
+input[type=range]{appearance:none;-webkit-appearance:none;min-width:100px;flex:1;background:#101010;padding:0;border-color:#333}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:40px;background:#fff;border:0}
+input[type=range]::-moz-range-thumb{width:28px;height:40px;background:#fff;border:0;border-radius:0}
+#explain{color:#aaa;font-size:12px;font-weight:850;line-height:1.25;display:flex;justify-content:space-between;gap:12px;align-items:center;min-width:0;flex-wrap:wrap}
+#explain strong{color:#fff}
+#log{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfcfc9;flex:1 1 320px}
+#hiddenVideo{display:none}
+#codePanel{display:grid;grid-template-columns:1fr;gap:6px;border-top:2px solid #222;padding-top:8px}
+#bfxCode{width:100%;min-height:92px;max-height:145px;resize:vertical;background:#050505;color:#f5f5ef;border:2px solid #3a3a35;font:700 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:9px;user-select:text;text-transform:none;letter-spacing:0}
+.codeHead{display:flex;gap:8px;align-items:center;justify-content:space-between;min-width:0}
+.codeTitle{font-size:11px;color:#aaa;font-weight:950;text-transform:uppercase;letter-spacing:.12em}
+.small{font-size:10px;color:#777;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+@media (min-width:1040px){
+  #app{grid-template-rows:1fr 238px}
+  #controls{grid-template-columns:1.05fr 1fr 1.4fr;align-items:start;gap:10px;padding:10px;max-height:none;overflow:hidden}
+  #explain{grid-column:1 / -1}
+  #codePanel{grid-column:1 / -1;grid-template-columns:210px 1fr}
+  #bfxCode{min-height:98px;max-height:98px}
+  button,.filebtn,select,input[type=range]{height:40px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <canvas id="view"></canvas>
+    <video id="hiddenVideo" playsinline muted></video>
+    <div id="empty"><div><b>LOAD VIDEO</b><span>Video → sample mask → BEFLIX code → layer → export</span></div></div>
+    <div id="hud">
+      <div class="badge green" id="baseBadge">VIDEO: SAFE</div>
+      <div class="badge blue" id="maskBadge">MASK: FULL FRAME</div>
+      <div class="badge gold" id="codeBadge">CODE: EMPTY</div>
+      <div class="badge" id="timeBadge">00:00</div>
+    </div>
+    <div id="progress"><div id="bar"></div></div>
+  </section>
+
+  <section id="controls">
+    <div class="row">
+      <label class="filebtn primary">1 LOAD VIDEO<input id="file" type="file" accept="video/*"/></label>
+      <button id="playBtn" disabled>PLAY</button>
+      <button id="videoOnlyBtn" disabled>VIDEO ONLY</button>
+      <button id="annotateBtn" disabled>2 DRAW MASK</button>
+      <button id="clearBoxesBtn" disabled>CLEAR MASK</button>
+    </div>
+
+    <div class="row" id="signalBtns">
+      <button data-signal="patches" class="on" disabled>PATCHES</button>
+      <button data-signal="heat" disabled>HEAT</button>
+      <button data-signal="vectors" disabled>VECTORS</button>
+      <button data-signal="all" disabled>ALL</button>
+    </div>
+
+    <div class="row" id="styleBtns">
+      <button data-style="scan" class="on" disabled>SCAN</button>
+      <button data-style="shrink" disabled>SHRINK</button>
+      <button data-style="ink" disabled>INK</button>
+      <button data-style="boxes" disabled>BOXES</button>
+      <button id="sampleBtn" class="gold" disabled>3 SAMPLE → CODE</button>
+      <button id="liveBtn" disabled>LIVE CODE</button>
+    </div>
+
+    <div id="explain">
+      <div id="log"><strong>Simple layer:</strong> video is base; mask tells where to sample; BEFLIX code draws the overlay layer.</div>
+      <div id="opacityWrap">LAYER <input id="opacity" type="range" min="0" max="100" value="78"/> <span id="opVal">78%</span></div>
+      <select id="exportKind" disabled>
+        <option value="composite">EXPORT COMPOSITE WEBM</option>
+        <option value="layer">EXPORT LAYER ONLY WEBM</option>
+        <option value="video">EXPORT VIDEO ONLY WEBM</option>
+      </select>
+      <button id="exportBtn" class="green" disabled>4 EXPORT</button>
+    </div>
+
+    <div id="codePanel">
+      <div class="codeHead">
+        <span class="codeTitle">BEFLIX NODE CODE</span>
+        <span class="small" id="codeStats">0 lines</span>
+      </div>
+      <div class="row">
+        <button id="renderCodeBtn" class="blue" disabled>RENDER CODE</button>
+        <button id="clearLayerBtn" disabled>CLEAR LAYER</button>
+        <button id="pngBtn" disabled>SAVE LAYER PNG</button>
+        <button id="copyCodeBtn" disabled>COPY CODE</button>
+        <button id="saveCodeBtn" disabled>SAVE .BFX</button>
+      </div>
+      <textarea id="bfxCode" spellcheck="false" disabled>C ICARO BEFLIX NODE
+C Load a video, draw mask boxes, then SAMPLE → CODE.
+GRID 128 72
+CLR 0</textarea>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const video = $('hiddenVideo');
+  const canvas = $('view');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const empty = $('empty');
+  const file = $('file');
+  const playBtn = $('playBtn');
+  const videoOnlyBtn = $('videoOnlyBtn');
+  const annotateBtn = $('annotateBtn');
+  const clearBoxesBtn = $('clearBoxesBtn');
+  const sampleBtn = $('sampleBtn');
+  const liveBtn = $('liveBtn');
+  const renderCodeBtn = $('renderCodeBtn');
+  const clearLayerBtn = $('clearLayerBtn');
+  const exportBtn = $('exportBtn');
+  const pngBtn = $('pngBtn');
+  const copyCodeBtn = $('copyCodeBtn');
+  const saveCodeBtn = $('saveCodeBtn');
+  const exportKind = $('exportKind');
+  const opacity = $('opacity');
+  const opVal = $('opVal');
+  const log = $('log');
+  const baseBadge = $('baseBadge');
+  const maskBadge = $('maskBadge');
+  const codeBadge = $('codeBadge');
+  const timeBadge = $('timeBadge');
+  const codeStats = $('codeStats');
+  const progress = $('progress');
+  const bar = $('bar');
+  const bfxCode = $('bfxCode');
+  const signalButtons = [...document.querySelectorAll('#signalBtns button')];
+  const styleButtons = [...document.querySelectorAll('#styleBtns button[data-style]')];
+
+  const analysisCanvas = document.createElement('canvas');
+  const analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+  const overlayCanvas = document.createElement('canvas');
+  const overlayCtx = overlayCanvas.getContext('2d');
+
+  let url = null;
+  let prevGray = null;
+  let currGray = null;
+  let diff = null;
+  let edge = null;
+  let components = [];
+  let vectors = [];
+  let signal = 'patches';
+  let style = 'scan';
+  let liveCode = false;
+  let showLayer = false;
+  let raf = 0;
+  let lastVideoT = -1;
+  let exporting = false;
+  let recorder = null;
+  let chunks = [];
+  let annotations = [];
+  let drawingBox = null;
+  let annotateMode = false;
+  let gridW = 128;
+  let gridH = 72;
+
+  const state = {
+    threshold: 24,
+    edgeThreshold: 34,
+    analysisW: 176,
+    analysisH: 99,
+    minPatchArea: 8,
+    opacity: 0.78,
+    mime: pickMime(),
+  };
+
+  function pickMime(){
+    const options = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+    if (!window.MediaRecorder) return '';
+    return options.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+  }
+
+  function setLog(html){ log.innerHTML = html; }
+  function two(n){ return String(Math.floor(n)).padStart(2,'0'); }
+  function fmt(t){ return `${two(t/60)}:${two(t%60)}`; }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    if (url) URL.revokeObjectURL(url);
+    url = URL.createObjectURL(f);
+    video.src = url;
+    video.muted = true;
+    video.loop = false;
+    video.preload = 'auto';
+    video.onloadedmetadata = () => {
+      setupCanvas(video.videoWidth || 1280, video.videoHeight || 720);
+      empty.style.display = 'none';
+      enable(true);
+      annotations = [];
+      drawingBox = null;
+      annotateMode = false;
+      showLayer = false;
+      liveCode = false;
+      prevGray = currGray = diff = edge = null;
+      components = [];
+      vectors = [];
+      seedCode();
+      updateButtons();
+      setLog(`<strong>Loaded:</strong> ${escapeHtml(f.name)}. Draw a mask or sample the full frame.`);
+      renderOnce();
+    };
+  });
+
+  function setupCanvas(w,h){
+    const maxW = 1280;
+    const scale = Math.min(1, maxW / Math.max(1,w));
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+    state.analysisW = Math.min(192, Math.max(96, Math.round(canvas.width / 6)));
+    state.analysisH = Math.max(54, Math.round(state.analysisW * canvas.height / canvas.width));
+    analysisCanvas.width = state.analysisW;
+    analysisCanvas.height = state.analysisH;
+    gridH = Math.round(gridW * canvas.height / canvas.width);
+  }
+
+  function enable(on){
+    [playBtn, videoOnlyBtn, annotateBtn, clearBoxesBtn, sampleBtn, liveBtn, renderCodeBtn, clearLayerBtn, exportBtn, pngBtn, copyCodeBtn, saveCodeBtn, exportKind, bfxCode, ...signalButtons, ...styleButtons].forEach(b => b.disabled = !on);
+  }
+
+  function seedCode(){
+    bfxCode.value = `C ICARO BEFLIX NODE\nGRID ${gridW} ${gridH}\nCLR 0\nC SAMPLE will write REC / SPN / VEC / DOT commands here.`;
+    updateCodeStats();
+    renderBeflixCode();
+  }
+
+  signalButtons.forEach(btn => btn.addEventListener('click', () => {
+    signal = btn.dataset.signal;
+    updateButtons();
+    setLog(`<strong>Signal:</strong> ${signal.toUpperCase()}. Click SAMPLE → CODE to make real BEFLIX commands.`);
+  }));
+
+  styleButtons.forEach(btn => btn.addEventListener('click', () => {
+    style = btn.dataset.style;
+    updateButtons();
+    setLog(`<strong>BEFLIX look:</strong> ${style.toUpperCase()}. Click SAMPLE → CODE to regenerate code with this look.`);
+  }));
+
+  playBtn.addEventListener('click', async () => {
+    if (!video.src) return;
+    if (video.paused) {
+      await video.play();
+      startLoop();
+    } else {
+      video.pause();
+      renderOnce();
+    }
+    updateButtons();
+  });
+
+  videoOnlyBtn.addEventListener('click', () => {
+    liveCode = false;
+    showLayer = false;
+    updateButtons();
+    setLog('<strong>Video only.</strong> BEFLIX layer is hidden; code remains saved.');
+    renderOnce();
+  });
+
+  annotateBtn.addEventListener('click', () => {
+    annotateMode = !annotateMode;
+    updateButtons();
+    setLog(annotateMode
+      ? '<strong>Draw mask.</strong> Drag boxes on the video. Sampling will only read inside them.'
+      : '<strong>Mask drawing off.</strong> Existing boxes still guide sampling.');
+  });
+
+  clearBoxesBtn.addEventListener('click', () => {
+    annotations = [];
+    drawingBox = null;
+    updateButtons();
+    setLog('<strong>Mask cleared.</strong> Sampling reads the whole frame again.');
+    renderOnce();
+  });
+
+  sampleBtn.addEventListener('click', () => {
+    sampleCurrentFrameToCode();
+    liveCode = false;
+    showLayer = true;
+    updateButtons();
+    renderOnce();
+  });
+
+  liveBtn.addEventListener('click', () => {
+    liveCode = !liveCode;
+    showLayer = true;
+    updateButtons();
+    setLog(liveCode
+      ? '<strong>Live code on.</strong> Every frame samples video → writes BEFLIX → renders layer.'
+      : '<strong>Live code off.</strong> Current BEFLIX code stays frozen.');
+    renderOnce();
+  });
+
+  renderCodeBtn.addEventListener('click', () => {
+    liveCode = false;
+    showLayer = true;
+    renderBeflixCode();
+    updateButtons();
+    setLog('<strong>Rendered code.</strong> The text box is now the actual overlay layer.');
+    renderOnce();
+  });
+
+  clearLayerBtn.addEventListener('click', () => {
+    liveCode = false;
+    showLayer = false;
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    updateButtons();
+    setLog('<strong>Layer hidden.</strong> Code is still there; render it again anytime.');
+    renderOnce();
+  });
+
+  opacity.addEventListener('input', () => {
+    state.opacity = Number(opacity.value) / 100;
+    opVal.textContent = `${opacity.value}%`;
+    renderOnce();
+  });
+
+  bfxCode.addEventListener('input', () => {
+    liveCode = false;
+    showLayer = true;
+    updateCodeStats();
+    renderBeflixCode();
+    updateButtons();
+    renderOnce();
+  });
+
+  pngBtn.addEventListener('click', () => {
+    renderBeflixCode();
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    a.href = overlayCanvas.toDataURL('image/png');
+    a.download = `icaro-beflix-layer-${stamp}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setLog('<strong>Saved PNG.</strong> BEFLIX layer only.');
+  });
+
+  copyCodeBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(bfxCode.value);
+      setLog('<strong>Copied.</strong> BEFLIX code is on the clipboard.');
+    } catch {
+      setLog('<strong>Copy failed.</strong> Select the code manually and copy.');
+    }
+  });
+
+  saveCodeBtn.addEventListener('click', () => {
+    const blob = new Blob([bfxCode.value], {type:'text/plain'});
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    a.href = URL.createObjectURL(blob);
+    a.download = `icaro-node-${stamp}.bfx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    setLog('<strong>Saved .BFX.</strong> This is the sampled BEFLIX node code.');
+  });
+
+  exportBtn.addEventListener('click', () => exportComposite(exportKind.value));
+
+  function updateButtons(){
+    playBtn.textContent = video.paused ? 'PLAY' : 'PAUSE';
+    signalButtons.forEach(b => b.classList.toggle('on', b.dataset.signal === signal));
+    styleButtons.forEach(b => b.classList.toggle('on', b.dataset.style === style));
+    liveBtn.classList.toggle('on', liveCode);
+    annotateBtn.classList.toggle('on', annotateMode);
+    videoOnlyBtn.classList.toggle('on', !showLayer && !liveCode);
+    baseBadge.textContent = video.src ? 'VIDEO: SAFE' : 'VIDEO: EMPTY';
+    maskBadge.textContent = annotations.length ? `MASK: ${annotations.length} BOX${annotations.length>1?'ES':''}` : 'MASK: FULL FRAME';
+    codeBadge.textContent = liveCode ? 'CODE: LIVE' : showLayer ? 'CODE: RENDERED' : 'CODE: READY';
+    codeBadge.className = liveCode ? 'badge red' : showLayer ? 'badge gold' : 'badge';
+    maskBadge.className = annotations.length ? 'badge blue' : 'badge';
+  }
+
+  function updateCodeStats(){
+    const lines = bfxCode.value.split(/\n/).filter(Boolean).length;
+    codeStats.textContent = `${lines} lines`;
+  }
+
+  function startLoop(){
+    cancelAnimationFrame(raf);
+    const loop = () => {
+      renderOnce();
+      if (!video.paused || exporting || liveCode) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+  }
+
+  function renderOnce(){
+    if (!video.src || video.readyState < 2 || !canvas.width) return;
+    if (liveCode && !exporting) sampleCurrentFrameToCode(true);
+    drawScene(ctx, 'composite', true);
+    if (video.duration) {
+      timeBadge.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+      bar.style.width = `${Math.min(100, (video.currentTime / video.duration) * 100)}%`;
+    }
+    updateButtons();
+  }
+
+  function drawScene(targetCtx, mode, includeUi){
+    targetCtx.clearRect(0,0,canvas.width,canvas.height);
+    if (mode !== 'layer') {
+      targetCtx.drawImage(video,0,0,canvas.width,canvas.height);
+    } else {
+      targetCtx.fillStyle = '#000';
+      targetCtx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    if (mode !== 'video' && showLayer) {
+      targetCtx.save();
+      targetCtx.globalAlpha = state.opacity;
+      targetCtx.drawImage(overlayCanvas,0,0);
+      targetCtx.restore();
+    }
+    if (includeUi) drawAnnotations(targetCtx);
+  }
+
+  function analyzeCurrentFrame(force){
+    if (!force && Math.abs(video.currentTime - lastVideoT) < 0.001) return;
+    lastVideoT = video.currentTime;
+    analysisCtx.drawImage(video, 0, 0, state.analysisW, state.analysisH);
+    const image = analysisCtx.getImageData(0,0,state.analysisW,state.analysisH);
+    const data = image.data;
+    const n = state.analysisW * state.analysisH;
+    const gray = new Uint8ClampedArray(n);
+    for (let i=0,j=0;i<data.length;i+=4,j++) gray[j] = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+
+    if (!currGray) {
+      currGray = gray;
+      prevGray = new Uint8ClampedArray(gray);
+      diff = new Uint8ClampedArray(n);
+    } else {
+      prevGray = currGray;
+      currGray = gray;
+      diff = new Uint8ClampedArray(n);
+      for (let i=0;i<n;i++) diff[i] = Math.abs(currGray[i] - prevGray[i]);
+    }
+    edge = computeEdge(currGray, state.analysisW, state.analysisH);
+    const baseMap = chooseMap();
+    components = filterComponents(findComponents(baseMap, state.analysisW, state.analysisH, state.thresholdForMap || state.threshold, state.minPatchArea));
+    if (!components.length && annotations.length) {
+      components = fallbackBoxesAsComponents();
+    }
+    vectors = filterVectors(findVectors(prevGray, currGray, diff, state.analysisW, state.analysisH, state.threshold));
+  }
+
+  function chooseMap(){
+    const n = state.analysisW * state.analysisH;
+    const out = new Uint8ClampedArray(n);
+    const mask = annotationMask(state.analysisW, state.analysisH);
+    const diffEnergy = diff ? avgInMask(diff, mask) : 0;
+    const useEdge = diffEnergy < 8;
+    state.thresholdForMap = useEdge ? state.edgeThreshold : state.threshold;
+    for (let i=0;i<n;i++) out[i] = mask[i] ? (useEdge ? edge[i] : diff[i]) : 0;
+    return out;
+  }
+
+  function computeEdge(gray,w,h){
+    const out = new Uint8ClampedArray(w*h);
+    for (let y=1;y<h-1;y++) {
+      for (let x=1;x<w-1;x++) {
+        const i = y*w+x;
+        const gx = -gray[i-w-1] - 2*gray[i-1] - gray[i+w-1] + gray[i-w+1] + 2*gray[i+1] + gray[i+w+1];
+        const gy = -gray[i-w-1] - 2*gray[i-w] - gray[i-w+1] + gray[i+w-1] + 2*gray[i+w] + gray[i+w+1];
+        out[i] = Math.min(255, Math.sqrt(gx*gx + gy*gy) | 0);
+      }
+    }
+    return out;
+  }
+
+  function avgInMask(arr,mask){
+    let s=0,c=0;
+    for(let i=0;i<arr.length;i++){ if(mask[i]){s+=arr[i];c++;} }
+    return c ? s/c : 0;
+  }
+
+  function sampleCurrentFrameToCode(silent){
+    if (!video.src) return;
+    analyzeCurrentFrame(true);
+    const code = compileBeflixCode();
+    bfxCode.value = code;
+    updateCodeStats();
+    renderBeflixCode();
+    showLayer = true;
+    if (!silent) {
+      const mapKind = (state.thresholdForMap === state.edgeThreshold) ? 'edge fallback' : 'motion delta';
+      setLog(`<strong>Sampled → code.</strong> ${components.length} patches, ${vectors.length} vectors, using ${mapKind}.`);
+    }
+  }
+
+  function compileBeflixCode(){
+    const lines = [];
+    lines.push('C ICARO BEFLIX NODE');
+    lines.push(`C t=${video.currentTime.toFixed(3)} signal=${signal} style=${style} mask=${annotations.length || 'full'}`);
+    lines.push(`GRID ${gridW} ${gridH}`);
+    lines.push('CLR 0');
+
+    if (signal === 'heat' || signal === 'all') addHeatCode(lines);
+    if (signal === 'patches' || signal === 'all') addPatchCode(lines);
+    if (signal === 'vectors' || signal === 'all') addVectorCode(lines);
+    if (lines.length <= 4) {
+      lines.push('C NO ACTIVE SAMPLE FOUND');
+      if (annotations.length) annotations.forEach((b,i)=>addBoxCode(lines, rectCanvasToGrid(b), 5, 0.35, `MASK${i+1}`));
+    }
+    lines.push('REC 0 0 1 1 0 0');
+    return lines.join('\n');
+  }
+
+  function addHeatCode(lines){
+    const w = state.analysisW, h = state.analysisH;
+    const mask = annotationMask(w,h);
+    const sx = gridW / w;
+    const sy = gridH / h;
+    const stride = signal === 'all' ? 3 : 2;
+    const map = diff || edge;
+    for (let y=0;y<h;y+=stride) {
+      let x=0;
+      while (x<w) {
+        while (x<w && (!mask[y*w+x] || map[y*w+x] <= state.threshold)) x++;
+        if (x>=w) break;
+        const x0=x;
+        while (x<w && mask[y*w+x] && map[y*w+x] > state.threshold) x++;
+        const x1=x-1;
+        lines.push(`SPN ${Math.round(y*sy)} ${Math.round(x0*sx)} ${Math.round((x1+1)*sx)} 3 0.45`);
+      }
+    }
+  }
+
+  function addPatchCode(lines){
+    for (const c of components.slice(0,80)) {
+      const g = rectAnalysisToGrid({x:c.minX, y:c.minY, w:c.maxX-c.minX+1, h:c.maxY-c.minY+1});
+      if (style === 'boxes') {
+        addBoxCode(lines, g, 5, 0.45, 'PATCH');
+        lines.push(`DOT ${Math.round(c.cx * gridW/state.analysisW)} ${Math.round(c.cy * gridH/state.analysisH)} 1 3 0.95`);
+      } else if (style === 'shrink') {
+        lines.push(`BLOB ${g.x} ${g.y} ${g.w} ${g.h} 5 0.46`);
+        addSpansForComponent(lines, c, 5, 0.38, 2);
+      } else if (style === 'ink') {
+        addSpansForComponent(lines, c, 7, 0.75, 1);
+        addBoxCode(lines, g, 3, 0.65, 'EDGE');
+      } else {
+        addSpansForComponent(lines, c, 5, 0.62, 2);
+      }
+    }
+  }
+
+  function addVectorCode(lines){
+    for (const v of vectors.slice(0,120)) {
+      const x = Math.round(v.x * gridW/state.analysisW);
+      const y = Math.round(v.y * gridH/state.analysisH);
+      const dx = Math.round(v.dx * gridW/state.analysisW);
+      const dy = Math.round(v.dy * gridH/state.analysisH);
+      lines.push(`VEC ${x} ${y} ${dx} ${dy} 4 0.9`);
+    }
+  }
+
+  function addSpansForComponent(lines, c, ink, alpha, every){
+    const sx = gridW / state.analysisW;
+    const sy = gridH / state.analysisH;
+    const sorted = c.spans.sort((a,b)=>a.y-b.y);
+    for (let i=0;i<sorted.length;i+=every) {
+      const s = sorted[i];
+      lines.push(`SPN ${Math.round(s.y*sy)} ${Math.round(s.x0*sx)} ${Math.round((s.x1+1)*sx)} ${ink} ${alpha}`);
+    }
+  }
+
+  function addBoxCode(lines, g, ink, alpha, label){
+    lines.push(`C ${label}`);
+    lines.push(`REC ${g.x} ${g.y} ${Math.max(1,g.w)} ${Math.max(1,g.h)} ${ink} ${alpha}`);
+  }
+
+  function renderBeflixCode(){
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    const lines = bfxCode.value.split(/\n/);
+    let localGridW = gridW, localGridH = gridH;
+    const ink = {
+      0:'rgba(0,0,0,0)',
+      1:'rgba(0,0,0,1)',
+      2:'rgba(230,0,0,1)',
+      3:'rgba(255,48,48,1)',
+      4:'rgba(61,161,255,1)',
+      5:'rgba(255,212,71,1)',
+      6:'rgba(115,255,122,1)',
+      7:'rgba(255,255,255,1)'
+    };
+    function sx(x){ return x * overlayCanvas.width / localGridW; }
+    function sy(y){ return y * overlayCanvas.height / localGridH; }
+    function color(i,a){ return (ink[i] || ink[7]).replace(/,1\)$/, `,${clamp(a,0,1)})`); }
+
+    overlayCtx.save();
+    overlayCtx.imageSmoothingEnabled = false;
+    overlayCtx.lineCap = 'square';
+    overlayCtx.lineJoin = 'miter';
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || line.startsWith('C ')) continue;
+      const p = line.split(/\s+/);
+      const op = p[0].toUpperCase();
+      if (op === 'GRID') {
+        localGridW = Number(p[1]) || localGridW;
+        localGridH = Number(p[2]) || localGridH;
+      } else if (op === 'CLR') {
+        const a = Number(p[2] ?? 0);
+        if (a > 0) {
+          overlayCtx.fillStyle = color(Number(p[1] || 0), a);
+          overlayCtx.fillRect(0,0,overlayCanvas.width,overlayCanvas.height);
+        }
+      } else if (op === 'REC') {
+        const x=+p[1], y=+p[2], w=+p[3], h=+p[4], i=+(p[5]||7), a=+(p[6]||1);
+        overlayCtx.fillStyle = color(i,a);
+        overlayCtx.fillRect(sx(x), sy(y), sx(w), sy(h));
+      } else if (op === 'SPN') {
+        const y=+p[1], x0=+p[2], x1=+p[3], i=+(p[4]||7), a=+(p[5]||1);
+        overlayCtx.fillStyle = color(i,a);
+        overlayCtx.fillRect(sx(x0), sy(y), Math.max(1,sx(x1-x0)), Math.max(1,sy(1.15)));
+      } else if (op === 'LIN') {
+        const x1=+p[1], y1=+p[2], x2=+p[3], y2=+p[4], i=+(p[5]||7), a=+(p[6]||1);
+        overlayCtx.strokeStyle = color(i,a);
+        overlayCtx.lineWidth = Math.max(2, sx(0.55));
+        overlayCtx.beginPath(); overlayCtx.moveTo(sx(x1),sy(y1)); overlayCtx.lineTo(sx(x2),sy(y2)); overlayCtx.stroke();
+      } else if (op === 'VEC') {
+        const x=+p[1], y=+p[2], dx=+p[3], dy=+p[4], i=+(p[5]||4), a=+(p[6]||1);
+        overlayCtx.strokeStyle = color(i,a);
+        overlayCtx.fillStyle = color(i,a);
+        overlayCtx.lineWidth = Math.max(2, sx(0.6));
+        drawArrow(overlayCtx, sx(x-dx), sy(y-dy), sx(x), sy(y));
+      } else if (op === 'DOT') {
+        const x=+p[1], y=+p[2], r=+p[3], i=+(p[4]||7), a=+(p[5]||1);
+        overlayCtx.fillStyle = color(i,a);
+        overlayCtx.fillRect(sx(x-r), sy(y-r), Math.max(2,sx(r*2+1)), Math.max(2,sy(r*2+1)));
+      } else if (op === 'BLOB') {
+        const x=+p[1], y=+p[2], w=+p[3], h=+p[4], i=+(p[5]||5), a=+(p[6]||0.5);
+        overlayCtx.fillStyle = color(i,a);
+        roundRectPath(overlayCtx, sx(x), sy(y), sx(w), sy(h), Math.max(3, Math.min(sx(w),sy(h))*0.18));
+        overlayCtx.fill();
+      }
+    }
+    overlayCtx.restore();
+    updateCodeStats();
+  }
+
+  function rectAnalysisToGrid(r){
+    return {
+      x: Math.round(r.x * gridW/state.analysisW),
+      y: Math.round(r.y * gridH/state.analysisH),
+      w: Math.round(r.w * gridW/state.analysisW),
+      h: Math.round(r.h * gridH/state.analysisH)
+    };
+  }
+
+  function rectCanvasToGrid(r){
+    return {
+      x: Math.round(r.x * gridW/canvas.width),
+      y: Math.round(r.y * gridH/canvas.height),
+      w: Math.round(r.w * gridW/canvas.width),
+      h: Math.round(r.h * gridH/canvas.height)
+    };
+  }
+
+  function fallbackBoxesAsComponents(){
+    const sx = state.analysisW / canvas.width;
+    const sy = state.analysisH / canvas.height;
+    return annotations.map(b => {
+      const minX=Math.round(b.x*sx), minY=Math.round(b.y*sy);
+      const maxX=Math.round((b.x+b.w)*sx), maxY=Math.round((b.y+b.h)*sy);
+      const spans = [];
+      for(let y=minY;y<=maxY;y+=2) spans.push({y,x0:minX,x1:maxX});
+      return {area:(maxX-minX)*(maxY-minY),cx:(minX+maxX)/2,cy:(minY+maxY)/2,minX,maxX,minY,maxY,spans};
+    });
+  }
+
+  function filterComponents(list){
+    if (!annotations.length) return list;
+    const sx = state.analysisW / canvas.width;
+    const sy = state.analysisH / canvas.height;
+    const boxes = annotations.map(b => ({x:b.x*sx,y:b.y*sy,w:b.w*sx,h:b.h*sy}));
+    return list.filter(c => boxes.some(b => c.cx >= b.x && c.cx <= b.x+b.w && c.cy >= b.y && c.cy <= b.y+b.h));
+  }
+
+  function filterVectors(list){
+    if (!annotations.length) return list;
+    const sx = state.analysisW / canvas.width;
+    const sy = state.analysisH / canvas.height;
+    const boxes = annotations.map(b => ({x:b.x*sx,y:b.y*sy,w:b.w*sx,h:b.h*sy}));
+    return list.filter(v => boxes.some(b => v.x >= b.x && v.x <= b.x+b.w && v.y >= b.y && v.y <= b.y+b.h));
+  }
+
+  function annotationMask(w,h){
+    const mask = new Uint8Array(w*h);
+    if (!annotations.length) { mask.fill(1); return mask; }
+    const sx = w / canvas.width;
+    const sy = h / canvas.height;
+    for (const box of annotations) {
+      const x0 = clamp(Math.floor(box.x*sx),0,w-1);
+      const y0 = clamp(Math.floor(box.y*sy),0,h-1);
+      const x1 = clamp(Math.ceil((box.x+box.w)*sx),0,w);
+      const y1 = clamp(Math.ceil((box.y+box.h)*sy),0,h);
+      for (let y=y0; y<y1; y++) for (let x=x0; x<x1; x++) mask[y*w + x] = 1;
+    }
+    return mask;
+  }
+
+  function drawAnnotations(targetCtx){
+    if (!annotations.length && !drawingBox) return;
+    targetCtx.save();
+    targetCtx.lineWidth = Math.max(2, canvas.width / 450);
+    targetCtx.setLineDash([10,8]);
+    for (const box of annotations) {
+      targetCtx.fillStyle = 'rgba(61,161,255,.08)';
+      targetCtx.strokeStyle = 'rgba(61,161,255,.92)';
+      targetCtx.fillRect(box.x, box.y, box.w, box.h);
+      targetCtx.strokeRect(box.x, box.y, box.w, box.h);
+    }
+    if (drawingBox) {
+      targetCtx.fillStyle = 'rgba(115,255,122,.12)';
+      targetCtx.strokeStyle = 'rgba(115,255,122,.96)';
+      targetCtx.fillRect(drawingBox.x, drawingBox.y, drawingBox.w, drawingBox.h);
+      targetCtx.strokeRect(drawingBox.x, drawingBox.y, drawingBox.w, drawingBox.h);
+    }
+    targetCtx.restore();
+  }
+
+  function drawArrow(c,x1,y1,x2,y2){
+    const dx = x2-x1, dy = y2-y1;
+    const len = Math.hypot(dx,dy);
+    if (len < 1) return;
+    const ux = dx/len, uy = dy/len;
+    const head = Math.min(9, Math.max(5, len * 0.35));
+    c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+    c.beginPath();
+    c.moveTo(x2,y2);
+    c.lineTo(x2 - ux*head - uy*head*.55, y2 - uy*head + ux*head*.55);
+    c.lineTo(x2 - ux*head + uy*head*.55, y2 - uy*head - ux*head*.55);
+    c.closePath(); c.fill();
+  }
+
+  function roundRectPath(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);
+    c.arcTo(x,y,x+w,y,r);
+    c.closePath();
+  }
+
+  function findVectors(prev, curr, dmap, w, h, th){
+    const out = [];
+    const block = 12, radius = 3;
+    if (!prev || !curr || !dmap) return out;
+    for (let by=block; by<h-block; by+=block) {
+      for (let bx=block; bx<w-block; bx+=block) {
+        let active = 0, count = 0;
+        for (let y=-4;y<=4;y+=2) for (let x=-4;x<=4;x+=2) { active += dmap[(by+y)*w + (bx+x)]; count++; }
+        if (active / count < th*1.35) continue;
+        let bestDx = 0, bestDy = 0, best = Infinity;
+        for (let dy=-radius; dy<=radius; dy++) {
+          for (let dx=-radius; dx<=radius; dx++) {
+            let err = 0;
+            for (let y=-4;y<=4;y+=2) for (let x=-4;x<=4;x+=2) {
+              const ci = (by+y)*w + (bx+x);
+              const px = bx+x-dx, py = by+y-dy;
+              if (px<0 || py<0 || px>=w || py>=h) { err += 999; continue; }
+              const pi = py*w + px;
+              err += Math.abs(curr[ci] - prev[pi]);
+            }
+            if (err < best) { best = err; bestDx = dx; bestDy = dy; }
+          }
+        }
+        if (bestDx || bestDy) out.push({x:bx,y:by,dx:bestDx*2.1,dy:bestDy*2.1,score:active/count});
+      }
+    }
+    return out.slice(0,120);
+  }
+
+  function findComponents(map,w,h,th,minArea){
+    const seen = new Uint8Array(w*h);
+    const comps = [];
+    const qx = new Int16Array(w*h);
+    const qy = new Int16Array(w*h);
+    for (let yy=0; yy<h; yy++) {
+      for (let xx=0; xx<w; xx++) {
+        const start = yy*w+xx;
+        if (seen[start] || map[start] <= th) continue;
+        let head=0,tail=0,area=0,sumX=0,sumY=0,minX=xx,maxX=xx,minY=yy,maxY=yy;
+        const rows = new Map();
+        seen[start]=1; qx[tail]=xx; qy[tail]=yy; tail++;
+        while(head<tail){
+          const x=qx[head], y=qy[head]; head++;
+          area++; sumX+=x; sumY+=y; if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;
+          const row = rows.get(y) || [x,x]; row[0]=Math.min(row[0],x); row[1]=Math.max(row[1],x); rows.set(y,row);
+          const nb = [[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+          for(const pair of nb){
+            const nx=pair[0], ny=pair[1];
+            if(nx<0||ny<0||nx>=w||ny>=h) continue;
+            const ni=ny*w+nx;
+            if(seen[ni]||map[ni]<=th) continue;
+            seen[ni]=1; qx[tail]=nx; qy[tail]=ny; tail++;
+          }
+        }
+        if(area>=minArea){
+          const spans = [...rows.entries()].map(([y,[x0,x1]]) => ({y,x0,x1}));
+          comps.push({area,cx:sumX/area,cy:sumY/area,minX,maxX,minY,maxY,spans});
+        }
+      }
+    }
+    comps.sort((a,b)=>b.area-a.area);
+    return comps;
+  }
+
+  async function exportComposite(kind){
+    if (!video.src || exporting) return;
+    if (!window.MediaRecorder) {
+      setLog('<strong>Export blocked:</strong> this browser does not support MediaRecorder. Try Chrome or Edge.');
+      return;
+    }
+    exporting = true;
+    chunks = [];
+    exportBtn.disabled = true;
+    progress.classList.add('on');
+    setLog(`<strong>Exporting:</strong> ${kind.toUpperCase()} WebM.`);
+
+    const wasPaused = video.paused;
+    const oldTime = video.currentTime;
+    video.pause();
+    video.currentTime = 0;
+    await waitEvent(video, 'seeked', 2500).catch(()=>{});
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height;
+    const ex = exportCanvas.getContext('2d', { alpha: false });
+
+    const stream = exportCanvas.captureStream(30);
+    const options = state.mime ? { mimeType: state.mime, videoBitsPerSecond: 8500000 } : { videoBitsPerSecond: 8500000 };
+    recorder = new MediaRecorder(stream, options);
+    recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: state.mime || 'video/webm' });
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      a.href = URL.createObjectURL(blob);
+      a.download = `icaro-${kind}-${stamp}.webm`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      exporting = false;
+      progress.classList.remove('on');
+      exportBtn.disabled = false;
+      setLog(`<strong>Export complete:</strong> downloaded ${kind.toUpperCase()} WebM.`);
+      video.pause();
+      video.currentTime = oldTime;
+      renderOnce();
+      if (!wasPaused) video.play().then(startLoop).catch(()=>{});
+    };
+
+    recorder.start(250);
+    const drawFrame = () => {
+      if (liveCode && kind !== 'video') sampleCurrentFrameToCode(true);
+      drawScene(ex, kind, false);
+    };
+    drawFrame();
+    await video.play();
+    await new Promise(resolve => {
+      const tick = () => {
+        drawFrame();
+        if (video.ended) return resolve();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    stream.getTracks().forEach(t => t.stop());
+  }
+
+  function waitEvent(el, name, ms){
+    return new Promise((resolve,reject)=>{
+      const t=setTimeout(()=>{cleanup();reject(new Error('timeout'));},ms);
+      const fn=()=>{cleanup();resolve();};
+      const cleanup=()=>{clearTimeout(t);el.removeEventListener(name,fn);};
+      el.addEventListener(name,fn,{once:true});
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  }
+
+  function pointOnCanvas(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    return { x: clamp((clientX - rect.left) * sx, 0, canvas.width), y: clamp((clientY - rect.top) * sy, 0, canvas.height) };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!annotateMode || !video.src) return;
+    e.preventDefault();
+    const p = pointOnCanvas(e.clientX, e.clientY);
+    drawingBox = { x:p.x, y:p.y, w:1, h:1, x0:p.x, y0:p.y };
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawingBox) return;
+    const p = pointOnCanvas(e.clientX, e.clientY);
+    const x = Math.min(drawingBox.x0, p.x);
+    const y = Math.min(drawingBox.y0, p.y);
+    const w = Math.abs(p.x - drawingBox.x0);
+    const h = Math.abs(p.y - drawingBox.y0);
+    drawingBox.x = x; drawingBox.y = y; drawingBox.w = w; drawingBox.h = h;
+    renderOnce();
+  });
+
+  function finishBox(){
+    if (!drawingBox) return;
+    if (drawingBox.w > 10 && drawingBox.h > 10) annotations.push({ x:drawingBox.x, y:drawingBox.y, w:drawingBox.w, h:drawingBox.h });
+    drawingBox = null;
+    updateButtons();
+    setLog(annotations.length ? `<strong>Mask added.</strong> Sampling reads ${annotations.length} box${annotations.length>1?'es':''}.` : '<strong>Mask ignored.</strong> It was too small.');
+    renderOnce();
+  }
+
+  canvas.addEventListener('pointerup', finishBox);
+  canvas.addEventListener('pointercancel', finishBox);
+  canvas.addEventListener('pointerleave', () => { if (drawingBox) finishBox(); });
+
+  setInterval(() => { if (video.src && !exporting && !liveCode) renderOnce(); }, 250);
+})();
+</script>
+</body>
+</html>

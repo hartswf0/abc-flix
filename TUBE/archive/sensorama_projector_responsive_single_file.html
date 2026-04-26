@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Training Twin</title>
+<style>
+  :root{
+    --bg:#020303;
+    --ink:#f4f2ec;
+    --muted:rgba(244,242,236,.42);
+    --line:rgba(244,242,236,.14);
+    --line2:rgba(244,242,236,.08);
+    --green:#d6ff18;
+    --green2:#89a80b;
+    --green3:#233a07;
+    --orange:#ff5a05;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--mono)}
+  body{overflow:hidden}
+  button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+  .app{
+    width:100vw;
+    height:100dvh;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 33% 46%,rgba(123,160,10,.13),transparent 34%),
+      radial-gradient(circle at 78% 52%,rgba(255,90,5,.05),transparent 26%),
+      linear-gradient(180deg,#050606,#000);
+  }
+
+  .desktop{
+    height:100%;
+    display:grid;
+    grid-template-columns:minmax(600px,1fr) 390px;
+    gap:28px;
+    padding:28px;
+    max-width:1500px;
+    margin:0 auto;
+  }
+
+  .stage{
+    position:relative;
+    min-width:0;
+    height:100%;
+    border:1px solid var(--line2);
+    border-radius:28px;
+    overflow:hidden;
+    background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004));
+  }
+
+  .wheel-box{
+    position:absolute;
+    left:6%;
+    top:50%;
+    width:min(58vw,640px);
+    aspect-ratio:1;
+    transform:translateY(-50%);
+  }
+
+  .beam{
+    position:absolute;
+    left:57%;
+    right:3%;
+    top:50%;
+    height:330px;
+    transform:translateY(-50%);
+    pointer-events:none;
+  }
+
+  .panel{
+    align-self:center;
+    border:1px solid var(--line);
+    border-radius:22px;
+    background:linear-gradient(180deg,rgba(12,13,13,.92),rgba(4,5,5,.96));
+    box-shadow:0 22px 80px rgba(0,0,0,.42);
+    padding:28px;
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+    min-height:620px;
+  }
+
+  .title{
+    margin:0;
+    font-size:56px;
+    line-height:.95;
+    font-weight:950;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+  }
+
+  .subtitle{
+    margin:10px 0 0;
+    color:var(--orange);
+    font-size:15px;
+    font-weight:950;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+
+  .rows{display:grid;gap:10px;margin-top:10px}
+  .row{
+    min-height:78px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.006));
+    display:grid;
+    grid-template-columns:86px 1fr 18px;
+    align-items:center;
+    gap:14px;
+    padding:0 18px;
+  }
+  .k{color:var(--green);font-size:14px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+  .v{font-size:18px;font-weight:850;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chev{color:var(--green);font-size:28px;line-height:1}
+
+  .cta{
+    margin-top:auto;
+    min-height:76px;
+    border:2px solid var(--orange);
+    border-radius:12px;
+    color:var(--orange);
+    background:linear-gradient(180deg,rgba(255,90,5,.12),rgba(255,90,5,.035));
+    box-shadow:0 0 26px rgba(255,90,5,.22),inset 0 0 20px rgba(255,90,5,.06);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    font-size:21px;
+    font-weight:950;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+  }
+  .cta::before,.cta::after{
+    content:"";
+    width:28px;
+    height:28px;
+    opacity:.75;
+    background-image:radial-gradient(var(--orange) 1.2px,transparent 1.2px);
+    background-size:7px 7px;
+  }
+  .arrow{font-size:1.25em;line-height:1}
+
+  .wheel-label{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:-34px;
+    color:var(--muted);
+    text-align:center;
+    font-size:12px;
+    font-weight:950;
+    letter-spacing:.20em;
+    text-transform:uppercase;
+  }
+
+  .wheel-svg,.beam-svg{width:100%;height:100%;display:block;overflow:visible}
+  .beam-labels{position:absolute;right:2%;top:50%;transform:translateY(-50%);display:grid;gap:17px;justify-items:end}
+  .beam-label{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;font-weight:950;letter-spacing:.1em;text-transform:uppercase}
+  .beam-label i{width:18px;height:18px;border:1px solid rgba(244,242,236,.18);border-radius:50%}
+  .beam-label.active{color:var(--green);text-shadow:0 0 14px rgba(214,255,24,.22)}
+  .beam-label.active i{border:2px solid var(--green);box-shadow:0 0 14px rgba(214,255,24,.26)}
+
+  .mobile{display:none}
+
+  /* WHEEL */
+  .seg{stroke:rgba(0,0,0,.46);stroke-width:.8}
+  .seg.a{fill:rgba(214,255,24,.23)}
+  .seg.b{fill:rgba(98,136,12,.35)}
+  .seg.c{fill:rgba(255,255,255,.055)}
+  .seg.active{fill:rgba(214,255,24,.46);stroke:var(--green);stroke-width:1.25;filter:url(#glow)}
+  .ring{fill:none;stroke:rgba(214,255,24,.28);stroke-width:1}
+  .ring.strong{stroke:rgba(214,255,24,.55);stroke-width:1.4}
+  .spoke{stroke:rgba(214,255,24,.17);stroke-width:.8}
+  .tick{stroke:rgba(244,242,236,.22);stroke-width:1;stroke-linecap:round}
+  .tick.major{stroke:rgba(214,255,24,.78);stroke-width:1.5}
+  .cross{stroke:var(--ink);stroke-width:2.4;stroke-linecap:square}
+  .active-line{stroke:var(--green);stroke-width:2;filter:url(#glow)}
+  .core{fill:#050707;stroke:var(--green);stroke-width:1.6;filter:url(#glow)}
+  .core-text{fill:var(--green);font:950 18px var(--mono);text-anchor:middle;dominant-baseline:middle;letter-spacing:.03em}
+
+  @media (max-width:900px){
+    body{overflow:hidden}
+    .app{height:100dvh;overflow:auto}
+    .desktop{display:none}
+    .mobile{
+      min-height:100dvh;
+      display:flex;
+      flex-direction:column;
+      padding:max(22px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom));
+      gap:12px;
+      max-width:620px;
+      margin:0 auto;
+    }
+    .mobile-head{padding:4px 2px 0}
+    .mobile .title{font-size:clamp(42px,12vw,64px);white-space:nowrap}
+    .mobile .subtitle{font-size:clamp(14px,4.3vw,20px);white-space:nowrap}
+    .mobile-wheel{
+      position:relative;
+      width:min(92vw,560px);
+      aspect-ratio:1;
+      align-self:center;
+      margin-top:4px;
+    }
+    .mobile-wheel .wheel-label{bottom:-18px;font-size:10px;letter-spacing:.18em}
+    .tabs{
+      margin-top:22px;
+      height:52px;
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr 1.08fr;
+      border:1px solid var(--line);
+      border-radius:11px;
+      background:rgba(255,255,255,.015);
+      overflow:visible;
+    }
+    .tab{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-right:1px solid var(--line);
+      color:var(--muted);
+      font-size:clamp(10px,2.8vw,14px);
+      font-weight:950;
+      letter-spacing:.1em;
+      text-transform:uppercase;
+    }
+    .tab:last-child{border-right:0}
+    .tab.active{
+      color:var(--green);
+      border:1.5px solid var(--green);
+      margin:-1px;
+      border-radius:11px;
+      background:rgba(214,255,24,.045);
+      box-shadow:0 0 20px rgba(214,255,24,.21);
+      z-index:2;
+    }
+    .tab.active::after{
+      content:"";
+      position:absolute;
+      bottom:-10px;
+      left:50%;
+      transform:translateX(-50%);
+      border-left:9px solid transparent;
+      border-right:9px solid transparent;
+      border-top:10px solid var(--green);
+    }
+    .mobile .rows{gap:8px;margin-top:10px}
+    .mobile .row{min-height:58px;grid-template-columns:82px 1fr 22px;padding:0 16px;gap:12px}
+    .mobile .k{font-size:16px}
+    .mobile .v{font-size:clamp(16px,4.7vw,22px)}
+    .mobile .cta{margin-top:14px;min-height:72px;font-size:clamp(21px,6.2vw,34px);gap:12px}
+  }
+
+  @media (max-width:390px){
+    .mobile{padding-left:14px;padding-right:14px;gap:10px}
+    .mobile .row{grid-template-columns:72px 1fr 18px;padding:0 12px;gap:9px;min-height:54px}
+    .mobile .k{font-size:14px}
+    .mobile .v{font-size:15px}
+    .mobile .cta{font-size:20px;min-height:66px}
+    .cta::before,.cta::after{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="desktop" aria-label="desktop interface">
+    <main class="stage">
+      <div class="wheel-box">
+        <div id="desktopWheel"></div>
+        <div class="wheel-label">Composite VR Wheel</div>
+      </div>
+
+      <div class="beam" aria-hidden="true">
+        <svg class="beam-svg" viewBox="0 0 520 330" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="beamGrad" x1="0" x2="1">
+              <stop offset="0" stop-color="#d6ff18" stop-opacity=".42" />
+              <stop offset=".58" stop-color="#8fae12" stop-opacity=".14" />
+              <stop offset="1" stop-color="#000" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <polygon points="0,165 520,18 520,312" fill="rgba(244,242,236,.035)" stroke="rgba(244,242,236,.12)" />
+          <polygon points="0,165 520,88 520,242" fill="rgba(135,170,18,.08)" />
+          <polygon points="0,165 520,137 520,193" fill="url(#beamGrad)" stroke="rgba(214,255,24,.34)" />
+          <line x1="0" y1="165" x2="520" y2="165" stroke="rgba(214,255,24,.55)" stroke-width="2" />
+        </svg>
+        <div class="beam-labels">
+          <div class="beam-label"><span>Possible</span><i></i></div>
+          <div class="beam-label"><span>Plausible</span><i></i></div>
+          <div class="beam-label"><span>Probable</span><i></i></div>
+          <div class="beam-label active"><span>Preferable</span><i></i></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel">
+      <div>
+        <h1 class="title">Training Twin</h1>
+        <p class="subtitle">Preferable // Risk-Twin</p>
+      </div>
+      <div class="rows">
+        <button class="row"><span class="k">Idea</span><span class="v">risk rehearsal</span><span class="chev">›</span></button>
+        <button class="row"><span class="k">Tech</span><span class="v">industrial sim</span><span class="chev">›</span></button>
+        <button class="row"><span class="k">Action</span><span class="v">practice danger</span><span class="chev">›</span></button>
+        <button class="row"><span class="k">Gear</span><span class="v">procedure world</span><span class="chev">›</span></button>
+      </div>
+      <button class="cta"><span>Project Future</span><span class="arrow">→</span></button>
+    </aside>
+  </section>
+
+  <section class="mobile" aria-label="mobile interface">
+    <header class="mobile-head">
+      <h1 class="title">Training Twin</h1>
+      <p class="subtitle">Preferable // Risk-Twin</p>
+    </header>
+
+    <div class="mobile-wheel">
+      <div id="mobileWheel"></div>
+      <div class="wheel-label">Composite VR Wheel</div>
+    </div>
+
+    <nav class="tabs" aria-label="state selector">
+      <button class="tab">Possible</button>
+      <button class="tab">Plausible</button>
+      <button class="tab">Probable</button>
+      <button class="tab active">Preferable</button>
+    </nav>
+
+    <div class="rows">
+      <button class="row"><span class="k">Idea</span><span class="v">risk rehearsal</span><span class="chev">›</span></button>
+      <button class="row"><span class="k">Tech</span><span class="v">industrial sim</span><span class="chev">›</span></button>
+      <button class="row"><span class="k">Action</span><span class="v">practice danger</span><span class="chev">›</span></button>
+      <button class="row"><span class="k">Gear</span><span class="v">procedure world</span><span class="chev">›</span></button>
+    </div>
+
+    <button class="cta"><span>Project Future</span><span class="arrow">→</span></button>
+  </section>
+</div>
+
+<script>
+(function(){
+  const NS = 'http://www.w3.org/2000/svg';
+  const TAU = Math.PI * 2;
+  const COUNT = 40;
+  const ACTIVE = 6;
+
+  function make(tag, attrs, parent){
+    const node = document.createElementNS(NS, tag);
+    Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, value));
+    if(parent) parent.appendChild(node);
+    return node;
+  }
+
+  function polar(cx, cy, r, a){
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  }
+
+  function arc(cx, cy, inner, outer, a0, a1){
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    const p1 = polar(cx, cy, outer, a0);
+    const p2 = polar(cx, cy, outer, a1);
+    const p3 = polar(cx, cy, inner, a1);
+    const p4 = polar(cx, cy, inner, a0);
+    return `M ${p1[0]} ${p1[1]} A ${outer} ${outer} 0 ${large} 1 ${p2[0]} ${p2[1]} L ${p3[0]} ${p3[1]} A ${inner} ${inner} 0 ${large} 0 ${p4[0]} ${p4[1]} Z`;
+  }
+
+  function buildWheel(rootId){
+    const root = document.getElementById(rootId);
+    if(!root) return;
+
+    const svg = make('svg', {
+      class:'wheel-svg',
+      viewBox:'0 0 600 600',
+      role:'img',
+      'aria-label':'Composite VR wheel with Preferable selected'
+    }, root);
+
+    const defs = make('defs', {}, svg);
+    const glow = make('filter', {id:`glow-${rootId}`}, defs);
+    make('feGaussianBlur', {stdDeviation:'3', result:'blur'}, glow);
+    const merge = make('feMerge', {}, glow);
+    make('feMergeNode', {in:'blur'}, merge);
+    make('feMergeNode', {in:'SourceGraphic'}, merge);
+
+    const grad = make('radialGradient', {id:`grad-${rootId}`, cx:'50%', cy:'50%', r:'55%'}, defs);
+    make('stop', {offset:'0%', 'stop-color':'#d6ff18', 'stop-opacity':'.12'}, grad);
+    make('stop', {offset:'62%', 'stop-color':'#355207', 'stop-opacity':'.08'}, grad);
+    make('stop', {offset:'100%', 'stop-color':'#000', 'stop-opacity':'0'}, grad);
+
+    make('circle', {cx:'300', cy:'300', r:'292', fill:`url(#grad-${rootId})`}, svg);
+
+    const bands = [
+      [220, 278],
+      [146, 216],
+      [84, 142]
+    ];
+
+    bands.forEach(([inner, outer], bandIndex) => {
+      for(let i = 0; i < COUNT; i++){
+        const a0 = -Math.PI / 2 + i * TAU / COUNT + .006;
+        const a1 = -Math.PI / 2 + (i + 1) * TAU / COUNT - .006;
+        const active = i === ACTIVE;
+        const className = active ? 'seg active' : `seg ${bandIndex === 0 ? 'a' : bandIndex === 1 ? 'b' : 'c'}`;
+        const path = make('path', {d:arc(300,300,inner,outer,a0,a1), class:className}, svg);
+        if(active) path.setAttribute('filter', `url(#glow-${rootId})`);
+      }
+    });
+
+    [84,142,146,216,220,278].forEach((r, idx) => {
+      make('circle', {cx:'300', cy:'300', r:String(r), class:idx % 2 ? 'ring' : 'ring strong'}, svg);
+    });
+
+    for(let i = 0; i < 32; i++){
+      const a = -Math.PI / 2 + i * TAU / 32;
+      const p1 = polar(300,300,84,a);
+      const p2 = polar(300,300,278,a);
+      make('line', {x1:p1[0], y1:p1[1], x2:p2[0], y2:p2[1], class:'spoke'}, svg);
+    }
+
+    for(let i = 0; i < 96; i++){
+      const a = -Math.PI / 2 + i * TAU / 96;
+      const p1 = polar(300,300,i % 6 === 0 ? 286 : 292,a);
+      const p2 = polar(300,300,i % 6 === 0 ? 304 : 299,a);
+      make('line', {x1:p1[0], y1:p1[1], x2:p2[0], y2:p2[1], class:i % 24 === 0 ? 'tick major' : 'tick'}, svg);
+    }
+
+    [[300,96],[300,504],[96,300],[504,300]].forEach(([x,y]) => {
+      make('line', {x1:x-8, y1:y, x2:x+8, y2:y, class:'cross'}, svg);
+      make('line', {x1:x, y1:y-8, x2:x, y2:y+8, class:'cross'}, svg);
+    });
+
+    const activeAngle = -Math.PI / 2 + (ACTIVE + .5) * TAU / COUNT;
+    const end = polar(300,300,300,activeAngle);
+    make('line', {x1:'300', y1:'300', x2:end[0], y2:end[1], class:'active-line'}, svg).setAttribute('filter', `url(#glow-${rootId})`);
+    make('circle', {cx:end[0], cy:end[1], r:'12', fill:'none', stroke:'#d6ff18', 'stroke-width':'2.4'}, svg).setAttribute('filter', `url(#glow-${rootId})`);
+    make('circle', {cx:end[0], cy:end[1], r:'4.5', fill:'#d6ff18'}, svg);
+
+    const core = make('circle', {cx:'300', cy:'300', r:'72', class:'core'}, svg);
+    core.setAttribute('filter', `url(#glow-${rootId})`);
+    const text = make('text', {x:'300', y:'300', class:'core-text'}, svg);
+    text.textContent = 'PREFERABLE';
+  }
+
+  buildWheel('desktopWheel');
+  buildWheel('mobileWheel');
+})();
+</script>
+</body>
+</html>

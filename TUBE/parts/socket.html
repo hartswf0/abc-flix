@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Operational Splice Surface</title>
+    <style>
+        :root {
+            --black: #000;
+            --white: #fff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            display: grid;
+            grid-template-rows: 54px 1fr 42px;
+        }
+
+        button,
+        input,
+        label {
+            font: inherit;
+        }
+
+        button {
+            height: 32px;
+            min-width: 34px;
+            padding: 0 9px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            cursor: pointer;
+        }
+
+        button:hover,
+        button.on {
+            background: #000;
+            color: #fff;
+        }
+
+        button:disabled {
+            border-style: dashed;
+        }
+
+        #top {
+            border-bottom: 4px solid #000;
+            background: #fff;
+            display: grid;
+            grid-template-columns: minmax(190px, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 10px;
+        }
+
+        #brand {
+            min-width: 0;
+        }
+
+        #brand b {
+            display: block;
+            font-size: 13px;
+            line-height: 1;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+
+        #brand span {
+            display: block;
+            margin-top: 5px;
+            font-size: 8px;
+            line-height: 1;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+
+        #main {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(280px, 34vw) 1fr;
+            background: #fff;
+        }
+
+        #ledger {
+            border-right: 4px solid #000;
+            min-height: 0;
+            overflow: auto;
+            background: #fff;
+        }
+
+        #ledgerHead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #000;
+            color: #fff;
+            padding: 8px 10px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .logic-line {
+            min-height: 28px;
+            border-bottom: 2px solid #000;
+            padding: 7px 9px;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .logic-line:nth-child(odd) {
+            border-bottom-style: solid;
+        }
+
+        .logic-line.selected {
+            background: #000;
+            color: #fff;
+        }
+
+        .logic-line[contenteditable="true"]:focus {
+            background: #000;
+            color: #fff;
+        }
+
+        .logic-line::before {
+            content: attr(data-no);
+            display: inline-block;
+            min-width: 34px;
+            margin-right: 8px;
+            font-weight: 900;
+        }
+
+        #workspace {
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: 218px 1fr 250px;
+            background: #fff;
+        }
+
+        #sources {
+            border-bottom: 4px solid #000;
+            display: grid;
+            grid-template-rows: repeat(4, 1fr);
+        }
+
+        .source {
+            position: relative;
+            min-width: 0;
+            display: grid;
+            grid-template-columns: 86px 1fr;
+            border-bottom: 2px solid #000;
+            background: #fff;
+        }
+
+        .source:last-child {
+            border-bottom: 0;
+        }
+
+        .source.bound {
+            outline: 6px double #000;
+            outline-offset: -6px;
+        }
+
+        .sourcePad {
+            display: grid;
+            place-items: center;
+            border-right: 2px solid #000;
+            cursor: pointer;
+        }
+
+        .sourcePad span {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 34px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+        }
+
+        .source[data-state="armed"] .sourcePad span {
+            border-width: 4px;
+        }
+
+        .source[data-state="visible"] .sourcePad span {
+            background: #000;
+            color: #fff;
+        }
+
+        .source[data-state="ghost"] .sourcePad span {
+            border-style: dashed;
+        }
+
+        .source[data-state="missing"] .sourcePad span {
+            border-style: dashed;
+            position: relative;
+        }
+
+        .source[data-state="missing"] .sourcePad span::before,
+        .source[data-state="missing"] .sourcePad span::after {
+            content: "";
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            top: 50%;
+            border-top: 2px solid #000;
+        }
+
+        .source[data-state="missing"] .sourcePad span::before {
+            transform: rotate(23deg);
+        }
+
+        .source[data-state="missing"] .sourcePad span::after {
+            transform: rotate(-23deg);
+        }
+
+        .sourceBody {
+            min-width: 0;
+            display: grid;
+            grid-template-rows: 22px 1fr;
+        }
+
+        .sourceTitle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 8px;
+            border-bottom: 2px solid #000;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sourceTitle .name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source[data-state="visible"] .sourceTitle {
+            background: #000;
+            color: #fff;
+        }
+
+        .slices {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            height: 100%;
+        }
+
+        .slice {
+            position: relative;
+            border-right: 1px solid #000;
+            display: grid;
+            place-items: center;
+            font-size: 8px;
+            font-weight: 900;
+            cursor: grab;
+            background: #fff;
+            color: #000;
+        }
+
+        .slice:last-child {
+            border-right: 0;
+        }
+
+        .slice:hover,
+        .slice.bound {
+            background: #000;
+            color: #fff;
+        }
+
+        .slice.used::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            border-top: 2px solid #000;
+            transform: rotate(-35deg);
+        }
+
+        .slice.used:hover::before,
+        .slice.bound.used::before {
+            border-top-color: #fff;
+        }
+
+        .slice.active {
+            background: #000;
+            color: #fff;
+        }
+
+        .slice.ghost {
+            border-right-style: dashed;
+        }
+
+        #monitorZone {
+            position: relative;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            border-bottom: 4px solid #000;
+            background: #fff;
+        }
+
+        #monitor {
+            position: relative;
+            margin: 12px;
+            border: 4px solid #000;
+            background: #fff;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #monitor.bound {
+            outline: 6px double #000;
+            outline-offset: -12px;
+        }
+
+        #monitorCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            display: block;
+        }
+
+        #monitorLabel {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 9px;
+            border-bottom: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        #monitorMessage {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            background: #fff;
+            color: #000;
+            padding: 10px 14px;
+            border: 3px solid #000;
+        }
+
+        #railZone {
+            position: relative;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: 26px 1fr;
+            background: #fff;
+        }
+
+        #ruler {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            border-bottom: 2px solid #000;
+        }
+
+        .tick {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #000;
+            font-size: 8px;
+            font-weight: 900;
+        }
+
+        .tick:nth-child(4n+1) {
+            background: #000;
+            color: #fff;
+        }
+
+        .tick:last-child {
+            border-right: 0;
+        }
+
+        #rail {
+            position: relative;
+            margin: 0 10px 12px 10px;
+            border-left: 4px solid #000;
+            border-right: 4px solid #000;
+            border-bottom: 8px solid #000;
+            border-top: 2px solid #000;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        #rail.bound {
+            outline: 6px double #000;
+            outline-offset: -10px;
+        }
+
+        .railGrid {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+
+        .railCell {
+            border-right: 1px solid #000;
+            border-top: 1px solid #000;
+        }
+
+        .railCell:nth-child(24n) {
+            border-right: 0;
+        }
+
+        .railCell.target {
+            background: #000;
+        }
+
+        .layerLabel {
+            position: absolute;
+            left: 0;
+            width: 28px;
+            height: 20px;
+            margin-top: -10px;
+            display: grid;
+            place-items: center;
+            background: #000;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 900;
+            z-index: 2;
+        }
+
+        .clip {
+            position: absolute;
+            height: 32px;
+            border: 3px solid #000;
+            background: #000;
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .06em;
+            cursor: grab;
+            z-index: 4;
+            overflow: hidden;
+        }
+
+        .clip.bound {
+            outline: 6px double #000;
+            outline-offset: 2px;
+        }
+
+        .clip.ghost {
+            border-style: dashed;
+        }
+
+        .clip.missing {
+            border-style: dashed;
+            background: #fff;
+            color: #000;
+        }
+
+        .clip .handle {
+            position: absolute;
+            top: 0;
+            width: 14px;
+            height: 100%;
+            background: #fff;
+            color: #000;
+            display: grid;
+            place-items: center;
+            font-size: 8px;
+            border: 0;
+            cursor: ew-resize;
+        }
+
+        .clip.missing .handle {
+            background: #000;
+            color: #fff;
+        }
+
+        .clip .handle.start {
+            left: 0;
+            border-right: 2px solid #000;
+        }
+
+        .clip .handle.end {
+            right: 0;
+            border-left: 2px solid #000;
+        }
+
+        #playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            border-left: 4px solid #000;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #dragGhost {
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 100;
+            display: none;
+            border: 3px solid #000;
+            background: #fff;
+            color: #000;
+            min-width: 92px;
+            height: 34px;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .07em;
+            pointer-events: none;
+        }
+
+        #dragGhost.show {
+            display: flex;
+        }
+
+        #foot {
+            border-top: 4px solid #000;
+            background: #fff;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .stat {
+            min-width: 0;
+            border-right: 2px solid #000;
+            padding: 4px 8px;
+            overflow: hidden;
+        }
+
+        .stat:last-child {
+            border-right: 0;
+        }
+
+        .stat label {
+            display: block;
+            font-size: 8px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+        .stat output {
+            display: block;
+            margin-top: 2px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 54px;
+            transform: translateX(-50%) translateY(12px);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            min-width: 180px;
+            max-width: 92vw;
+            border: 4px solid #000;
+            background: #fff;
+            color: #000;
+            padding: 9px 12px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        input[type=file] {
+            display: none;
+        }
+
+        #pool {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @media(max-width:900px) {
+            body {
+                grid-template-rows: 86px 1fr 52px;
+            }
+
+            #top {
+                grid-template-columns: 1fr;
+            }
+
+            #controls {
+                justify-content: space-between;
+            }
+
+            #main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 210px;
+            }
+
+            #ledger {
+                grid-row: 2;
+                border-right: 0;
+                border-top: 4px solid #000;
+            }
+
+            #workspace {
+                grid-row: 1;
+                grid-template-rows: 198px 1fr 220px;
+            }
+
+            .logic-line {
+                font-size: 9px;
+                min-height: 24px;
+                padding: 6px 8px;
+            }
+
+            #brand span {
+                font-size: 7px;
+            }
+
+            button {
+                height: 28px;
+                padding: 0 6px;
+                font-size: 8px;
+            }
+
+            #foot {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .hideSmall {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="pool"></div>
+
+    <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.ogg" />
+    <input id="projectInput" type="file" accept="application/json,.json" />
+
+    <header id="top">
+        <div id="brand">
+            <b>Operational Splice Surface</b>
+            <span>source slot → slice address → grounded rail → bound ledger → exported instruction list</span>
+        </div>
+        <div id="controls">
+            <button id="playBtn">Play</button>
+            <button id="sourceBtn">Source</button>
+            <button id="srcA" data-source="0">A</button>
+            <button id="srcB" data-source="1">B</button>
+            <button id="srcC" data-source="2">C</button>
+            <button id="srcD" data-source="3">D</button>
+            <button id="undoBtn">Undo</button>
+            <button id="edlBtn">EDL</button>
+            <button id="saveBtn">Save</button>
+            <button id="loadBtn">Load</button>
+            <button id="clearBtn">Clear</button>
+        </div>
+    </header>
+
+    <main id="main">
+        <aside id="ledger">
+            <div id="ledgerHead">Logic Ledger</div>
+            <div id="ledgerLines"></div>
+        </aside>
+
+        <section id="workspace">
+            <section id="sources"></section>
+
+            <section id="monitorZone">
+                <div id="monitor" data-bind="monitor">
+                    <canvas id="monitorCanvas"></canvas>
+                    <div id="monitorLabel">
+                        <span id="monitorState">NO SOURCE BODY</span>
+                        <span id="monitorTime">00:00:00</span>
+                    </div>
+                    <div id="monitorMessage">NO SOURCE BODY</div>
+                </div>
+            </section>
+
+            <section id="railZone">
+                <div id="ruler"></div>
+                <div id="rail" data-bind="rail">
+                    <div class="railGrid" id="railGrid"></div>
+                    <div id="playhead"></div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <footer id="foot">
+        <div class="stat">
+            <label>time</label>
+            <output id="timeOut">00:00:00</output>
+        </div>
+        <div class="stat">
+            <label>mode</label>
+            <output id="modeOut">edit</output>
+        </div>
+        <div class="stat">
+            <label>source</label>
+            <output id="sourceOut">A dormant</output>
+        </div>
+        <div class="stat hideSmall">
+            <label>runtime</label>
+            <output id="runtimeOut">0.0s</output>
+        </div>
+        <div class="stat hideSmall">
+            <label>splices</label>
+            <output id="splicesOut">0</output>
+        </div>
+    </footer>
+
+    <div id="dragGhost"></div>
+    <div id="toast"></div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const DENSITY = 24;
+            const LAYERS = 4;
+            const SOURCE_KEYS = ['A', 'B', 'C', 'D'];
+
+            const $ = id => document.getElementById(id);
+
+            const els = {
+                sources: $('sources'),
+                ledgerLines: $('ledgerLines'),
+                rail: $('rail'),
+                railGrid: $('railGrid'),
+                ruler: $('ruler'),
+                playhead: $('playhead'),
+                monitor: $('monitor'),
+                monitorCanvas: $('monitorCanvas'),
+                monitorState: $('monitorState'),
+                monitorTime: $('monitorTime'),
+                monitorMessage: $('monitorMessage'),
+                timeOut: $('timeOut'),
+                modeOut: $('modeOut'),
+                sourceOut: $('sourceOut'),
+                runtimeOut: $('runtimeOut'),
+                splicesOut: $('splicesOut'),
+                videoInput: $('videoInput'),
+                projectInput: $('projectInput'),
+                dragGhost: $('dragGhost'),
+                toast: $('toast'),
+                pool: $('pool')
+            };
+
+            let toastTimer = 0;
+            let uid = 1;
+            let lastFrame = 0;
+            let undoStack = [];
+
+            const state = {
+                selectedSource: 0,
+                loadingSource: -1,
+                selectedBind: null,
+                time: 0,
+                playing: false,
+                drag: null,
+                mode: 'edit',
+                sources: SOURCE_KEYS.map((k, i) => ({
+                    id: i,
+                    key: k,
+                    state: 'empty',
+                    file: null,
+                    name: `${k}_SOURCE`,
+                    video: null,
+                    url: null,
+                    chunks: DENSITY,
+                    ready: false
+                })),
+                clips: []
+            };
+
+            function pad(n, w = 2) {
+                return String(n).padStart(w, '0');
+            }
+
+            function fmt(sec) {
+                sec = Math.max(0, sec);
+                const s = Math.floor(sec) % 60;
+                const m = Math.floor(sec / 60);
+                const f = Math.floor((sec % 1) * 24);
+                return `${pad(m)}:${pad(s)}:${pad(f)}`;
+            }
+
+            function clamp(v, a, b) {
+                return Math.max(a, Math.min(b, v));
+            }
+
+            function toast(text) {
+                els.toast.textContent = text;
+                els.toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1200);
+            }
+
+            function sourceLive(src) {
+                return src.state !== 'empty';
+            }
+
+            function sourceCanSlice(src) {
+                return ['armed', 'visible', 'ghost', 'missing', 'relinked'].includes(src.state);
+            }
+
+            function sourceLabel(src) {
+                if (src.state === 'empty') return `${src.key} dormant`;
+                if (src.state === 'armed') return `${src.key} armed`;
+                if (src.state === 'visible') return `${src.key} visible body`;
+                if (src.state === 'ghost') return `${src.key} ghost body`;
+                if (src.state === 'missing') return `${src.key} missing body`;
+                if (src.state === 'relinked') return `${src.key} relinked body`;
+                return `${src.key} unknown`;
+            }
+
+            function bodyStatus(src) {
+                if (src.state === 'visible' || src.state === 'relinked') return 'present';
+                if (src.state === 'armed') return 'armed_unresolved';
+                if (src.state === 'ghost') return 'failed_decode';
+                if (src.state === 'missing') return 'missing';
+                return 'absent';
+            }
+
+            function bindSource(i) {
+                return `source:${SOURCE_KEYS[i]}`;
+            }
+
+            function bindSlice(i, srcIndex) {
+                return `slice:${SOURCE_KEYS[i]}:${pad(srcIndex)}`;
+            }
+
+            function bindClip(clip) {
+                return `clip:${clip.id}`;
+            }
+
+            function runtime() {
+                return state.clips.reduce((m, c) => Math.max(m, c.slot + c.dur), 0);
+            }
+
+            function activeClips() {
+                return state.clips
+                    .filter(c => state.time >= c.slot && state.time < c.slot + c.dur)
+                    .sort((a, b) => b.layer - a.layer || b.id.localeCompare(a.id));
+            }
+
+            function snapshot() {
+                return JSON.stringify({
+                    selectedSource: state.selectedSource,
+                    time: state.time,
+                    clips: state.clips.map(c => ({ ...c })),
+                    sources: state.sources.map(s => ({
+                        id: s.id,
+                        key: s.key,
+                        state: s.state,
+                        file: s.file,
+                        name: s.name,
+                        chunks: s.chunks,
+                        ready: s.ready && !!s.video
+                    }))
+                });
+            }
+
+            function pushUndo() {
+                undoStack.push(snapshot());
+                if (undoStack.length > 80) undoStack.shift();
+            }
+
+            function restore(snap) {
+                try {
+                    const data = JSON.parse(snap);
+                    state.selectedSource = data.selectedSource || 0;
+                    state.time = data.time || 0;
+                    state.clips = (data.clips || []).map(c => ({ ...c }));
+                    (data.sources || []).forEach(inSrc => {
+                        const src = state.sources[inSrc.id];
+                        if (!src) return;
+                        src.state = inSrc.state || 'empty';
+                        src.file = inSrc.file || null;
+                        src.name = inSrc.name || src.name;
+                        src.chunks = inSrc.chunks || DENSITY;
+                        src.ready = !!inSrc.ready && !!src.video;
+                    });
+                    toast('UNDO AVAILABLE');
+                    renderAll();
+                } catch (err) { }
+            }
+
+            function undo() {
+                const snap = undoStack.pop();
+                if (!snap) {
+                    toast('NO UNDO MEMORY');
+                    return;
+                }
+                restore(snap);
+            }
+
+            function nextClipId() {
+                return `CL-${pad(uid++, 3)}`;
+            }
+
+            function usedState(track, srcIndex) {
+                const used = state.clips.some(c => c.track === track && c.src === srcIndex);
+                const active = activeClips().some(c => c.track === track && c.src === srcIndex);
+                const src = state.sources[track];
+
+                if (active && (src.state === 'ghost' || src.state === 'missing')) return 'ghost-active';
+                if (active) return 'active';
+                if (used && (src.state === 'ghost' || src.state === 'missing')) return 'ghost-used';
+                if (used) return 'used';
+                return 'unused';
+            }
+
+            function createRuler() {
+                els.ruler.innerHTML = '';
+                for (let i = 0; i < DENSITY; i++) {
+                    const t = document.createElement('div');
+                    t.className = 'tick';
+                    t.textContent = i % 4 === 0 ? `${i}s` : '';
+                    els.ruler.appendChild(t);
+                }
+
+                els.railGrid.innerHTML = '';
+                for (let layer = LAYERS - 1; layer >= 0; layer--) {
+                    for (let slot = 0; slot < DENSITY; slot++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'railCell';
+                        cell.dataset.bind = `rail:${pad(slot)}:${layer}`;
+                        cell.dataset.slot = slot;
+                        cell.dataset.layer = layer;
+                        els.railGrid.appendChild(cell);
+                    }
+                }
+
+                for (let layer = 0; layer < LAYERS; layer++) {
+                    const label = document.createElement('div');
+                    label.className = 'layerLabel';
+                    label.textContent = String(layer + 1);
+                    label.style.bottom = `calc(${layer} * 25% + 12.5% - 10px)`;
+                    els.rail.appendChild(label);
+                }
+            }
+
+            function renderSources() {
+                els.sources.innerHTML = '';
+
+                state.sources.forEach((src, i) => {
+                    const source = document.createElement('div');
+                    source.className = 'source';
+                    source.dataset.state = src.state;
+                    source.dataset.bind = bindSource(i);
+                    if (state.selectedBind === bindSource(i)) source.classList.add('bound');
+
+                    const padBox = document.createElement('div');
+                    padBox.className = 'sourcePad';
+                    padBox.dataset.bind = bindSource(i);
+                    const padText = document.createElement('span');
+                    padText.textContent =
+                        src.state === 'empty' ? 'LOAD' :
+                            src.state === 'armed' ? 'ARM' :
+                                src.state === 'visible' || src.state === 'relinked' ? 'BODY' :
+                                    src.state === 'ghost' ? 'GHST' :
+                                        src.state === 'missing' ? 'MISS' :
+                                            'LOAD';
+                    padBox.appendChild(padText);
+
+                    const body = document.createElement('div');
+                    body.className = 'sourceBody';
+
+                    const title = document.createElement('div');
+                    title.className = 'sourceTitle';
+                    title.innerHTML = `<span class="name">${src.file || src.name}</span><span>${sourceLabel(src).toUpperCase()}</span>`;
+
+                    const slices = document.createElement('div');
+                    slices.className = 'slices';
+
+                    for (let si = 0; si < DENSITY; si++) {
+                        const slice = document.createElement('div');
+                        const use = usedState(i, si);
+                        slice.className = 'slice';
+                        if (use === 'used' || use === 'ghost-used') slice.classList.add('used');
+                        if (use === 'active' || use === 'ghost-active') slice.classList.add('active');
+                        if (src.state === 'ghost' || src.state === 'missing') slice.classList.add('ghost');
+
+                        const bind = bindSlice(i, si);
+                        slice.dataset.bind = bind;
+                        slice.dataset.source = i;
+                        slice.dataset.src = si;
+                        slice.textContent = pad(si);
+                        if (state.selectedBind === bind) slice.classList.add('bound');
+
+                        if (sourceCanSlice(src)) {
+                            slice.addEventListener('pointerdown', onSlicePointerDown);
+                        }
+
+                        slices.appendChild(slice);
+                    }
+
+                    body.appendChild(title);
+                    body.appendChild(slices);
+                    source.appendChild(padBox);
+                    source.appendChild(body);
+
+                    padBox.addEventListener('pointerdown', e => {
+                        e.stopPropagation();
+                        selectBind(bindSource(i));
+                        openSource(i);
+                    });
+
+                    source.addEventListener('pointerdown', e => {
+                        if (e.target.classList.contains('slice')) return;
+                        state.selectedSource = i;
+                        selectBind(bindSource(i));
+                        renderAll();
+                    });
+
+                    els.sources.appendChild(source);
+                });
+
+                updateSourceButtons();
+            }
+
+            function updateSourceButtons() {
+                SOURCE_KEYS.forEach((k, i) => {
+                    const btn = document.querySelector(`[data-source="${i}"]`);
+                    if (!btn) return;
+                    btn.classList.toggle('on', state.selectedSource === i);
+                });
+            }
+
+            function renderClips() {
+                [...els.rail.querySelectorAll('.clip')].forEach(el => el.remove());
+
+                const railRect = els.rail.getBoundingClientRect();
+                const cellW = railRect.width / DENSITY;
+                const rowH = railRect.height / LAYERS;
+
+                state.clips.forEach(clip => {
+                    const src = state.sources[clip.track];
+                    const el = document.createElement('div');
+                    el.className = 'clip';
+                    if (src.state === 'ghost') el.classList.add('ghost');
+                    if (src.state === 'missing') el.classList.add('missing');
+
+                    const bind = bindClip(clip);
+                    el.dataset.bind = bind;
+                    el.dataset.id = clip.id;
+                    if (state.selectedBind === bind) el.classList.add('bound');
+
+                    el.style.left = `${clip.slot * cellW}px`;
+                    el.style.width = `${Math.max(cellW * clip.dur, cellW)}px`;
+                    el.style.bottom = `${clip.layer * rowH + rowH / 2 - 16}px`;
+
+                    el.innerHTML = `
+      <div class="handle start" data-handle="start">S</div>
+      <span>${SOURCE_KEYS[clip.track]}:${pad(clip.src)}</span>
+      <div class="handle end" data-handle="end">E</div>
+    `;
+
+                    el.addEventListener('pointerdown', onClipPointerDown);
+                    els.rail.appendChild(el);
+                });
+
+                updatePlayhead();
+            }
+
+            function updatePlayhead() {
+                const pct = clamp(state.time / DENSITY, 0, 1) * 100;
+                els.playhead.style.left = `${pct}%`;
+            }
+
+            function renderLedger() {
+                const lines = [];
+
+                const add = (bind, kind, text, editable = false) => {
+                    lines.push({ bind, kind, text, editable });
+                };
+
+                add('system:mode', 'system', `mode=${state.mode} first_order=click/drag/drop/scrub/trim/save/load/export`);
+                add('system:palette', 'system', 'palette=white_black midtones=removed blur=removed pagination=removed');
+                add('rail', 'rail', `rail cells=${DENSITY} layers=${LAYERS} base=grounded empty_time=exportable`);
+
+                state.sources.forEach((src, i) => {
+                    add(bindSource(i), 'source', `source=${src.key} state=${src.state.toUpperCase()} body_status=${bodyStatus(src)} file=${src.file || 'none'}`);
+                });
+
+                state.clips
+                    .slice()
+                    .sort((a, b) => a.slot - b.slot || a.layer - b.layer)
+                    .forEach(clip => {
+                        const src = state.sources[clip.track];
+                        add(
+                            bindClip(clip),
+                            'clip',
+                            `clip=${clip.id} source=${src.key} src=${pad(clip.src)} rail=${pad(clip.slot)} layer=${clip.layer + 1} dur=${clip.dur} body_status=${bodyStatus(src)}`,
+                            true
+                        );
+                    });
+
+                const clips = activeClips();
+                const rt = runtime();
+                let monitorTruth = 'NO SOURCE BODY';
+                if (clips.length) {
+                    const src = state.sources[clips[0].track];
+                    monitorTruth =
+                        src.state === 'ghost' ? 'GHOST OUTPUT' :
+                            src.state === 'missing' ? 'MISSING BODY' :
+                                'SEQUENCE OUTPUT';
+                } else if (state.clips.length && state.time < rt) {
+                    monitorTruth = 'EMPTY TIME';
+                } else {
+                    const src = state.sources[state.selectedSource];
+                    monitorTruth =
+                        src.state === 'visible' || src.state === 'relinked' ? 'SOURCE PREVIEW' :
+                            src.state === 'ghost' ? 'GHOST SOURCE' :
+                                src.state === 'missing' ? 'MISSING BODY' :
+                                    'NO SOURCE BODY';
+                }
+
+                add('monitor', 'monitor', `monitor=${monitorTruth} time=${fmt(state.time)}`);
+                add('edl', 'edl', `edl=instruction_list splices=${state.clips.length} absence_events=${buildAbsences().length}`);
+
+                els.ledgerLines.innerHTML = '';
+
+                lines.forEach((line, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'logic-line';
+                    div.dataset.no = pad(i + 1, 3);
+                    div.dataset.bind = line.bind;
+                    div.dataset.kind = line.kind;
+                    div.contentEditable = line.editable ? 'true' : 'false';
+                    div.spellcheck = false;
+                    div.textContent = line.text;
+
+                    if (state.selectedBind === line.bind) div.classList.add('selected');
+
+                    div.addEventListener('pointerdown', e => {
+                        e.stopPropagation();
+                        selectBind(line.bind);
+                    });
+
+                    if (line.editable) {
+                        div.addEventListener('blur', () => applyLedgerEdit(div));
+                        div.addEventListener('keydown', e => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                div.blur();
+                            }
+                        });
+                    }
+
+                    els.ledgerLines.appendChild(div);
+                });
+            }
+
+            function applyLedgerEdit(line) {
+                const bind = line.dataset.bind;
+                if (!bind.startsWith('clip:')) return;
+
+                const id = bind.slice(5);
+                const clip = state.clips.find(c => c.id === id);
+                if (!clip) return;
+
+                const text = line.textContent;
+
+                const srcMatch = text.match(/source=([A-D])/i);
+                const srcIndexMatch = text.match(/src=(\d+)/i);
+                const railMatch = text.match(/rail=(\d+)/i);
+                const layerMatch = text.match(/layer=(\d+)/i);
+                const durMatch = text.match(/dur=(\d+)/i);
+
+                pushUndo();
+
+                if (srcMatch) {
+                    const idx = SOURCE_KEYS.indexOf(srcMatch[1].toUpperCase());
+                    if (idx >= 0) clip.track = idx;
+                }
+                if (srcIndexMatch) clip.src = clamp(parseInt(srcIndexMatch[1], 10), 0, DENSITY - 1);
+                if (railMatch) clip.slot = clamp(parseInt(railMatch[1], 10), 0, DENSITY - 1);
+                if (layerMatch) clip.layer = clamp(parseInt(layerMatch[1], 10) - 1, 0, LAYERS - 1);
+                if (durMatch) clip.dur = clamp(parseInt(durMatch[1], 10), 1, DENSITY - clip.slot);
+
+                toast('LEDGER LINE APPLIED');
+                renderAll();
+            }
+
+            function selectBind(bind) {
+                state.selectedBind = bind;
+
+                if (bind.startsWith('source:')) {
+                    const key = bind.split(':')[1];
+                    const idx = SOURCE_KEYS.indexOf(key);
+                    if (idx >= 0) state.selectedSource = idx;
+                }
+
+                const line = els.ledgerLines.querySelector(`[data-bind="${CSS.escape(bind)}"]`);
+                if (line) line.scrollIntoView({ block: 'nearest' });
+
+                renderAll(false);
+            }
+
+            function renderAll(rebuildLedger = true) {
+                renderSources();
+                renderClips();
+                renderMonitor();
+                updateHud();
+                if (rebuildLedger) renderLedger();
+            }
+
+            function updateHud() {
+                const src = state.sources[state.selectedSource];
+                els.timeOut.textContent = fmt(state.time);
+                els.modeOut.textContent = state.mode;
+                els.sourceOut.textContent = sourceLabel(src);
+                els.runtimeOut.textContent = `${runtime().toFixed(1)}s`;
+                els.splicesOut.textContent = String(state.clips.length);
+                els.monitorTime.textContent = fmt(state.time);
+                updateSourceButtons();
+            }
+
+            function openSource(i = state.selectedSource) {
+                state.loadingSource = i;
+                state.selectedSource = i;
+                selectBind(bindSource(i));
+                els.videoInput.value = '';
+                els.videoInput.click();
+                toast(`CHOOSE BODY FOR SOURCE ${SOURCE_KEYS[i]}`);
+            }
+
+            els.videoInput.addEventListener('change', e => {
+                const file = e.target.files && e.target.files[0];
+                if (!file || state.loadingSource < 0) {
+                    toast('NO BODY SELECTED');
+                    return;
+                }
+
+                pushUndo();
+
+                const src = state.sources[state.loadingSource];
+                src.state = 'armed';
+                src.file = file.name;
+                src.name = file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase();
+                src.ready = false;
+                src.chunks = DENSITY;
+
+                if (src.url) URL.revokeObjectURL(src.url);
+
+                let video = src.video;
+                if (!video) {
+                    video = document.createElement('video');
+                    video.muted = true;
+                    video.defaultMuted = true;
+                    video.playsInline = true;
+                    video.loop = true;
+                    video.preload = 'metadata';
+                    video.controls = false;
+                    els.pool.appendChild(video);
+                    src.video = video;
+                }
+
+                src.url = URL.createObjectURL(file);
+
+                video.onloadedmetadata = () => {
+                    const dur = Number.isFinite(video.duration) ? Math.max(1, Math.floor(video.duration)) : DENSITY;
+                    src.chunks = clamp(dur, 1, DENSITY);
+                    src.ready = true;
+                    src.state = 'visible';
+                    try { video.currentTime = .05; } catch (err) { }
+                    toast(`${src.key} VISIBLE BODY`);
+                    renderAll();
+                };
+
+                video.onloadeddata = () => {
+                    src.ready = true;
+                    src.state = 'visible';
+                    toast(`${src.key} SOURCE PREVIEW`);
+                    renderAll();
+                };
+
+                video.onerror = () => {
+                    src.ready = false;
+                    src.state = 'ghost';
+                    toast(`${src.key} GHOST BODY`);
+                    renderAll();
+                };
+
+                video.src = src.url;
+                video.load();
+
+                state.loadingSource = -1;
+                e.target.value = '';
+                renderAll();
+            });
+
+            function onSlicePointerDown(e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const slice = e.currentTarget;
+                const track = parseInt(slice.dataset.source, 10);
+                const srcIndex = parseInt(slice.dataset.src, 10);
+                const src = state.sources[track];
+
+                if (!sourceCanSlice(src)) return;
+
+                pushUndo();
+                state.selectedSource = track;
+                selectBind(bindSlice(track, srcIndex));
+
+                state.drag = {
+                    type: 'new',
+                    track,
+                    src: srcIndex,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    x: e.clientX,
+                    y: e.clientY,
+                    slot: 0,
+                    layer: 0,
+                    valid: false
+                };
+                state.mode = 'extract';
+                showDragGhost(`${src.key}:${pad(srcIndex)}`, e.clientX, e.clientY);
+                window.addEventListener('pointermove', onGlobalPointerMove);
+                window.addEventListener('pointerup', onGlobalPointerUp, { once: true });
+            }
+
+            function onClipPointerDown(e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const clipEl = e.currentTarget;
+                const id = clipEl.dataset.id;
+                const clip = state.clips.find(c => c.id === id);
+                if (!clip) return;
+
+                const handle = e.target.dataset.handle || 'body';
+
+                pushUndo();
+                selectBind(bindClip(clip));
+
+                state.drag = {
+                    type: 'clip',
+                    mode: handle,
+                    clip,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    original: { ...clip },
+                    x: e.clientX,
+                    y: e.clientY
+                };
+                state.mode = handle === 'body' ? 'move' : 'trim';
+                window.addEventListener('pointermove', onGlobalPointerMove);
+                window.addEventListener('pointerup', onGlobalPointerUp, { once: true });
+            }
+
+            function onGlobalPointerMove(e) {
+                if (!state.drag) return;
+
+                state.drag.x = e.clientX;
+                state.drag.y = e.clientY;
+
+                if (state.drag.type === 'new') {
+                    updateNewDrag(e);
+                } else if (state.drag.type === 'clip') {
+                    updateClipDrag(e);
+                }
+
+                renderAll();
+            }
+
+            function onGlobalPointerUp() {
+                if (!state.drag) return;
+
+                if (state.drag.type === 'new') {
+                    finishNewDrag();
+                } else if (state.drag.type === 'clip') {
+                    toast('UNDO AVAILABLE');
+                }
+
+                state.drag = null;
+                state.mode = 'edit';
+                hideDragGhost();
+                clearTargets();
+                window.removeEventListener('pointermove', onGlobalPointerMove);
+                renderAll();
+            }
+
+            function railHit(x, y) {
+                const r = els.rail.getBoundingClientRect();
+                const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+                const relX = x - r.left;
+                const relY = y - r.top;
+                const slot = clamp(Math.floor(relX / (r.width / DENSITY)), 0, DENSITY - 1);
+                const layerFromTop = clamp(Math.floor(relY / (r.height / LAYERS)), 0, LAYERS - 1);
+                const layer = LAYERS - 1 - layerFromTop;
+                return { inside, slot, layer, rect: r };
+            }
+
+            function updateNewDrag(e) {
+                const hit = railHit(e.clientX, e.clientY);
+                state.drag.valid = hit.inside;
+                state.drag.slot = hit.slot;
+                state.drag.layer = hit.layer;
+                showDragGhost(
+                    `${SOURCE_KEYS[state.drag.track]}:${pad(state.drag.src)} → ${pad(hit.slot)} L${hit.layer + 1}`,
+                    e.clientX,
+                    e.clientY
+                );
+                markTarget(hit.inside ? hit.slot : -1, hit.layer);
+            }
+
+            function updateClipDrag(e) {
+                const d = state.drag;
+                const clip = d.clip;
+                const hit = railHit(e.clientX, e.clientY);
+                const dx = e.clientX - d.startX;
+                const r = els.rail.getBoundingClientRect();
+                const cellW = r.width / DENSITY;
+                const deltaSlot = Math.round(dx / cellW);
+
+                if (d.mode === 'body') {
+                    clip.slot = clamp(d.original.slot + deltaSlot, 0, DENSITY - clip.dur);
+                    if (hit.inside) clip.layer = hit.layer;
+                } else if (d.mode === 'start') {
+                    const oldEnd = d.original.slot + d.original.dur;
+                    const nextStart = clamp(d.original.slot + deltaSlot, 0, oldEnd - 1);
+                    clip.slot = nextStart;
+                    clip.src = clamp(d.original.src + (nextStart - d.original.slot), 0, DENSITY - 1);
+                    clip.dur = oldEnd - nextStart;
+                } else if (d.mode === 'end') {
+                    const nextEnd = clamp(d.original.slot + d.original.dur + deltaSlot, d.original.slot + 1, DENSITY);
+                    clip.dur = nextEnd - d.original.slot;
+                }
+
+                markTarget(clip.slot, clip.layer);
+            }
+
+            function finishNewDrag() {
+                const d = state.drag;
+                if (!d.valid) {
+                    toast('RAIL REJECTS DROP');
+                    return;
+                }
+
+                const clip = {
+                    id: nextClipId(),
+                    track: d.track,
+                    src: d.src,
+                    slot: clamp(d.slot, 0, DENSITY - 1),
+                    layer: clamp(d.layer, 0, LAYERS - 1),
+                    dur: 1
+                };
+
+                state.clips.push(clip);
+                selectBind(bindClip(clip));
+                toast('SPLICE PLACED · UNDO AVAILABLE');
+            }
+
+            function showDragGhost(text, x, y) {
+                els.dragGhost.textContent = text;
+                els.dragGhost.classList.add('show');
+                els.dragGhost.style.transform = `translate(${x + 12}px,${y + 12}px)`;
+            }
+
+            function hideDragGhost() {
+                els.dragGhost.classList.remove('show');
+            }
+
+            function markTarget(slot, layer) {
+                clearTargets();
+
+                if (slot < 0) return;
+
+                const selector = `[data-bind="rail\\:${pad(slot)}\\:${layer}"]`;
+                const cell = els.railGrid.querySelector(selector);
+                if (cell) cell.classList.add('target');
+            }
+
+            function clearTargets() {
+                els.railGrid.querySelectorAll('.target').forEach(c => c.classList.remove('target'));
+            }
+
+            function renderMonitor() {
+                const canvas = els.monitorCanvas;
+                const rect = els.monitor.getBoundingClientRect();
+                const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+                canvas.width = Math.floor(rect.width * dpr);
+                canvas.height = Math.floor(rect.height * dpr);
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, rect.width, rect.height);
+
+                const topPad = 32;
+                const w = rect.width;
+                const h = rect.height - topPad;
+                const cx = w / 2;
+                const cy = topPad + h / 2;
+
+                const active = activeClips();
+                const rt = runtime();
+                let label = 'NO SOURCE BODY';
+                let message = 'NO SOURCE BODY';
+
+                function drawMessage(main, sub = '') {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, topPad, w, h);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(14, topPad + 14, w - 28, h - 28);
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = '900 20px ui-monospace,SFMono-Regular,monospace';
+                    ctx.fillText(main, cx, cy - 10);
+                    if (sub) {
+                        ctx.font = '900 10px ui-monospace,SFMono-Regular,monospace';
+                        ctx.fillText(sub, cx, cy + 20);
+                    }
+                }
+
+                function drawProxy(main, sub = '') {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, topPad, w, h);
+
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 18; i++) {
+                        const y = topPad + 20 + i * ((h - 40) / 17);
+                        ctx.beginPath();
+                        for (let x = 18; x < w - 18; x += 12) {
+                            const yy = y + Math.sin((x * .04) + (state.time * 4) + i) * 7;
+                            if (x === 18) ctx.moveTo(x, yy);
+                            else ctx.lineTo(x, yy);
+                        }
+                        ctx.stroke();
+                    }
+
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(cx - 130, cy - 34, 260, 68);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(cx - 130, cy - 34, 260, 68);
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = '900 18px ui-monospace,SFMono-Regular,monospace';
+                    ctx.fillText(main, cx, cy - 8);
+                    if (sub) {
+                        ctx.font = '900 10px ui-monospace,SFMono-Regular,monospace';
+                        ctx.fillText(sub, cx, cy + 18);
+                    }
+                }
+
+                if (active.length) {
+                    const clip = active[0];
+                    const src = state.sources[clip.track];
+
+                    if (src.state === 'visible' && src.video && src.video.readyState >= 2) {
+                        label = 'SEQUENCE OUTPUT';
+                        message = `${src.key}:${pad(clip.src)} ACTIVE`;
+
+                        try {
+                            const localTime = clip.src + (state.time - clip.slot);
+                            const dur = src.video.duration || src.chunks || DENSITY;
+                            const target = Math.max(0, Math.min(dur - .05, localTime % dur));
+                            if (Math.abs(src.video.currentTime - target) > .12) src.video.currentTime = target;
+                            if (state.playing && src.video.paused) src.video.play().catch(() => { });
+                            if (!state.playing && !src.video.paused) src.video.pause();
+
+                            ctx.save();
+                            ctx.filter = 'grayscale(1) contrast(1000%)';
+                            ctx.drawImage(src.video, 0, topPad, w, h);
+                            ctx.restore();
+
+                            ctx.strokeStyle = '#000';
+                            ctx.lineWidth = 4;
+                            ctx.strokeRect(14, topPad + 14, w - 28, h - 28);
+                        } catch (err) {
+                            drawProxy('SEQUENCE OUTPUT', `${src.key}:${pad(clip.src)}`);
+                        }
+                    } else if (src.state === 'ghost') {
+                        label = 'GHOST OUTPUT';
+                        message = `${src.key}:${pad(clip.src)} FAILED BODY`;
+                        drawProxy('GHOST OUTPUT', `${src.key}:${pad(clip.src)} REMAINS ADDRESSABLE`);
+                    } else if (src.state === 'missing') {
+                        label = 'MISSING BODY';
+                        message = `${src.key}:${pad(clip.src)} ABSENT`;
+                        drawProxy('MISSING BODY', `${src.key}:${pad(clip.src)} STRUCTURE REMAINS`);
+                    } else {
+                        label = 'SEQUENCE OUTPUT';
+                        message = `${src.key}:${pad(clip.src)} PROXY`;
+                        drawProxy('SEQUENCE OUTPUT', `${src.key}:${pad(clip.src)}`);
+                    }
+                } else if (state.clips.length && state.time < rt) {
+                    label = 'EMPTY TIME';
+                    message = 'NO ACTIVE SPLICE UNDER PLAYHEAD';
+                    drawMessage('EMPTY TIME', 'NO ACTIVE SPLICE UNDER PLAYHEAD');
+                } else {
+                    const src = state.sources[state.selectedSource];
+
+                    if (src.state === 'visible' && src.video && src.video.readyState >= 2) {
+                        label = 'SOURCE PREVIEW';
+                        message = `${src.key} VISIBLE BODY`;
+                        try {
+                            ctx.save();
+                            ctx.filter = 'grayscale(1) contrast(1000%)';
+                            ctx.drawImage(src.video, 0, topPad, w, h);
+                            ctx.restore();
+                            ctx.strokeStyle = '#000';
+                            ctx.lineWidth = 4;
+                            ctx.strokeRect(14, topPad + 14, w - 28, h - 28);
+                        } catch (err) {
+                            drawProxy('SOURCE PREVIEW', src.key);
+                        }
+                    } else if (src.state === 'ghost') {
+                        label = 'GHOST SOURCE';
+                        message = `${src.key} FAILED BODY`;
+                        drawProxy('GHOST SOURCE', 'DECODE FAILED · STILL ADDRESSABLE');
+                    } else if (src.state === 'missing') {
+                        label = 'MISSING BODY';
+                        message = `${src.key} ABSENT`;
+                        drawProxy('MISSING BODY', 'RELINK OR PERFORM ABSENT');
+                    } else if (src.state === 'armed') {
+                        label = 'ARMED SOURCE';
+                        message = `${src.key} AWAITING BODY`;
+                        drawMessage('ARMED SOURCE', `${src.key} AWAITING BODY`);
+                    } else {
+                        label = 'NO SOURCE BODY';
+                        message = 'LOAD A SOURCE';
+                        drawMessage('NO SOURCE BODY', 'LOAD A SOURCE');
+                    }
+                }
+
+                els.monitorState.textContent = label;
+                els.monitorMessage.textContent = message;
+                els.monitorMessage.style.display = label === 'SEQUENCE OUTPUT' || label === 'SOURCE PREVIEW' ? 'none' : 'block';
+
+                els.monitor.classList.toggle('bound', state.selectedBind === 'monitor');
+            }
+
+            function buildAbsences() {
+                const rt = Math.ceil(runtime());
+                const absences = [];
+
+                for (let i = 0; i < rt; i++) {
+                    const occupied = state.clips.some(c => i >= c.slot && i < c.slot + c.dur);
+                    if (!occupied) {
+                        const start = i;
+                        while (i < rt && !state.clips.some(c => i >= c.slot && i < c.slot + c.dur)) {
+                            i++;
+                        }
+                        absences.push({ start, end: i, dur: i - start });
+                        i--;
+                    }
+                }
+
+                return absences;
+            }
+
+            function buildEdl() {
+                const events = [];
+
+                state.clips
+                    .slice()
+                    .sort((a, b) => a.slot - b.slot || a.layer - b.layer)
+                    .forEach(c => {
+                        const src = state.sources[c.track];
+                        events.push({
+                            type: 'splice',
+                            source_key: src.key,
+                            source_state: src.state,
+                            body_status: bodyStatus(src),
+                            source_file: src.file,
+                            source_name: src.name,
+                            source_in: fmt(c.src),
+                            source_out: fmt(c.src + c.dur),
+                            sequence_in: fmt(c.slot),
+                            sequence_out: fmt(c.slot + c.dur),
+                            layer: c.layer + 1,
+                            duration_sec: c.dur
+                        });
+                    });
+
+                buildAbsences().forEach(a => {
+                    events.push({
+                        type: 'absence',
+                        sequence_in: fmt(a.start),
+                        sequence_out: fmt(a.end),
+                        duration_sec: a.dur
+                    });
+                });
+
+                return events
+                    .sort((a, b) => {
+                        const aa = a.sequence_in || '00:00:00';
+                        const bb = b.sequence_in || '00:00:00';
+                        return aa < bb ? -1 : aa > bb ? 1 : 0;
+                    })
+                    .map((e, i) => ({ event: i + 1, ...e }));
+            }
+
+            function download(data, name) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 800);
+            }
+
+            function saveArchive() {
+                download({
+                    version: 'operational-splice-surface-1',
+                    time: state.time,
+                    selectedSource: state.selectedSource,
+                    sources: state.sources.map(src => ({
+                        id: src.id,
+                        key: src.key,
+                        state: src.state,
+                        file: src.file,
+                        name: src.name,
+                        chunks: src.chunks,
+                        body_status: bodyStatus(src)
+                    })),
+                    clips: state.clips
+                }, `operational_splice_archive_${Date.now()}.json`);
+                toast('ARCHIVE SAVED');
+            }
+
+            function loadArchiveFile(file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        pushUndo();
+
+                        state.time = data.time || 0;
+                        state.selectedSource = data.selectedSource || 0;
+                        state.clips = (data.clips || []).map(c => ({
+                            id: c.id || nextClipId(),
+                            track: clamp(c.track || 0, 0, 3),
+                            src: clamp(c.src || 0, 0, DENSITY - 1),
+                            slot: clamp(c.slot || 0, 0, DENSITY - 1),
+                            layer: clamp(c.layer || 0, 0, LAYERS - 1),
+                            dur: clamp(c.dur || 1, 1, DENSITY)
+                        }));
+
+                        (data.sources || []).forEach(inSrc => {
+                            const src = state.sources[inSrc.id];
+                            if (!src) return;
+                            src.file = inSrc.file || null;
+                            src.name = inSrc.name || src.name;
+                            src.chunks = inSrc.chunks || DENSITY;
+                            src.ready = false;
+
+                            if (inSrc.state && inSrc.state !== 'empty') {
+                                src.state = 'missing';
+                            } else {
+                                src.state = 'empty';
+                            }
+                        });
+
+                        toast('ARCHIVE LOADED · BODIES MISSING');
+                        renderAll();
+                    } catch (err) {
+                        toast('ARCHIVE LOAD FAILED');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            function clearSequence() {
+                if (!state.clips.length) return;
+                pushUndo();
+                state.clips = [];
+                state.time = 0;
+                state.selectedBind = null;
+                toast('SEQUENCE CLEARED · UNDO AVAILABLE');
+                renderAll();
+            }
+
+            function onRailPointerDown(e) {
+                if (e.target.closest('.clip')) return;
+
+                const hit = railHit(e.clientX, e.clientY);
+                if (!hit.inside) return;
+
+                state.mode = 'scrub';
+                state.playing = false;
+                state.time = hit.slot;
+                renderAll();
+
+                const move = ev => {
+                    const h = railHit(ev.clientX, ev.clientY);
+                    if (h.inside) {
+                        state.time = h.slot;
+                        renderAll();
+                    }
+                };
+
+                const up = () => {
+                    state.mode = 'edit';
+                    window.removeEventListener('pointermove', move);
+                    renderAll();
+                };
+
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up, { once: true });
+            }
+
+            function frame(ts) {
+                const dt = lastFrame ? Math.min(.05, (ts - lastFrame) / 1000) : 0;
+                lastFrame = ts;
+
+                if (state.playing && !state.drag) {
+                    const rt = runtime() || DENSITY;
+                    state.time += dt;
+                    if (state.time >= rt) state.time = 0;
+                    renderAll(false);
+                    renderMonitor();
+                    updateHud();
+                }
+
+                requestAnimationFrame(frame);
+            }
+
+            function initEvents() {
+                $('playBtn').addEventListener('click', () => {
+                    state.playing = !state.playing;
+                    $('playBtn').classList.toggle('on', state.playing);
+                    toast(state.playing ? 'PLAY' : 'PAUSE');
+                    renderAll();
+                });
+
+                $('sourceBtn').addEventListener('click', () => openSource(state.selectedSource));
+
+                SOURCE_KEYS.forEach((k, i) => {
+                    document.querySelector(`[data-source="${i}"]`).addEventListener('click', () => {
+                        state.selectedSource = i;
+                        selectBind(bindSource(i));
+                        if (state.sources[i].state === 'empty') openSource(i);
+                        else toast(sourceLabel(state.sources[i]).toUpperCase());
+                    });
+                });
+
+                $('undoBtn').addEventListener('click', undo);
+                $('edlBtn').addEventListener('click', () => {
+                    download(buildEdl(), `operational_splice_edl_${Date.now()}.json`);
+                    toast('EDL EXPORTED');
+                    selectBind('edl');
+                });
+                $('saveBtn').addEventListener('click', saveArchive);
+                $('loadBtn').addEventListener('click', () => {
+                    els.projectInput.value = '';
+                    els.projectInput.click();
+                });
+                $('clearBtn').addEventListener('click', clearSequence);
+
+                els.projectInput.addEventListener('change', e => {
+                    const file = e.target.files && e.target.files[0];
+                    if (file) loadArchiveFile(file);
+                    e.target.value = '';
+                });
+
+                els.rail.addEventListener('pointerdown', onRailPointerDown);
+
+                els.monitor.addEventListener('pointerdown', e => {
+                    e.stopPropagation();
+                    selectBind('monitor');
+                });
+
+                window.addEventListener('resize', () => renderAll());
+
+                window.addEventListener('keydown', e => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        $('playBtn').click();
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                        e.preventDefault();
+                        undo();
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                        e.preventDefault();
+                        saveArchive();
+                    }
+                    if (e.key.toLowerCase() === 'e') {
+                        $('edlBtn').click();
+                    }
+                    if (['1', '2', '3', '4'].includes(e.key)) {
+                        state.selectedSource = parseInt(e.key, 10) - 1;
+                        selectBind(bindSource(state.selectedSource));
+                    }
+                    if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedBind && state.selectedBind.startsWith('clip:')) {
+                        const id = state.selectedBind.slice(5);
+                        const idx = state.clips.findIndex(c => c.id === id);
+                        if (idx >= 0) {
+                            pushUndo();
+                            state.clips.splice(idx, 1);
+                            state.selectedBind = null;
+                            toast('CLIP REMOVED · UNDO AVAILABLE');
+                            renderAll();
+                        }
+                    }
+                });
+            }
+
+            function init() {
+                createRuler();
+                initEvents();
+                renderAll();
+                requestAnimationFrame(frame);
+            }
+
+            init();
+
+        })();
+    </script>
+</body>
+
+</html>

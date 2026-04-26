@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>OPERATIONAL VECTOR SYSTEM</title>
+<style>
+  :root {
+    --bg: #030304;
+    --grid: #111116;
+    --text: #e0e0e5;
+    --cyan: #00ffcc;
+    --red: #ff2a5f;
+    --ghost: #444455;
+    --mono: 'SF Mono', Consolas, 'Roboto Mono', monospace;
+  }
+  
+  * { 
+    box-sizing: border-box; 
+    user-select: none; 
+    -webkit-user-select: none; 
+  }
+  
+  body, html {
+    margin: 0; padding: 0; 
+    width: 100%; height: 100%;
+    background: var(--bg); 
+    color: var(--text); 
+    font-family: var(--mono); 
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  canvas { 
+    position: absolute; 
+    top: 0; left: 0; 
+    z-index: 1; 
+  }
+
+  #ui {
+    position: absolute; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    pointer-events: none; 
+    z-index: 10;
+  }
+
+  .panel {
+    position: absolute; 
+    background: rgba(3,3,4,0.85); 
+    border: 1px solid #333;
+    padding: 15px; 
+    font-size: 11px; 
+    line-height: 1.5; 
+    pointer-events: auto;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  #telemetry { top: 20px; left: 20px; width: 280px; }
+  #manual { top: 20px; right: 20px; width: 340px; color: #a0a0a5; }
+  
+  @media (max-width: 800px) {
+    #manual { display: none; }
+  }
+  
+  .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .cyan { color: var(--cyan); }
+  .red { color: var(--red); }
+  .ghost { color: var(--ghost); }
+  
+  h1 { 
+    font-size: 13px; 
+    color: var(--cyan); 
+    margin: 0 0 10px 0; 
+    padding-bottom: 5px; 
+    border-bottom: 1px solid #333; 
+    text-transform: uppercase; 
+  }
+
+  #slider-container {
+    position: absolute; 
+    bottom: 40px; left: 50%; 
+    transform: translateX(-50%);
+    width: 80%; 
+    z-index: 10; 
+    pointer-events: auto; 
+    display: flex; 
+    align-items: center; 
+    gap: 15px;
+    background: rgba(3,3,4,0.85);
+    border: 1px solid #333;
+    padding: 10px 20px;
+  }
+
+  #slider {
+    flex: 1; 
+    -webkit-appearance: none; 
+    background: transparent; 
+    cursor: pointer;
+  }
+
+  #slider::-webkit-slider-runnable-track { 
+    height: 2px; 
+    background: #444; 
+  }
+  
+  #slider::-webkit-slider-thumb { 
+    -webkit-appearance: none; 
+    width: 12px; height: 24px; 
+    background: var(--text); 
+    margin-top: -11px; 
+  }
+  
+  #slider:disabled::-webkit-slider-thumb { 
+    background: #333; 
+    cursor: not-allowed; 
+  }
+
+  #next-btn {
+    position: absolute; 
+    top: 50%; left: 50%; 
+    transform: translate(-50%, -50%);
+    padding: 15px 30px; 
+    background: var(--cyan); 
+    color: var(--bg);
+    border: none; 
+    font-family: var(--mono); 
+    font-size: 14px; 
+    font-weight: bold;
+    cursor: pointer; 
+    display: none; 
+    pointer-events: auto; 
+    text-transform: uppercase;
+  }
+  
+  #next-btn:hover { 
+    background: var(--text); 
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="grid"></canvas>
+
+  <div id="ui">
+    <div id="telemetry" class="panel">
+      <h1>SYSTEM_TELEMETRY</h1>
+      <div class="row"><span class="ghost">STATE</span> <span id="ui-state" class="cyan">AWAITING_PRIMARY</span></div>
+      <div class="row"><span class="ghost">INDEX</span> <span id="ui-idx">0 / 0</span></div>
+      <div class="row"><span class="ghost">MAX_EXEC_IDX</span> <span id="ui-max">0</span></div>
+      <br>
+      <div class="row"><span class="ghost">OBSERVATION_BONUS</span> <span id="ui-bonus" class="cyan">0</span></div>
+      <div class="row"><span class="ghost">DIVERGENCE_METRIC</span> <span id="ui-div" class="red">0</span></div>
+      <div class="row" style="border-top: 1px solid #333; padding-top: 8px; margin-top: 8px; color: var(--text);">
+        <span>TOTAL_OUTPUT</span> <span id="ui-total">0</span>
+      </div>
+    </div>
+
+    <div id="manual" class="panel">
+      <h1>OPERATIONAL_DIRECTIVE</h1>
+      1. Drag cursor outward from Avatar to set Primary Vector.<br><br>
+      2. Hold cursor stationary to decrease Variance Cone.<br><br>
+      3. Release cursor to execute Array A.<br><br>
+      4. Drag horizontal slider to halt execution at a specific index.<br><br>
+      5. Release slider at an index less than max to delete future coordinates.<br><br>
+      6. Hold slider past executed index to increment Bonus Integer.<br><br>
+      7. Drag from Avatar while halted to inject Secondary Vector (Array B).<br><br>
+      8. Maximize red pixel Divergence Metric before intersecting Attractor.
+    </div>
+
+    <div id="slider-container">
+      <span class="ghost" style="font-size: 11px;">INDEX_CTL</span>
+      <input type="range" id="slider" min="0" max="0" value="0" disabled>
+    </div>
+    
+    <button id="next-btn">PROCEED TO NEXT GRID</button>
+  </div>
+
+<script>
+  const canvas = document.getElementById('grid');
+  const ctx = canvas.getContext('2d');
+  const slider = document.getElementById('slider');
+  const nextBtn = document.getElementById('next-btn');
+
+  let W, H;
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+  }
+  window.addEventListener('resize', () => { resize(); initGrid(currentLevel); });
+  resize();
+
+  // ─── SYSTEM VARIABLES ───
+  let state = 'AWAITING_PRIMARY';
+  let avatar = { x: 0, y: 0 };
+  let attractor = { x: 0, y: 0, r: 0 };
+  let fields = [];
+
+  let master_array = [];
+  let ghost_array = [];
+  
+  let exec_idx = 0;
+  let max_executed_idx = 0;
+
+  let bonus = 0;
+  let divergence = 0;
+  let total_score = 0;
+
+  let pointer = { down: false, x: 0, y: 0, startX: 0, startY: 0 };
+  let variance = Math.PI / 2;
+  let sliderDown = false;
+
+  // ─── GRID CONFIGURATIONS ───
+  const GRIDS = [
+    { start: {x: 0.15, y: 0.85}, attractor: {x: 0.85, y: 0.15, r: 0.05}, fields: [ {x: 0.5, y: 0.5, r: 0.25, f: -0.7} ] },
+    { start: {x: 0.15, y: 0.50}, attractor: {x: 0.85, y: 0.50, r: 0.05}, fields: [ {x: 0.5, y: 0.2, r: 0.2, f: 0.6}, {x: 0.5, y: 0.8, r: 0.2, f: 0.6} ] },
+    { start: {x: 0.15, y: 0.15}, attractor: {x: 0.85, y: 0.85, r: 0.05}, fields: [ {x: 0.4, y: 0.4, r: 0.2, f: -0.8}, {x: 0.7, y: 0.6, r: 0.2, f: 0.8} ] },
+    { start: {x: 0.50, y: 0.85}, attractor: {x: 0.50, y: 0.15, r: 0.05}, fields: [ {x: 0.3, y: 0.5, r: 0.25, f: -0.8}, {x: 0.7, y: 0.5, r: 0.25, f: -0.8} ] }
+  ];
+  let currentLevel = 0;
+
+  function initGrid(idx) {
+    let g = GRIDS[idx];
+    let minDim = Math.min(W, H);
+    
+    avatar = { x: g.start.x * W, y: g.start.y * H };
+    attractor = { x: g.attractor.x * W, y: g.attractor.y * H, r: g.attractor.r * minDim };
+    fields = g.fields.map(f => ({
+      x: f.x * W, y: f.y * H, r: f.r * minDim, f: f.f
+    }));
+
+    master_array = [];
+    ghost_array = [];
+    exec_idx = 0;
+    max_executed_idx = 0;
+    divergence = 0;
+    bonus = 0;
+    state = 'AWAITING_PRIMARY';
+
+    slider.disabled = true;
+    slider.max = 0;
+    slider.value = 0;
+    nextBtn.style.display = 'none';
+  }
+
+  // ─── KINEMATIC INTEGRATION ───
+  function calculateArray(startX, startY, startVX, startVY) {
+    let arr = [];
+    let x = startX, y = startY, vx = startVX, vy = startVY;
+    
+    for (let i = 0; i < 1500; i++) {
+      arr.push({ x, y, vx, vy, hit: false });
+
+      if (Math.hypot(x - attractor.x, y - attractor.y) < attractor.r) {
+        arr[arr.length - 1].hit = true;
+        break;
+      }
+
+      for (let f of fields) {
+        let d = Math.hypot(x - f.x, y - f.y);
+        if (d < f.r && d > 5) {
+          let pull = f.f * (1 - Math.pow(d / f.r, 2));
+          vx += ((f.x - x) / d) * pull;
+          vy += ((f.y - y) / d) * pull;
+        }
+      }
+
+      vx *= 0.985;
+      vy *= 0.985;
+      
+      x += vx;
+      y += vy;
+
+      if (x < 0) { x = 0; vx *= -0.8; }
+      if (x > W) { x = W; vx *= -0.8; }
+      if (y < 0) { y = 0; vy *= -0.8; }
+      if (y > H) { y = H; vy *= -0.8; }
+
+      if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05 && i > 10) break;
+    }
+    return arr;
+  }
+
+  // ─── CONTROL SURFACE INPUTS ───
+  window.addEventListener('pointerdown', e => {
+    if (e.target === slider || e.target === nextBtn || state === 'TERMINATED') return;
+    
+    let dist = Math.hypot(e.clientX - avatar.x, e.clientY - avatar.y);
+    if (state === 'AWAITING_PRIMARY' && dist < 60) {
+      state = 'PRIMARY_INPUT';
+      pointer.down = true; pointer.startX = e.clientX; pointer.startY = e.clientY;
+      variance = Math.PI / 4;
+    } else if (state === 'HALTED' && dist < 60) {
+      state = 'SECONDARY_INPUT';
+      pointer.down = true; pointer.startX = e.clientX; pointer.startY = e.clientY;
+    }
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (pointer.down) { pointer.x = e.clientX; pointer.y = e.clientY; }
+  });
+
+  window.addEventListener('pointerup', e => {
+    if (!pointer.down) return;
+    pointer.down = false;
+
+    let dx = pointer.startX - pointer.x;
+    let dy = pointer.startY - pointer.y;
+    let mag = Math.min(Math.hypot(dx, dy), 400);
+
+    if (mag < 10) { 
+      if (state === 'PRIMARY_INPUT') state = 'AWAITING_PRIMARY';
+      if (state === 'SECONDARY_INPUT') state = 'HALTED';
+      return; 
+    }
+
+    let baseAngle = Math.atan2(dy, dx);
+    let power = mag * 0.15;
+
+    if (state === 'PRIMARY_INPUT') {
+      let finalAngle = baseAngle + (Math.random() * variance * 2 - variance);
+      let vx = Math.cos(finalAngle) * power;
+      let vy = Math.sin(finalAngle) * power;
+
+      master_array = calculateArray(avatar.x, avatar.y, vx, vy);
+      ghost_array = [...master_array];
+
+      exec_idx = 0; max_executed_idx = 0;
+      slider.disabled = false; slider.max = master_array.length - 1; slider.value = 0;
+      state = 'ADVANCING';
+    } 
+    else if (state === 'SECONDARY_INPUT') {
+      let vx = Math.cos(baseAngle) * power;
+      let vy = Math.sin(baseAngle) * power;
+
+      let cur = master_array[exec_idx];
+      let tail = calculateArray(cur.x, cur.y, cur.vx + vx, cur.vy + vy);
+      tail.shift(); // Remove overlapping vertex
+      
+      master_array = master_array.slice(0, exec_idx + 1).concat(tail);
+      slider.max = master_array.length - 1;
+      state = 'ADVANCING';
+    }
+  });
+
+  // ─── INDEX MANIPULATION ───
+  slider.addEventListener('pointerdown', () => {
+    if (state === 'ADVANCING') state = 'HALTED';
+    sliderDown = true;
+  });
+
+  slider.addEventListener('input', (e) => {
+    if (state !== 'AWAITING_PRIMARY' && state !== 'TERMINATED') {
+      state = 'HALTED';
+      exec_idx = parseInt(e.target.value);
+      let pt = master_array[exec_idx];
+      if (pt) { avatar.x = pt.x; avatar.y = pt.y; }
+    }
+  });
+
+  slider.addEventListener('change', () => {
+    if (state === 'HALTED') {
+      if (exec_idx < master_array.length - 1) {
+        master_array = master_array.slice(0, exec_idx + 1);
+        slider.max = master_array.length - 1;
+        max_executed_idx = Math.min(max_executed_idx, master_array.length - 1);
+      }
+    }
+  });
+
+  window.addEventListener('pointerup', () => { sliderDown = false; });
+
+  nextBtn.addEventListener('click', () => {
+    total_score += Math.floor(bonus + divergence);
+    currentLevel = (currentLevel + 1) % GRIDS.length;
+    initGrid(currentLevel);
+  });
+
+  // ─── RENDERING & EXECUTION LOOP ───
+  let lastTime = performance.now();
+
+  function loop(time) {
+    let dt = time - lastTime;
+    lastTime = time;
+
+    if (state === 'PRIMARY_INPUT') {
+      variance = Math.max(0.001, variance - (dt / 1000) * 0.8);
+    }
+
+    if (state === 'ADVANCING') {
+      if (exec_idx < master_array.length - 1) {
+        exec_idx++;
+        if (exec_idx > max_executed_idx) max_executed_idx = exec_idx;
+        slider.value = exec_idx;
+        
+        let pt = master_array[exec_idx];
+        avatar.x = pt.x; avatar.y = pt.y;
+        
+        if (pt.hit) {
+          state = 'TERMINATED';
+          nextBtn.style.display = 'block';
+        }
+      } else {
+        state = 'HALTED';
+      }
+    }
+
+    if (state === 'HALTED' && sliderDown) {
+      if (exec_idx > max_executed_idx) {
+        bonus += 2 * (dt / 1000);
+      }
+    }
+
+    // Render Grid
+    ctx.fillStyle = '#030304';
+    ctx.fillRect(0, 0, W, H);
+    
+    ctx.strokeStyle = '#111116';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for (let y = 0; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+
+    // Render Fields
+    for (let f of fields) {
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      ctx.fillStyle = f.f < 0 ? 'rgba(255, 42, 95, 0.05)' : 'rgba(0, 255, 204, 0.05)';
+      ctx.fill();
+      ctx.strokeStyle = f.f < 0 ? '#ff2a5f' : '#00ffcc';
+      ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fillRect(f.x - 2, f.y - 2, 4, 4);
+    }
+
+    // Render Attractor
+    ctx.beginPath(); ctx.arc(attractor.x, attractor.y, attractor.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'; ctx.fill();
+    ctx.strokeStyle = '#e0e0e5'; ctx.lineWidth = 2; ctx.stroke();
+
+    // Render Ghost Array A (Dashed)
+    if (ghost_array.length > 0) {
+      ctx.beginPath(); ctx.moveTo(ghost_array[0].x, ghost_array[0].y);
+      for (let i = 1; i < ghost_array.length; i++) ctx.lineTo(ghost_array[i].x, ghost_array[i].y);
+      ctx.strokeStyle = 'rgba(68, 68, 85, 0.8)'; ctx.lineWidth = 1; 
+      ctx.setLineDash([2, 4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Render Master Array (Solid)
+    if (master_array.length > 0) {
+      ctx.beginPath(); ctx.moveTo(master_array[0].x, master_array[0].y);
+      for (let i = 1; i <= exec_idx; i++) ctx.lineTo(master_array[i].x, master_array[i].y);
+      ctx.strokeStyle = '#e0e0e5'; ctx.lineWidth = 2; ctx.stroke();
+
+      if (exec_idx < master_array.length - 1) {
+        ctx.beginPath(); ctx.moveTo(master_array[exec_idx].x, master_array[exec_idx].y);
+        for (let i = exec_idx + 1; i < master_array.length; i++) ctx.lineTo(master_array[i].x, master_array[i].y);
+        ctx.strokeStyle = 'rgba(224, 224, 229, 0.2)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+
+    // Measure and Render Divergence
+    let current_div = 0;
+    if (master_array.length > 0 && ghost_array.length > 0) {
+      ctx.strokeStyle = '#ff2a5f';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= exec_idx; i += 5) {
+        if (master_array[i] && ghost_array[i]) {
+          let d = Math.hypot(master_array[i].x - ghost_array[i].x, master_array[i].y - ghost_array[i].y);
+          current_div += d;
+          if (d > 2) {
+            ctx.moveTo(ghost_array[i].x, ghost_array[i].y);
+            ctx.lineTo(master_array[i].x, master_array[i].y);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+    divergence = Math.floor(current_div);
+
+    // Render Input Vectors & Cone
+    if (pointer.down && (state === 'PRIMARY_INPUT' || state === 'SECONDARY_INPUT')) {
+      let dx = pointer.startX - pointer.x;
+      let dy = pointer.startY - pointer.y;
+      let mag = Math.min(Math.hypot(dx, dy), 400);
+      let angle = Math.atan2(dy, dx);
+
+      if (state === 'PRIMARY_INPUT') {
+        ctx.beginPath(); ctx.moveTo(avatar.x, avatar.y);
+        ctx.arc(avatar.x, avatar.y, mag, angle - variance, angle + variance);
+        ctx.fillStyle = 'rgba(0, 255, 204, 0.1)'; ctx.fill();
+      }
+
+      ctx.beginPath(); ctx.moveTo(avatar.x, avatar.y);
+      ctx.lineTo(avatar.x + Math.cos(angle) * mag, avatar.y + Math.sin(angle) * mag);
+      ctx.strokeStyle = state === 'PRIMARY_INPUT' ? '#00ffcc' : '#ff2a5f';
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Render Avatar
+    ctx.fillStyle = state === 'TERMINATED' ? '#00ffcc' : '#e0e0e5';
+    ctx.beginPath(); ctx.arc(avatar.x, avatar.y, 6, 0, Math.PI * 2); ctx.fill();
+
+    // Update Telemetry
+    document.getElementById('ui-state').textContent = state;
+    document.getElementById('ui-state').className = (state === 'HALTED' || state === 'SECONDARY_INPUT') ? 'red' : 'cyan';
+    document.getElementById('ui-idx').textContent = `${exec_idx} / ${master_array.length > 0 ? master_array.length - 1 : 0}`;
+    document.getElementById('ui-max').textContent = max_executed_idx;
+    document.getElementById('ui-bonus').textContent = Math.floor(bonus);
+    document.getElementById('ui-div').textContent = divergence;
+    document.getElementById('ui-total').textContent = Math.floor(total_score + bonus + divergence);
+
+    requestAnimationFrame(loop);
+  }
+
+  // Boot
+  initGrid(currentLevel);
+  requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

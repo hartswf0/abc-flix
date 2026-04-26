@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operational Pragmatist - Assembly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Strict operational visual law: Absolute black and white, zero translucency */
+        :root {
+            --active-color: #0000FF;
+        }
+
+        body {
+            user-select: none;
+            touch-action: none;
+            /* Prevent browser handling of gestures to ensure raw pointer control */
+        }
+
+        .hatch-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-2 10L10 -2ZM0 8L8 0ZM-2 2L2 -2Z' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+        }
+
+        /* 3D perspective setup */
+        .preserve-3d {
+            transform-style: preserve-3d;
+        }
+
+        /* Hide scrollbars for absolute purity */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-black font-mono overflow-hidden h-screen w-screen flex">
+
+    <!-- LEFT: Viewport Panel -->
+    <div class="w-2/3 h-full flex flex-col border-r-4 border-black p-4 space-y-4">
+        <!-- Top bar controls -->
+        <div class="flex space-x-2 border-b-4 border-black pb-4" id="nav-buttons">
+            <button data-view="side_workbench"
+                class="nav-btn px-4 py-2 font-bold uppercase border-2 border-black hover:bg-black hover:text-white transition-none bg-black text-white">
+                Side Workbench
+            </button>
+            <button data-view="tunnel_preview"
+                class="nav-btn px-4 py-2 font-bold uppercase border-2 border-black hover:bg-black hover:text-white transition-none bg-white text-black">
+                Tunnel Preview
+            </button>
+            <button data-view="map_overview"
+                class="nav-btn px-4 py-2 font-bold uppercase border-2 border-black hover:bg-black hover:text-white transition-none bg-white text-black">
+                Map Overview
+            </button>
+        </div>
+
+        <!-- Viewport Render Area -->
+        <div id="viewport"
+            class="flex-1 relative flex items-center justify-start border-4 border-black bg-white p-4 overflow-hidden">
+            <!-- Content injected by JS -->
+        </div>
+    </div>
+
+    <!-- RIGHT: Active Script Panel (Bidirectional Binding) -->
+    <div class="w-1/3 h-full flex flex-col p-4 bg-white overflow-y-auto">
+        <h1 class="text-xl font-bold uppercase border-b-4 border-black pb-2 mb-4">
+            Script: Operational Mode
+        </h1>
+
+        <div class="space-y-2 text-sm leading-tight cursor-default">
+            <div class="text-black font-bold">&lt;script version="2.0" mode="operational"&gt;</div>
+            <div class="pl-4">
+                <div class="text-black font-bold mb-2">&lt;execution id="active_bindings"&gt;</div>
+                <div id="script-lines">
+                    <!-- Script lines injected by JS -->
+                </div>
+                <div class="text-black font-bold mt-2">&lt;/execution&gt;</div>
+            </div>
+            <div class="text-black font-bold">&lt;/script&gt;</div>
+        </div>
+
+        <div class="mt-auto pt-8">
+            <div class="border-t-2 border-black pt-2 text-xs uppercase font-bold">
+                Constraint Checklist:
+                <ul class="list-disc pl-4 mt-2 font-normal">
+                    <li>Raw DOM Manipulation / No Frameworks</li>
+                    <li>Absolute White / Black structure</li>
+                    <li>Smooth 1:1 Intuitive 3D Orbit & Dolly</li>
+                    <li>Hard snapping to magnetic external rails</li>
+                    <li>Text functions as physical control surface</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE SYSTEM CONSTANTS ---
+        const TICKS = 60;
+        const TICK_W = 16;
+        const TRACKS = 4;
+        const TRACK_H = 64;
+        const Z_SCALE = 20;
+        const BARREL_R = 120;
+        const TUNNEL_LENGTH = TICKS * Z_SCALE;
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            clips: [
+                { id: 'clip-1', track: 0, start: 5, end: 18, roll: 0 },
+                { id: 'clip-2', track: 1, start: 12, end: 28, roll: 90 },
+                { id: 'clip-3', track: 2, start: 24, end: 40, roll: 0 },
+                { id: 'clip-4', track: 3, start: 8, end: 20, roll: 180 },
+            ],
+            selectedId: null,
+            activeView: 'side_workbench',
+            lockedLogic: 'side_workbench',
+            tunnelCam: { pitch: 5, yaw: -10, zOffset: 200 }, // Recalibrated to start closer, looking down the barrel
+            interaction: {
+                active: false, type: null, targetId: null,
+                startX: 0, startY: 0, lastX: 0, lastY: 0,
+                startOffset: 0, startRoll: 0, dialCenterX: 0, dialCenterY: 0
+            }
+        };
+
+        const scriptLinesData = [
+            { id: 'side_workbench', text: '<operation>Open in side workbench view.</operation>', view: 'side_workbench' },
+            { id: 'tunnel_preview', text: '<operation>Use tunnel view with smooth 1:1 orbital controls.</operation>', view: 'tunnel_preview' },
+            { id: 'map_overview', text: '<operation>Use map view to inspect total arrangement.</operation>', view: 'map_overview' },
+            { id: 'time_rail', text: '<operation>Place magnetic time rails outside the footage body.</operation>' },
+            { id: 'track', text: '<operation>Show inactive tracks without hiding their time alignment.</operation>' },
+            { id: 'clip', text: '<operation>Treat each clip as a physical bounding volume.</operation>' },
+            { id: 'barrel_section', text: '<operation>Define a barrel section as the shared time interval covered by the selected clip.</operation>' },
+            { id: 'trim_start', text: '<operation>Drag the start handle to snap an earlier tick.</operation>' },
+            { id: 'trim_end', text: '<operation>Drag the end handle to snap a later tick.</operation>' },
+            { id: 'roll_dial', text: '<operation>Draw the roll dial outside the footage body.</operation>' },
+            { id: 'roll_barrel_section', text: '<operation>Apply roll transforms to the whole barrel section cohort.</operation>' }
+        ];
+
+        // --- LOGIC: COHORT DISCOVERY ---
+        function getSelectedClip() {
+            return state.clips.find(c => c.id === state.selectedId);
+        }
+
+        function getBarrelCohort(targetClip) {
+            if (!targetClip) return [];
+            return state.clips.filter(c => Math.max(c.start, targetClip.start) < Math.min(c.end, targetClip.end));
+        }
+
+        // --- RENDERING PIPELINE ---
+        const viewportEl = document.getElementById('viewport');
+        const scriptLinesEl = document.getElementById('script-lines');
+        const navButtons = document.querySelectorAll('.nav-btn');
+
+        function renderApp() {
+            updateNav();
+            updateScriptPanel();
+
+            if (state.activeView === 'side_workbench') renderSideWorkbench();
+            else if (state.activeView === 'tunnel_preview') renderTunnelPreview();
+            else if (state.activeView === 'map_overview') renderMapOverview();
+        }
+
+        function updateNav() {
+            navButtons.forEach(btn => {
+                if (btn.dataset.view === state.activeView) {
+                    btn.className = "nav-btn px-4 py-2 font-bold uppercase border-2 border-black transition-none bg-black text-white";
+                } else {
+                    btn.className = "nav-btn px-4 py-2 font-bold uppercase border-2 border-black transition-none bg-white text-black hover:bg-black hover:text-white";
+                }
+            });
+        }
+
+        function updateScriptPanel() {
+            let html = '';
+            scriptLinesData.forEach(line => {
+                const isActive = state.lockedLogic === line.id;
+                html += `
+      <div data-logic-id="${line.id}" class="pl-4 py-1 border-l-4 transition-none cursor-pointer ${isActive ? 'border-black bg-black text-white font-bold' : 'border-transparent hover:border-black text-black'}">
+        ${line.text}
+      </div>
+    `;
+            });
+            scriptLinesEl.innerHTML = html;
+        }
+
+        function renderSideWorkbench() {
+            const selectedClip = getSelectedClip();
+            const cohort = getBarrelCohort(selectedClip);
+            let barrelStart = selectedClip ? selectedClip.start * TICK_W : 0;
+            let barrelEnd = selectedClip ? selectedClip.end * TICK_W : 0;
+
+            let tickHTML = '';
+            for (let i = 0; i <= TICKS; i++) {
+                tickHTML += `<div class="absolute top-0 border-l border-black" style="left: ${i * TICK_W}px; height: ${i % 5 === 0 ? '10px' : '5px'}; ${i % 5 === 0 ? 'bottom:0' : ''}"></div>`;
+            }
+
+            let tracksHTML = '';
+            for (let i = 0; i < TRACKS; i++) {
+                tracksHTML += `<div class="flex-1 border-b border-black box-border ${state.lockedLogic === 'track' ? 'bg-black bg-opacity-10' : ''}" style="height: ${TRACK_H}px"></div>`;
+            }
+
+            let clipsHTML = state.clips.map(clip => {
+                const isSelected = clip.id === state.selectedId;
+                const isCohort = cohort.some(c => c.id === clip.id);
+                const leftPx = clip.start * TICK_W;
+                const widthPx = (clip.end - clip.start) * TICK_W;
+                const topPx = 16 + (clip.track * TRACK_H);
+
+                let highlight = state.lockedLogic === 'clip' ? 'ring-4 ring-black ring-inset' : '';
+                let dashed = isCohort && state.lockedLogic === 'roll_barrel_section' ? 'border-dashed border-4' : (isSelected ? 'border-4' : 'border-2');
+
+                return `
+      <div id="clip-${clip.id}" data-action="select-clip" data-id="${clip.id}" class="absolute h-12 mt-2 bg-white flex items-center justify-center cursor-grab active:cursor-grabbing z-20 group ${dashed} ${highlight} border-black" style="left: ${leftPx}px; width: ${widthPx}px; top: ${topPx}px; box-shadow: ${isSelected ? '4px 4px 0px 0px black' : 'none'};">
+        <div id="indicator-${clip.id}" class="w-4 h-4 border-2 border-black bg-white" style="transform: rotate(${clip.roll}deg)">
+          <div class="w-full h-[2px] bg-black mt-[5px]"></div>
+        </div>
+        ${isSelected ? `
+          <div data-action="trim-start" data-id="${clip.id}" class="absolute left-0 top-0 bottom-0 w-3 -ml-1.5 cursor-ew-resize bg-black hover:bg-white border-2 border-black z-30"></div>
+          <div data-action="trim-end" data-id="${clip.id}" class="absolute right-0 top-0 bottom-0 w-3 -mr-1.5 cursor-ew-resize bg-black hover:bg-white border-2 border-black z-30"></div>
+          <div data-action="roll-dial" data-id="${clip.id}" id="dial-${clip.id}" class="absolute -bottom-10 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2 bg-white cursor-pointer z-40 flex items-center justify-center ${state.lockedLogic === 'roll_dial' ? 'border-4 border-black' : 'border-black'}">
+            <div class="w-1 h-1 bg-black absolute top-0"></div><div class="w-1 h-1 bg-black absolute bottom-0"></div>
+            <div class="w-1 h-1 bg-black absolute left-0"></div><div class="w-1 h-1 bg-black absolute right-0"></div>
+            <div class="w-full h-[2px] bg-black" style="transform: rotate(${clip.roll}deg)"></div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+            }).join('');
+
+            viewportEl.innerHTML = `
+    <div id="workbench-container" data-action="clear-selection" class="relative w-full h-full bg-white border-y-4 border-black overflow-hidden cursor-crosshair ${state.lockedLogic === 'side_workbench' ? 'ring-4 ring-inset ring-black' : ''}" style="width: ${TICKS * TICK_W}px; min-width: ${TICKS * TICK_W}px;">
+      <div class="absolute top-0 left-0 right-0 h-4 border-b-2 border-black z-10 bg-white ${state.lockedLogic === 'time_rail' ? 'bg-black text-white' : ''}">${tickHTML}</div>
+      <div class="absolute top-4 bottom-4 left-0 right-0 flex flex-col">${tracksHTML}</div>
+      ${selectedClip ? `<div class="absolute top-4 bottom-4 z-0 hatch-pattern ${state.lockedLogic === 'barrel_section' || state.lockedLogic === 'roll_barrel_section' ? 'border-2 border-black' : ''}" style="left: ${barrelStart}px; width: ${barrelEnd - barrelStart}px;"></div>` : ''}
+      ${clipsHTML}
+      <div class="absolute bottom-0 left-0 right-0 h-4 border-t-2 border-black z-10 bg-white"><div class="relative w-full h-full">${tickHTML}</div></div>
+    </div>
+  `;
+        }
+
+        function renderTunnelPreview() {
+            const selectedClip = getSelectedClip();
+            const cohort = getBarrelCohort(selectedClip);
+
+            let ringsHTML = '';
+            for (let i = 0; i <= TICKS / 5; i++) {
+                ringsHTML += `<div class="absolute border-2 border-black" style="width: ${BARREL_R * 2}px; height: ${BARREL_R * 2}px; left: ${-BARREL_R}px; top: ${-BARREL_R}px; transform: translateZ(${-(i * 5) * Z_SCALE}px);"></div>`;
+            }
+
+            let cornersHTML = '';
+            for (let i = 0; i < 4; i++) {
+                cornersHTML += `<div class="absolute bg-black" style="width: 4px; height: ${TUNNEL_LENGTH}px; left: -2px; top: 0; transform-origin: top center; transform: rotateZ(${(i * 90) + 45}deg) translateY(${BARREL_R * Math.SQRT2}px) rotateX(90deg);"></div>`;
+            }
+
+            let sleeveHTML = '';
+            if (selectedClip) {
+                for (let i = 0; i < 4; i++) {
+                    sleeveHTML += `<div class="absolute border-4 border-black hatch-pattern" style="width: ${BARREL_R * 2}px; height: ${(selectedClip.end - selectedClip.start) * Z_SCALE}px; left: ${-BARREL_R}px; top: 0; transform-origin: top center; transform: rotateZ(${i * 90}deg) translateY(${BARREL_R}px) translateZ(${-selectedClip.start * Z_SCALE}px) rotateX(90deg);"></div>`;
+                }
+            }
+
+            let clipsHTML = state.clips.map(clip => {
+                const isSelected = clip.id === state.selectedId;
+                const isCohort = cohort.some(c => c.id === clip.id);
+                const theta = (clip.track * 90) + clip.roll;
+                return `
+      <div data-action="select-clip" data-id="${clip.id}" class="absolute border-4 border-black flex items-center justify-center font-bold text-3xl cursor-pointer hover:bg-black hover:text-white transition-colors preserve-3d ${isSelected ? 'bg-black text-white' : 'bg-white'}" 
+           style="width: ${BARREL_R * 1.5}px; height: ${(clip.end - clip.start) * Z_SCALE}px; left: ${-BARREL_R * 0.75}px; top: 0; transform-origin: top center; transform: rotateZ(${theta}deg) translateY(${BARREL_R * 0.98}px) translateZ(${-clip.start * Z_SCALE}px) rotateX(90deg); box-shadow: ${isSelected ? '0 0 0 4px white inset' : 'none'};">
+        <div style="transform: rotateX(-90deg) translateZ(30px); pointer-events:none;">${clip.id.split('-')[1]}</div>
+      </div>
+    `;
+            }).join('');
+
+            viewportEl.innerHTML = `
+    <div data-action="spin-tunnel" class="w-full h-full flex items-center justify-center overflow-hidden border-2 border-black relative cursor-grab active:cursor-grabbing bg-white" style="perspective: 1000px; perspective-origin: center bottom;">
+      <div id="tunnel-cam" class="relative w-0 h-0 preserve-3d" style="transform: translateY(-40px) rotateX(${state.tunnelCam.pitch}deg) rotateY(${state.tunnelCam.yaw}deg) translateZ(${state.tunnelCam.zOffset}px);">
+        ${ringsHTML}
+        ${cornersHTML}
+        ${sleeveHTML}
+        ${clipsHTML}
+      </div>
+      <div class="absolute top-4 left-4 font-bold text-black uppercase tracking-widest bg-white p-2 border-4 border-black z-10 shadow-[6px_6px_0_0_#000] pointer-events-none">
+        TUNNEL: Intuitive 3D (Scroll Traverse, Drag/Middle-Click Orbit)
+      </div>
+    </div>
+  `;
+        }
+
+        function renderMapOverview() {
+            let tracksHTML = '';
+            for (let i = 0; i < TRACKS; i++) {
+                let trackClips = state.clips.filter(c => c.track === i).map(clip => `
+      <div class="absolute h-full bg-black" style="left: ${(clip.start / TICKS) * 100}%; width: ${((clip.end - clip.start) / TICKS) * 100}%;"></div>
+    `).join('');
+                tracksHTML += `<div class="w-full h-8 border-2 border-black relative bg-white flex items-center mb-2"><div class="absolute left-[-20px] text-xs font-bold">${i}</div>${trackClips}</div>`;
+            }
+
+            viewportEl.innerHTML = `
+    <div data-action="map-overview" class="w-full h-full bg-white p-8 border-2 border-black flex flex-col justify-center">
+      <div class="font-bold text-black uppercase tracking-widest border-b-2 border-black pb-2 mb-4">MAP: Total Arrangement</div>
+      ${tracksHTML}
+    </div>
+  `;
+        }
+
+        // --- INTERACTION HANDLERS (VANILLA JS EVENT DELEGATION) ---
+        // Prevent the browser's default auto-scroll icon when clicking the middle mouse button
+        document.addEventListener('mousedown', (e) => {
+            if (e.button === 1) e.preventDefault();
+        });
+
+        document.addEventListener('pointerdown', (e) => {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const id = target.dataset.id;
+
+            if (action === 'clear-selection') {
+                state.selectedId = null;
+                state.lockedLogic = 'side_workbench';
+                renderApp();
+                return;
+            }
+
+            if (action === 'map-overview') {
+                state.lockedLogic = 'map_overview';
+                renderApp();
+                return;
+            }
+
+            if (action === 'select-clip') {
+                state.selectedId = id;
+                state.lockedLogic = 'clip';
+
+                // If we just clicked a clip in workbench to drag it
+                if (state.activeView === 'side_workbench') {
+                    const rect = document.getElementById('workbench-container').getBoundingClientRect();
+                    const clip = state.clips.find(c => c.id === id);
+                    const localX = e.clientX - rect.left;
+                    state.interaction = {
+                        active: true, type: 'move_body', targetId: id,
+                        startX: e.clientX, startY: e.clientY,
+                        lastX: e.clientX, lastY: e.clientY,
+                        startOffset: (localX / TICK_W) - clip.start
+                    };
+                    target.setPointerCapture(e.pointerId);
+                }
+                renderApp();
+                return;
+            }
+
+            if (['trim-start', 'trim-end', 'roll-dial', 'spin-tunnel'].includes(action)) {
+                e.stopPropagation();
+                target.setPointerCapture(e.pointerId);
+
+                let extra = {};
+                if (action === 'roll-dial') {
+                    const rect = target.getBoundingClientRect();
+                    extra.dialCenterX = rect.left + rect.width / 2;
+                    extra.dialCenterY = rect.top + rect.height / 2;
+                    extra.startRoll = state.clips.find(c => c.id === id).roll;
+                }
+
+                const logicMap = {
+                    'trim-start': 'trim_start', 'trim-end': 'trim_end',
+                    'roll-dial': 'roll_dial', 'spin-tunnel': 'tunnel_preview'
+                };
+                state.lockedLogic = logicMap[action];
+
+                state.interaction = {
+                    active: true, type: action.replace('-', '_'), targetId: id,
+                    startX: e.clientX, startY: e.clientY,
+                    lastX: e.clientX, lastY: e.clientY,
+                    ...extra
+                };
+                renderApp();
+            }
+        });
+
+        document.addEventListener('pointermove', (e) => {
+            if (!state.interaction.active) return;
+            const { type, targetId, lastX, lastY } = state.interaction;
+
+            // Directly mutate DOM during drag for pure 1:1 tactile response (bypass full render)
+            if (type === 'spin_tunnel') {
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                state.tunnelCam.yaw = (state.tunnelCam.yaw + dx * 0.5) % 360;
+                // Clamp pitch to avoid flipping
+                state.tunnelCam.pitch = Math.max(-85, Math.min(85, state.tunnelCam.pitch - dy * 0.5));
+
+                document.getElementById('tunnel-cam').style.transform = `translateY(-40px) rotateX(${state.tunnelCam.pitch}deg) rotateY(${state.tunnelCam.yaw}deg) translateZ(${state.tunnelCam.zOffset}px)`;
+            }
+            else if (['trim_start', 'trim_end', 'move_body'].includes(type)) {
+                const wb = document.getElementById('workbench-container');
+                if (!wb) return;
+                const rect = wb.getBoundingClientRect();
+                const localX = e.clientX - rect.left;
+                const localY = e.clientY - rect.top;
+                const targetTick = Math.max(0, Math.min(TICKS, Math.round(localX / TICK_W)));
+
+                const clipEl = document.getElementById(`clip-${targetId}`);
+                const clipData = state.clips.find(c => c.id === targetId);
+
+                if (clipEl) {
+                    clipEl.style.borderColor = 'var(--active-color)';
+                    let visualStart = clipData.start;
+                    let visualEnd = clipData.end;
+                    let visualTrack = clipData.track;
+
+                    if (type === 'trim_start') visualStart = Math.min(targetTick, clipData.end - 1);
+                    else if (type === 'trim_end') visualEnd = Math.max(targetTick, clipData.start + 1);
+                    else if (type === 'move_body') {
+                        const dur = clipData.end - clipData.start;
+                        visualStart = Math.max(0, Math.min(TICKS - dur, targetTick - state.interaction.startOffset));
+                        visualEnd = visualStart + dur;
+                        visualTrack = Math.max(0, Math.min(TRACKS - 1, Math.floor(localY / TRACK_H)));
+                    }
+
+                    clipEl.style.left = `${visualStart * TICK_W}px`;
+                    clipEl.style.width = `${(visualEnd - visualStart) * TICK_W}px`;
+                    clipEl.style.top = `${16 + (visualTrack * TRACK_H)}px`;
+                }
+            }
+            else if (type === 'roll_dial') {
+                const cx = state.interaction.dialCenterX;
+                const cy = state.interaction.dialCenterY;
+                const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+                const normalizedAngle = angle < 0 ? angle + 360 : angle;
+                const snapDetent = Math.round(normalizedAngle / 90) * 90;
+                const deltaRoll = snapDetent - state.interaction.startRoll;
+
+                const dialEl = document.getElementById(`dial-${targetId}`);
+                if (dialEl) {
+                    dialEl.style.borderColor = 'var(--active-color)';
+                    dialEl.lastElementChild.style.transform = `rotate(${state.interaction.startRoll + deltaRoll}deg)`;
+                }
+
+                // Update all cohort indicators visually
+                const selectedClip = getSelectedClip();
+                const cohort = getBarrelCohort(selectedClip);
+                cohort.forEach(c => {
+                    const ind = document.getElementById(`indicator-${c.id}`);
+                    if (ind) ind.style.transform = `rotate(${(c.roll + deltaRoll + 360) % 360}deg)`;
+                });
+            }
+
+            state.interaction.lastX = e.clientX;
+            state.interaction.lastY = e.clientY;
+        });
+
+        document.addEventListener('pointerup', (e) => {
+            if (!state.interaction.active) return;
+            const { type, targetId } = state.interaction;
+
+            // Commit data state changes on release
+            if (['trim_start', 'trim_end', 'move_body'].includes(type)) {
+                const wb = document.getElementById('workbench-container');
+                if (wb) {
+                    const rect = wb.getBoundingClientRect();
+                    const localX = e.clientX - rect.left;
+                    const localY = e.clientY - rect.top;
+                    const targetTick = Math.max(0, Math.min(TICKS, Math.round(localX / TICK_W)));
+
+                    const clip = state.clips.find(c => c.id === targetId);
+                    if (type === 'trim_start') clip.start = Math.min(targetTick, clip.end - 1);
+                    else if (type === 'trim_end') clip.end = Math.max(targetTick, clip.start + 1);
+                    else if (type === 'move_body') {
+                        const dur = clip.end - clip.start;
+                        clip.start = Math.max(0, Math.min(TICKS - dur, targetTick - state.interaction.startOffset));
+                        clip.end = clip.start + dur;
+                        clip.track = Math.max(0, Math.min(TRACKS - 1, Math.floor(localY / TRACK_H)));
+                    }
+                }
+            } else if (type === 'roll_dial') {
+                const cx = state.interaction.dialCenterX;
+                const cy = state.interaction.dialCenterY;
+                const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+                const normalizedAngle = angle < 0 ? angle + 360 : angle;
+                const snapDetent = Math.round(normalizedAngle / 90) * 90;
+                const deltaRoll = snapDetent - state.interaction.startRoll;
+
+                const cohort = getBarrelCohort(getSelectedClip());
+                cohort.forEach(c => {
+                    c.roll = (c.roll + deltaRoll + 360) % 360;
+                });
+            }
+
+            state.interaction.active = false;
+            state.interaction.type = null;
+            state.interaction.targetId = null;
+            renderApp(); // Full sync
+        });
+
+        // Scroll to Dolly in 3D
+        document.addEventListener('wheel', (e) => {
+            if (state.activeView === 'tunnel_preview') {
+                // Invert deltaY and multiply for speed: Push wheel up = fly forward. Pull wheel down = fly backward.
+                state.tunnelCam.zOffset = Math.max(-TUNNEL_LENGTH, Math.min(TUNNEL_LENGTH * 2, state.tunnelCam.zOffset - e.deltaY * 1.5));
+                const cam = document.getElementById('tunnel-cam');
+                if (cam) cam.style.transform = `translateY(-40px) rotateX(${state.tunnelCam.pitch}deg) rotateY(${state.tunnelCam.yaw}deg) translateZ(${state.tunnelCam.zOffset}px)`;
+            }
+        }, { passive: true });
+
+        // --- NAVIGATION BINDINGS ---
+        document.getElementById('nav-buttons').addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                state.activeView = e.target.dataset.view;
+                state.lockedLogic = state.activeView;
+                renderApp();
+            }
+        });
+
+        // --- SCRIPT PANEL BINDINGS ---
+        scriptLinesEl.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-logic-id]');
+            if (target) {
+                const logicId = target.dataset.logicId;
+                state.lockedLogic = logicId;
+                const lineData = scriptLinesData.find(l => l.id === logicId);
+
+                if (lineData && lineData.view) {
+                    state.activeView = lineData.view;
+                } else {
+                    state.activeView = 'side_workbench';
+                    if (!state.selectedId) state.selectedId = 'clip-2'; // Force selection to demonstrate handles
+                }
+                renderApp();
+            }
+        });
+
+        // Boot up
+        renderApp();
+
+    </script>
+</body>
+
+</html>

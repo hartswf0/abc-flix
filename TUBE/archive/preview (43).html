@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>ICARO · Video + BEFLIX Layer Export</title>
+<style>
+:root{
+  --bg:#050505;--panel:#111;--ink:#f5f5ef;--muted:#9b9b92;--line:#34342f;
+  --red:#ff3030;--gold:#ffd447;--blue:#3da1ff;--green:#73ff7a;--orange:#ff9b2f;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,Arial,Helvetica,sans-serif;user-select:none}
+#app{height:100dvh;width:100vw;display:grid;grid-template-rows:1fr auto;background:#050505}
+#stage{position:relative;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#070707}
+#view{max-width:100%;max-height:100%;width:auto;height:auto;display:block;background:#000;image-rendering:auto}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#fff;background:radial-gradient(circle at center,#151515,#050505 70%)}
+#empty b{font-size:clamp(26px,8vw,72px);letter-spacing:-.05em;display:block;margin-bottom:12px}
+#empty span{font-size:clamp(14px,3.5vw,22px);color:#aaa;font-weight:800;text-transform:uppercase;letter-spacing:.12em}
+#hud{position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;z-index:5;max-width:calc(100vw - 20px)}
+.badge{background:rgba(0,0,0,.78);border:2px solid #333;color:#fff;font-size:11px;font-weight:950;letter-spacing:.08em;padding:7px 9px;text-transform:uppercase;backdrop-filter:blur(5px)}
+.badge.green{border-color:rgba(115,255,122,.6);color:var(--green)}
+.badge.gold{border-color:rgba(255,212,71,.7);color:var(--gold)}
+.badge.red{border-color:rgba(255,48,48,.8);color:var(--red)}
+#progress{position:absolute;left:0;right:0;bottom:0;height:6px;background:#222;z-index:6;display:none}
+#progress.on{display:block}
+#bar{height:100%;width:0%;background:linear-gradient(90deg,var(--red),var(--gold),var(--green));transition:width .08s linear}
+#controls{background:#0d0d0c;border-top:3px solid #222;padding:10px 10px calc(10px + var(--safe-b));display:grid;grid-template-columns:1fr;gap:8px;z-index:10}
+.row{display:flex;gap:8px;align-items:center;min-width:0;overflow-x:auto;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
+button,.filebtn,select,input[type=range]{height:48px;border:2px solid #3a3a35;background:#171716;color:#fff;font-weight:950;text-transform:uppercase;letter-spacing:.08em;border-radius:0;font-size:12px;white-space:nowrap}
+button,.filebtn{padding:0 14px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 0 #000;flex:0 0 auto}
+button:active,.filebtn:active{transform:translateY(2px);box-shadow:none}
+button.primary,.filebtn.primary{background:#fff;color:#000;border-color:#fff}
+button.red{background:var(--red);color:#fff;border-color:#ff7777}
+button.gold{background:var(--gold);color:#000;border-color:#ffe98f}
+button.green{background:#0f3;color:#000;border-color:#9fffaa}
+button.on{background:#fff;color:#000;border-color:#fff}
+button:disabled{opacity:.35;cursor:not-allowed}
+.filebtn input{display:none}
+#signalBtns button{min-width:86px}
+#modeBtns button{min-width:110px}
+#opacityWrap{display:flex;align-items:center;gap:8px;color:#aaa;font-size:11px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;min-width:175px;flex:1}
+input[type=range]{appearance:none;-webkit-appearance:none;min-width:110px;flex:1;background:#101010;padding:0;border-color:#333}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:44px;background:#fff;border:0}input[type=range]::-moz-range-thumb{width:28px;height:44px;background:#fff;border:0;border-radius:0}
+#explain{color:#aaa;font-size:12px;font-weight:850;line-height:1.25;display:flex;justify-content:space-between;gap:12px;align-items:center;min-width:0}
+#explain strong{color:#fff}.tiny{font-size:11px;color:#777;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+#log{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfcfc9}
+#hiddenVideo{display:none}
+@media (min-width:800px){
+  #app{grid-template-rows:1fr 132px}
+  #controls{grid-template-columns:1.1fr 1.4fr 1.2fr;align-items:center;gap:10px;padding:12px}
+  #explain{grid-column:1 / -1}
+  button,.filebtn,select,input[type=range]{height:42px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <canvas id="view"></canvas>
+    <video id="hiddenVideo" playsinline muted></video>
+    <div id="empty"><div><b>LOAD VIDEO</b><span>Original stays underneath. BEFLIX layer rides on top.</span></div></div>
+    <div id="hud">
+      <div class="badge green" id="baseBadge">MAIN VIDEO: SAFE</div>
+      <div class="badge gold" id="layerBadge">LAYER: OFF</div>
+      <div class="badge" id="timeBadge">00:00</div>
+    </div>
+    <div id="progress"><div id="bar"></div></div>
+  </section>
+
+  <section id="controls">
+    <div class="row">
+      <label class="filebtn primary">1 LOAD VIDEO<input id="file" type="file" accept="video/*" /></label>
+      <button id="playBtn" disabled>PLAY</button>
+      <button id="videoOnlyBtn" disabled>VIDEO ONLY</button>
+    </div>
+
+    <div class="row" id="signalBtns">
+      <button data-signal="heat" disabled>HEAT</button>
+      <button data-signal="vectors" disabled>VECTORS</button>
+      <button data-signal="patches" class="on" disabled>PATCHES</button>
+      <button data-signal="all" disabled>ALL</button>
+    </div>
+
+    <div class="row" id="modeBtns">
+      <button id="liveBtn" disabled>2 LIVE LAYER</button>
+      <button id="freezeBtn" disabled>FREEZE LAYER</button>
+      <button id="clearBtn" disabled>CLEAR</button>
+      <button id="exportBtn" class="green" disabled>3 EXPORT WEBM</button>
+    </div>
+
+    <div id="explain">
+      <div id="log"><strong>Simple rule:</strong> video is the base; analysis is transparent tracing paper; export records both.</div>
+      <div id="opacityWrap">LAYER <input id="opacity" type="range" min="0" max="100" value="78" /> <span id="opVal">78%</span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const video = $('hiddenVideo');
+  const canvas = $('view');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const empty = $('empty');
+  const file = $('file');
+  const playBtn = $('playBtn');
+  const videoOnlyBtn = $('videoOnlyBtn');
+  const liveBtn = $('liveBtn');
+  const freezeBtn = $('freezeBtn');
+  const clearBtn = $('clearBtn');
+  const exportBtn = $('exportBtn');
+  const opacity = $('opacity');
+  const opVal = $('opVal');
+  const log = $('log');
+  const baseBadge = $('baseBadge');
+  const layerBadge = $('layerBadge');
+  const timeBadge = $('timeBadge');
+  const progress = $('progress');
+  const bar = $('bar');
+  const signalButtons = [...document.querySelectorAll('#signalBtns button')];
+
+  const analysisCanvas = document.createElement('canvas');
+  const analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+  const overlayCanvas = document.createElement('canvas');
+  const overlayCtx = overlayCanvas.getContext('2d');
+  const frozenCanvas = document.createElement('canvas');
+  const frozenCtx = frozenCanvas.getContext('2d');
+
+  let url = null;
+  let prevGray = null;
+  let currGray = null;
+  let diff = null;
+  let components = [];
+  let vectors = [];
+  let signal = 'patches';
+  let layerMode = 'off'; // off | live | frozen
+  let raf = 0;
+  let lastVideoT = -1;
+  let exporting = false;
+  let recorder = null;
+  let chunks = [];
+
+  const state = {
+    threshold: 24,
+    analysisW: 176,
+    analysisH: 99,
+    minPatchArea: 8,
+    opacity: 0.78,
+    mime: pickMime(),
+  };
+
+  function pickMime(){
+    const options = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm'
+    ];
+    if (!window.MediaRecorder) return '';
+    return options.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+  }
+
+  function setLog(html){ log.innerHTML = html; }
+  function two(n){ return String(Math.floor(n)).padStart(2,'0'); }
+  function fmt(t){ return `${two(t/60)}:${two(t%60)}`; }
+
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    if (url) URL.revokeObjectURL(url);
+    url = URL.createObjectURL(f);
+    video.src = url;
+    video.muted = true;
+    video.loop = false;
+    video.preload = 'auto';
+    video.onloadedmetadata = () => {
+      setupCanvas(video.videoWidth || 1280, video.videoHeight || 720);
+      empty.style.display = 'none';
+      enable(true);
+      layerMode = 'off';
+      prevGray = currGray = diff = null;
+      updateButtons();
+      setLog(`<strong>Loaded:</strong> ${escapeHtml(f.name)}. Original video is the base layer.`);
+      renderOnce();
+    };
+  });
+
+  function setupCanvas(w,h){
+    const maxW = 1280;
+    const scale = Math.min(1, maxW / Math.max(1,w));
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    overlayCanvas.width = canvas.width;
+    overlayCanvas.height = canvas.height;
+    frozenCanvas.width = canvas.width;
+    frozenCanvas.height = canvas.height;
+    state.analysisW = Math.min(192, Math.max(96, Math.round(canvas.width / 6)));
+    state.analysisH = Math.max(54, Math.round(state.analysisW * canvas.height / canvas.width));
+    analysisCanvas.width = state.analysisW;
+    analysisCanvas.height = state.analysisH;
+  }
+
+  function enable(on){
+    [playBtn, videoOnlyBtn, liveBtn, freezeBtn, clearBtn, exportBtn, ...signalButtons].forEach(b => b.disabled = !on);
+  }
+
+  signalButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      signal = btn.dataset.signal;
+      if (layerMode === 'off') layerMode = 'live';
+      updateButtons();
+      setLog(`<strong>Signal:</strong> ${signal.toUpperCase()}. This is drawn as a transparent BEFLIX layer over the video.`);
+    });
+  });
+
+  playBtn.addEventListener('click', async () => {
+    if (!video.src) return;
+    if (video.paused) {
+      await video.play();
+      startLoop();
+    } else {
+      video.pause();
+      renderOnce();
+    }
+    updateButtons();
+  });
+
+  videoOnlyBtn.addEventListener('click', () => {
+    layerMode = 'off';
+    updateButtons();
+    setLog('<strong>Video only.</strong> BEFLIX layer hidden. Original video is untouched.');
+    renderOnce();
+  });
+
+  liveBtn.addEventListener('click', () => {
+    layerMode = 'live';
+    updateButtons();
+    setLog('<strong>Live layer.</strong> The analysis layer updates from the video as it plays.');
+    renderOnce();
+  });
+
+  freezeBtn.addEventListener('click', () => {
+    if (!video.src) return;
+    analyzeCurrentFrame(true);
+    drawOverlayTo(overlayCtx, signal);
+    frozenCtx.clearRect(0,0,frozenCanvas.width,frozenCanvas.height);
+    frozenCtx.drawImage(overlayCanvas,0,0);
+    layerMode = 'frozen';
+    updateButtons();
+    setLog('<strong>Frozen layer.</strong> Current BEFLIX tracing-paper layer is held over the video.');
+    renderOnce();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    frozenCtx.clearRect(0,0,frozenCanvas.width,frozenCanvas.height);
+    layerMode = 'off';
+    updateButtons();
+    setLog('<strong>Cleared.</strong> Removed BEFLIX layer. Main video remains.');
+    renderOnce();
+  });
+
+  opacity.addEventListener('input', () => {
+    state.opacity = Number(opacity.value) / 100;
+    opVal.textContent = `${opacity.value}%`;
+    renderOnce();
+  });
+
+  exportBtn.addEventListener('click', exportComposite);
+
+  function updateButtons(){
+    playBtn.textContent = video.paused ? 'PLAY' : 'PAUSE';
+    signalButtons.forEach(b => b.classList.toggle('on', b.dataset.signal === signal));
+    liveBtn.classList.toggle('on', layerMode === 'live');
+    freezeBtn.classList.toggle('on', layerMode === 'frozen');
+    videoOnlyBtn.classList.toggle('on', layerMode === 'off');
+    baseBadge.textContent = video.src ? 'MAIN VIDEO: SAFE' : 'MAIN VIDEO: EMPTY';
+    baseBadge.className = 'badge green';
+    if (layerMode === 'off') { layerBadge.textContent = 'LAYER: OFF'; layerBadge.className = 'badge'; }
+    if (layerMode === 'live') { layerBadge.textContent = `LAYER: LIVE ${signal.toUpperCase()}`; layerBadge.className = 'badge gold'; }
+    if (layerMode === 'frozen') { layerBadge.textContent = `LAYER: FROZEN ${signal.toUpperCase()}`; layerBadge.className = 'badge red'; }
+  }
+
+  function startLoop(){
+    cancelAnimationFrame(raf);
+    const loop = () => {
+      renderOnce();
+      if (!video.paused || exporting) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+  }
+
+  function renderOnce(){
+    if (!video.src || video.readyState < 2 || !canvas.width) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+    if (layerMode === 'live') {
+      analyzeCurrentFrame(false);
+      drawOverlayTo(overlayCtx, signal);
+      ctx.save();
+      ctx.globalAlpha = state.opacity;
+      ctx.drawImage(overlayCanvas,0,0);
+      ctx.restore();
+    } else if (layerMode === 'frozen') {
+      ctx.save();
+      ctx.globalAlpha = state.opacity;
+      ctx.drawImage(frozenCanvas,0,0);
+      ctx.restore();
+    }
+
+    if (video.duration) {
+      timeBadge.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+      bar.style.width = `${Math.min(100, (video.currentTime / video.duration) * 100)}%`;
+    }
+    updateButtons();
+  }
+
+  function analyzeCurrentFrame(force){
+    if (!force && Math.abs(video.currentTime - lastVideoT) < 0.001) return;
+    lastVideoT = video.currentTime;
+    analysisCtx.drawImage(video, 0, 0, state.analysisW, state.analysisH);
+    const image = analysisCtx.getImageData(0,0,state.analysisW,state.analysisH);
+    const data = image.data;
+    const n = state.analysisW * state.analysisH;
+    const gray = new Uint8ClampedArray(n);
+    for (let i=0,j=0;i<data.length;i+=4,j++) gray[j] = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+
+    if (!currGray) {
+      currGray = gray;
+      prevGray = new Uint8ClampedArray(gray);
+      diff = new Uint8ClampedArray(n);
+      components = [];
+      vectors = [];
+      return;
+    }
+
+    prevGray = currGray;
+    currGray = gray;
+    diff = new Uint8ClampedArray(n);
+    for (let i=0;i<n;i++) diff[i] = Math.abs(currGray[i] - prevGray[i]);
+    components = findComponents(diff, state.analysisW, state.analysisH, state.threshold, state.minPatchArea);
+    vectors = findVectors(prevGray, currGray, diff, state.analysisW, state.analysisH, state.threshold);
+  }
+
+  function drawOverlayTo(octx, which){
+    octx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    if (!diff) return;
+    if (which === 'heat' || which === 'all') drawHeat(octx);
+    if (which === 'vectors' || which === 'all') drawVectors(octx);
+    if (which === 'patches' || which === 'all') drawPatches(octx);
+  }
+
+  function drawHeat(octx){
+    const w = state.analysisW, h = state.analysisH;
+    const img = octx.createImageData(w,h);
+    for (let i=0,j=0;i<diff.length;i++,j+=4){
+      const d = diff[i];
+      if (d > state.threshold) {
+        img.data[j] = 255;
+        img.data[j+1] = Math.min(255, 80 + d*3);
+        img.data[j+2] = 20;
+        img.data[j+3] = Math.min(220, d*4);
+      }
+    }
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    tmp.getContext('2d').putImageData(img,0,0);
+    octx.save();
+    octx.imageSmoothingEnabled = false;
+    octx.drawImage(tmp,0,0,overlayCanvas.width,overlayCanvas.height);
+    octx.restore();
+  }
+
+  function drawVectors(octx){
+    const sx = overlayCanvas.width / state.analysisW;
+    const sy = overlayCanvas.height / state.analysisH;
+    octx.save();
+    octx.lineWidth = Math.max(2, overlayCanvas.width / 420);
+    octx.strokeStyle = 'rgba(61,161,255,.95)';
+    octx.fillStyle = 'rgba(61,161,255,.95)';
+    for (const v of vectors) {
+      const x1 = (v.x - v.dx) * sx;
+      const y1 = (v.y - v.dy) * sy;
+      const x2 = v.x * sx;
+      const y2 = v.y * sy;
+      drawArrow(octx,x1,y1,x2,y2);
+    }
+    octx.restore();
+  }
+
+  function drawPatches(octx){
+    const sx = overlayCanvas.width / state.analysisW;
+    const sy = overlayCanvas.height / state.analysisH;
+    octx.save();
+    octx.lineWidth = Math.max(2, overlayCanvas.width / 520);
+    for (const c of components.slice(0,64)) {
+      octx.fillStyle = 'rgba(255,212,71,.18)';
+      octx.strokeStyle = 'rgba(255,212,71,.95)';
+      octx.beginPath();
+      for (const span of c.spans) {
+        const x = span.x0 * sx, y = span.y * sy;
+        const ww = Math.max(2, (span.x1 - span.x0 + 1) * sx);
+        const hh = Math.max(1.5, sy * 0.82);
+        octx.rect(x,y,ww,hh);
+      }
+      octx.fill();
+      octx.stroke();
+      octx.fillStyle = 'rgba(255,48,48,.95)';
+      octx.fillRect(c.cx*sx-3,c.cy*sy-3,6,6);
+    }
+    octx.restore();
+  }
+
+  function drawArrow(c,x1,y1,x2,y2){
+    const dx = x2-x1, dy = y2-y1;
+    const len = Math.hypot(dx,dy);
+    if (len < 1) return;
+    const ux = dx/len, uy = dy/len;
+    const head = Math.min(9, Math.max(5, len * 0.35));
+    c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+    c.beginPath();
+    c.moveTo(x2,y2);
+    c.lineTo(x2 - ux*head - uy*head*.55, y2 - uy*head + ux*head*.55);
+    c.lineTo(x2 - ux*head + uy*head*.55, y2 - uy*head - ux*head*.55);
+    c.closePath(); c.fill();
+  }
+
+  function findVectors(prev, curr, dmap, w, h, th){
+    const out = [];
+    const block = 12, radius = 3;
+    for (let by=block; by<h-block; by+=block) {
+      for (let bx=block; bx<w-block; bx+=block) {
+        let active = 0, count = 0;
+        for (let y=-4;y<=4;y+=2) for (let x=-4;x<=4;x+=2) { active += dmap[(by+y)*w + (bx+x)]; count++; }
+        if (active / count < th*1.35) continue;
+        let bestDx = 0, bestDy = 0, best = Infinity;
+        for (let dy=-radius; dy<=radius; dy++) {
+          for (let dx=-radius; dx<=radius; dx++) {
+            let err = 0;
+            for (let y=-4;y<=4;y+=2) for (let x=-4;x<=4;x+=2) {
+              const ci = (by+y)*w + (bx+x);
+              const px = bx+x-dx, py = by+y-dy;
+              if (px<0 || py<0 || px>=w || py>=h) { err += 999; continue; }
+              const pi = py*w + px;
+              err += Math.abs(curr[ci] - prev[pi]);
+            }
+            if (err < best) { best = err; bestDx = dx; bestDy = dy; }
+          }
+        }
+        if (bestDx || bestDy) out.push({x:bx,y:by,dx:bestDx*2.1,dy:bestDy*2.1,score:active/count});
+      }
+    }
+    return out.slice(0,120);
+  }
+
+  function findComponents(dmap,w,h,th,minArea){
+    const seen = new Uint8Array(w*h);
+    const comps = [];
+    const qx = new Int16Array(w*h);
+    const qy = new Int16Array(w*h);
+    for (let yy=0; yy<h; yy++) {
+      for (let xx=0; xx<w; xx++) {
+        const start = yy*w+xx;
+        if (seen[start] || dmap[start] <= th) continue;
+        let head=0,tail=0,area=0,sumX=0,sumY=0,minX=xx,maxX=xx,minY=yy,maxY=yy;
+        const rows = new Map();
+        seen[start]=1; qx[tail]=xx; qy[tail]=yy; tail++;
+        while(head<tail){
+          const x=qx[head], y=qy[head]; head++;
+          area++; sumX+=x; sumY+=y; if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;
+          const row = rows.get(y) || [x,x]; row[0]=Math.min(row[0],x); row[1]=Math.max(row[1],x); rows.set(y,row);
+          const nb = [[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+          for(const [nx,ny] of nb){
+            if(nx<0||ny<0||nx>=w||ny>=h) continue;
+            const ni=ny*w+nx;
+            if(seen[ni]||dmap[ni]<=th) continue;
+            seen[ni]=1; qx[tail]=nx; qy[tail]=ny; tail++;
+          }
+        }
+        if(area>=minArea){
+          const spans = [...rows.entries()].map(([y,[x0,x1]]) => ({y,x0,x1}));
+          comps.push({area,cx:sumX/area,cy:sumY/area,minX,maxX,minY,maxY,spans});
+        }
+      }
+    }
+    comps.sort((a,b)=>b.area-a.area);
+    return comps;
+  }
+
+  async function exportComposite(){
+    if (!video.src || exporting) return;
+    if (!canvas.captureStream || !window.MediaRecorder) {
+      setLog('<strong>Export blocked:</strong> this browser does not support canvas recording. Try Chrome or Edge.');
+      return;
+    }
+    exporting = true;
+    chunks = [];
+    exportBtn.disabled = true;
+    progress.classList.add('on');
+    setLog('<strong>Exporting:</strong> recording the canvas composite. Do not close this tab.');
+
+    const wasPaused = video.paused;
+    const oldTime = video.currentTime;
+    video.pause();
+    video.currentTime = 0;
+    await waitEvent(video, 'seeked', 2500).catch(()=>{});
+    renderOnce();
+
+    const stream = canvas.captureStream(30);
+    const options = state.mime ? { mimeType: state.mime, videoBitsPerSecond: 8500000 } : { videoBitsPerSecond: 8500000 };
+    recorder = new MediaRecorder(stream, options);
+    recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: state.mime || 'video/webm' });
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      a.href = URL.createObjectURL(blob);
+      a.download = `icaro-video-plus-beflix-layer-${stamp}.webm`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      exporting = false;
+      progress.classList.remove('on');
+      exportBtn.disabled = false;
+      setLog(`<strong>Export complete:</strong> downloaded WebM with main video + ${layerMode === 'off' ? 'no' : layerMode} BEFLIX layer.`);
+      if (wasPaused) { video.pause(); video.currentTime = oldTime; renderOnce(); }
+    };
+
+    recorder.start(250);
+    startLoop();
+    await video.play();
+    await new Promise(resolve => {
+      const done = () => { video.removeEventListener('ended', done); resolve(); };
+      video.addEventListener('ended', done, { once:true });
+    });
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    stream.getTracks().forEach(t => t.stop());
+  }
+
+  function waitEvent(el, name, ms){
+    return new Promise((resolve,reject)=>{
+      const t=setTimeout(()=>{cleanup();reject(new Error('timeout'));},ms);
+      const fn=()=>{cleanup();resolve();};
+      const cleanup=()=>{clearTimeout(t);el.removeEventListener(name,fn);};
+      el.addEventListener(name,fn,{once:true});
+    });
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
+
+  setInterval(() => {
+    if (video.src && !exporting) renderOnce();
+  }, 250);
+})();
+</script>
+</body>
+</html>

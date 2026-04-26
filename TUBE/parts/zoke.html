@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Topographical Lock Workbench</title>
+    <style>
+        :root {
+            --black: #000000;
+            --white: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000000;
+            color: #FFFFFF;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100dvh;
+            display: block;
+            background: #000000;
+            cursor: crosshair;
+            z-index: 1
+        }
+
+        #rootNode {
+            position: fixed;
+            z-index: 10;
+            left: 0;
+            right: 0;
+            top: 0;
+            background: #000000;
+            color: #FFFFFF;
+            border-bottom: 2px solid #FFFFFF;
+            padding: 8px 10px 7px 10px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: start
+        }
+
+        #identity {
+            min-width: 0
+        }
+
+        .line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 11px;
+            line-height: 1.22;
+            letter-spacing: .04em;
+            text-transform: uppercase
+        }
+
+        .line b {
+            font-weight: 900;
+            color: #FFFFFF
+        }
+
+        .payload {
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: .06em
+        }
+
+        .commands {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            max-width: 54vw
+        }
+
+        .word {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #FFFFFF;
+            background: #000000;
+            color: #FFFFFF;
+            min-height: 30px;
+            padding: 0 9px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        .word:active,
+        .word.on {
+            background: #FFFFFF;
+            color: #000000
+        }
+
+        #responseBar {
+            position: fixed;
+            z-index: 11;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            min-height: 42px;
+            background: #000000;
+            color: #FFFFFF;
+            border-top: 2px solid #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px calc(7px + env(safe-area-inset-bottom)) 10px;
+            text-transform: uppercase
+        }
+
+        .tag {
+            border: 2px solid #FFFFFF;
+            background: #FFFFFF;
+            color: #000000;
+            padding: 5px 8px;
+            font-weight: 900;
+            font-size: 11px
+        }
+
+        .response {
+            font-size: 13px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #dropHint {
+            display: none;
+            position: fixed;
+            z-index: 20;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid #FFFFFF;
+            background: #000000;
+            color: #FFFFFF;
+            padding: 20px;
+            font-size: 14px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        #file {
+            display: none
+        }
+
+        @media(max-width:760px) {
+            #rootNode {
+                grid-template-columns: 1fr;
+                padding: 8px 10px;
+                min-height: 58px
+            }
+
+            #identity .line:not(.payload) {
+                display: none
+            }
+
+            .line {
+                font-size: 9px;
+                line-height: 1.15
+            }
+
+            .payload {
+                font-size: 11px;
+                line-height: 1.18;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip
+            }
+
+            .commands {
+                position: fixed;
+                left: 8px;
+                right: 8px;
+                bottom: calc(48px + env(safe-area-inset-bottom));
+                z-index: 12;
+                max-width: none;
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
+                background: #000000;
+                border: 2px solid #FFFFFF;
+                padding: 6px;
+                justify-content: stretch
+            }
+
+            .word {
+                min-height: 42px;
+                padding: 0 4px;
+                font-size: 9px;
+                border: 2px solid #FFFFFF;
+                text-align: center;
+                line-height: 1.05
+            }
+
+            #responseBar {
+                min-height: 46px;
+                gap: 6px;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) 8px
+            }
+
+            .tag {
+                font-size: 8px;
+                padding: 4px 5px;
+                max-width: 76px;
+                line-height: 1.05;
+                text-align: center
+            }
+
+            .response {
+                font-size: 10px;
+                line-height: 1.1
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="stage"></canvas>
+
+    <div id="rootNode">
+        <div id="identity">
+            <div class="line payload"><b>INNER FIRST-ORDER STATE:</b> SECTION LOCK ARC WORKBENCH</div>
+            <div class="line"><b>OUTER SECOND-ORDER STATE:</b> NULL ARCHITECTURE AWAITING SHARED UNDERSTANDING</div>
+            <div class="line"><b>PAYLOAD:</b> THE MESSAGE IS THE PLAN. TEXT IS THE CONTROL SURFACE.</div>
+        </div>
+        <div class="commands" id="commands">
+            <span class="word on" data-cmd="lock">LOCK</span>
+            <span class="word" data-cmd="view">VIEW</span>
+            <span class="word" data-cmd="roll">ROLL</span>
+            <span class="word" data-cmd="cleave">CLEAVE</span>
+            <span class="word" data-cmd="play">PLAY</span>
+            <span class="word" data-cmd="undo">UNDO</span>
+            <span class="word" data-cmd="import">IMPORT</span>
+            <span class="word" data-cmd="clear">CLEAR TEXT</span>
+        </div>
+    </div>
+
+    <div id="responseBar">
+        <div class="tag">OPERATOR RESPONSE</div>
+        <div class="response" id="responseText">TYPE. CLICK TEXT COMMANDS. DRAG THE ROOTED STACK.</div>
+    </div>
+
+    <div id="dropHint">DROP VIDEO FILES: PROXY CLIPS WILL ENTER THE STACK</div>
+    <input id="file" type="file" accept="video/*" multiple />
+
+    <script>
+        (function () {
+            "use strict";
+
+            const canvas = document.getElementById("stage");
+            const ctx = canvas.getContext("2d");
+            const fileInput = document.getElementById("file");
+            const responseText = document.getElementById("responseText");
+            const dropHint = document.getElementById("dropHint");
+            const commandRoot = document.getElementById("commands");
+
+            const GRID = 0.5;
+            const TWO_PI = Math.PI * 2;
+            const HALF_PI = Math.PI / 2;
+
+            let W = 0;
+            let H = 0;
+            let DPR = 1;
+            let raf = 0;
+            let lastTime = performance.now();
+            let idCounter = 1;
+            let cmdCounter = 1;
+            let rendered = [];
+            let mediaStore = new Map();
+            let monoCanvas = document.createElement("canvas");
+            let monoCtx = monoCanvas.getContext("2d", { willReadFrequently: true });
+
+            const state = {
+                clips: [],
+                playhead: 6,
+                playing: false,
+                view: "stack", // stack | tunnel | ledger
+                pxPerSec: 74,
+                selectedClipId: null,
+                selection: null,
+                preview: emptyPreview(),
+                drag: null,
+                hover: null,
+                history: [],
+                redo: [],
+                commands: [],
+                response: "",
+                mobile: false
+            };
+
+            function emptyPreview() {
+                return { active: false, type: null, snap: null, ghostStart: null, ghostEnd: null, rollDelta: 0, targetTrack: null, absorbTargetId: null };
+            }
+            function uid() { return "SC-" + String(idCounter++).padStart(3, "0"); }
+            function commandId() { return "CMD-" + String(cmdCounter++).padStart(3, "0"); }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function snap(t) { return Math.round(t / GRID) * GRID; }
+            function fmt(t) { return (Math.round(t * 10) / 10).toFixed(1) + "S"; }
+            function endOf(c) { return c.start + c.duration; }
+            function overlaps(a0, a1, b0, b1) { return a0 < b1 && b0 < a1; }
+            function deg(a) { return Math.round(a * 180 / Math.PI); }
+            function norm(a) { while (a < -Math.PI) a += TWO_PI; while (a >= Math.PI) a -= TWO_PI; return a; }
+            function snapQuarter(a) { return Math.round(a / HALF_PI) * HALF_PI; }
+            function clipById(id) { return state.clips.find(c => c.id === id) || null; }
+            function selectedClip() { return state.selectedClipId ? clipById(state.selectedClipId) : null; }
+
+            function resize() {
+                DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                W = window.innerWidth;
+                H = window.innerHeight;
+                state.mobile = W <= 760;
+                state.pxPerSec = state.mobile ? 46 : 74;
+                canvas.width = Math.floor(W * DPR);
+                canvas.height = Math.floor(H * DPR);
+                canvas.style.width = W + "px";
+                canvas.style.height = H + "px";
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+            window.addEventListener("resize", resize, { passive: true });
+
+            function makeClip(track, start, duration, label, mediaKey) {
+                const id = uid();
+                const dur = Math.max(GRID, snap(duration || 3));
+                return { id, track: clamp(track, 0, 3), start: snap(start), duration: dur, roll: 0, label: label || id, mediaKey: mediaKey || null, inPoint: 0, outPoint: dur };
+            }
+
+            function init() {
+                state.clips.length = 0;
+                for (let t = 0; t < 4; t++) {
+                    let x = 0;
+                    for (let i = 0; i < 7; i++) {
+                        const d = [2, 2.5, 3, 3.5][(i + t) % 4];
+                        state.clips.push(makeClip(t, x, d));
+                        x += d + (i % 2 ? 0.5 : 0);
+                    }
+                }
+                lockClip(state.clips[5].id, false);
+            }
+
+            function layout() {
+                const rootRect = document.getElementById("rootNode").getBoundingClientRect();
+                const responseRect = document.getElementById("responseBar").getBoundingClientRect();
+                const commandRect = state.mobile ? commandRoot.getBoundingClientRect() : { height: 0 };
+                const top = rootRect.bottom + (state.mobile ? 4 : 0);
+                const bottom = responseRect.height + (state.mobile ? commandRect.height + 12 : 0);
+                const ground = H - bottom - (state.mobile ? 8 : 18);
+                const available = Math.max(state.mobile ? 176 : 220, ground - top - (state.mobile ? 8 : 18));
+                const rowH = Math.max(state.mobile ? 42 : 58, Math.min(state.mobile ? 64 : 82, available / 4));
+                const stackTop = ground - rowH * 4;
+                return { top, bottom, ground, rowH, stackTop, rootX: W / 2, rootY: ground };
+            }
+            function timeToX(t) { return W / 2 + (t - state.playhead) * state.pxPerSec; }
+            function xToTime(x) { return state.playhead + (x - W / 2) / state.pxPerSec; }
+            function trackY(track) { const l = layout(); return l.ground - (4 - track) * l.rowH; }
+            function yToTrack(y) { const l = layout(); return clamp(Math.floor((y - l.stackTop) / l.rowH), 0, 3); }
+
+            function snapshot() {
+                return { clips: state.clips.map(c => Object.assign({}, c)), playhead: state.playhead, selectedClipId: state.selectedClipId, selection: state.selection ? JSON.parse(JSON.stringify(state.selection)) : null, response: state.response };
+            }
+            function restore(s) {
+                state.clips = s.clips.map(c => Object.assign({}, c));
+                state.playhead = s.playhead;
+                state.selectedClipId = s.selectedClipId;
+                state.selection = s.selection ? JSON.parse(JSON.stringify(s.selection)) : null;
+                state.response = s.response || state.response;
+                recomputeSelection();
+                updateResponse();
+            }
+            function pushCommand(type, before, meta) {
+                const after = snapshot();
+                const cmd = { id: commandId(), type, before, after, meta: meta || {} };
+                state.history.push(cmd);
+                state.redo.length = 0;
+                state.commands.unshift(cmd);
+                state.commands = state.commands.slice(0, 8);
+                speak(type.replaceAll("_", " "));
+            }
+            function undo() {
+                const cmd = state.history.pop();
+                if (!cmd) { speak("NO COMMAND TO UNDO"); return; }
+                state.redo.push(cmd);
+                restore(cmd.before);
+                state.commands.unshift({ id: cmd.id, type: "UNDO_" + cmd.type });
+                state.commands = state.commands.slice(0, 8);
+            }
+
+            function buildCohort(a, b) { return state.clips.filter(c => overlaps(c.start, endOf(c), a, b)).map(c => c.id); }
+            function lockClip(id, record = true) {
+                const c = clipById(id);
+                if (!c) return;
+                const before = snapshot();
+                state.selectedClipId = id;
+                state.selection = { clipId: id, start: c.start, duration: c.duration, affectedClipIds: buildCohort(c.start, endOf(c)) };
+                state.preview = emptyPreview();
+                state.playhead = clamp(state.playhead, c.start - 1, endOf(c) + 1);
+                if (record) pushCommand("LOCK_ROOT_SECTION", before, { clipId: id });
+            }
+            function recomputeSelection() {
+                const c = selectedClip();
+                if (!c) { state.selection = null; state.selectedClipId = null; return; }
+                state.selection = { clipId: c.id, start: c.start, duration: c.duration, affectedClipIds: buildCohort(c.start, endOf(c)) };
+            }
+            function affected(id) { return !!(state.selection && state.selection.affectedClipIds.includes(id)); }
+
+            function draw() {
+                raf = requestAnimationFrame(draw);
+                const now = performance.now();
+                const dt = Math.min(0.05, (now - lastTime) / 1000);
+                lastTime = now;
+                if (state.playing && !state.drag) {
+                    state.playhead += dt;
+                    const maxEnd = Math.max(20, ...state.clips.map(endOf));
+                    if (state.playhead > maxEnd + 1) state.playhead = 0;
+                }
+                ctx.clearRect(0, 0, W, H);
+                rendered = [];
+                if (state.view === "tunnel") drawTunnel();
+                else if (state.view === "ledger") drawLedger();
+                else drawStack();
+            }
+
+            function drawLine(x1, y1, x2, y2, w = 2, dash = false) {
+                ctx.save();
+                ctx.strokeStyle = "#FFFFFF";
+                ctx.lineWidth = w;
+                if (dash) ctx.setLineDash([8, 8]);
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                ctx.restore();
+            }
+            function drawText(text, x, y, size = 11, align = "left", invert = false) {
+                ctx.save();
+                ctx.font = `900 ${size}px ui-monospace,SFMono-Regular,Menlo,monospace`;
+                ctx.textAlign = align;
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = invert ? "#000000" : "#FFFFFF";
+                ctx.fillText(text, x, y);
+                ctx.restore();
+            }
+            function rect(x, y, w, h, fill = false, invert = false) {
+                ctx.save();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#FFFFFF";
+                ctx.fillStyle = invert ? "#FFFFFF" : "#000000";
+                if (fill) ctx.fillRect(x, y, w, h);
+                ctx.strokeRect(x, y, w, h);
+                ctx.restore();
+            }
+            function hatch(x, y, w, h, step = 10, reverse = false) {
+                ctx.save();
+                ctx.strokeStyle = "#FFFFFF";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = -h; i < w + h; i += step) {
+                    if (reverse) { ctx.moveTo(x + i, y + h); ctx.lineTo(x + i + h, y); }
+                    else { ctx.moveTo(x + i, y); ctx.lineTo(x + i + h, y + h); }
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function mediaFor(c) {
+                if (!c || !c.mediaKey) return null;
+                return mediaStore.get(c.mediaKey) || null;
+            }
+            function sourceDuration(c) {
+                const m = mediaFor(c);
+                return m && Number.isFinite(m.duration) ? m.duration : Math.max(c.duration, c.outPoint || c.duration);
+            }
+            function localSourceTime(c) {
+                const span = Math.max(GRID, (c.outPoint || c.duration) - (c.inPoint || 0));
+                const local = clamp(state.playhead - c.start, 0, span);
+                return clamp((c.inPoint || 0) + local, 0, sourceDuration(c));
+            }
+            function syncVideo(c, forcePause = false) {
+                const m = mediaFor(c);
+                if (!m || !m.video) return null;
+                const v = m.video;
+                const t = localSourceTime(c);
+                const inside = state.playing && !forcePause && state.playhead >= c.start && state.playhead <= endOf(c);
+                if (v.readyState >= 1 && Number.isFinite(t) && Math.abs((v.currentTime || 0) - t) > 0.16) {
+                    try { v.currentTime = t; } catch (err) { }
+                }
+                if (inside) {
+                    const p = v.play();
+                    if (p && p.catch) p.catch(() => { });
+                } else {
+                    try { v.pause(); } catch (err) { }
+                }
+                return v;
+            }
+            function drawMonoVideo(c, x, y, w, h, invert = false) {
+                const m = mediaFor(c);
+                if (!m || !m.video || m.video.readyState < 2 || w < 2 || h < 2) return false;
+                const v = syncVideo(c, false);
+                if (!v) return false;
+                const sw = Math.max(24, Math.min(240, Math.floor(Math.abs(w))));
+                const sh = Math.max(18, Math.min(140, Math.floor(Math.abs(h))));
+                monoCanvas.width = sw;
+                monoCanvas.height = sh;
+                try {
+                    monoCtx.drawImage(v, 0, 0, sw, sh);
+                    const img = monoCtx.getImageData(0, 0, sw, sh);
+                    const d = img.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const lum = d[i] * 0.2126 + d[i + 1] * 0.7152 + d[i + 2] * 0.0722;
+                        const bit = lum > 118 ? 255 : 0;
+                        d[i] = d[i + 1] = d[i + 2] = invert ? 255 - bit : bit;
+                        d[i + 3] = 255;
+                    }
+                    monoCtx.putImageData(img, 0, 0);
+                    ctx.drawImage(monoCanvas, x, y, w, h);
+                    return true;
+                } catch (err) {
+                    return false;
+                }
+            }
+            function currentMediaClip() {
+                const selected = selectedClip();
+                if (selected && selected.mediaKey) return selected;
+                return state.clips.find(c => c.mediaKey && c.start <= state.playhead && endOf(c) >= state.playhead) || null;
+            }
+
+            function drawBase(l) {
+                drawLine(0, l.ground, W, l.ground, 4, false);
+                drawText("GROUND: DEPENDENCY STACK BASE / CAMERA ANCHOR", 10, l.ground - 12, 10, "left", false);
+                drawLine(W / 2, l.top, W / 2, l.ground, 2, true);
+                drawText(fmt(state.playhead), W / 2 + 8, l.top + 18, 11, "left", false);
+            }
+            function drawStack() {
+                const l = layout();
+                drawBase(l);
+                drawMediaMonitor(l);
+                drawMagneticTicks(l);
+                for (let t = 0; t < 4; t++) drawStackRow(l, t);
+                drawClips(l);
+                drawSelection(l);
+                drawRollControl(l);
+                drawCommandLedger(l);
+            }
+            function drawMediaMonitor(l) {
+                const c = currentMediaClip();
+                const mw = state.mobile ? Math.min(118, W * 0.34) : 206;
+                const mh = state.mobile ? 66 : 116;
+                const x = W - mw - 10;
+                const y = l.top + 8;
+                rect(x, y, mw, mh, true, false);
+                if (c && c.mediaKey) {
+                    drawMonoVideo(c, x + 4, y + 4, mw - 8, mh - 28, false);
+                    drawText(c.label || c.id, x + 8, y + mh - 13, state.mobile ? 8 : 10, "left", false);
+                    drawText("SRC " + fmt(c.inPoint || 0) + "→" + fmt(c.outPoint || c.duration), x + mw - 8, y + mh - 13, state.mobile ? 7 : 9, "right", false);
+                } else {
+                    drawText("NO VIDEO", x + mw / 2, y + mh / 2, state.mobile ? 10 : 12, "center", false);
+                }
+            }
+            function drawMagneticTicks(l) {
+                const start = snap(xToTime(-40));
+                const end = snap(xToTime(W + 40));
+                for (let t = start; t <= end; t += GRID) {
+                    const x = timeToX(t);
+                    const major = Math.abs(t / 2 - Math.round(t / 2)) < 0.001;
+                    drawLine(x, l.top + 6, x, l.top + (major ? 38 : 22), major ? 2 : 1, false);
+                    drawLine(x, l.ground - 6, x, l.ground - (major ? 38 : 22), major ? 2 : 1, false);
+                    if (major && !state.mobile) drawText(fmt(t), x + 4, l.top + 48, 9, "left", false);
+                }
+                if (state.preview.snap != null) {
+                    const x = timeToX(state.preview.snap);
+                    drawLine(x, l.top, x, l.ground, 4, false);
+                }
+            }
+            function drawStackRow(l, t) {
+                const y = l.stackTop + t * l.rowH;
+                rect(10, y + 5, W - 20, l.rowH - 10, false, false);
+                drawText("TRACK_" + (t + 1), 18, y + 18, 10, "left", false);
+            }
+            function clipBox(c, l) {
+                const x = timeToX(c.start);
+                const x2 = timeToX(endOf(c));
+                const padTop = state.mobile ? 18 : 26;
+                const h = Math.max(state.mobile ? 34 : 24, l.rowH - (state.mobile ? 24 : 38));
+                const y = l.stackTop + c.track * l.rowH + padTop;
+                return { x, y, w: x2 - x, h, x2 };
+            }
+            function drawClips(l) {
+                const visibleStart = xToTime(-100);
+                const visibleEnd = xToTime(W + 100);
+                const list = state.clips.slice().sort((a, b) => a.track - b.track || a.start - b.start);
+                for (const c of list) {
+                    if (endOf(c) < visibleStart || c.start > visibleEnd) continue;
+                    const b = clipBox(c, l);
+                    const selected = c.id === state.selectedClipId;
+                    const isA = affected(c.id);
+                    rect(b.x, b.y, b.w, b.h, true, false);
+                    const drewVideo = c.mediaKey ? drawMonoVideo(c, b.x + 2, b.y + 2, Math.max(1, b.w - 4), Math.max(1, b.h - 4), false) : false;
+                    if (!drewVideo) hatch(b.x, b.y, b.w, b.h, c.track % 2 ? 12 : 9, c.track % 2 === 1);
+                    if (selected) { ctx.save(); ctx.lineWidth = 4; ctx.strokeStyle = "#FFFFFF"; ctx.strokeRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6); ctx.restore(); }
+                    if (isA) {
+                        ctx.save(); ctx.lineWidth = 5; ctx.strokeStyle = "#FFFFFF"; ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8); ctx.restore();
+                    }
+                    drawText(c.mediaKey ? c.label : c.id, b.x + 8, b.y + b.h / 2, state.mobile ? 9 : 11, "left", false);
+                    if (!state.mobile && b.w > 98) drawText(fmt(c.duration) + " SRC " + fmt(c.inPoint || 0) + "→" + fmt(c.outPoint || c.duration), b.x + 8, b.y + b.h / 2 + 14, 9, "left", false);
+                    rendered.push({ type: "clip", clipId: c.id, bounds: state.mobile ? { x: b.x - 8, y: b.y - 10, w: b.w + 16, h: b.h + 20 } : b });
+                }
+            }
+            function drawSelection(l) {
+                const c = selectedClip();
+                if (!c || !state.selection) return;
+                const sx = timeToX(c.start);
+                const ex = timeToX(endOf(c));
+                const tracks = state.selection.affectedClipIds.map(id => clipById(id)).filter(Boolean).map(c => c.track);
+                const minT = tracks.length ? Math.min(...tracks) : c.track;
+                const maxT = tracks.length ? Math.max(...tracks) : c.track;
+                const y1 = l.stackTop + minT * l.rowH + 2;
+                const y2 = l.stackTop + (maxT + 1) * l.rowH - 2;
+                ctx.save(); ctx.setLineDash([10, 8]); ctx.lineWidth = 3; ctx.strokeStyle = "#FFFFFF"; ctx.strokeRect(sx, y1, ex - sx, y2 - y1); ctx.restore();
+                drawLine(sx, y1, sx, y2, 5, false);
+                drawLine(ex, y1, ex, y2, 5, false);
+                rect(sx - 22, y1 - 18, 44, 22, true, true); drawText("S", sx, y1 - 7, 12, "center", true);
+                rect(ex - 22, y1 - 18, 44, 22, true, true); drawText("E", ex, y1 - 7, 12, "center", true);
+                drawText("ROOT LOCK: " + c.id + " / " + state.selection.affectedClipIds.length + " AFFECTED", (sx + ex) / 2, y2 + 15, 11, "center", false);
+                drawLine((sx + ex) / 2, y2, l.rootX, l.rootY, 2, true);
+                rendered.push({ type: "sectionBody", clipId: c.id, bounds: { x: sx, y: y1, w: ex - sx, h: y2 - y1 } });
+                rendered.push({ type: "startRail", clipId: c.id, bounds: { x: sx - (state.mobile ? 34 : 25), y: y1, w: state.mobile ? 68 : 50, h: y2 - y1 } });
+                rendered.push({ type: "endRail", clipId: c.id, bounds: { x: ex - (state.mobile ? 34 : 25), y: y1, w: state.mobile ? 68 : 50, h: y2 - y1 } });
+            }
+            function drawRollControl(l) {
+                const c = selectedClip();
+                if (!c) return;
+                const sx = timeToX(c.start), ex = timeToX(endOf(c));
+                const x = (sx + ex) / 2;
+                const y = Math.max(l.top + 88, l.stackTop - 18);
+                const r = state.mobile ? 44 : 42;
+                ctx.save(); ctx.lineWidth = 3; ctx.strokeStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(x, y, r, 0, TWO_PI); ctx.stroke(); ctx.restore();
+                const delta = state.preview.active && state.preview.type === "ROLL" ? state.preview.rollDelta : 0;
+                const needle = -Math.PI / 2 + delta;
+                for (let i = 0; i < 4; i++) {
+                    const a = -Math.PI / 2 + i * HALF_PI;
+                    const tx = x + Math.cos(a) * (r + 14), ty = y + Math.sin(a) * (r + 14);
+                    rect(tx - 5, ty - 5, 10, 10, true, Math.abs(norm(a - needle)) < 0.001);
+                }
+                drawLine(x, y, x + Math.cos(needle) * (r - 8), y + Math.sin(needle) * (r - 8), 4, false);
+                drawText("ROLL", x, y + r + 28, 10, "center", false);
+                rendered.push({ type: "roll", clipId: c.id, bounds: { x: x - r - (state.mobile ? 36 : 24), y: y - r - (state.mobile ? 36 : 24), w: (r + (state.mobile ? 36 : 24)) * 2, h: (r + (state.mobile ? 36 : 24)) * 2 }, cx: x, cy: y });
+            }
+            function drawCommandLedger(l) {
+                if (state.mobile) return;
+                const x = 12;
+                const y = l.ground + 10;
+                let xx = x;
+                for (const cmd of state.commands.slice(0, 4)) {
+                    const label = cmd.type.replaceAll("_", " ");
+                    const w = Math.min(220, Math.max(92, label.length * 8 + 20));
+                    rect(xx, y, w, 24, true, false);
+                    drawText(label, xx + 8, y + 12, 9, "left", false);
+                    xx += w + 8;
+                }
+            }
+
+            function drawTunnel() {
+                const l = layout();
+                drawBase(l);
+                const cx = W / 2;
+                const cy = l.ground;
+                const R = state.mobile ? Math.min(W, H) * 0.20 : Math.min(W, H) * 0.24;
+                for (let i = 1; i < 9; i++) {
+                    ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(cx, cy, R + i * 32, Math.PI, TWO_PI); ctx.stroke(); ctx.restore();
+                }
+                for (const c of state.clips) {
+                    if (endOf(c) < state.playhead - 1 || c.start > state.playhead + 16) continue;
+                    const z1 = Math.max(0, c.start - state.playhead);
+                    const z2 = Math.max(0, endOf(c) - state.playhead);
+                    const r1 = R + z1 * 38;
+                    const r2 = R + z2 * 38;
+                    const a0 = Math.PI + c.track * (Math.PI / 4) + c.roll;
+                    const a1 = a0;
+                    const a2 = a0 + Math.PI / 5;
+                    const pts = [];
+                    for (let i = 0; i <= 8; i++) { const a = a1 + (a2 - a1) * i / 8; pts.push({ x: cx + Math.cos(a) * r1, y: cy + Math.sin(a) * r1 }); }
+                    for (let i = 8; i >= 0; i--) { const a = a1 + (a2 - a1) * i / 8; pts.push({ x: cx + Math.cos(a) * r2, y: cy + Math.sin(a) * r2 }); }
+                    ctx.save(); ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.lineWidth = c.id === state.selectedClipId ? 5 : 2; ctx.strokeStyle = "#FFFFFF"; ctx.stroke(); if (c.id === state.selectedClipId) { ctx.fillStyle = "#FFFFFF"; ctx.fill(); } ctx.restore();
+                    if (pts[0]) drawText(c.id, pts[0].x, pts[0].y, 9, "center", c.id === state.selectedClipId);
+                    rendered.push({ type: "clip", clipId: c.id, poly: pts });
+                }
+                drawText("CAMERA ANCHORED TO BASE. TUNNEL RISES FROM GROUND.", W / 2, l.top + 30, 11, "center", false);
+            }
+            function drawLedger() {
+                const l = layout();
+                drawBase(l);
+                const left = 14;
+                let y = l.top + 24;
+                drawText("LITERAL PAYLOAD LEDGER", left, y, 14, "left", false); y += 30;
+                drawText("INNER FIRST-ORDER STATE = SECTION LOCK ARC WORKBENCH", left, y, 11, "left", false); y += 20;
+                drawText("OUTER SECOND-ORDER STATE = NULL ARCHITECTURE AWAITING SHARED UNDERSTANDING", left, y, 11, "left", false); y += 28;
+                drawText("COMMAND HISTORY", left, y, 12, "left", false); y += 22;
+                for (const cmd of state.commands.slice(0, 12)) {
+                    drawText(cmd.id + " / " + cmd.type.replaceAll("_", " "), left, y, 10, "left", false);
+                    y += 18;
+                }
+                y += 10;
+                drawText("CLIPS", left, y, 12, "left", false); y += 22;
+                for (const c of state.clips.slice().sort((a, b) => a.track - b.track || a.start - b.start).slice(0, 28)) {
+                    drawText(c.id + " T" + (c.track + 1) + " START " + fmt(c.start) + " DUR " + fmt(c.duration) + " R" + (((deg(c.roll) % 360) + 360) % 360), left, y, 10, "left", c.id === state.selectedClipId);
+                    y += 16;
+                }
+            }
+
+            function hitTest(pt) {
+                for (let i = rendered.length - 1; i >= 0; i--) {
+                    const r = rendered[i];
+                    if (r.bounds) { const b = r.bounds; if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) return r; }
+                    if (r.poly && pointInPoly(pt, r.poly)) return r;
+                }
+                return { type: "empty" };
+            }
+            function pointInPoly(pt, poly) {
+                let inside = false;
+                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+                    const intersect = ((yi > pt.y) !== (yj > pt.y)) && (pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || 0.00001) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
+
+            function pointerDown(e) {
+                if (e.target !== canvas) return;
+                e.preventDefault();
+                canvas.setPointerCapture(e.pointerId);
+                const pt = { x: e.clientX, y: e.clientY };
+                const hit = hitTest(pt);
+                const before = snapshot();
+                if (hit.type === "roll") return beginRoll(e, hit, before);
+                if (hit.type === "startRail") return beginTrim(e, hit, before, "start");
+                if (hit.type === "endRail") return beginTrim(e, hit, before, "end");
+                if (hit.type === "sectionBody") return beginMove(e, hit, before);
+                if (hit.type === "clip") return lockClip(hit.clipId, true);
+                beginScrub(e, before);
+            }
+            function beginScrub(e, before) { state.drag = { tool: "scrub", before, startX: e.clientX, startY: e.clientY, startPlayhead: state.playhead }; state.preview = emptyPreview(); }
+            function beginTrim(e, hit, before, side) {
+                const c = selectedClip(); if (!c) return;
+                state.drag = { tool: "trim", side, before, clipId: c.id, start: c.start, end: endOf(c), inPoint: c.inPoint || 0, outPoint: c.outPoint || c.duration };
+                state.preview = Object.assign(emptyPreview(), { active: true, type: side === "start" ? "TRIM_START" : "TRIM_END", ghostStart: c.start, ghostEnd: endOf(c) });
+            }
+            function beginMove(e, hit, before) {
+                const c = selectedClip(); if (!c) return;
+                state.drag = { tool: "move", before, clipId: c.id, startX: e.clientX, startY: e.clientY, start: c.start, track: c.track };
+                state.preview = Object.assign(emptyPreview(), { active: true, type: "MOVE", ghostStart: c.start, ghostEnd: endOf(c), targetTrack: c.track });
+            }
+            function beginRoll(e, hit, before) {
+                if (!state.selection) return;
+                state.drag = { tool: "roll", before, cx: hit.cx, cy: hit.cy, startAngle: Math.atan2(e.clientY - hit.cy, e.clientX - hit.cx), lastDetent: 0, startRolls: new Map(state.selection.affectedClipIds.map(id => { const c = clipById(id); return [id, c ? c.roll : 0] })) };
+                state.preview = Object.assign(emptyPreview(), { active: true, type: "ROLL", rollDelta: 0 });
+            }
+            function pointerMove(e) {
+                const pt = { x: e.clientX, y: e.clientY };
+                if (!state.drag) { state.hover = hitTest(pt); canvas.style.cursor = cursorFor(state.hover); return; }
+                e.preventDefault();
+                const d = state.drag;
+                if (d.tool === "scrub") {
+                    state.playhead = Math.max(0, d.startPlayhead - (e.clientX - d.startX) / state.pxPerSec + (state.view === "tunnel" ? (e.clientY - d.startY) / 120 : 0));
+                    return;
+                }
+                if (d.tool === "trim") {
+                    const c = clipById(d.clipId); if (!c) return;
+                    const t = snap(xToTime(e.clientX));
+                    if (d.side === "start") {
+                        const ns = clamp(t, 0, d.end - GRID);
+                        const delta = ns - d.start;
+                        c.start = ns;
+                        c.duration = d.end - ns;
+                        c.inPoint = clamp(d.inPoint + delta, 0, Math.max(0, sourceDuration(c) - GRID));
+                        c.outPoint = clamp(c.inPoint + c.duration, c.inPoint + GRID, sourceDuration(c));
+                        state.preview.snap = ns; state.preview.ghostStart = ns; state.preview.ghostEnd = d.end;
+                    } else {
+                        const ne = Math.max(d.start + GRID, t);
+                        c.start = d.start;
+                        c.duration = ne - d.start;
+                        c.inPoint = d.inPoint;
+                        c.outPoint = clamp(d.inPoint + c.duration, c.inPoint + GRID, sourceDuration(c));
+                        state.preview.snap = ne; state.preview.ghostStart = d.start; state.preview.ghostEnd = ne;
+                    }
+                    recomputeSelection(); return;
+                }
+                if (d.tool === "move") {
+                    const c = clipById(d.clipId); if (!c) return;
+                    const dt = snap((e.clientX - d.startX) / state.pxPerSec);
+                    c.start = Math.max(0, d.start + dt); c.track = yToTrack(e.clientY); state.preview.targetTrack = c.track; state.preview.ghostStart = c.start; state.preview.ghostEnd = endOf(c); recomputeSelection(); return;
+                }
+                if (d.tool === "roll") {
+                    const a = Math.atan2(e.clientY - d.cy, e.clientX - d.cx);
+                    const delta = snapQuarter(norm(a - d.startAngle));
+                    state.preview.rollDelta = delta;
+                    const det = Math.round(delta / HALF_PI);
+                    d.lastDetent = det;
+                    for (const [id, base] of d.startRolls.entries()) { const c = clipById(id); if (c) c.roll = base + delta; }
+                }
+            }
+            function pointerUp(e) {
+                if (!state.drag) return;
+                try { canvas.releasePointerCapture(e.pointerId); } catch (err) { }
+                const d = state.drag;
+                const type = d.tool === "scrub" ? null : d.tool === "trim" ? (d.side === "start" ? "TRIM_START" : "TRIM_END") : d.tool === "move" ? "MOVE_SECTION" : d.tool === "roll" ? "ROLL_SECTION" : "EDIT";
+                state.drag = null; state.preview = emptyPreview(); recomputeSelection();
+                if (type) pushCommand(type, d.before, {});
+            }
+            function cursorFor(hit) {
+                if (!hit || hit.type === "empty") return "crosshair";
+                if (hit.type === "startRail" || hit.type === "endRail") return "ew-resize";
+                if (hit.type === "roll") return "alias";
+                if (hit.type === "sectionBody") return "grab";
+                return "pointer";
+            }
+
+            function execute(cmd) {
+                cmd = (cmd || "").toLowerCase();
+                for (const el of commandRoot.querySelectorAll(".word")) el.classList.toggle("on", el.dataset.cmd === cmd);
+                if (cmd === "view") cycleView();
+                if (cmd === "lock") lockNearest();
+                if (cmd === "roll") rollSelected();
+                if (cmd === "cleave") cleave();
+                if (cmd === "play") togglePlay();
+                if (cmd === "undo") undo();
+                if (cmd === "import") fileInput.click();
+                if (cmd === "clear") { state.response = ""; updateResponse(); }
+            }
+            function cycleView() { state.view = state.view === "stack" ? "tunnel" : state.view === "tunnel" ? "ledger" : "stack"; speak("VIEW " + state.view); }
+            function lockNearest() {
+                let best = null, bd = Infinity;
+                for (const c of state.clips) { const mid = (c.start + endOf(c)) / 2; const d = Math.abs(mid - state.playhead); if (d < bd) { bd = d; best = c; } }
+                if (best) lockClip(best.id, true);
+            }
+            function rollSelected() {
+                const c = selectedClip(); if (!c || !state.selection) return;
+                const before = snapshot();
+                for (const id of state.selection.affectedClipIds) { const cc = clipById(id); if (cc) cc.roll += HALF_PI; }
+                pushCommand("ROLL_SECTION", before, { text: true });
+            }
+            function cleave() {
+                const c = selectedClip(); if (!c || c.duration < GRID * 2) return;
+                const before = snapshot();
+                const mid = snap(c.start + c.duration / 2);
+                const durA = mid - c.start;
+                const durB = endOf(c) - mid;
+                const splitSource = (c.inPoint || 0) + durA;
+                const a = Object.assign({}, c, { id: uid(), label: c.id + "A", duration: durA, outPoint: clamp(splitSource, (c.inPoint || 0) + GRID, c.outPoint || c.duration) });
+                const b = Object.assign({}, c, { id: uid(), label: c.id + "B", start: mid, duration: durB, inPoint: clamp(splitSource, c.inPoint || 0, c.outPoint || c.duration), outPoint: c.outPoint || c.duration });
+                state.clips = state.clips.filter(x => x.id !== c.id); state.clips.push(a, b); state.selectedClipId = a.id; recomputeSelection(); pushCommand("CLEAVE_CLIP", before, { source: c.id });
+            }
+            function togglePlay() { state.playing = !state.playing; speak(state.playing ? "PLAY" : "STOP"); }
+            function speak(s) { responseText.textContent = s; }
+            function updateResponse() { responseText.textContent = state.response || "TYPE. CLICK TEXT COMMANDS. DRAG THE ROOTED STACK."; }
+
+            function importFiles(files) {
+                const arr = Array.from(files || []).filter(f => f.type.startsWith("video/"));
+                if (!arr.length) return;
+                const before = snapshot();
+                let insert = state.playhead;
+                let track = selectedClip() ? selectedClip().track : 0;
+                let firstImported = null;
+                arr.forEach((file, i) => {
+                    const key = "MEDIA_" + Date.now() + "_" + i;
+                    const url = URL.createObjectURL(file);
+                    const video = document.createElement("video");
+                    video.src = url;
+                    video.preload = "auto";
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.crossOrigin = "anonymous";
+                    video.load();
+                    mediaStore.set(key, { url, video, fileName: file.name, duration: 4 });
+                    const label = file.name.replace(/\.[^.]+$/, " ").trim().slice(0, 12).toUpperCase() || "VIDEO";
+                    const clip = makeClip((track + i) % 4, insert, 4, label, key);
+                    state.clips.push(clip);
+                    if (!firstImported) firstImported = clip.id;
+                    insert += 4.5;
+                    video.addEventListener("loadedmetadata", () => {
+                        const dur = Number.isFinite(video.duration) ? clamp(snap(video.duration), GRID, 30) : 4;
+                        const c = clipById(clip.id);
+                        const m = mediaStore.get(key);
+                        if (m) m.duration = Number.isFinite(video.duration) ? video.duration : dur;
+                        if (c) { c.duration = dur; c.inPoint = 0; c.outPoint = dur; }
+                        try { video.currentTime = Math.min(0.1, Math.max(0, dur - 0.1)); } catch (err) { }
+                        recomputeSelection();
+                        speak("VIDEO READY: " + label + " / " + fmt(dur));
+                    });
+                    video.addEventListener("error", () => speak("VIDEO LOAD FAILED: " + label));
+                });
+                if (firstImported) lockClip(firstImported, false);
+                pushCommand("IMPORT_MEDIA", before, { count: arr.length });
+            }
+
+            canvas.addEventListener("pointerdown", pointerDown);
+            canvas.addEventListener("pointermove", pointerMove);
+            canvas.addEventListener("pointerup", pointerUp);
+            canvas.addEventListener("pointercancel", pointerUp);
+            canvas.addEventListener("contextmenu", e => e.preventDefault());
+            function commandTap(e) {
+                const el = e.target.closest("[data-cmd]");
+                if (!el) return;
+                e.preventDefault();
+                execute(el.dataset.cmd);
+            }
+            commandRoot.addEventListener("pointerdown", commandTap);
+            commandRoot.addEventListener("click", e => { e.preventDefault(); });
+            fileInput.addEventListener("change", e => importFiles(e.target.files));
+            window.addEventListener("dragover", e => { e.preventDefault(); dropHint.style.display = "block"; });
+            window.addEventListener("dragleave", e => { if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= W || e.clientY >= H) dropHint.style.display = "none"; });
+            window.addEventListener("drop", e => { e.preventDefault(); dropHint.style.display = "none"; importFiles(e.dataTransfer.files); });
+            window.addEventListener("wheel", e => { state.playhead = Math.max(0, state.playhead + e.deltaY * 0.01); }, { passive: true });
+            window.addEventListener("keydown", e => {
+                if (e.key === " ") { e.preventDefault(); execute("play"); return; }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
+                if (e.key === "Backspace") { state.response = state.response.slice(0, -1); updateResponse(); return; }
+                if (e.key === "Enter") { execute(state.response.trim()); return; }
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { state.response += e.key.toUpperCase(); updateResponse(); }
+            });
+
+            resize();
+            init();
+            cancelAnimationFrame(raf);
+            draw();
+        })();
+    </script>
+</body>
+
+</html>

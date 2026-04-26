@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Space-Time Pipeline Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #09090b;
+            --fg: #f8fafc;
+            --dim: #64748b;
+            --hot: #14b8a6;
+            --hot-glow: rgba(20, 184, 166, 0.5);
+
+            /* Semantic Track Colors */
+            --c0: #f43f5e;
+            /* Top: V1 */
+            --c1: #a855f7;
+            /* Right: V2 */
+            --c2: #3b82f6;
+            /* Bottom: V3 */
+            --c3: #eab308;
+            /* Left: V4 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* Ultra-clean subtle grid background */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background-image:
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 10;
+        }
+
+        /* ─── HUD Top ─── */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: linear-gradient(to bottom, rgba(9, 9, 11, 0.9), transparent);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .title-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .title {
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            color: var(--fg);
+        }
+
+        .subtitle {
+            font-weight: 400;
+            font-size: 10px;
+            color: var(--dim);
+            letter-spacing: 0.05em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        button {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            padding: 0 20px;
+            height: 36px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        button:hover,
+        button.on {
+            border-color: var(--hot);
+            color: var(--hot);
+            box-shadow: 0 0 16px var(--hot-glow);
+            background: rgba(20, 184, 166, 0.1);
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        /* ─── HUD Bottom (System Status) ─── */
+        #status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            gap: 48px;
+            padding: 0 32px;
+            background: linear-gradient(to top, rgba(9, 9, 11, 0.95), rgba(9, 9, 11, 0));
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-lbl {
+            font-size: 10px;
+            color: var(--dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .stat-val {
+            font-size: 20px;
+            color: var(--fg);
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-val.highlight {
+            color: var(--hot);
+            text-shadow: 0 0 12px var(--hot-glow);
+        }
+
+        /* ─── Active Pipeline Selector ─── */
+        #track-selector {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+            margin-top: 4px;
+        }
+
+        .trk-btn {
+            width: 48px;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--dim);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.4;
+        }
+
+        .trk-btn:hover {
+            opacity: 0.8;
+            transform: scaleY(1.5);
+        }
+
+        .trk-btn.active {
+            opacity: 1;
+            transform: scaleY(1.5);
+        }
+
+        /* ─── Video Monitor (Always Visible) ─── */
+        #monitor {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            width: 280px;
+            height: 158px;
+            background: #000;
+            border: 2px solid var(--dim);
+            border-radius: 8px;
+            z-index: 60;
+            pointer-events: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.8);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #mon-id {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--dim);
+            z-index: 2;
+            transition: color 0.2s;
+        }
+
+        #mon-tc {
+            font-size: 12px;
+            color: var(--dim);
+            margin-top: 12px;
+            z-index: 2;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .mon-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(255, 255, 255, 0.05) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .mon-vignette {
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+            z-index: 3;
+        }
+
+        /* ─── Center Playhead Line ─── */
+        #playhead-line {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            background: var(--hot);
+            z-index: 20;
+            pointer-events: none;
+            box-shadow: 0 0 12px var(--hot);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        @media(max-width: 760px) {
+            #hud {
+                flex-direction: column;
+                align-items: flex-start;
+                height: auto;
+                padding: 16px;
+                gap: 16px;
+            }
+
+            #status-bar {
+                padding: 16px;
+                gap: 24px;
+                flex-wrap: wrap;
+                height: auto;
+                bottom: 16px;
+            }
+
+            #monitor {
+                top: auto;
+                bottom: 120px;
+                right: 16px;
+                width: 180px;
+                height: 101px;
+            }
+
+            #mon-id {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="c"></canvas>
+    <div id="playhead-line"></div>
+
+    <div id="hud">
+        <div class="title-block">
+            <div class="title">TACTILE SPACE-TIME</div>
+            <div class="subtitle">Contiguous Editor Engine v4</div>
+        </div>
+        <div class="controls">
+            <button id="btnView">View: Tunnel</button>
+            <button id="btnPlay">Play</button>
+            <button id="btnAsmr" class="on">ASMR</button>
+        </div>
+    </div>
+
+    <div id="monitor">
+        <div class="mon-overlay"></div>
+        <div class="mon-vignette"></div>
+        <div id="mon-id">NO SIGNAL</div>
+        <div id="mon-tc">00:00:00:00</div>
+    </div>
+
+    <div id="status-bar">
+        <div class="stat">
+            <div class="stat-lbl">Timecode (Z)</div>
+            <div class="stat-val highlight" id="rZ">00000</div>
+        </div>
+        <div class="stat">
+            <div class="stat-lbl">Active Pipeline</div>
+            <div id="track-selector">
+                <div class="trk-btn" data-t="0" style="background: var(--c0);"></div>
+                <div class="trk-btn" data-t="1" style="background: var(--c1);"></div>
+                <div class="trk-btn" data-t="2" style="background: var(--c2);"></div>
+                <div class="trk-btn" data-t="3" style="background: var(--c3);"></div>
+            </div>
+        </div>
+        <div class="stat">
+            <div class="stat-lbl">Focus Clip</div>
+            <div class="stat-val" id="rSel">—</div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('c');
+            const ctx = canvas.getContext('2d');
+
+            // App State
+            const state = {
+                cameraZ: 0, cameraRoll: 0, targetRoll: 0, speed: 0, isPlaying: false, sound: true,
+                viewLerp: 0, targetViewLerp: 0, // 0 = Tunnel, 1 = Side/Timeline
+                activeTrackIdx: 0, // 0 to 3
+
+                // Interactions
+                hoverPoly: null, hoverType: 'none', // 'body', 'handle', 'none'
+                dragPoly: null, dragType: 'none',
+                dragStartMouse: 0, dragStartDur: 0,
+                scrubStartMouse: 0, scrubStartZ: 0,
+
+                W: 0, H: 0, CX: 0, CY: 0
+            };
+
+            let actx, master, oscTick, gainTick, oscSnap, gainSnap;
+
+            // Configuration
+            const FOV = 800;
+            const FAR_PLANE = 5000;
+            const TUBE_R = 260;
+            const SIDE_SCALE = 1.8; // Pixels per Z unit in side view
+            const COLORS = ['#f43f5e', '#a855f7', '#3b82f6', '#eab308'];
+
+            const tracks = [[], [], [], []];
+            let nextId = 1;
+
+            // ──── INIT DATA ────
+            function initTracks() {
+                for (let i = 0; i < 4; i++) {
+                    let z = 0;
+                    while (z < 8000) {
+                        const dur = Math.floor((15 + Math.random() * 35) * 10);
+                        tracks[i].push({ id: `SC-${String(nextId++).padStart(3, '0')}`, dur: dur, zStart: z });
+                        z += dur;
+                    }
+                }
+            }
+
+            function resize() {
+                state.W = canvas.width = window.innerWidth;
+                state.H = canvas.height = window.innerHeight;
+                state.CX = state.W / 2;
+                state.CY = state.H / 2;
+            }
+            window.addEventListener('resize', resize);
+
+            // ──── MATHEMATICAL PROJECTION (DE-WONKED) ────
+            // This calculates EXACTLY where a 3D point lands on the screen, smoothly interpolating
+            // between a true 3D perspective tunnel and a flat orthographic side-view timeline.
+            function projectPoint(x, y, z) {
+                const relativeZ = z - state.cameraZ;
+
+                // 1. Tunnel Projection (Perspective)
+                // Clamp Z to prevent drawing behind camera and math explosion
+                const tz = Math.max(relativeZ, 10);
+                const ts = FOV / tz;
+                const tunnelX = state.CX + x * ts;
+                const tunnelY = state.CY + y * ts;
+
+                // 2. Side Projection (Orthographic-ish timeline)
+                // In side view, time (Z) becomes the X axis.
+                const sideX = state.CX + (relativeZ - 200) * SIDE_SCALE;
+                const sideY = state.CY + y * 1.5; // Flatten Y slightly
+
+                // 3. Interpolate View
+                return {
+                    x: tunnelX + (sideX - tunnelX) * state.viewLerp,
+                    y: tunnelY + (sideY - tunnelY) * state.viewLerp,
+                    z: relativeZ // keep for sorting
+                };
+            }
+
+            // Generate the 2D polygon path for a specific clip
+            function getClipGeometry(clip, tIdx, isDrag) {
+                const baseAngle = tIdx * (Math.PI / 2) - Math.PI / 2 + state.cameraRoll;
+                const gap = 0.05;
+                const a1 = baseAngle - Math.PI / 4 + gap;
+                const a2 = baseAngle + Math.PI / 4 - gap;
+
+                const R = isDrag ? TUBE_R * 0.9 : TUBE_R; // Pop inward if dragging
+
+                const pts3D = [
+                    { x: R * Math.cos(a1), y: R * Math.sin(a1), z: clip.zStart },
+                    { x: R * Math.cos(a2), y: R * Math.sin(a2), z: clip.zStart },
+                    { x: R * Math.cos(a2), y: R * Math.sin(a2), z: clip.zStart + clip.dur },
+                    { x: R * Math.cos(a1), y: R * Math.sin(a1), z: clip.zStart + clip.dur }
+                ];
+
+                const pts2D = pts3D.map(p => projectPoint(p.x, p.y, p.z));
+
+                // Center point of the BACK face (used for the grab handle)
+                const backCenter3D = { x: R * Math.cos((a1 + a2) / 2), y: R * Math.sin((a1 + a2) / 2), z: clip.zStart + clip.dur };
+                const backCenter2D = projectPoint(backCenter3D.x, backCenter3D.y, backCenter3D.z);
+
+                // Center point of FRONT face (used for text)
+                const frontCenter3D = { x: R * Math.cos((a1 + a2) / 2), y: R * Math.sin((a1 + a2) / 2), z: clip.zStart };
+                const frontCenter2D = projectPoint(frontCenter3D.x, frontCenter3D.y, frontCenter3D.z);
+
+                // Create Path2D for native, flawless hit detection
+                const path = new Path2D();
+                path.moveTo(pts2D[0].x, pts2D[0].y);
+                path.lineTo(pts2D[1].x, pts2D[1].y);
+                path.lineTo(pts2D[2].x, pts2D[2].y);
+                path.lineTo(pts2D[3].x, pts2D[3].y);
+                path.closePath();
+
+                return { pts2D, path, backCenter: backCenter2D, frontCenter: frontCenter2D, zDist: pts2D[0].z };
+            }
+
+            // ──── RENDERING ────
+            function drawClip(geom, clip, tIdx, isHover, isDrag, hoverType) {
+                const color = COLORS[tIdx];
+                const isTarget = tIdx === state.activeTrackIdx;
+
+                // Depth Fading
+                const depthAlpha = Math.max(0, 1 - (geom.zDist / FAR_PLANE));
+                if (depthAlpha <= 0) return;
+
+                ctx.save();
+
+                // Fill
+                ctx.globalAlpha = depthAlpha * (isDrag ? 0.9 : (isHover ? 0.7 : (isTarget ? 0.4 : 0.15)));
+                ctx.fillStyle = color;
+                ctx.fill(geom.path);
+
+                // Outline
+                ctx.lineWidth = isDrag ? 3 : (isHover ? 2 : 1);
+                ctx.strokeStyle = isDrag ? '#ffffff' : color;
+                ctx.globalAlpha = depthAlpha * (isDrag ? 1.0 : (isHover ? 0.9 : (isTarget ? 0.6 : 0.3)));
+                ctx.stroke(geom.path);
+
+                // Draw Resize Handle (Back edge center)
+                if (geom.backCenter.z > 0 && geom.backCenter.z < FAR_PLANE * 0.9) {
+                    const handleActive = (isDrag && state.dragType === 'handle') || (!isDrag && isHover && hoverType === 'handle');
+
+                    // Calculate dynamic radius based on distance, but keep it usable
+                    const baseR = 8;
+                    const hr = Math.max(3, baseR * (1 - geom.backCenter.z / FAR_PLANE));
+
+                    ctx.beginPath();
+                    ctx.arc(geom.backCenter.x, geom.backCenter.y, hr + (handleActive ? 4 : 0), 0, Math.PI * 2);
+                    ctx.fillStyle = handleActive ? '#ffffff' : color;
+                    ctx.globalAlpha = depthAlpha * (handleActive ? 1 : 0.8);
+                    ctx.fill();
+
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                }
+
+                // Draw Text (Front edge center)
+                if (geom.frontCenter.z > 0 && geom.frontCenter.z < FAR_PLANE * 0.8 && !isDrag) {
+                    ctx.globalAlpha = depthAlpha * (isHover ? 1.0 : 0.7);
+                    ctx.fillStyle = '#ffffff';
+
+                    const fontSize = Math.max(8, 24 * (1 - geom.frontCenter.z / FAR_PLANE));
+                    ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+                    // Calculate text rotation based on the front edge line
+                    const dx = geom.pts2D[1].x - geom.pts2D[0].x;
+                    const dy = geom.pts2D[1].y - geom.pts2D[0].y;
+                    let rot = Math.atan2(dy, dx);
+                    if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
+
+                    ctx.save();
+                    ctx.translate(geom.frontCenter.x, geom.frontCenter.y);
+                    ctx.rotate(rot);
+                    ctx.fillText(clip.id, 0, 0);
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
+            // ──── AUDIO ────
+            function setupAudio() {
+                if (actx) return;
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                master = actx.createGain(); master.gain.value = 0.3;
+                master.connect(actx.destination);
+
+                const setupOsc = (type) => {
+                    const gain = actx.createGain(); gain.gain.value = 0;
+                    const osc = actx.createOscillator(); osc.type = type;
+                    osc.connect(gain).connect(master); osc.start();
+                    return { osc, gain };
+                };
+
+                const t = setupOsc('triangle'); oscTick = t.osc; gainTick = t.gain;
+                const s = setupOsc('square'); oscSnap = s.osc; gainSnap = s.gain;
+            }
+
+            function playTick() {
+                if (!actx || !state.sound) return;
+                const now = actx.currentTime;
+                oscTick.frequency.setValueAtTime(2000, now);
+                oscTick.frequency.exponentialRampToValueAtTime(500, now + 0.02);
+                gainTick.gain.cancelScheduledValues(now);
+                gainTick.gain.setValueAtTime(0.15, now);
+                gainTick.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            }
+
+            function playSnap() {
+                if (!actx || !state.sound) return;
+                const now = actx.currentTime;
+                oscSnap.frequency.setValueAtTime(300, now);
+                oscSnap.frequency.exponentialRampToValueAtTime(50, now + 0.05);
+                gainSnap.gain.cancelScheduledValues(now);
+                gainSnap.gain.setValueAtTime(0.3, now);
+                gainSnap.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            }
+
+            // ──── INTERACTION ENGINE (De-Wonked) ────
+            let renderedPolys = []; // To store hit paths
+
+            function getHit(clientX, clientY) {
+                // Check backwards so elements drawn last (closest) are hit first
+                for (let i = renderedPolys.length - 1; i >= 0; i--) {
+                    const poly = renderedPolys[i];
+
+                    // 1. Check Handle (45px forgiving radius)
+                    if (poly.geom.backCenter.z > 0) {
+                        const dist = Math.hypot(clientX - poly.geom.backCenter.x, clientY - poly.geom.backCenter.y);
+                        if (dist < 45) return { poly, type: 'handle' };
+                    }
+
+                    // 2. Check Body using exact Path2D intersection
+                    if (ctx.isPointInPath(poly.geom.path, clientX, clientY)) {
+                        return { poly, type: 'body' };
+                    }
+                }
+                return null;
+            }
+
+            function handlePointerDown(e) {
+                if (e.target.closest('#hud') || e.target.closest('#status-bar')) return;
+
+                const hit = getHit(e.clientX, e.clientY);
+
+                if (hit) {
+                    // Setup Drag state
+                    state.dragClip = hit.poly.clip;
+                    state.dragType = hit.type;
+                    state.dragStartMouse = state.viewLerp > 0.5 ? e.clientX : e.clientY; // Use X in side view, Y in tunnel
+                    state.dragStartDur = hit.poly.clip.dur;
+
+                    // Select the track
+                    state.targetRoll = (2 - hit.poly.tIdx) * (Math.PI / 2);
+
+                    playSnap();
+                    canvas.setPointerCapture(e.pointerId);
+                    state.speed = 0;
+                    return;
+                }
+
+                // If no hit, init Scrubbing
+                state.scrubbing = true;
+                state.scrubStartMouse = state.viewLerp > 0.5 ? e.clientX : e.clientY;
+                state.scrubStartZ = state.cameraZ;
+                canvas.setPointerCapture(e.pointerId);
+                state.speed = 0;
+            }
+
+            function handlePointerMove(e) {
+                // 1. Handle Scrubbing
+                if (state.scrubbing) {
+                    const currentMouse = state.viewLerp > 0.5 ? e.clientX : e.clientY;
+                    const delta = currentMouse - state.scrubStartMouse;
+
+                    // Decoupled linear math: 1 pixel = 4 units of time
+                    state.cameraZ = state.scrubStartZ - delta * 4;
+                    state.speed = -delta * 0.2; // Momentum
+
+                    if (Math.abs(delta) > 5) playTick();
+                    return;
+                }
+
+                // 2. Handle Dragging Clip
+                if (state.dragClip) {
+                    const currentMouse = state.viewLerp > 0.5 ? e.clientX : e.clientY;
+                    const delta = currentMouse - state.dragStartMouse;
+
+                    if (state.dragType === 'handle') {
+                        // Resize logic (Decoupled linear math)
+                        // Stretching away from start expands time. 1px = 2 units.
+                        const stretchDirection = state.viewLerp > 0.5 ? 1 : -1;
+                        const newDur = Math.max(10, state.dragStartDur + (delta * stretchDirection * 2));
+                        const snappedDur = Math.round(newDur / 10) * 10; // Snap to 10s
+
+                        if (snappedDur !== state.dragClip.dur) {
+                            state.dragClip.dur = snappedDur;
+                            recalculateZOffsets();
+                            playTick();
+                        }
+                    } else {
+                        // Move track logic
+                        // Only allow track moving in Tunnel View for clarity
+                        if (state.viewLerp < 0.5) {
+                            const dx = e.clientX - state.CX;
+                            const dy = e.clientY - state.CY;
+                            let angle = Math.atan2(dy, dx) - state.cameraRoll;
+                            while (angle < -Math.PI) angle += Math.PI * 2;
+                            while (angle >= Math.PI) angle -= Math.PI * 2;
+
+                            let newIdx = 0;
+                            if (angle >= -Math.PI / 4 && angle < Math.PI / 4) newIdx = 1;
+                            else if (angle >= Math.PI / 4 && angle < 3 * Math.PI / 4) newIdx = 2;
+                            else if (angle >= -3 * Math.PI / 4 && angle < -Math.PI / 4) newIdx = 0;
+                            else newIdx = 3;
+
+                            // Find current track
+                            let oldIdx = -1;
+                            for (let i = 0; i < 4; i++) if (tracks[i].includes(state.dragClip)) oldIdx = i;
+
+                            if (oldIdx !== -1 && oldIdx !== newIdx) {
+                                tracks[oldIdx] = tracks[oldIdx].filter(c => c !== state.dragClip);
+                                // Push to end of new track for simplicity
+                                tracks[newIdx].push(state.dragClip);
+                                recalculateZOffsets();
+                                state.targetRoll = (2 - newIdx) * (Math.PI / 2);
+                                playSnap();
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // 3. Handle Hover State
+                const hit = getHit(e.clientX, e.clientY);
+                if (hit) {
+                    state.hoverPoly = hit.poly;
+                    state.hoverType = hit.type;
+                    canvas.style.cursor = hit.type === 'handle' ? 'ew-resize' : 'grab';
+
+                    document.getElementById('rSel').textContent = hit.poly.clip.id;
+                    document.getElementById('rSel').style.color = COLORS[hit.poly.tIdx];
+                } else {
+                    state.hoverPoly = null;
+                    state.hoverType = 'none';
+                    canvas.style.cursor = 'crosshair';
+                    document.getElementById('rSel').textContent = '—';
+                    document.getElementById('rSel').style.color = 'var(--fg)';
+                }
+            }
+
+            function handlePointerUp(e) {
+                if (state.dragClip) playSnap();
+                state.scrubbing = false;
+                state.dragClip = null;
+                if (!state.isPlaying) state.speed *= 0.5; // Natural friction
+                try { canvas.releasePointerCapture(e.pointerId); } catch (e) { }
+            }
+
+            canvas.addEventListener('pointerdown', handlePointerDown);
+            canvas.addEventListener('pointermove', handlePointerMove);
+            canvas.addEventListener('pointerup', handlePointerUp);
+            canvas.addEventListener('pointercancel', handlePointerUp);
+
+            window.addEventListener('wheel', (e) => {
+                state.cameraZ += e.deltaY * 2;
+                state.speed = e.deltaY * 0.1;
+            });
+
+            // ──── LOGIC & UPDATES ────
+            function recalculateZOffsets() {
+                for (let i = 0; i < 4; i++) {
+                    let runZ = 0;
+                    tracks[i].forEach(clip => {
+                        clip.zStart = runZ;
+                        runZ += clip.dur;
+                    });
+                }
+            }
+
+            function infiniteScroll() {
+                for (let i = 0; i < 4; i++) {
+                    if (tracks[i].length === 0) continue;
+
+                    const first = tracks[i][0];
+                    if (first.zStart + first.dur < state.cameraZ - 500) {
+                        tracks[i].push(tracks[i].shift());
+                        recalculateZOffsets();
+                    }
+
+                    const last = tracks[i][tracks[i].length - 1];
+                    if (state.cameraZ < first.zStart) {
+                        tracks[i].unshift(tracks[i].pop());
+                        recalculateZOffsets();
+                    }
+                }
+            }
+
+            // ──── MAIN LOOP ────
+            function draw() {
+                // Clear screen
+                ctx.clearRect(0, 0, state.W, state.H);
+
+                // Smooth Interpolations
+                state.viewLerp += (state.targetViewLerp - state.viewLerp) * 0.15;
+                state.cameraRoll += (state.targetRoll - state.cameraRoll) * 0.15;
+
+                // Movement
+                if (state.isPlaying && !state.scrubbing && !state.dragClip) {
+                    state.speed += (15 - state.speed) * 0.05;
+                } else if (!state.scrubbing && !state.dragClip) {
+                    state.speed *= 0.85;
+                }
+                state.cameraZ += state.speed;
+                infiniteScroll();
+
+                // UI Updates
+                document.getElementById('rZ').textContent = Math.floor(state.cameraZ).toString().padStart(5, '0');
+
+                // Determine active track based on roll
+                const rawIdx = Math.round(2 - state.cameraRoll / (Math.PI / 2));
+                state.activeTrackIdx = ((rawIdx % 4) + 4) % 4;
+
+                // Update Track Selectors
+                document.querySelectorAll('.trk-btn').forEach((btn, i) => {
+                    btn.classList.toggle('active', i === state.activeTrackIdx);
+                });
+
+                // Update Monitor (Always show clip at playhead on active track)
+                const activeTrack = tracks[state.activeTrackIdx];
+                let playingClip = activeTrack.find(c => c.zStart <= state.cameraZ && (c.zStart + c.dur) > state.cameraZ);
+
+                const mon = document.getElementById('monitor');
+                const monId = document.getElementById('mon-id');
+                const monTc = document.getElementById('mon-tc');
+
+                if (playingClip) {
+                    mon.style.borderColor = COLORS[state.activeTrackIdx];
+                    mon.style.boxShadow = `0 16px 32px ${COLORS[state.activeTrackIdx]}40`;
+                    monId.textContent = playingClip.id;
+                    monId.style.color = COLORS[state.activeTrackIdx];
+                    const elapsed = Math.floor(state.cameraZ - playingClip.zStart);
+                    monTc.textContent = `${elapsed} / ${playingClip.dur}`;
+                    monTc.style.color = COLORS[state.activeTrackIdx];
+                } else {
+                    mon.style.borderColor = 'var(--dim)';
+                    mon.style.boxShadow = `0 16px 32px rgba(0,0,0,0.8)`;
+                    monId.textContent = 'NO SIGNAL';
+                    monId.style.color = 'var(--dim)';
+                    monTc.textContent = '0 / 0';
+                    monTc.style.color = 'var(--dim)';
+                }
+
+                // Toggle Playhead visibility in Side View
+                document.getElementById('playhead-line').style.opacity = state.viewLerp > 0.8 ? 1 : 0;
+
+                // Build Render Data
+                const renderQueue = [];
+                for (let tIdx = 0; tIdx < 4; tIdx++) {
+                    tracks[tIdx].forEach((clip, cIdx) => {
+                        // Frustum cull
+                        if (clip.zStart + clip.dur < state.cameraZ || clip.zStart > state.cameraZ + FAR_PLANE) return;
+
+                        const isDrag = state.dragClip === clip;
+                        const isHover = state.hoverPoly && state.hoverPoly.clip === clip;
+
+                        const geom = getClipGeometry(clip, tIdx, isDrag);
+                        if (geom) {
+                            renderQueue.push({ geom, clip, tIdx, cIdx, isHover, isDrag });
+                        }
+                    });
+                }
+
+                // Sort: Painter's Algorithm (Furthest first)
+                renderQueue.sort((a, b) => b.geom.zDist - a.geom.zDist);
+
+                renderedPolys = []; // Clear hit buffer
+                let dragRenderCall = null;
+
+                renderQueue.forEach(item => {
+                    if (item.isDrag) dragRenderCall = item;
+                    else {
+                        drawClip(item.geom, item.clip, item.tIdx, item.isHover, false, state.hoverType);
+                        renderedPolys.push(item); // Store for hit testing (back to front)
+                    }
+                });
+
+                if (dragRenderCall) {
+                    drawClip(dragRenderCall.geom, dragRenderCall.clip, dragRenderCall.tIdx, dragRenderCall.isHover, true, state.dragType);
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            // ──── UI BUTTONS ────
+            document.getElementById('btnPlay').addEventListener('click', (e) => {
+                state.isPlaying = !state.isPlaying;
+                e.target.classList.toggle('on', state.isPlaying);
+                e.target.textContent = state.isPlaying ? 'Pause' : 'Play';
+            });
+
+            document.getElementById('btnAsmr').addEventListener('click', async (e) => {
+                setupAudio(); if (actx.state === 'suspended') await actx.resume();
+                state.sound = !state.sound;
+                e.target.classList.toggle('on', state.sound);
+            });
+
+            document.getElementById('btnView').addEventListener('click', (e) => {
+                state.targetViewLerp = state.targetViewLerp > 0.5 ? 0 : 1;
+                e.target.textContent = state.targetViewLerp > 0.5 ? 'View: Side' : 'View: Tunnel';
+                if (state.sound) playSnap();
+            });
+
+            document.querySelectorAll('.trk-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(e.target.getAttribute('data-t'));
+                    // Calculate rotation to put this track front-and-center (Bottom position)
+                    let target = (2 - idx) * (Math.PI / 2);
+                    // Normalize rotation to prevent massive spins
+                    while (target > state.targetRoll + Math.PI) target -= Math.PI * 2;
+                    while (target < state.targetRoll - Math.PI) target += Math.PI * 2;
+                    state.targetRoll = target;
+                    if (state.sound) playSnap();
+                });
+            });
+
+            document.body.addEventListener('pointerdown', () => {
+                if (!actx) { setupAudio(); actx.resume(); state.sound = true; }
+            }, { once: true });
+
+            // Init
+            resize();
+            initTracks();
+            recalculateZOffsets();
+            requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

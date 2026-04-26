@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Sensorama / VR Timeline Geometry</title>
+    <style>
+        :root {
+            /* Media Archaeology Terminal Palette */
+            --bg: #EBEBE6;
+            --fg: #1A1A1A;
+            --dim: rgba(26, 26, 26, .42);
+            --faint: rgba(26, 26, 26, .14);
+            --ghost: rgba(26, 26, 26, .07);
+            --paper: rgba(247, 245, 239, .94);
+
+            /* Media-Ecological Trajectory Colors */
+            --c3: rgba(245, 203, 92, 0.78);  /* Cinema expansion */
+            --c2: rgba(242, 166, 90, 0.86);  /* Simulation training */
+            --c1: rgba(235, 101, 52, 0.90);  /* Sensorama / total sensation */
+            --c0: rgba(46, 125, 50, 0.95);   /* VR/XR headset closure */
+
+            --hot: #D50000;
+            --grid: rgba(26, 26, 26, 0.05);
+            --teal: #0E6B66;
+            --amber: #E3A21A;
+            --red: #B23A2E;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        body { touch-action: none; }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: var(--bg);
+            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        header,
+        footer {
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 16px max(20px, env(safe-area-inset-left)) 14px max(20px, env(safe-area-inset-right));
+            pointer-events: none;
+            border-bottom: 1px solid var(--faint);
+            background: var(--paper);
+            backdrop-filter: blur(8px);
+        }
+
+        footer {
+            border-bottom: none;
+            border-top: 1px solid var(--faint);
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+        }
+
+        header {
+            font-size: 12px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        header strong { font-weight: 800; color: var(--hot); }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            pointer-events: auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .group label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        input[type="range"] {
+            width: 140px;
+            accent-color: var(--hot);
+            cursor: ew-resize;
+        }
+
+        button {
+            background: transparent;
+            color: var(--fg);
+            border: 1px solid var(--faint);
+            min-height: 32px;
+            padding: 0 16px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            pointer-events: auto;
+        }
+
+        button:hover { background: rgba(26, 26, 26, 0.05); }
+
+        button[data-on="true"], button:active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        main {
+            position: relative;
+            min-height: 0;
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        path.slice {
+            transition: stroke-width 0.1s;
+            cursor: crosshair;
+            pointer-events: all;
+            stroke: var(--bg);
+            stroke-width: 0.8px;
+            mix-blend-mode: multiply;
+        }
+
+        path.slice:hover,
+        path.slice.active {
+            stroke: var(--hot) !important;
+            stroke-width: 2.5px !important;
+            z-index: 10;
+            mix-blend-mode: normal;
+        }
+
+        #hud {
+            position: absolute;
+            pointer-events: none;
+            z-index: 20;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(4px);
+            color: #FFF;
+            border: 1px solid var(--fg);
+            padding: 14px 16px;
+            width: 320px;
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.2);
+            transform: translate(15px, 15px);
+        }
+
+        .hud-id {
+            font-weight: 800;
+            color: var(--hot);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-group {
+            font-weight: 700;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
+            padding-bottom: 6px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-text {
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 400;
+            color: #EBEBE6;
+        }
+
+        .hidden { display: none !important; }
+
+        #inspector {
+            position: absolute;
+            right: 24px;
+            top: 24px;
+            width: 420px;
+            background: var(--bg);
+            border: 1px solid var(--fg);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.15);
+            pointer-events: auto;
+        }
+
+        .ins-header {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            letter-spacing: 0.05em;
+        }
+
+        .ins-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: calc(100vh - 210px);
+            overflow: auto;
+        }
+
+        .ins-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--fg);
+            opacity: 0.75;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: 0.05em;
+        }
+
+        .ins-value {
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        textarea.ins-edit {
+            width: 100%;
+            height: 92px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--fg);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 13px;
+            padding: 10px;
+            resize: none;
+            outline: none;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        textarea.ins-edit:focus {
+            border-color: var(--hot);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        textarea.ins-edit:disabled {
+            opacity: 0.68;
+            cursor: not-allowed;
+            border-style: dashed;
+            color: var(--hot);
+            font-weight: 800;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .mini-card {
+            border: 1px solid var(--fg);
+            background: rgba(255,255,255,.45);
+            padding: 8px;
+            min-height: 70px;
+        }
+
+        .mini-card .kicker {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-weight: 800;
+            color: var(--hot);
+            margin-bottom: 5px;
+        }
+
+        .mini-card b {
+            display: block;
+            font-size: 11px;
+            line-height: 1.15;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .mini-card span {
+            display: block;
+            font-size: 10px;
+            line-height: 1.25;
+            opacity: .72;
+        }
+
+        .ins-status {
+            font-size: 11px;
+            color: var(--hot);
+            font-weight: 800;
+            text-transform: uppercase;
+            line-height: 1.5;
+            border-top: 1px dashed var(--faint);
+            padding-top: 12px;
+        }
+
+        .formula {
+            font-weight: 800;
+            font-size: 11px;
+        }
+
+        .readout-block {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .readout-data {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--dim);
+            text-transform: uppercase;
+        }
+
+        .readout-data b {
+            font-size: 13px;
+            color: var(--fg);
+        }
+
+        .readout-data.lock b { color: var(--hot); }
+
+        #toast {
+            position: absolute;
+            left: 50%;
+            bottom: 92px;
+            transform: translateX(-50%);
+            background: var(--fg);
+            color: var(--bg);
+            padding: 10px 14px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            z-index: 30;
+            box-shadow: 4px 4px 0 rgba(0,0,0,.2);
+        }
+
+        @media(max-width:980px) {
+            header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            footer { flex-direction: column; align-items: flex-start; gap: 16px; }
+            #inspector {
+                top: auto;
+                bottom: 180px;
+                right: 12px;
+                left: 12px;
+                width: auto;
+            }
+            .ins-body { max-height: 45vh; }
+            #hud { display: none !important; }
+            .formula { display: none; }
+            .controls { flex-wrap: wrap; }
+            input[type="range"] { width: 110px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <div><strong>Sensorama / VR Media Archaeology Tool</strong> / Topological Unfolding of Multisensory Immersion</div>
+            <div class="right readout-block">
+                <div class="readout-data">Base Density <b id="rBase">16</b></div>
+                <div class="readout-data">Temporal Vector <b id="rMorph">0.00</b></div>
+                <div class="readout-data lock">State <b id="rState">Multisensory Field</b></div>
+                <button id="copyBtn">Copy Record</button>
+                <button id="reset">Reset Data</button>
+            </div>
+        </header>
+
+        <main id="field">
+            <svg id="svg" viewBox="0 0 1440 860" preserveAspectRatio="xMidYMid meet"></svg>
+
+            <div id="hud" class="hidden">
+                <div class="hud-id"><span id="hud-track-name">--</span> <span id="hud-id-num">--</span></div>
+                <div class="hud-group" id="hud-group">--</div>
+                <div class="hud-text" id="hud-text">--</div>
+            </div>
+
+            <div id="inspector" class="hidden">
+                <div class="ins-header">
+                    <span id="ins-title">Media-Ecological Record</span>
+                    <span id="ins-id">--</span>
+                </div>
+                <div class="ins-body">
+                    <div>
+                        <div class="ins-label">Relevant Social / Technical Group</div>
+                        <div class="ins-value" id="ins-group">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Trajectory Vector</div>
+                        <div class="ins-value" id="ins-track">--</div>
+                    </div>
+                    <div>
+                        <div class="ins-label">Artifact Variant / Historical Node</div>
+                        <textarea class="ins-edit" id="ins-text" placeholder="Transcribe historical vision..."></textarea>
+                    </div>
+                    <div>
+                        <div class="ins-label">Four-Card Game Synthesis</div>
+                        <div class="card-grid" id="ins-cards"></div>
+                    </div>
+                    <div class="ins-status" id="ins-status"></div>
+                </div>
+            </div>
+
+            <div id="toast" class="hidden">Copied</div>
+        </main>
+
+        <footer>
+            <div class="controls">
+                <div class="group">
+                    <label for="spread">Temporal Vector / Closure</label>
+                    <input id="spread" type="range" min="0" max="1000" value="0" />
+                </div>
+                <div class="group">
+                    <label for="density">Grid Density / Archive Depth</label>
+                    <input id="density" type="range" min="8" max="32" value="16" />
+                </div>
+                <button id="loopBtn" style="margin-left:12px;">Auto-Scrub</button>
+                <button id="soundBtn">Haptic Audio</button>
+            </div>
+            <div class="formula">1830s PANORAMA / STEREOSCOPE → 1962 SENSORAMA DIVERGENCE → 2020s XR HEADSET CLOSURE</div>
+        </footer>
+    </div>
+
+    <script>
+        (() => {
+            const svg = document.getElementById('svg');
+            const field = document.getElementById('field');
+            const spreadEl = document.getElementById('spread');
+            const densityEl = document.getElementById('density');
+            const loopBtn = document.getElementById('loopBtn');
+            const soundBtn = document.getElementById('soundBtn');
+            const resetBtn = document.getElementById('reset');
+            const copyBtn = document.getElementById('copyBtn');
+            const toast = document.getElementById('toast');
+
+            const rBase = document.getElementById('rBase');
+            const rMorph = document.getElementById('rMorph');
+            const rState = document.getElementById('rState');
+
+            const hud = document.getElementById('hud');
+            const hudIdNum = document.getElementById('hud-id-num');
+            const hudTrackName = document.getElementById('hud-track-name');
+            const hudGroup = document.getElementById('hud-group');
+            const hudText = document.getElementById('hud-text');
+
+            const inspector = document.getElementById('inspector');
+            const insId = document.getElementById('ins-id');
+            const insGroup = document.getElementById('ins-group');
+            const insTrack = document.getElementById('ins-track');
+            const insText = document.getElementById('ins-text');
+            const insCards = document.getElementById('ins-cards');
+            const insStatus = document.getElementById('ins-status');
+
+            const NS = 'http://www.w3.org/2000/svg';
+
+            let ctx, drone, over, pulse, filter, master, noiseBuffer;
+            let lastMorphScrub = 0;
+            let lastN = -1;
+
+            const R = 75;
+            const CIRCLE_X = 230;
+            const FRAME_X_END = 1055;
+
+            const PRESSURES = [
+                ['Optical Supremacy', 'Cinema and computing keep treating the eye as the master sense.'],
+                ['Television Compression', 'Domestic TV shrinks spectacle into a small, passive living-room rectangle.'],
+                ['Disembodied Spectatorship', 'The viewer watches worlds without physically entering their conditions.'],
+                ['Flat-Screen Fatigue', 'Screens multiply, but bodily consequence disappears.'],
+                ['Failed Presence', 'Media promises being there but often delivers only representation.'],
+                ['Novelty Arms Race', 'Cinema fights for attention with bigger formats, gimmicks, and sensory escalation.'],
+                ['Sensory Amputation', 'Smell, wind, vibration, temperature, and balance are cut out of mainstream media.'],
+                ['Urban Speed Anxiety', 'Modern mobility creates bodily rhythms media struggles to capture.'],
+                ['Training Without Risk', 'Dangerous skills must be rehearsed safely before real-world exposure.'],
+                ['Passive Consumer Body', 'The spectator is seated and monetized but rarely activated.'],
+                ['Coin-Op Attention Economy', 'Public machines need compact, repeatable, high-intensity experiences.'],
+                ['Format Obsolescence', 'Ambitious immersive formats become fragile, expensive, and unsupported.'],
+                ['Mechanical Complexity', 'True multisensory immersion requires synchronization across many devices.'],
+                ['Content Scarcity', 'New immersive machines fail when too few experiences are made for them.'],
+                ['Simulator Sickness Gap', 'The body rebels when visual motion and physical feedback disagree.'],
+                ['Immersion Without Memory', 'Spectacle impresses briefly but does not become durable embodied memory.']
+            ];
+
+            const FUNCTIONS = [
+                ['Somatic Belief', 'The body believes when multiple senses corroborate the scene.'],
+                ['Peripheral Presence', 'Immersion begins at the edges of vision, not only the center.'],
+                ['Sensory Corroboration', 'Wind, smell, vibration, and sound confirm image consequence.'],
+                ['Safe Risk Rehearsal', 'Dangerous situations become trainable without actual loss.'],
+                ['Embodied Spectatorship', 'The viewer becomes a rider, passenger, trainee, witness, or operator.'],
+                ['Atmospheric Memory', 'Places are remembered as pressure, scent, rhythm, speed, and texture.'],
+                ['Mechanical Trust', 'The user trusts a world because the machine physically works on them.'],
+                ['Situated Learning', 'Knowledge is learned through position, motion, timing, and orientation.'],
+                ['Sensory Literacy', 'Users learn to read media through more than visual symbols.'],
+                ['Kinesthetic Narrative', 'Story becomes movement through space, not just a sequence of images.'],
+                ['Environmental Attention', 'Media restores attention to air, surface, terrain, pressure, and weather.'],
+                ['Operational Imagination', 'Simulation lets people imagine systems by inhabiting their conditions.'],
+                ['Public Demonstration', 'A prototype becomes a cultural argument people can physically test.'],
+                ['Format Consciousness', 'Users notice how media formats select some senses and exclude others.'],
+                ['Interface Grounding', 'Controls, seats, vents, lenses, and motors make abstraction tangible.'],
+                ['Multisensory Archive', 'History becomes reconstructable as atmosphere, motion, scent, sound, and orientation.']
+            ];
+
+            const FORMS = [
+                ['Sensorama Archive Booth', 'A museum kiosk that replays historical places through image, sound, wind, scent, and vibration.'],
+                ['Embodied Media Timeline', 'A walk-in installation linking Cinerama, Smell-O-Vision, Link Trainer, Sensorama, HMDs, VR, and XR.'],
+                ['Urban Ride Simulator', 'A seated simulator for reconstructing city movement through motorcycle, bus, train, or sidewalk motion.'],
+                ['Scented Documentary Station', 'A nonfiction booth where scent is treated as evidence.'],
+                ['Mechanical VR Cabinet', 'A deliberately non-headset immersive machine with motors, vents, knobs, pedals, and seat feedback.'],
+                ['Multisensory Classroom Pod', 'A teaching station for history, geography, ecology, and infrastructure through bodily simulation.'],
+                ['Simulator Literacy Lab', 'A workshop comparing film, cockpit, arcade, headset, and web forms of presence.'],
+                ['Climate Atmosphere Chamber', 'A sensory climate simulator using heat, humidity, wind, vibration, sound, and smell.'],
+                ['Coin-Op Future Theater', 'A public arcade cabinet for short speculative worlds, one body at a time.'],
+                ['Haptic Film Player', 'A video player mapping scenes to vibration, airflow, scent cards, lighting, and seat motion.'],
+                ['Total Cinema Toolkit', 'A maker kit: fan, transducer, scent strip, stereo field, foot pedal, and timeline sequencer.'],
+                ['Media Archaeology Cabinet', 'A working exhibit showing obsolete immersive technologies as living design patterns.'],
+                ['Training Without Danger Rig', 'A simulator for drills, machine operation, mobility training, or field preparation.'],
+                ['Peripheral Vision Theater', 'A curved-screen theater focused on edge vision and bodily orientation.'],
+                ['Embodied Oral History Booth', 'A station where memories are recorded as routes, smells, sounds, surfaces, weather, and posture.'],
+                ['Sensorama Single-File Prototype', 'A browser prototype sequencing video, audio, fan cues, vibration cues, scent prompts, and logs.']
+            ];
+
+            const TRACKS = [
+                {
+                    name: 'POSSIBLE',
+                    group: 'SHOWMEN / THEATER OWNERS',
+                    projection: 'Peripheral Cinema, 3D, Widescreen, Travel Spectacle',
+                    color: 'var(--c3)',
+                    y: 160,
+                    mult: 0.70,
+                    bases: [
+                        ['Victorian Panorama', 'Mass audience physically rotates inside a painted world; immersion is architectural before it is digital.'],
+                        ['Stereoscope', 'Binocular disparity becomes a domestic technology for handheld three-dimensional seeing.'],
+                        ['Kinetoscope Peepshow', 'Cinema becomes a private leaning-into-machine encounter rather than a public projection.'],
+                        ['Hale’s Tours', 'Railway travel is simulated by seating viewers inside a moving-car illusion.'],
+                        ['Cinerama', 'A curved multi-projector screen uses peripheral vision to fight television compression.'],
+                        ['CinemaScope', 'Widescreen spectacle expands the rectangle as a theatrical counterattack against TV.'],
+                        ['1950s 3D Cinema', 'Depth is sold as the next sensory escalation in the novelty arms race.'],
+                        ['IMAX 15/70', 'Massive film gauge turns image projection into physical mass and architectural scale.'],
+                        ['Omnimax Dome', 'The screen bends over the body, making vision environmental.'],
+                        ['Travelogue Film', 'Mediated travel sells places as cinematic substitutes for physical arrival.'],
+                        ['Scented Lobby Promotion', 'Atmosphere leaks out of the screen into the theater architecture.'],
+                        ['Peripheral Vision Theater', 'Edge vision becomes a design target rather than a neglected remainder.']
+                    ]
+                },
+                {
+                    name: 'PLAUSIBLE',
+                    group: 'MILITARY / INDUSTRIAL TRAINERS',
+                    projection: 'Cockpit Simulation, Safe Risk, Instrumented Feedback',
+                    color: 'var(--c2)',
+                    y: 340,
+                    mult: 0.90,
+                    bases: [
+                        ['Link Trainer', 'A mechanical cockpit lets pilots rehearse dangerous flight conditions safely.'],
+                        ['Cockpit Interface', 'The body is seated inside instruments, gauges, pedals, and responsive controls.'],
+                        ['Vehicle Motion Simulator', 'Road, aircraft, and machine handling are modeled through resistance and feedback.'],
+                        ['Military-Industrial Simulation', 'Controlled illusion prepares bodies for operational environments.'],
+                        ['NASA Training Rig', 'Spaceflight training turns impossible environments into rehearsable physical conditions.'],
+                        ['Industrial Control Room', 'Screens and instruments create a command environment for systems too large to see directly.'],
+                        ['Driving Simulator', 'Modern road risk becomes repeatable, measurable, and trainable.'],
+                        ['Emergency Drill Chamber', 'Danger is reconstructed as procedure, timing, and embodied repetition.'],
+                        ['Instrument Flight Rules', 'Trust shifts from the window to the calibrated apparatus.'],
+                        ['Operator Console', 'Simulation becomes a training grammar for attention, decision, and control.'],
+                        ['Surgical Simulator', 'Fine motor skill is rehearsed through haptic constraint and monitored error.'],
+                        ['Training Without Danger Rig', 'The machine turns risk into a safe rehearsal protocol.']
+                    ]
+                },
+                {
+                    name: 'PROBABLE',
+                    group: 'HEILIG / AMUSEMENT / SENSORY DESIGNERS',
+                    projection: 'Total Cinema, Scent, Wind, Seat Vibration, Show Control',
+                    color: 'var(--c1)',
+                    y: 520,
+                    mult: 1.20,
+                    bases: [
+                        ['Sensorama', 'Morton Heilig’s multisensory theater combines 3D film, stereo sound, wind, scent, and seat vibration.'],
+                        ['Telesphere Mask', 'A head-mounted stereoscopic television concept appears before consumer VR is ready.'],
+                        ['Experience Theater', 'Heilig scales Sensorama logic toward a theater designed for whole-body immersion.'],
+                        ['Smell-O-Vision', 'Aroma is synchronized with film narrative rather than treated as decoration.'],
+                        ['AromaRama', 'Theater ventilation becomes a storytelling channel.'],
+                        ['Scent of Mystery', 'Smell is promoted as a cinematic information layer.'],
+                        ['Fairground Ride', 'Motion, theatrical timing, surprise, and bodily risk are synchronized as spectacle.'],
+                        ['Theme Park Show Control', 'Image, sound, airflow, lighting, scent, and motion become one timed system.'],
+                        ['Theater Organ', 'Architectural immersion literally moves air through a room.'],
+                        ['Haptic Seat', 'The chair becomes a narrative instrument through vibration and impact.'],
+                        ['Coin-Op Future Theater', 'A compact public cabinet sells one intense embodied world at a time.'],
+                        ['Haptic Film Player', 'Video is mapped to fan cues, rumble, light, scent, and embodied rhythm.'],
+                        ['Olfactory Cyber-Rig', 'Scent cartridges and airflow become programmable media.'],
+                        ['Mechanical VR Cabinet', 'A non-headset VR machine declares motors and vents as media components.'],
+                        ['Embodied Oral History Booth', 'Memory is recorded as weather, route, odor, posture, and vibration.'],
+                        ['Total Cinema Toolkit', 'Low-cost components rebuild Heilig’s unfinished argument in classroom form.']
+                    ]
+                },
+                {
+                    name: 'PREFERABLE',
+                    group: 'COMPUTER SCIENTISTS / PLATFORM COMPANIES',
+                    projection: 'HMDs, Tracking, Real-Time Graphics, App Ecosystems',
+                    color: 'var(--c0)',
+                    y: 700,
+                    mult: 1.55,
+                    bases: [
+                        ['Sword of Damocles', 'The first head-mounted display hangs from a mechanical boom, revealing VR’s weight.'],
+                        ['Aspen Movie Map', 'Navigable photographic space anticipates street-view and spatial databases.'],
+                        ['DataGlove', 'Hand input becomes a symbolic promise of embodied interaction.'],
+                        ['NASA VIEW', 'Virtual environment work links simulation, robotics, and human-machine interface.'],
+                        ['Virtuality Arcade Pod', 'Early commercial VR turns headset play into a public arcade event.'],
+                        ['CAVE System', 'Projection-room VR makes immersion architectural rather than wearable.'],
+                        ['Nintendo Virtual Boy', 'Consumer VR arrives as red optics, headache, failure, and media archaeology.'],
+                        ['Oculus DK1', 'The hacker headset reopens VR through low-cost sensors and game engines.'],
+                        ['HTC Vive Room-Scale', 'Tracking lets the body walk, reach, and gesture inside a rendered world.'],
+                        ['Meta Quest', 'Standalone VR closes the loop into platform hardware, store, tracking, and social graph.'],
+                        ['HoloLens', 'Mixed reality overlays computation onto work, training, and spatial maintenance.'],
+                        ['Apple Vision Pro', 'Spatial computing reframes VR/XR as premium interface, media room, and productivity layer.'],
+                        ['WebXR', 'Immersive scenes become addressable through the browser.'],
+                        ['AI Scene Generation', 'Prompted worlds shift immersion from filming to synthesis.'],
+                        ['Haptic Gloves', 'The body returns as a peripheral strapped to the hand.'],
+                        ['XR App Store', 'Multisensory futures are narrowed through platform distribution and software standards.']
+                    ]
+                }
+            ];
+
+            const state = {
+                spread: 0,
+                base: 16,
+                dragging: false,
+                looping: false,
+                sound: false,
+                activeSliceId: null,
+                hoverSliceId: null
+            };
+
+            let currentBase = -1;
+            let sliceDOMCache = [];
+            const userEdits = {};
+
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const ease = t => t * t * (3 - 2 * t);
+            function el(tag, attrs = {}) {
+                const e = document.createElementNS(NS, tag);
+                for (const k in attrs) e.setAttribute(k, attrs[k]);
+                return e;
+            }
+            function polar(r, a) { return { x: r * Math.cos(a), y: r * Math.sin(a) }; }
+            function path(points) { return points.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ',' + p.y.toFixed(2)).join(' ') + ' Z'; }
+            function transformPoints(pts, tx, ty, rot) {
+                const c = Math.cos(rot), s = Math.sin(rot);
+                return pts.map(p => ({ x: tx + p.x * c - p.y * s, y: ty + p.x * s + p.y * c }));
+            }
+            function esc(s) {
+                return String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
+            }
+
+            function getCounts() {
+                return TRACKS.map(t => Math.max(4, Math.round((state.base * t.mult) / 2) * 2));
+            }
+
+            function makeSliceShape(r, theta) {
+                const pts = [{ x: 0, y: 0 }];
+                const steps = Math.max(12, Math.ceil(theta * 16));
+                for (let i = 0; i <= steps; i++) {
+                    const a = lerp(-theta / 2, theta / 2, i / steps);
+                    pts.push(polar(r, a));
+                }
+                return pts;
+            }
+
+            function circlePlacement(row, i, n) {
+                const theta = Math.PI * 2 / n;
+                return { x: CIRCLE_X, y: row.y, rot: -Math.PI / 2 + i * theta, theta };
+            }
+
+            function framePlacement(row, i, n) {
+                const theta = Math.PI * 2 / n;
+                const W = 2 * R * Math.sin(theta / 2);
+                const totalWidth = (n / 2) * W;
+                const startX = FRAME_X_END - totalWidth;
+                let x = startX + i * (W / 2) + W / 2;
+                let y, rot;
+                if (i % 2 === 0) { y = row.y + R / 2; rot = -Math.PI / 2; }
+                else { y = row.y - R / 2; rot = Math.PI / 2; }
+                return { x, y, rot, W, totalWidth, startX, theta };
+            }
+
+            function pickCard(list, globalIndex, offset = 0) {
+                const item = list[(globalIndex + offset) % list.length];
+                return { title: item[0], desc: item[1] };
+            }
+
+            function makeRecord(track, index, globalIndex) {
+                const base = track.bases[index % track.bases.length];
+                return {
+                    title: base[0],
+                    text: base[1],
+                    pressure: pickCard(PRESSURES, globalIndex, track.y / 20),
+                    source: { title: base[0], desc: base[1] },
+                    func: pickCard(FUNCTIONS, globalIndex, track.y / 40),
+                    form: pickCard(FORMS, globalIndex, track.y / 60)
+                };
+            }
+
+            function fourCardHTML(record) {
+                const cards = [
+                    ['PRESSURE', record.pressure.title, record.pressure.desc],
+                    ['SOURCE', record.source.title, record.source.desc],
+                    ['FUNCTION', record.func.title, record.func.desc],
+                    ['FORM', record.form.title, record.form.desc]
+                ];
+                return cards.map(c => `<div class="mini-card"><div class="kicker">${esc(c[0])}</div><b>${esc(c[1])}</b><span>${esc(c[2])}</span></div>`).join('');
+            }
+
+            function buildSVG() {
+                svg.innerHTML = '';
+                sliceDOMCache = [];
+
+                const scaffoldGroup = el('g', { id: 'scaffold' });
+                const pathGroup = el('g', { id: 'paths' });
+                const overlayGroup = el('g', { id: 'overlays' });
+                const dynamicUI = el('g', { id: 'dynamic-ui' });
+                svg.append(scaffoldGroup, pathGroup, overlayGroup, dynamicUI);
+
+                for (let y = 70; y < 820; y += 40) scaffoldGroup.appendChild(el('line', { x1: 0, y1: y, x2: 1440, y2: y, stroke: 'var(--fg)', opacity: 0.02 }));
+                for (let x = 120; x < 1380; x += 40) scaffoldGroup.appendChild(el('line', { x1: x, y1: 0, x2: x, y2: 860, stroke: 'var(--fg)', opacity: 0.02 }));
+                scaffoldGroup.appendChild(el('line', { x1: CIRCLE_X, y1: 0, x2: CIRCLE_X, y2: 860, stroke: 'var(--fg)', opacity: 0.1, 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
+                scaffoldGroup.appendChild(el('line', { x1: FRAME_X_END, y1: 0, x2: FRAME_X_END, y2: 860, stroke: 'var(--hot)', opacity: 0.3, 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
+
+                const counts = getCounts();
+                TRACKS.forEach((track, tIdx) => {
+                    const n = counts[tIdx];
+                    const t1 = el('text', { x: 40, y: track.y - 22, fill: 'var(--fg)', 'font-size': 13, 'font-weight': '800', 'letter-spacing': '0.05em' });
+                    t1.textContent = track.group;
+                    const t2 = el('text', { x: 40, y: track.y - 2, fill: 'var(--fg)', opacity: 0.62, 'font-size': 11 });
+                    t2.textContent = track.projection;
+                    const t3 = el('text', { x: 40, y: track.y + 16, fill: 'var(--fg)', opacity: 0.42, 'font-size': 10 });
+                    t3.textContent = `Cone: ${track.name} [${n} slices]`;
+                    scaffoldGroup.appendChild(el('circle', { cx: CIRCLE_X, cy: track.y, r: R, fill: 'none', stroke: 'var(--fg)', opacity: 0.1, 'stroke-width': 1 }));
+                    scaffoldGroup.appendChild(el('line', { x1: CIRCLE_X + R, y1: track.y, x2: FRAME_X_END, y2: track.y, stroke: 'var(--fg)', opacity: 0.05, 'stroke-width': 1 }));
+                    scaffoldGroup.append(t1, t2, t3);
+
+                    const theta = Math.PI * 2 / n;
+                    const baseShape = makeSliceShape(R, theta);
+                    for (let i = 0; i < n; i++) {
+                        const id = `slice_${tIdx}_${i}`;
+                        const record = makeRecord(track, i, sliceDOMCache.length);
+                        const pathEl = el('path', { 'class': 'slice', 'data-id': id, fill: track.color, 'vector-effect': 'non-scaling-stroke' });
+                        const overlayEl = el('path', { fill: 'var(--c0)', opacity: 0, 'pointer-events': 'none', 'vector-effect': 'non-scaling-stroke' });
+                        const sliceData = { id, pathEl, overlayEl, track, trackIndex: tIdx, index: i, record, baseShape, globalIndex: sliceDOMCache.length };
+                        sliceDOMCache.push(sliceData);
+                        pathGroup.appendChild(pathEl);
+                        overlayGroup.appendChild(overlayEl);
+                        pathEl.addEventListener('pointerenter', (e) => { state.hoverSliceId = id; showHUD(e, sliceData); playAsmrTick(0.015, 2.8); });
+                        pathEl.addEventListener('pointermove', updateHUDPosition);
+                        pathEl.addEventListener('pointerleave', () => { if (state.hoverSliceId === id) state.hoverSliceId = null; hideHUD(); });
+                        pathEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); activateSlice(sliceData); playAsmrTick(0.08, 0.6); });
+                    }
+                });
+                currentBase = state.base;
+            }
+
+            function updateDraw() {
+                if (state.base !== currentBase) buildSVG();
+                const m = state.spread;
+                const dynamicUI = svg.getElementById('dynamic-ui');
+                dynamicUI.innerHTML = '';
+                const counts = getCounts();
+                const collapseFactor = clamp((m - 0.70) * 3.33, 0, 1);
+
+                sliceDOMCache.forEach(slice => {
+                    const n = counts[slice.trackIndex];
+                    const A = circlePlacement(slice.track, slice.index, n);
+                    const B = framePlacement(slice.track, slice.index, n);
+                    const t = ease(m);
+                    const tx = lerp(A.x, B.x, t);
+                    const ty = lerp(A.y, B.y, t);
+                    const rot = lerp(A.rot, B.rot, t);
+                    const pts = transformPoints(slice.baseShape, tx, ty, rot);
+                    const dStr = path(pts);
+                    slice.pathEl.setAttribute('d', dStr);
+                    slice.overlayEl.setAttribute('d', dStr);
+                    if (slice.trackIndex !== 3) slice.overlayEl.setAttribute('opacity', Math.pow(collapseFactor, 2) * 0.94);
+                    else slice.overlayEl.setAttribute('opacity', 0);
+                    if (state.activeSliceId === slice.id) slice.pathEl.classList.add('active');
+                    else slice.pathEl.classList.remove('active');
+                });
+
+                TRACKS.forEach((track, tIdx) => {
+                    const n = counts[tIdx];
+                    const B = framePlacement(track, 0, n);
+                    const stripH = R * 1.5;
+                    const boxOp = clamp(0.1 + m * 0.3, 0, 0.4);
+                    dynamicUI.appendChild(el('rect', { x: B.startX, y: track.y - stripH / 2, width: B.totalWidth, height: stripH, fill: 'none', stroke: 'var(--fg)', opacity: boxOp, 'stroke-width': 1, 'stroke-dasharray': '4 6', 'vector-effect': 'non-scaling-stroke' }));
+                });
+
+                if (m > 0.78) {
+                    const domOp = clamp((m - 0.78) * 4.55, 0, 1);
+                    const domText = el('text', { x: FRAME_X_END + 16, y: 430, fill: 'var(--c0)', opacity: domOp, 'font-size': 12, 'font-weight': '800', 'text-anchor': 'start', 'letter-spacing': '0.05em' });
+                    domText.textContent = '◀ XR CLOSURE WALL: HMD / TRACKING / APP STORE ASSIMILATES BRANCHES';
+                    dynamicUI.appendChild(el('line', { x1: FRAME_X_END, y1: 100, x2: FRAME_X_END, y2: 760, stroke: 'var(--c0)', opacity: domOp, 'stroke-width': 3 }));
+                    dynamicUI.append(domText);
+                }
+
+                spreadEl.value = Math.round(m * 1000);
+                densityEl.value = state.base;
+                rBase.textContent = state.base;
+                rMorph.textContent = m.toFixed(2);
+                if (m < 0.15) rState.textContent = 'Multisensory Field';
+                else if (m < 0.55) rState.textContent = 'Heilig Divergence';
+                else if (m < 0.82) rState.textContent = 'VR Platform Unrolling';
+                else rState.textContent = 'XR Headset Closure';
+                updateInspectorState(m, collapseFactor);
+                if (state.hoverSliceId) {
+                    const slice = sliceDOMCache.find(s => s.id === state.hoverSliceId);
+                    if (slice) forceHUDTextUpdate(slice, m, collapseFactor);
+                }
+            }
+
+            function showHUD(e, slice) {
+                if (state.dragging) return;
+                hud.classList.remove('hidden');
+                hudIdNum.textContent = `REC-${slice.globalIndex}`;
+                hudTrackName.textContent = slice.track.name;
+                hudGroup.textContent = `GROUP: ${slice.track.group}`;
+                const collapseFactor = clamp((state.spread - 0.7) * 3.33, 0, 1);
+                forceHUDTextUpdate(slice, state.spread, collapseFactor);
+                updateHUDPosition(e);
+            }
+
+            function forceHUDTextUpdate(slice, m, collapseFactor) {
+                if (collapseFactor > 0.8 && slice.trackIndex !== 3) {
+                    hudText.textContent = 'ASSIMILATED: Earlier multisensory path overwritten by XR headset standard: stereoscopic display, inside-out tracking, app ecosystem, platform store.';
+                    hudGroup.textContent = 'GROUP OVERRIDE: COMPUTER SCIENTISTS / PLATFORM COMPANIES';
+                    hudIdNum.style.color = 'var(--c0)';
+                } else {
+                    const customText = userEdits[slice.id];
+                    const text = customText !== undefined ? customText : `${slice.record.title}: ${slice.record.text}`;
+                    hudText.textContent = text;
+                    hudGroup.textContent = `GROUP: ${slice.track.group}`;
+                    hudIdNum.style.color = 'var(--hot)';
+                }
+            }
+
+            function updateHUDPosition(e) {
+                let x = e.clientX + 15; let y = e.clientY + 15;
+                if (x + 320 > window.innerWidth) x = e.clientX - 335;
+                if (y + 150 > window.innerHeight) y = e.clientY - 165;
+                hud.style.left = x + 'px'; hud.style.top = y + 'px';
+            }
+            function hideHUD() { hud.classList.add('hidden'); }
+
+            function activateSlice(slice) {
+                state.activeSliceId = slice.id;
+                inspector.classList.remove('hidden');
+                populateInspector(slice);
+                updateDraw();
+            }
+
+            function populateInspector(slice) {
+                if (!slice) return;
+                insId.textContent = `REC-${slice.globalIndex}`;
+                insGroup.textContent = slice.track.group;
+                insTrack.textContent = `${slice.track.name} (${slice.track.projection})`;
+                const customText = userEdits[slice.id];
+                insText.value = customText !== undefined ? customText : `${slice.record.title}\n${slice.record.text}`;
+                insCards.innerHTML = fourCardHTML(slice.record);
+                updateInspectorState(state.spread, clamp((state.spread - 0.7) * 3.33, 0, 1));
+            }
+
+            function updateInspectorState(m, collapseFactor) {
+                if (!inspector.classList.contains('hidden') && state.activeSliceId) {
+                    const slice = sliceDOMCache.find(s => s.id === state.activeSliceId);
+                    if (!slice) return;
+                    if (collapseFactor > 0.8 && slice.trackIndex !== 3) {
+                        insText.disabled = true;
+                        insStatus.textContent = 'ARTIFACT ASSIMILATED: Interpretative flexibility closes. This branch is absorbed by the VR/XR headset platform standard.';
+                        insText.value = 'ASSIMILATED >> XR HEADSET STANDARD\nStereoscopic display, head tracking, controllers, passthrough cameras, app store, platform identity.';
+                        insGroup.textContent = 'COMPUTER SCIENTISTS / PLATFORM COMPANIES (OVERRIDE)';
+                        insTrack.textContent = 'STABILIZED PLATFORM TIMELINE';
+                    } else {
+                        insText.disabled = false;
+                        insStatus.textContent = 'RECORD OPEN: Media branch is isolated, editable, and available for four-card synthesis.';
+                        const customText = userEdits[slice.id];
+                        insText.value = customText !== undefined ? customText : `${slice.record.title}\n${slice.record.text}`;
+                        insGroup.textContent = slice.track.group;
+                        insTrack.textContent = `${slice.track.name} (${slice.track.projection})`;
+                    }
+                }
+            }
+
+            insText.addEventListener('input', (e) => {
+                if (state.activeSliceId && !insText.disabled) {
+                    userEdits[state.activeSliceId] = e.target.value;
+                    if (state.hoverSliceId === state.activeSliceId) hudText.textContent = e.target.value;
+                }
+            });
+            inspector.addEventListener('pointerdown', e => e.stopPropagation());
+
+            function scrubFromSVG(clientX, clientY) {
+                const rect = svg.getBoundingClientRect();
+                state.spread = clamp((clientX - rect.left) / rect.width, 0, 1);
+                state.base = Math.round(clamp(32 - ((clientY - rect.top) / rect.height) * 24, 8, 32));
+                processHapticFeedback();
+                updateDraw();
+            }
+
+            spreadEl.addEventListener('input', () => { state.spread = Number(spreadEl.value) / 1000; processHapticFeedback(true); updateDraw(); });
+            densityEl.addEventListener('input', () => { state.base = Number(densityEl.value); processHapticFeedback(true); updateDraw(); });
+
+            field.addEventListener('pointerdown', e => {
+                const tag = String(e.target.tagName || '').toLowerCase();
+                if (tag !== 'path' && e.target.id !== 'ins-text' && !inspector.contains(e.target)) {
+                    state.activeSliceId = null;
+                    inspector.classList.add('hidden');
+                    updateDraw();
+                    state.dragging = true;
+                    field.setPointerCapture(e.pointerId);
+                    scrubFromSVG(e.clientX, e.clientY);
+                }
+            });
+            field.addEventListener('pointermove', e => { if (state.dragging) scrubFromSVG(e.clientX, e.clientY); });
+            field.addEventListener('pointerup', e => { state.dragging = false; try { field.releasePointerCapture(e.pointerId); } catch (_) { } });
+            field.addEventListener('pointercancel', () => state.dragging = false);
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'ArrowRight') { state.spread = clamp(state.spread + .05, 0, 1); updateDraw(); processHapticFeedback(true); }
+                if (e.key === 'ArrowLeft') { state.spread = clamp(state.spread - .05, 0, 1); updateDraw(); processHapticFeedback(true); }
+            });
+
+            function createNoiseBuffer() {
+                const size = ctx.sampleRate * 0.05;
+                const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+                return buffer;
+            }
+
+            function setupSound() {
+                if (ctx) return;
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                master = ctx.createGain();
+                filter = ctx.createBiquadFilter();
+                drone = ctx.createOscillator();
+                over = ctx.createOscillator();
+                pulse = ctx.createGain();
+                drone.type = 'sine'; over.type = 'triangle'; filter.type = 'lowpass';
+                drone.frequency.value = 62; over.frequency.value = 124; filter.frequency.value = 520;
+                master.gain.value = 0; pulse.gain.value = 0;
+                drone.connect(filter); over.connect(pulse).connect(filter); filter.connect(master).connect(ctx.destination);
+                drone.start(); over.start();
+                noiseBuffer = createNoiseBuffer();
+            }
+
+            function playAsmrTick(vol, pitchOffset = 1.0) {
+                if (!ctx || !state.sound || !noiseBuffer) return;
+                const t = ctx.currentTime;
+                const noiseSrc = ctx.createBufferSource();
+                noiseSrc.buffer = noiseBuffer;
+                noiseSrc.playbackRate.value = pitchOffset;
+                const nFilt = ctx.createBiquadFilter();
+                nFilt.type = 'highpass'; nFilt.frequency.value = 3500;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+                noiseSrc.connect(nFilt); nFilt.connect(gain); gain.connect(master);
+                noiseSrc.start(t);
+            }
+
+            function processHapticFeedback(force = false) {
+                if (!ctx || !state.sound) return;
+                const now = ctx.currentTime;
+                const root = 58 + state.spread * 62;
+                drone.frequency.setTargetAtTime(root, now, .05);
+                over.frequency.setTargetAtTime(root * (1.42 + state.base / 54), now, .05);
+                filter.frequency.setTargetAtTime(360 + state.base * 42 + state.spread * 1200, now, .05);
+                master.gain.setTargetAtTime(.02 + state.spread * .018, now, .05);
+                let scrubIndex = Math.floor(state.spread * 120);
+                if (scrubIndex !== lastMorphScrub || force) {
+                    playAsmrTick(0.02, 0.8 + (state.spread * 0.5));
+                    lastMorphScrub = scrubIndex;
+                }
+                if (state.base !== lastN && lastN !== -1) {
+                    playAsmrTick(0.06, 0.4 + (state.base * 0.02));
+                    lastN = state.base;
+                    pulse.gain.cancelScheduledValues(now);
+                    pulse.gain.setValueAtTime(.0001, now);
+                    pulse.gain.exponentialRampToValueAtTime(.04, now + .015);
+                    pulse.gain.exponentialRampToValueAtTime(.0001, now + .1);
+                } else if (lastN === -1) lastN = state.base;
+            }
+
+            soundBtn.addEventListener('click', async () => {
+                setupSound();
+                if (ctx.state === 'suspended') await ctx.resume();
+                state.sound = !state.sound;
+                soundBtn.dataset.on = state.sound;
+                if (!state.sound && master) master.gain.setTargetAtTime(0, ctx.currentTime, .03);
+                else processHapticFeedback(true);
+            });
+
+            loopBtn.addEventListener('click', () => { state.looping = !state.looping; loopBtn.dataset.on = state.looping; });
+
+            resetBtn.addEventListener('click', () => {
+                state.base = 16; state.spread = 0; state.looping = false; loopBtn.dataset.on = false;
+                state.activeSliceId = null; inspector.classList.add('hidden');
+                if (state.sound) processHapticFeedback(true);
+                updateDraw();
+            });
+
+            copyBtn.addEventListener('click', async () => {
+                const slice = sliceDOMCache.find(s => s.id === state.activeSliceId) || sliceDOMCache[0];
+                if (!slice) return;
+                const payload = {
+                    id: `REC-${slice.globalIndex}`,
+                    trajectory: slice.track.name,
+                    group: slice.track.group,
+                    projection: slice.track.projection,
+                    artifact: slice.record.title,
+                    description: userEdits[slice.id] || slice.record.text,
+                    four_card_synthesis: {
+                        pressure: slice.record.pressure,
+                        source_logic: slice.record.source,
+                        recovered_function: slice.record.func,
+                        manifest_form: slice.record.form
+                    }
+                };
+                const text = JSON.stringify(payload, null, 2);
+                try { await navigator.clipboard.writeText(text); }
+                catch (_) {
+                    const area = document.createElement('textarea'); area.value = text; document.body.appendChild(area); area.select(); document.execCommand('copy'); document.body.removeChild(area);
+                }
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 1200);
+            });
+
+            function tick(t) {
+                if (state.looping && !state.dragging) {
+                    const tt = t * 0.0003;
+                    state.spread = (Math.sin(tt) + 1) / 2;
+                    state.base = Math.round(8 + ((Math.sin(tt * 0.87 + 1.2) + 1) / 2) * 24);
+                    processHapticFeedback();
+                    updateDraw();
+                }
+                requestAnimationFrame(tick);
+            }
+
+            buildSVG();
+            updateDraw();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+</html>

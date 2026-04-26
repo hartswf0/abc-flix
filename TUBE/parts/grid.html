@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Operational Arc Binding Surface V2</title>
+    <style>
+        :root {
+            --white: #FFFFFF;
+            --black: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: #000000;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #FFFFFF;
+            color: #000000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
+
+        body {
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+            color: #000000;
+            background: #FFFFFF;
+        }
+
+        button {
+            border: 2px solid #000000;
+            min-height: 38px;
+            padding: 0 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        button:active,
+        button.active {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        button:disabled {
+            color: #000000;
+            background:
+                repeating-linear-gradient(45deg, #FFFFFF 0, #FFFFFF 6px, #000000 6px, #000000 8px);
+            cursor: not-allowed;
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: 48px 1fr 156px;
+            background: #FFFFFF;
+            color: #000000;
+        }
+
+        #top {
+            border-bottom: 3px solid #000000;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+        }
+
+        #title {
+            padding: 0 12px;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #topControls {
+            height: 100%;
+            display: flex;
+            align-items: stretch;
+        }
+
+        #topControls button {
+            border-top: 0;
+            border-bottom: 0;
+            border-right: 0;
+            min-height: 0;
+        }
+
+        #status {
+            min-width: 126px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-left: 3px solid #000000;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        #status.good {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        #main {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(360px, 44%) 1fr;
+        }
+
+        #left,
+        #right {
+            min-height: 0;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 38px 1fr;
+        }
+
+        #left {
+            border-right: 3px solid #000000;
+        }
+
+        .panelHead {
+            border-bottom: 3px solid #000000;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .panelHead strong {
+            padding: 0 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .inlineActions {
+            height: 100%;
+            display: flex;
+            align-items: stretch;
+        }
+
+        .inlineActions button {
+            min-height: 0;
+            border-top: 0;
+            border-bottom: 0;
+            border-right: 0;
+            padding: 0 9px;
+            font-size: 11px;
+        }
+
+        #payloadRows,
+        #tiles {
+            min-height: 0;
+            overflow: auto;
+            padding: 10px;
+        }
+
+        .row {
+            border: 3px solid #000000;
+            display: grid;
+            grid-template-columns: 104px 1fr 42px;
+            min-height: 58px;
+            margin-bottom: 10px;
+            background: #FFFFFF;
+        }
+
+        .row.selected {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        .row select {
+            border: 0;
+            border-right: 3px solid #000000;
+            padding: 0 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            outline: 0;
+        }
+
+        .row.selected select {
+            background: #000000;
+            color: #FFFFFF;
+            border-right-color: #FFFFFF;
+        }
+
+        .row input {
+            min-width: 0;
+            border: 0;
+            padding: 0 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            outline: 0;
+        }
+
+        .row.selected input {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        .row button {
+            border: 0;
+            border-left: 3px solid #000000;
+            min-height: 0;
+            padding: 0;
+        }
+
+        .row.selected button {
+            background: #000000;
+            color: #FFFFFF;
+            border-left-color: #FFFFFF;
+        }
+
+        .tileGrid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .tile {
+            min-height: 106px;
+            border: 3px solid #000000;
+            padding: 10px;
+            cursor: pointer;
+            background: #FFFFFF;
+            color: #000000;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .tile.selected {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        .tile.bad {
+            background:
+                repeating-linear-gradient(45deg, #FFFFFF 0, #FFFFFF 8px, #000000 8px, #000000 11px);
+            color: #000000;
+        }
+
+        .tileK {
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .tileV {
+            margin-top: 10px;
+            font-size: 18px;
+            line-height: 1.05;
+            font-weight: 900;
+            text-transform: uppercase;
+            word-break: break-word;
+        }
+
+        .tileMeta {
+            margin-top: 12px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        #bottom {
+            min-height: 0;
+            border-top: 3px solid #000000;
+            display: grid;
+            grid-template-columns: minmax(260px, 28%) 1fr minmax(250px, 28%);
+        }
+
+        #stateBox,
+        #witness {
+            padding: 10px;
+            overflow: hidden;
+            font-size: 11px;
+            line-height: 1.25;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        #stateBox {
+            border-right: 3px solid #000000;
+        }
+
+        #witness {
+            border-left: 3px solid #000000;
+        }
+
+        #depStage {
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+
+        #depStack {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: 25px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 5px;
+            max-height: 120px;
+        }
+
+        .depBlock {
+            border: 3px solid #000000;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: #FFFFFF;
+            color: #000000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .depBlock.selected {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        #ground {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 22px;
+            background: #000000;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .problem {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        #xmlOut {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            height: 44%;
+            z-index: 20;
+            display: none;
+            grid-template-rows: 38px 1fr;
+            border: 3px solid #000000;
+            background: #FFFFFF;
+        }
+
+        #xmlOut.open {
+            display: grid;
+        }
+
+        #xmlHead {
+            border-bottom: 3px solid #000000;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+        }
+
+        #xmlHead strong {
+            padding: 0 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        #xmlText {
+            border: 0;
+            resize: none;
+            outline: 0;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.2;
+            font-weight: 900;
+            text-transform: none;
+            user-select: text;
+        }
+
+        @media(max-width:850px) {
+            #app {
+                grid-template-rows: 44px 1fr 128px;
+            }
+
+            #top {
+                grid-template-columns: 1fr;
+                grid-template-rows: 22px 22px;
+            }
+
+            #title {
+                font-size: 11px;
+                padding: 0 8px;
+                display: flex;
+                align-items: center;
+                height: 22px;
+            }
+
+            #topControls {
+                border-top: 3px solid #000000;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr 1fr;
+            }
+
+            #topControls button,
+            #status {
+                border-left: 0;
+                border-right: 3px solid #000000;
+                font-size: 10px;
+                min-width: 0;
+                padding: 0 4px;
+            }
+
+            #status {
+                border-right: 0;
+                min-width: 0;
+            }
+
+            #main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 47% 53%;
+            }
+
+            #left {
+                border-right: 0;
+                border-bottom: 3px solid #000000;
+            }
+
+            .panelHead {
+                min-height: 32px;
+            }
+
+            .panelHead strong {
+                font-size: 10px;
+            }
+
+            .inlineActions button {
+                font-size: 10px;
+                padding: 0 6px;
+            }
+
+            #payloadRows,
+            #tiles {
+                padding: 7px;
+            }
+
+            .row {
+                grid-template-columns: 86px 1fr 38px;
+                min-height: 50px;
+                margin-bottom: 7px;
+            }
+
+            .row select,
+            .row input {
+                font-size: 12px;
+            }
+
+            .tileGrid {
+                grid-template-columns: 1fr;
+                gap: 7px;
+            }
+
+            .tile {
+                min-height: 74px;
+                padding: 7px;
+            }
+
+            .tileV {
+                font-size: 14px;
+            }
+
+            #bottom {
+                grid-template-columns: 1fr;
+                grid-template-rows: 0 1fr 38px;
+            }
+
+            #stateBox {
+                display: none;
+            }
+
+            #witness {
+                border-left: 0;
+                border-top: 3px solid #000000;
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+
+            #depStack {
+                bottom: 23px;
+                max-height: 82px;
+            }
+
+            .depBlock {
+                min-height: 20px;
+                font-size: 10px;
+            }
+
+            #ground {
+                height: 20px;
+                font-size: 10px;
+            }
+
+            #xmlOut {
+                inset: 48px 8px 8px 8px;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header id="top">
+            <div id="title">OPERATIONAL ARC BINDING SURFACE / V2</div>
+            <div id="topControls">
+                <button id="defaultBtn" type="button">Load Arc</button>
+                <button id="freezeBtn" type="button">Freeze</button>
+                <button id="copyBtn" type="button">Copy XML</button>
+                <div id="status">Live</div>
+            </div>
+        </header>
+
+        <main id="main">
+            <section id="left">
+                <div class="panelHead">
+                    <strong>Payload lines / edit here</strong>
+                    <div class="inlineActions">
+                        <button data-add="DO" type="button">+DO</button>
+                        <button data-add="DO_NOT" type="button">+NOT</button>
+                        <button data-add="DEP" type="button">+DEP</button>
+                        <button data-add="ACTION" type="button">+ACT</button>
+                    </div>
+                </div>
+                <div id="payloadRows"></div>
+            </section>
+
+            <section id="right">
+                <div class="panelHead">
+                    <strong>Bound viewport / touch boxes</strong>
+                    <div class="inlineActions">
+                        <button id="repairBtn" type="button">Repair</button>
+                    </div>
+                </div>
+                <div id="tiles"></div>
+            </section>
+        </main>
+
+        <footer id="bottom">
+            <div id="stateBox"></div>
+            <div id="depStage">
+                <div id="depStack"></div>
+                <div id="ground">GROUND / DEPENDENCY BASE LOCKED</div>
+            </div>
+            <div id="witness"></div>
+        </footer>
+    </div>
+
+    <div id="xmlOut">
+        <div id="xmlHead">
+            <strong>Copied / operational XML</strong>
+            <button id="closeXml" type="button">Close</button>
+        </div>
+        <textarea id="xmlText" spellcheck="false"></textarea>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            var keys = ["SYSTEM", "MODE", "STATE", "DO", "DO_NOT", "DEP", "ACTION", "BIND", "FREEZE", "REOPEN"];
+            var rows = document.getElementById("payloadRows");
+            var tiles = document.getElementById("tiles");
+            var deps = document.getElementById("depStack");
+            var stateBox = document.getElementById("stateBox");
+            var witness = document.getElementById("witness");
+            var status = document.getElementById("status");
+            var xmlOut = document.getElementById("xmlOut");
+            var xmlText = document.getElementById("xmlText");
+            var selectedId = null;
+            var frozen = false;
+            var counter = 1;
+
+            var model = [];
+
+            function makeLine(key, text) {
+                return { id: "L" + String(counter++).padStart(2, "0"), key: key, text: text };
+            }
+
+            function loadDefault() {
+                counter = 1;
+                model = [
+                    makeLine("SYSTEM", "ARC CARTRIDGE BENCH"),
+                    makeLine("MODE", "OPERATIONAL PROMPT SURFACE"),
+                    makeLine("STATE", "LIVE_PAYLOAD"),
+                    makeLine("DO", "EDIT MEDIA CLIPS AS ABSOLUTE-TIME BARREL SECTIONS"),
+                    makeLine("DO", "BIND EACH SELECTED CARTRIDGE TO ITS TEXT INSTRUCTION"),
+                    makeLine("DO", "DISPLAY DEPENDENCIES FROM THE GROUND UPWARD"),
+                    makeLine("DO_NOT", "USE SIDE VIEW AS A FLAT SPREADSHEET"),
+                    makeLine("DO_NOT", "LET DECORATION HIDE PAYLOAD"),
+                    makeLine("DO_NOT", "LET CAMERA CHASE THE TOP OF THE STACK"),
+                    makeLine("DEP", "IMPORTED MEDIA OBJECT"),
+                    makeLine("DEP", "SELECTED CLIP"),
+                    makeLine("DEP", "ACTIVE TRACK"),
+                    makeLine("DEP", "ABSOLUTE TIMEBASE"),
+                    makeLine("DEP", "LOCAL ROLL FACE"),
+                    makeLine("DEP", "ROOT PAYLOAD TEXT"),
+                    makeLine("DEP", "BINDING MAP"),
+                    makeLine("DEP", "GROUND ANCHOR"),
+                    makeLine("ACTION", "OPERATOR WRITES SELECTS BINDS FREEZES REOPENS OR DELETES PAYLOAD LINES"),
+                    makeLine("BIND", "DEP SELECTED CLIP -> DEPENDENCY STACK BLOCK"),
+                    makeLine("BIND", "DO EDIT MEDIA CLIPS -> VIEWPORT CARTRIDGE BODY"),
+                    makeLine("BIND", "DO_NOT SIDE VIEW FLAT SPREADSHEET -> REJECTED TIMELINE BOX"),
+                    makeLine("FREEZE", "ALLOW ONLY AFTER REQUIRED FIELDS EXIST AND CONFLICTS ARE ABSENT")
+                ];
+                selectedId = model[0].id;
+                frozen = false;
+                render();
+            }
+
+            function esc(s) {
+                return String(s || "").replace(/[&<>"']/g, function (c) {
+                    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[c];
+                });
+            }
+
+            function norm(s) {
+                return String(s || "").toUpperCase().replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+            }
+
+            function getSelected() {
+                return model.find(function (x) { return x.id === selectedId; }) || model[0] || null;
+            }
+
+            function requiredProblems() {
+                var problems = [];
+                ["SYSTEM", "DO", "DO_NOT", "DEP", "ACTION"].forEach(function (k) {
+                    if (!model.some(function (x) { return x.key === k && norm(x.text); })) {
+                        problems.push("MISSING " + k);
+                    }
+                });
+
+                model.forEach(function (x) {
+                    if (!norm(x.text)) problems.push("EMPTY " + x.id + " " + x.key);
+                });
+
+                var dos = model.filter(function (x) { return x.key === "DO"; });
+                var nots = model.filter(function (x) { return x.key === "DO_NOT"; });
+                dos.forEach(function (d) {
+                    nots.forEach(function (n) {
+                        var a = norm(d.text), b = norm(n.text);
+                        if (a && b && (a === b || (a.length > 14 && b.indexOf(a) >= 0) || (b.length > 14 && a.indexOf(b) >= 0))) {
+                            problems.push("CONFLICT " + d.id + " WITH " + n.id);
+                        }
+                    });
+                });
+
+                return problems;
+            }
+
+            function currentState() {
+                var p = requiredProblems();
+                if (frozen && !p.length) return "FROZEN_PAYLOAD";
+                if (p.length) return "NULL_ARCHITECTURE";
+                if (getSelected()) return "BOUND_SELECTION";
+                return "LIVE_PAYLOAD";
+            }
+
+            function addLine(key) {
+                var text = "";
+                if (key === "DO") text = "NAME REQUIRED OPERATION";
+                if (key === "DO_NOT") text = "NAME FORBIDDEN OPERATION";
+                if (key === "DEP") text = "NAME DEPENDENCY";
+                if (key === "ACTION") text = "NAME OPERATOR ACTION";
+                if (key === "SYSTEM") text = "NAME LITERAL SYSTEM";
+                var line = makeLine(key, text);
+                model.push(line);
+                selectedId = line.id;
+                frozen = false;
+                render();
+                setTimeout(function () {
+                    var input = document.querySelector('[data-input="' + line.id + '"]');
+                    if (input) { input.focus(); input.select(); }
+                }, 0);
+            }
+
+            function deleteLine(id) {
+                if (model.length <= 1) return;
+                var idx = model.findIndex(function (x) { return x.id === id; });
+                model = model.filter(function (x) { return x.id !== id; });
+                if (selectedId === id) {
+                    selectedId = (model[Math.max(0, idx - 1)] || model[0]).id;
+                }
+                frozen = false;
+                render();
+            }
+
+            function repair() {
+                var have = {};
+                model.forEach(function (x) { if (norm(x.text)) have[x.key] = true; });
+                if (!have.SYSTEM) model.unshift(makeLine("SYSTEM", "ARC CARTRIDGE BENCH"));
+                if (!have.DO) model.push(makeLine("DO", "EDIT MEDIA CLIPS AS ABSOLUTE-TIME BARREL SECTIONS"));
+                if (!have.DO_NOT) model.push(makeLine("DO_NOT", "USE SIDE VIEW AS A FLAT SPREADSHEET"));
+                if (!have.DEP) model.push(makeLine("DEP", "SELECTED CLIP"));
+                if (!have.ACTION) model.push(makeLine("ACTION", "OPERATOR SELECTS A PAYLOAD LINE OR VIEWPORT BOX"));
+                model = model.filter(function (x) { return norm(x.text); });
+                selectedId = selectedId || model[0].id;
+                frozen = false;
+                render();
+            }
+
+            function xml() {
+                var out = [];
+                out.push('<script version="2.0" mode="operational">');
+                out.push('  <execution phase="0_subject_lock">');
+                model.filter(function (x) { return x.key === "SYSTEM"; }).forEach(function (x) {
+                    out.push('    <operation type="declare_subject">' + esc(x.key + ': ' + x.text) + '</operation>');
+                });
+                out.push('  </execution>');
+                out.push('');
+                out.push('  <execution phase="1_payload_lines">');
+                model.forEach(function (x) {
+                    out.push('    <operation id="' + esc(x.id) + '" type="' + esc(x.key.toLowerCase()) + '">' + esc(x.key + ': ' + x.text) + '</operation>');
+                });
+                out.push('  </execution>');
+                out.push('');
+                out.push('  <execution phase="2_binding_map">');
+                model.forEach(function (x) {
+                    out.push('    <operation type="bind" line="' + esc(x.id) + '" box="viewport.' + esc(x.id.toLowerCase()) + '">' + esc(x.key + ' binds to viewport box ' + x.id) + '</operation>');
+                });
+                out.push('  </execution>');
+                out.push('');
+                out.push('  <execution phase="3_state">');
+                out.push('    <operation type="inner_first_order_state">' + esc(firstValue("SYSTEM") || "UNSET") + '</operation>');
+                out.push('    <operation type="outer_first_order_state">MODE SELECTED_CLIP ACTIVE_TRACK PLAYHEAD MEDIA_PAYLOAD</operation>');
+                out.push('    <operation type="inner_second_order_state">DO DO_NOT ACTION</operation>');
+                out.push('    <operation type="outer_second_order_state">' + esc(currentState()) + '</operation>');
+                out.push('  </execution>');
+                out.push('</script>');
+    return out.join("\n");
+    }
+
+    function firstValue(key){
+    var x = model.find(function(row){ return row.key === key && norm(row.text); });
+    return x ? x.text : "";
+    }
+
+    function renderRows(){
+    rows.innerHTML = "";
+    model.forEach(function(line){
+    var row = document.createElement("div");
+    row.className = "row" + (line.id === selectedId ? " selected" : "");
+    row.dataset.id = line.id;
+
+    var select = document.createElement("select");
+    keys.forEach(function(k){
+    var opt = document.createElement("option");
+    opt.value = k;
+    opt.textContent = k;
+    if(k === line.key) opt.selected = true;
+    select.appendChild(opt);
+    });
+    select.addEventListener("change",function(){
+    line.key = select.value;
+    selectedId = line.id;
+    frozen = false;
+    render();
+    });
+
+    var input = document.createElement("input");
+    input.dataset.input = line.id;
+    input.value = line.text;
+    input.addEventListener("input",function(){
+    line.text = input.value;
+    selectedId = line.id;
+    frozen = false;
+    renderSoft();
+    });
+    input.addEventListener("focus",function(){
+    selectedId = line.id;
+    renderSoft();
+    });
+
+    var del = document.createElement("button");
+    del.type = "button";
+    del.textContent = "×";
+    del.addEventListener("click",function(e){
+    e.stopPropagation();
+    deleteLine(line.id);
+    });
+
+    row.addEventListener("click",function(){
+    selectedId = line.id;
+    render();
+    setTimeout(function(){ input.focus(); },0);
+    });
+
+    row.appendChild(select);
+    row.appendChild(input);
+    row.appendChild(del);
+    rows.appendChild(row);
+    });
+    }
+
+    function renderTiles(){
+    tiles.innerHTML = "";
+    var grid = document.createElement("div");
+    grid.className = "tileGrid";
+
+    model.forEach(function(line){
+    var tile = document.createElement("div");
+    tile.className = "tile" + (line.id === selectedId ? " selected" : "") + (!norm(line.text) ? " bad" : "");
+    tile.dataset.id = line.id;
+    tile.innerHTML =
+    '<div>
+        <div class="tileK">' + esc(line.id + ' / ' + line.key) + '</div>' +
+        '<div class="tileV">' + esc(line.text || "EMPTY") + '</div>
+    </div>' +
+    '<div class="tileMeta">TEXT ↔ VIEWPORT BOUND</div>';
+    tile.addEventListener("click",function(){
+    selectedId = line.id;
+    render();
+    var input = document.querySelector('[data-input="' + line.id + '"]');
+    if(input){
+    input.focus();
+    input.scrollIntoView({block:"center",behavior:"smooth"});
+    }
+    });
+    grid.appendChild(tile);
+    });
+
+    tiles.appendChild(grid);
+    }
+
+    function renderDeps(){
+    deps.innerHTML = "";
+    var depLines = model.filter(function(x){ return x.key === "DEP"; });
+    if(!depLines.length){
+    var empty = document.createElement("div");
+    empty.className = "depBlock";
+    empty.textContent = "NO DEPENDENCIES";
+    deps.appendChild(empty);
+    return;
+    }
+    depLines.forEach(function(line){
+    var b = document.createElement("div");
+    b.className = "depBlock" + (line.id === selectedId ? " selected" : "");
+    b.textContent = line.id + " / " + line.text;
+    b.addEventListener("click",function(){
+    selectedId = line.id;
+    render();
+    });
+    deps.appendChild(b);
+    });
+    }
+
+    function renderState(){
+    var problems = requiredProblems();
+    var st = currentState();
+    status.textContent = problems.length ? "Fix " + problems.length : (frozen ? "Frozen" : "Bindable");
+    status.className = problems.length ? "" : "good";
+
+    var sel = getSelected();
+    var lines = [];
+    lines.push("INNER FIRST-ORDER: " + (firstValue("SYSTEM") || "UNSET"));
+    lines.push("OUTER FIRST-ORDER: MODE / SELECTED_CLIP / ACTIVE_TRACK / PLAYHEAD / MEDIA_PAYLOAD");
+    lines.push("INNER SECOND-ORDER: DO / DO_NOT / ACTION");
+    lines.push("OUTER SECOND-ORDER: " + st);
+    lines.push("SELECTED: " + (sel ? sel.id + " / " + sel.key : "NONE"));
+    stateBox.innerHTML = lines.map(function(x){return '<span class="problem">' + esc(x) + '</span>';}).join("");
+
+    var wit = [];
+    if(problems.length){
+    wit.push("WITNESS: FREEZE BLOCKED.");
+    problems.slice(0,3).forEach(function(p){ wit.push(p); });
+    if(problems.length > 3) wit.push("+" + (problems.length - 3) + " MORE.");
+    }else if(frozen){
+    wit.push("WITNESS: PAYLOAD FROZEN.");
+    wit.push("GROUND BASE LOCKED.");
+    wit.push("TEXT AND GEOMETRY BOUND.");
+    }else{
+    wit.push("WITNESS: PAYLOAD BINDABLE.");
+    wit.push("SELECT TEXT ROW OR VIEWPORT BOX.");
+    wit.push("FREEZE WHEN READY.");
+    }
+    witness.innerHTML = wit.map(function(x){return '<span class="problem">' + esc(x) + '</span>';}).join("");
+    }
+
+    function renderSoft(){
+    // Avoid rebuilding focused input while typing; update computed surfaces.
+    renderTiles();
+    renderDeps();
+    renderState();
+    }
+
+    function render(){
+    renderRows();
+    renderTiles();
+    renderDeps();
+    renderState();
+    }
+
+    function freeze(){
+    var p = requiredProblems();
+    if(p.length){
+    frozen = false;
+    render();
+    return;
+    }
+    frozen = true;
+    render();
+    }
+
+    function copyXML(){
+    xmlText.value = xml();
+    xmlOut.classList.add("open");
+    xmlText.focus();
+    xmlText.select();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(xmlText.value).catch(function(){});
+    }
+    }
+
+    document.querySelectorAll("[data-add]").forEach(function(b){
+    b.addEventListener("click",function(){ addLine(b.getAttribute("data-add")); });
+    });
+    document.getElementById("defaultBtn").addEventListener("click",loadDefault);
+    document.getElementById("freezeBtn").addEventListener("click",freeze);
+    document.getElementById("copyBtn").addEventListener("click",copyXML);
+    document.getElementById("repairBtn").addEventListener("click",repair);
+    document.getElementById("closeXml").addEventListener("click",function(){ xmlOut.classList.remove("open"); });
+
+    document.addEventListener("keydown",function(e){
+    if((e.ctrlKey || e.metaKey) && e.key === "Enter"){
+    e.preventDefault();
+    freeze();
+    }
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && e.shiftKey){
+    e.preventDefault();
+    copyXML();
+    }
+    if(e.key === "Escape"){
+    xmlOut.classList.remove("open");
+    }
+    });
+
+    loadDefault();
+    })();
+    </script>
+</body>
+
+</html>

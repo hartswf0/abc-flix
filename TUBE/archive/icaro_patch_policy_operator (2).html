@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>ICARO · Patch Policy Operator</title>
+<style>
+  :root{
+    --bg:#f6f3ea;
+    --ink:#070707;
+    --paper:#fffdfa;
+    --muted:#6f6a5c;
+    --line:#111;
+    --blue:#0047ff;
+    --gold:#d8a400;
+    --red:#e60000;
+    --green:#009c4a;
+    --panel:rgba(255,253,250,.94);
+    --shadow:4px 4px 0 #111;
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;border-radius:0!important;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none;-webkit-user-select:none}
+  button,input,select{font:inherit}
+  #app{height:100dvh;width:100vw;display:grid;grid-template-rows:1fr auto;background:var(--bg)}
+  #stage{position:relative;min-height:0;overflow:hidden;background:linear-gradient(180deg,#f7f4eb,#e9e3d4);touch-action:none}
+  #canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair}
+  #hud{position:absolute;left:10px;top:10px;z-index:5;display:grid;grid-template-columns:repeat(5,minmax(58px,1fr));gap:6px;max-width:calc(100vw - 20px)}
+  .meter{background:var(--panel);border:2px solid var(--line);box-shadow:2px 2px 0 var(--line);padding:7px 8px;min-width:0}
+  .meter b{display:block;font-size:18px;line-height:1;font-weight:900;letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meter span{display:block;margin-top:3px;font-size:8px;line-height:1;font-weight:900;color:var(--muted);letter-spacing:.11em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #modebar{position:absolute;right:10px;top:10px;z-index:6;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:44vw}
+  .mini{min-height:34px;padding:0 9px;border:2px solid var(--line);background:var(--paper);box-shadow:2px 2px 0 var(--line);font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+  .mini.on{background:var(--ink);color:var(--paper)}
+  #patchCard{position:absolute;left:10px;bottom:12px;z-index:5;width:min(380px,calc(100vw - 20px));background:rgba(0,0,0,.86);color:white;border:2px solid var(--line);box-shadow:var(--shadow);padding:10px 12px;display:grid;gap:5px;pointer-events:none}
+  #patchCard .title{font-size:10px;font-weight:900;letter-spacing:.14em;color:#ffdf62;text-transform:uppercase}
+  #patchCard .line{font-size:13px;font-weight:800;line-height:1.25;font-variant-numeric:tabular-nums}
+  #patchCard .rule{font-size:10px;color:#d0d0d0;line-height:1.25;text-transform:uppercase;letter-spacing:.05em}
+  #controls{border-top:3px solid var(--line);background:var(--paper);padding:8px 8px calc(8px + var(--safe-b));display:grid;grid-template-columns:auto auto auto auto 1fr auto;gap:7px;align-items:center;z-index:10;box-shadow:0 -3px 0 rgba(0,0,0,.06)}
+  .btn{height:46px;border:3px solid var(--line);background:var(--paper);box-shadow:3px 3px 0 var(--line);font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:0 12px;color:var(--ink)}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--line)}
+  .btn.red{background:var(--red);color:white}.btn.blue{background:var(--blue);color:white}.btn.dark{background:var(--ink);color:white}.btn.gold{background:var(--gold);color:#000}
+  .sliderPack{display:grid;grid-template-columns:70px 1fr 42px;gap:6px;align-items:center;min-width:0;border:2px solid var(--line);padding:5px 8px;background:var(--bg);height:46px}
+  .sliderPack label{font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .sliderPack output{font-size:12px;font-weight:900;text-align:right;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;height:22px;margin:0;-webkit-appearance:none;background:transparent;border:2px solid var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;background:var(--ink);border:0}
+  input[type=range]::-webkit-slider-runnable-track{height:22px}
+  #log{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:7;background:var(--paper);border:2px solid var(--line);box-shadow:3px 3px 0 var(--line);padding:8px 12px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;opacity:0;pointer-events:none;transition:opacity .12s;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #log.on{opacity:1}
+  #legend{position:absolute;right:10px;bottom:12px;z-index:5;background:rgba(255,253,250,.92);border:2px solid var(--line);box-shadow:3px 3px 0 var(--line);padding:8px 10px;display:grid;gap:5px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#333}
+  .key{display:flex;gap:6px;align-items:center}.sw{width:14px;height:14px;border:2px solid #111;background:#ccc}.sw.pred{background:var(--blue)}.sw.target{background:var(--gold)}.sw.hit{background:var(--green)}.sw.err{background:var(--red)}.sw.source{background:#999}
+  @media(max-width:760px){
+    #hud{grid-template-columns:repeat(3,minmax(70px,1fr));right:10px}
+    #modebar{top:auto;right:10px;bottom:92px;max-width:56vw}
+    #legend{display:none}
+    #controls{grid-template-columns:1fr 1fr 1fr;gap:6px}
+    .btn{height:44px;padding:0 8px;font-size:10px;box-shadow:2px 2px 0 var(--line)}
+    .sliderPack{grid-column:1/-1;height:40px;grid-template-columns:70px 1fr 38px}
+    #patchCard{bottom:146px;width:calc(100vw - 20px);padding:9px 10px}
+    #patchCard .line{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="canvas"></canvas>
+
+    <section id="hud" aria-label="Patch policy metrics">
+      <div class="meter"><b id="mPatches">0</b><span>Patches</span></div>
+      <div class="meter"><b id="mMatch">0%</b><span>Match</span></div>
+      <div class="meter"><b id="mFlow">0%</b><span>Flow Trust</span></div>
+      <div class="meter"><b id="mErr">0</b><span>Error Cells</span></div>
+      <div class="meter"><b id="mAction">IDLE</b><span>Next Action</span></div>
+    </section>
+
+    <section id="modebar" aria-label="View modes">
+      <button class="mini on" data-view="composite">Composite</button>
+      <button class="mini" data-view="source">Source</button>
+      <button class="mini" data-view="target">Target</button>
+      <button class="mini" data-view="prediction">Pred</button>
+      <button class="mini" data-view="error">Error</button>
+    </section>
+
+    <section id="patchCard">
+      <div class="title">Patch Policy Mode</div>
+      <div class="line" id="cardMain">Detect patches. Infer motion. Train only on error.</div>
+      <div class="rule" id="cardRule">Pixels score the result. Patches carry the action.</div>
+    </section>
+
+    <section id="legend">
+      <div class="key"><i class="sw source"></i> Source</div>
+      <div class="key"><i class="sw pred"></i> Prediction</div>
+      <div class="key"><i class="sw target"></i> Target</div>
+      <div class="key"><i class="sw hit"></i> Hit</div>
+      <div class="key"><i class="sw err"></i> Error</div>
+    </section>
+
+    <div id="log">READY</div>
+  </main>
+
+  <nav id="controls" aria-label="Controls">
+    <button class="btn dark" id="playBtn">Play</button>
+    <button class="btn blue" id="stepBtn">Step</button>
+    <button class="btn gold" id="trainBtn">Train 80</button>
+    <button class="btn" id="pipeBtn">Run Pipe</button>
+    <div class="sliderPack">
+      <label for="eps">Epsilon</label>
+      <input id="eps" type="range" min="0" max="0.60" value="0.18" step="0.01" />
+      <output id="epsOut">.18</output>
+    </div>
+    <button class="btn red" id="resetBtn">Reset</button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const W = 128;
+  const H = 96;
+  const N = W * H;
+  const MIN_AREA = 10;
+  const MAX_PATCHES = 40;
+  const ACTIONS = [
+    'FOLLOW_FLOW',
+    'DAMP_FLOW',
+    'AMPLIFY_FLOW',
+    'REVERSE_FLOW',
+    'SNAP_GRID',
+    'STAY',
+    'EXPAND_PATCH',
+    'SHRINK_PATCH'
+  ];
+
+  const COLORS = {
+    bg:'#fffdfa',
+    grid:'#eee8d8',
+    source:'rgba(40,40,40,.28)',
+    sourceSolid:'#222',
+    pred:'#0047ff',
+    predAlpha:'rgba(0,71,255,.74)',
+    target:'#d8a400',
+    targetAlpha:'rgba(216,164,0,.72)',
+    hit:'#009c4a',
+    err:'#e60000',
+    patch:'#111',
+    white:'#fffdfa'
+  };
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  let view = 'composite';
+  let cell = 5;
+  let ox = 0;
+  let oy = 0;
+  let cssW = 0;
+  let cssH = 0;
+
+  const ui = {
+    patches: document.getElementById('mPatches'),
+    match: document.getElementById('mMatch'),
+    flow: document.getElementById('mFlow'),
+    err: document.getElementById('mErr'),
+    action: document.getElementById('mAction'),
+    cardMain: document.getElementById('cardMain'),
+    cardRule: document.getElementById('cardRule'),
+    log: document.getElementById('log'),
+    eps: document.getElementById('eps'),
+    epsOut: document.getElementById('epsOut'),
+    playBtn: document.getElementById('playBtn')
+  };
+
+  const state = {
+    frames: [],
+    cur: 0,
+    playing: false,
+    raf: 0,
+    lastPlay: 0,
+    revision: 0,
+    selected: null,
+    analysisKey: '',
+    analysis: null,
+    q: new Map(),
+    metrics: { patches:0, match:0, flowTrust:0, errorCells:0, action:'IDLE', mse:1 },
+    learned: 0
+  };
+
+  function idx(x,y){ return y * W + x; }
+  function ix(i){ return i % W; }
+  function iy(i){ return (i / W) | 0; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function round(v){ return v < 0 ? Math.ceil(v - .5) : Math.floor(v + .5); }
+  function dist(a,b,c,d){ return Math.hypot(a-c,b-d); }
+
+  function makeFrame(){ return new Uint8Array(N); }
+  function put(f,x,y,v){ if(x>=0 && x<W && y>=0 && y<H) f[idx(x,y)] = v; }
+  function rect(f,x,y,w,h,v){
+    x = round(x); y = round(y); w = round(w); h = round(h);
+    for(let yy=0; yy<h; yy++) for(let xx=0; xx<w; xx++) put(f,x+xx,y+yy,v);
+  }
+  function disk(f,cx,cy,r,v){
+    cx = round(cx); cy = round(cy); r = round(r);
+    for(let y=-r; y<=r; y++) for(let x=-r; x<=r; x++) if(x*x+y*y <= r*r) put(f,cx+x,cy+y,v);
+  }
+  function line(f,x0,y0,x1,y1,v){
+    x0=round(x0); y0=round(y0); x1=round(x1); y1=round(y1);
+    let dx=Math.abs(x1-x0), sx=x0<x1?1:-1;
+    let dy=-Math.abs(y1-y0), sy=y0<y1?1:-1;
+    let e=dx+dy;
+    while(true){ put(f,x0,y0,v); if(x0===x1 && y0===y1) break; let e2=2*e; if(e2>=dy){e+=dy;x0+=sx} if(e2<=dx){e+=dx;y0+=sy} }
+  }
+
+  function generateDemoFrames(){
+    const frames = [];
+    for(let t=0; t<30; t++){
+      const f = makeFrame();
+      rect(f, 10 + t*2.2, 16 + Math.sin(t*.32)*4, 18, 11, 7);
+      rect(f, 13 + t*2.2, 19 + Math.sin(t*.32)*4, 12, 5, 4);
+      disk(f, 95 - t*1.65, 63 + Math.sin(t*.28)*8, 8, 5);
+      disk(f, 95 - t*1.65, 63 + Math.sin(t*.28)*8, 4, 2);
+      rect(f, 36 + Math.sin(t*.35)*7, 70 - t*.6, 10 + Math.sin(t*.2)*4, 7, 3);
+      if(t > 9){
+        const k = t - 9;
+        line(f, 22 + k*2.5, 86 - k, 42 + k*2.5, 82 - k, 6);
+        line(f, 22 + k*2.5, 87 - k, 42 + k*2.5, 83 - k, 6);
+      }
+      if(t > 17){
+        disk(f, 22 + (t-17)*3, 39, 4, 1);
+      }
+      frames.push(f);
+    }
+    state.frames = frames;
+    state.cur = 0;
+    state.revision++;
+    state.analysisKey = '';
+  }
+
+  function labelPatches(frame){
+    const seen = new Uint8Array(N);
+    const patches = [];
+    const q = new Int32Array(N);
+    let qh = 0, qt = 0;
+
+    for(let i=0; i<N; i++){
+      if(seen[i] || frame[i] === 0) continue;
+      seen[i] = 1;
+      qh = 0; qt = 0; q[qt++] = i;
+      const raw = [];
+      let minX = W, minY = H, maxX = 0, maxY = 0;
+      let sx = 0, sy = 0;
+      const hist = new Uint16Array(8);
+
+      while(qh < qt){
+        const p = q[qh++];
+        const x = ix(p), y = iy(p), v = frame[p];
+        raw.push(p); sx += x; sy += y; hist[v]++;
+        if(x < minX) minX = x; if(x > maxX) maxX = x;
+        if(y < minY) minY = y; if(y > maxY) maxY = y;
+        const nbs = [p-1,p+1,p-W,p+W];
+        for(const n of nbs){
+          if(n < 0 || n >= N || seen[n] || frame[n] === 0) continue;
+          const nx = ix(n), ny = iy(n);
+          if(Math.abs(nx-x) + Math.abs(ny-y) !== 1) continue;
+          seen[n] = 1; q[qt++] = n;
+        }
+      }
+
+      if(raw.length < MIN_AREA) continue;
+      let dominant = 1, best = 0;
+      for(let h=1; h<hist.length; h++) if(hist[h] > best){ best = hist[h]; dominant = h; }
+      const cells = raw.map(p => ({ dx: ix(p)-minX, dy: iy(p)-minY, v: frame[p] }));
+      const set = new Set(raw);
+      patches.push({
+        id: patches.length,
+        x:minX, y:minY, w:maxX-minX+1, h:maxY-minY+1,
+        area:raw.length,
+        cx:sx/raw.length, cy:sy/raw.length,
+        hist, dominant, cells, set,
+        raw
+      });
+    }
+
+    patches.sort((a,b) => b.area - a.area);
+    return patches.slice(0, MAX_PATCHES).map((p,i) => ({ ...p, id:i }));
+  }
+
+  function histCost(a,b){
+    let sumA=0,sumB=0,d=0;
+    for(let i=1;i<8;i++){ sumA += a.hist[i]; sumB += b.hist[i]; }
+    for(let i=1;i<8;i++) d += Math.abs((a.hist[i]/Math.max(1,sumA)) - (b.hist[i]/Math.max(1,sumB)));
+    return d;
+  }
+
+  function matchPatches(sourcePatches, targetPatches){
+    const used = new Set();
+    const matches = [];
+    for(const sp of sourcePatches){
+      let best = null;
+      let bestCost = Infinity;
+      for(const tp of targetPatches){
+        if(used.has(tp.id)) continue;
+        const d = dist(sp.cx, sp.cy, tp.cx, tp.cy);
+        const area = Math.abs(sp.area - tp.area) / Math.max(sp.area, tp.area, 1);
+        const bbox = Math.abs(sp.w - tp.w)/Math.max(sp.w,tp.w,1) + Math.abs(sp.h - tp.h)/Math.max(sp.h,tp.h,1);
+        const color = histCost(sp,tp);
+        const cost = d * .06 + area * 1.25 + bbox * .35 + color * .9;
+        if(cost < bestCost){ bestCost = cost; best = tp; }
+      }
+      if(best && bestCost < 4.2){
+        used.add(best.id);
+        const dx = best.cx - sp.cx;
+        const dy = best.cy - sp.cy;
+        matches.push({
+          id: matches.length,
+          source: sp,
+          target: best,
+          dx, dy,
+          confidence: clamp(1 - bestCost / 4.2, 0, 1),
+          clonedAction: 'FOLLOW_FLOW',
+          score: 0
+        });
+      }
+    }
+    return matches;
+  }
+
+  function analysisKey(){ return `${state.cur}:${state.revision}`; }
+
+  function analyzeFramePair(){
+    const key = analysisKey();
+    if(state.analysis && state.analysisKey === key) return state.analysis;
+    const source = state.frames[state.cur];
+    const target = state.frames[Math.min(state.cur + 1, state.frames.length - 1)];
+    const sourcePatches = labelPatches(source);
+    const targetPatches = labelPatches(target);
+    const matches = matchPatches(sourcePatches, targetPatches);
+
+    const active = new Uint8Array(N);
+    let activeCount = 0;
+    for(let i=0;i<N;i++){
+      if(source[i] !== target[i]){ active[i] = 1; activeCount++; }
+    }
+
+    state.analysis = { key, source, target, sourcePatches, targetPatches, matches, active, activeCount };
+    state.analysisKey = key;
+    behaviorClone(matches);
+    return state.analysis;
+  }
+
+  function actionVector(match, action){
+    let dx = match.dx;
+    let dy = match.dy;
+    switch(action){
+      case 'FOLLOW_FLOW': return [round(dx), round(dy), 1];
+      case 'DAMP_FLOW': return [round(dx*.5), round(dy*.5), 1];
+      case 'AMPLIFY_FLOW': return [round(dx*1.35), round(dy*1.35), 1];
+      case 'REVERSE_FLOW': return [round(-dx*.75), round(-dy*.75), 1];
+      case 'SNAP_GRID': return [round(dx/4)*4, round(dy/4)*4, 1];
+      case 'STAY': return [0,0,1];
+      case 'EXPAND_PATCH': return [round(dx), round(dy), 2];
+      case 'SHRINK_PATCH': return [round(dx), round(dy), 0];
+      default: return [round(dx), round(dy), 1];
+    }
+  }
+
+  function patchSignature(match){
+    const p = match.source;
+    const areaBucket = Math.min(9, Math.floor(Math.log2(Math.max(1,p.area))));
+    const vx = clamp(round(match.dx / 3), -9, 9);
+    const vy = clamp(round(match.dy / 3), -9, 9);
+    const shape = p.w > p.h*1.6 ? 'wide' : p.h > p.w*1.6 ? 'tall' : 'mass';
+    return `${p.dominant}|${areaBucket}|${vx},${vy}|${shape}`;
+  }
+
+  function getQ(key){
+    let q = state.q.get(key);
+    if(!q){ q = new Float32Array(ACTIONS.length); state.q.set(key, q); }
+    return q;
+  }
+
+  function chooseAction(match, epsilon){
+    if(Math.random() < epsilon) return (Math.random() * ACTIONS.length) | 0;
+    const q = getQ(patchSignature(match));
+    let best = 0, val = q[0];
+    for(let i=1;i<q.length;i++) if(q[i] > val){ val = q[i]; best = i; }
+    return best;
+  }
+
+  function greedyAction(match){
+    const q = getQ(patchSignature(match));
+    let best = 0, val = q[0];
+    for(let i=1;i<q.length;i++) if(q[i] > val){ val = q[i]; best = i; }
+    if(val === 0 && match.clonedAction){ return ACTIONS.indexOf(match.clonedAction); }
+    return best;
+  }
+
+  function movedCellSet(patch, dx, dy, scaleMode){
+    const set = new Set();
+    if(scaleMode === 0){
+      const insetX = Math.max(0, Math.floor(patch.w*.15));
+      const insetY = Math.max(0, Math.floor(patch.h*.15));
+      for(const c of patch.cells){
+        if(c.dx < insetX || c.dy < insetY || c.dx >= patch.w-insetX || c.dy >= patch.h-insetY) continue;
+        const x = patch.x + c.dx + dx;
+        const y = patch.y + c.dy + dy;
+        if(x>=0 && x<W && y>=0 && y<H) set.add(idx(x,y));
+      }
+      return set;
+    }
+    for(const c of patch.cells){
+      const x = patch.x + c.dx + dx;
+      const y = patch.y + c.dy + dy;
+      if(x>=0 && x<W && y>=0 && y<H) set.add(idx(x,y));
+      if(scaleMode === 2){
+        const ns = [[1,0],[-1,0],[0,1],[0,-1]];
+        for(const n of ns){
+          const xx = x+n[0], yy = y+n[1];
+          if(xx>=0 && xx<W && yy>=0 && yy<H) set.add(idx(xx,yy));
+        }
+      }
+    }
+    return set;
+  }
+
+  function setIoU(a,b){
+    let inter = 0;
+    for(const p of a) if(b.has(p)) inter++;
+    const uni = a.size + b.size - inter;
+    return uni ? inter / uni : 0;
+  }
+
+  function scorePatchAction(match, actionName){
+    const [dx,dy,scaleMode] = actionVector(match, actionName);
+    const moved = movedCellSet(match.source, dx, dy, scaleMode);
+    const targetSet = match.target.set;
+    const iou = setIoU(moved, targetSet);
+    const moveLen = Math.hypot(dx,dy);
+    const vectorLen = Math.hypot(match.dx,match.dy);
+    let flowMatch = 1;
+    if(moveLen > .001 && vectorLen > .001){
+      const dot = (dx * match.dx + dy * match.dy) / (moveLen * vectorLen);
+      flowMatch = clamp((dot + 1) / 2, 0, 1);
+    }
+    const movedCx = match.source.cx + dx;
+    const movedCy = match.source.cy + dy;
+    const centerError = dist(movedCx, movedCy, match.target.cx, match.target.cy);
+    const centerScore = clamp(1 - centerError / 24, 0, 1);
+    const areaScore = clamp(1 - Math.abs(moved.size - match.target.area) / Math.max(moved.size, match.target.area, 1), 0, 1);
+    const waste = Math.max(0, moveLen - vectorLen - 2) * .012;
+    return clamp(iou*.58 + flowMatch*.16 + centerScore*.18 + areaScore*.10 + match.confidence*.05 - waste, -1, 1);
+  }
+
+  function behaviorClone(matches){
+    for(const m of matches){
+      let bestName = 'FOLLOW_FLOW', bestScore = -Infinity;
+      for(const a of ACTIONS){
+        const s = scorePatchAction(m, a);
+        if(s > bestScore){ bestScore = s; bestName = a; }
+      }
+      m.clonedAction = bestName;
+      m.score = bestScore;
+      const q = getQ(patchSignature(m));
+      const ai = ACTIONS.indexOf(bestName);
+      q[ai] = Math.max(q[ai], bestScore * .85);
+    }
+  }
+
+  function train(iterations=80){
+    const a = analyzeFramePair();
+    const epsilon = +ui.eps.value;
+    const alpha = .28;
+    let bestAction = 'IDLE';
+    const counts = new Map();
+
+    if(!a.matches.length){
+      toast('NO PATCH MATCHES');
+      render();
+      return;
+    }
+
+    for(let n=0; n<iterations; n++){
+      for(const m of a.matches){
+        const ai = chooseAction(m, epsilon);
+        const name = ACTIONS[ai];
+        const reward = scorePatchAction(m, name);
+        const q = getQ(patchSignature(m));
+        q[ai] = q[ai] + alpha * (reward - q[ai]);
+        counts.set(name, (counts.get(name) || 0) + 1);
+        state.learned++;
+      }
+    }
+
+    let max = -1;
+    for(const [name,count] of counts){ if(count > max){ max = count; bestAction = name; } }
+    updatePrediction(bestAction);
+    toast(`TRAINED ${iterations} · ${bestAction}`);
+    render();
+  }
+
+  function erasePatch(frame, patch){
+    for(const p of patch.raw) frame[p] = 0;
+  }
+
+  function drawMovedPatchToFrame(frame, patch, actionVectorTriplet){
+    const [dx,dy,scaleMode] = actionVectorTriplet;
+    if(scaleMode === 0){
+      const insetX = Math.max(0, Math.floor(patch.w*.15));
+      const insetY = Math.max(0, Math.floor(patch.h*.15));
+      for(const c of patch.cells){
+        if(c.dx < insetX || c.dy < insetY || c.dx >= patch.w-insetX || c.dy >= patch.h-insetY) continue;
+        put(frame, patch.x + c.dx + dx, patch.y + c.dy + dy, c.v);
+      }
+      return;
+    }
+    for(const c of patch.cells){
+      const x = patch.x + c.dx + dx;
+      const y = patch.y + c.dy + dy;
+      put(frame, x, y, c.v);
+      if(scaleMode === 2){
+        put(frame, x+1, y, c.v); put(frame, x-1, y, c.v); put(frame, x, y+1, c.v); put(frame, x, y-1, c.v);
+      }
+    }
+  }
+
+  function buildPrediction(){
+    const a = analyzeFramePair();
+    const pred = new Uint8Array(a.source);
+    for(const m of a.matches) erasePatch(pred, m.source);
+    const actions = [];
+    for(const m of a.matches){
+      const ai = greedyAction(m);
+      const action = ACTIONS[ai] || m.clonedAction || 'FOLLOW_FLOW';
+      actions.push(action);
+      drawMovedPatchToFrame(pred, m.source, actionVector(m, action));
+    }
+    return { pred, actions };
+  }
+
+  function comparePrediction(pred,target){
+    let errorCells = 0;
+    let union = 0;
+    let sq = 0;
+    for(let i=0;i<N;i++){
+      if(pred[i] || target[i]) union++;
+      if(pred[i] !== target[i]){
+        errorCells++;
+        const d = (pred[i]-target[i]) / 7;
+        sq += d*d;
+      }
+    }
+    const match = union ? clamp(1 - errorCells / union, 0, 1) : 1;
+    const mse = sq / N;
+    return { errorCells, match, mse };
+  }
+
+  function updatePrediction(forcedActionLabel){
+    const a = analyzeFramePair();
+    const built = buildPrediction();
+    const cmp = comparePrediction(built.pred, a.target);
+    const flowTrust = a.matches.length ? a.matches.reduce((s,m)=>s+m.confidence,0)/a.matches.length : 0;
+    const actionCounts = {};
+    for(const ac of built.actions) actionCounts[ac] = (actionCounts[ac] || 0) + 1;
+    let topAction = forcedActionLabel || 'IDLE', topCount = -1;
+    for(const k in actionCounts) if(actionCounts[k] > topCount){ topAction = k; topCount = actionCounts[k]; }
+    state.metrics = {
+      patches: a.matches.length,
+      match: cmp.match,
+      flowTrust,
+      errorCells: cmp.errorCells,
+      mse: cmp.mse,
+      action: topAction
+    };
+    a.pred = built.pred;
+    a.actions = built.actions;
+    syncHud();
+  }
+
+  function runPipeline(){
+    analyzeFramePair();
+    updatePrediction();
+    toast('PIPELINE: PATCH → FLOW → PREDICT → ERROR');
+    render();
+  }
+
+  function syncHud(){
+    const m = state.metrics;
+    ui.patches.textContent = String(m.patches);
+    ui.match.textContent = Math.round(m.match * 100) + '%';
+    ui.flow.textContent = Math.round(m.flowTrust * 100) + '%';
+    ui.err.textContent = String(m.errorCells);
+    ui.action.textContent = (m.action || 'IDLE').replace('_',' ');
+    ui.cardMain.textContent = `F${String(state.cur+1).padStart(2,'0')} → F${String(state.cur+2).padStart(2,'0')} · ${m.patches} patches · ${Math.round(m.match*100)}% match · ${m.errorCells} error cells`;
+    ui.cardRule.textContent = `Rule: detect changed regions, match patches, move by vector, train only the mismatch. Learned updates: ${state.learned}.`;
+  }
+
+  function stepFrame(dir=1){
+    state.cur = clamp(state.cur + dir, 0, state.frames.length - 2);
+    state.selected = null;
+    state.analysisKey = '';
+    runPipeline();
+  }
+
+  function resetPolicy(){
+    state.q.clear();
+    state.learned = 0;
+    state.selected = null;
+    state.analysisKey = '';
+    runPipeline();
+    toast('POLICY RESET');
+  }
+
+  function playLoop(t){
+    if(!state.playing) return;
+    if(t - state.lastPlay > 480){
+      train(40);
+      state.cur = state.cur >= state.frames.length - 2 ? 0 : state.cur + 1;
+      state.analysisKey = '';
+      runPipeline();
+      state.lastPlay = t;
+    }
+    state.raf = requestAnimationFrame(playLoop);
+  }
+
+  function togglePlay(){
+    state.playing = !state.playing;
+    ui.playBtn.textContent = state.playing ? 'Pause' : 'Play';
+    ui.playBtn.classList.toggle('red', state.playing);
+    if(state.playing){ state.lastPlay = 0; state.raf = requestAnimationFrame(playLoop); toast('PLAY: TRAIN + ADVANCE'); }
+    else { cancelAnimationFrame(state.raf); toast('PAUSED'); }
+  }
+
+  function pixelColor(v){
+    switch(v){
+      case 1: return '#111111';
+      case 2: return '#4d4d4d';
+      case 3: return '#e60000';
+      case 4: return '#ff6a00';
+      case 5: return '#0047ff';
+      case 6: return '#d8a400';
+      case 7: return '#000000';
+      default: return COLORS.bg;
+    }
+  }
+
+  function resize(){
+    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const r = canvas.getBoundingClientRect();
+    cssW = Math.max(1, r.width); cssH = Math.max(1, r.height);
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled = false;
+    cell = Math.max(2, Math.floor(Math.min(cssW / W, cssH / H)));
+    ox = Math.floor((cssW - W * cell) / 2);
+    oy = Math.floor((cssH - H * cell) / 2);
+    render();
+  }
+
+  function fillCell(x,y,color,alpha=1){
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.fillRect(ox + x*cell, oy + y*cell, cell, cell);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawFrame(frame, alpha=1, solid=false){
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const v = frame[idx(x,y)];
+        if(v) fillCell(x,y, solid ? pixelColor(v) : COLORS.sourceSolid, alpha);
+      }
+    }
+  }
+
+  function drawOverlayFrames(source,target,pred){
+    if(view === 'source'){ drawFrame(source,1,true); return; }
+    if(view === 'target'){ drawFrame(target,1,true); return; }
+    if(view === 'prediction'){ drawFrame(pred,1,true); return; }
+    if(view === 'error'){
+      for(let i=0;i<N;i++){
+        if(pred[i] === target[i] && target[i]) fillCell(ix(i),iy(i),COLORS.hit,.9);
+        else if(pred[i] !== target[i]) fillCell(ix(i),iy(i),COLORS.err,.92);
+      }
+      return;
+    }
+    for(let i=0;i<N;i++){
+      const x=ix(i), y=iy(i);
+      if(source[i]) fillCell(x,y,'#555',.22);
+      if(pred[i] && target[i] && pred[i] === target[i]) fillCell(x,y,COLORS.hit,.92);
+      else {
+        if(pred[i]) fillCell(x,y,COLORS.predAlpha,.72);
+        if(target[i]) fillCell(x,y,COLORS.targetAlpha,.72);
+        if(pred[i] !== target[i] && (pred[i] || target[i])) fillCell(x,y,COLORS.err,.30);
+      }
+    }
+  }
+
+  function strokePatch(p,color,width=2,alpha=1){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.strokeRect(ox + p.x*cell - .5, oy + p.y*cell - .5, p.w*cell + 1, p.h*cell + 1);
+    ctx.restore();
+  }
+
+  function drawVector(match, color){
+    const x1 = ox + match.source.cx * cell;
+    const y1 = oy + match.source.cy * cell;
+    const x2 = ox + (match.source.cx + round(match.dx)) * cell;
+    const y2 = oy + (match.source.cy + round(match.dy)) * cell;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(2, cell*.45);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const ang = Math.atan2(y2-y1,x2-x1);
+    const s = Math.max(6,cell*1.2);
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2 - Math.cos(ang-.5)*s, y2 - Math.sin(ang-.5)*s);
+    ctx.lineTo(x2 - Math.cos(ang+.5)*s, y2 - Math.sin(ang+.5)*s);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawGrid(){
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0,0,cssW,cssH);
+    ctx.fillStyle = '#e6decb';
+    ctx.fillRect(ox-6,oy-6,W*cell+12,H*cell+12);
+    ctx.fillStyle = '#fffdfa';
+    ctx.fillRect(ox,oy,W*cell,H*cell);
+    if(cell >= 5){
+      ctx.strokeStyle = COLORS.grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=8){ ctx.moveTo(ox+x*cell+.5,oy); ctx.lineTo(ox+x*cell+.5,oy+H*cell); }
+      for(let y=0;y<=H;y+=8){ ctx.moveTo(ox,oy+y*cell+.5); ctx.lineTo(ox+W*cell,oy+y*cell+.5); }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 3;
+    ctx.strokeRect(ox,oy,W*cell,H*cell);
+  }
+
+  function render(){
+    if(!state.frames.length) return;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled = false;
+    drawGrid();
+    const a = analyzeFramePair();
+    if(!a.pred) updatePrediction();
+    drawOverlayFrames(a.source,a.target,a.pred);
+
+    for(const m of a.matches){
+      strokePatch(m.source, COLORS.pred, 2, .85);
+      strokePatch(m.target, COLORS.target, 2, .85);
+      drawVector(m, '#111');
+    }
+    if(state.selected != null && a.matches[state.selected]){
+      const m = a.matches[state.selected];
+      strokePatch(m.source, COLORS.red, 4, 1);
+      strokePatch(m.target, COLORS.red, 4, 1);
+      const ac = ACTIONS[greedyAction(m)] || m.clonedAction;
+      ui.cardMain.textContent = `PATCH ${m.id} · ${m.source.area} cells · vector ${round(m.dx)},${round(m.dy)} · action ${ac}`;
+      ui.cardRule.textContent = `Reward ${scorePatchAction(m, ac).toFixed(3)} · confidence ${Math.round(m.confidence*100)}% · signature ${patchSignature(m)}`;
+    } else {
+      syncHud();
+    }
+  }
+
+  let toastTimer = 0;
+  function toast(msg){
+    ui.log.textContent = msg;
+    ui.log.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>ui.log.classList.remove('on'), 900);
+  }
+
+  function pointerToCell(ev){
+    const r = canvas.getBoundingClientRect();
+    const x = Math.floor((ev.clientX - r.left - ox) / cell);
+    const y = Math.floor((ev.clientY - r.top - oy) / cell);
+    if(x<0||x>=W||y<0||y>=H) return null;
+    return {x,y,i:idx(x,y)};
+  }
+
+  function selectPatch(ev){
+    const p = pointerToCell(ev);
+    if(!p) return;
+    const a = analyzeFramePair();
+    let hit = null;
+    for(const m of a.matches){
+      if(p.x >= m.source.x && p.x < m.source.x + m.source.w && p.y >= m.source.y && p.y < m.source.y + m.source.h){ hit = m.id; break; }
+      if(p.x >= m.target.x && p.x < m.target.x + m.target.w && p.y >= m.target.y && p.y < m.target.y + m.target.h){ hit = m.id; break; }
+    }
+    state.selected = hit;
+    if(hit == null) toast('NO PATCH HERE'); else toast('PATCH ' + hit);
+    render();
+  }
+
+  function bind(){
+    document.getElementById('playBtn').addEventListener('click', togglePlay);
+    document.getElementById('stepBtn').addEventListener('click', () => stepFrame(1));
+    document.getElementById('trainBtn').addEventListener('click', () => train(80));
+    document.getElementById('pipeBtn').addEventListener('click', runPipeline);
+    document.getElementById('resetBtn').addEventListener('click', resetPolicy);
+    ui.eps.addEventListener('input', () => { ui.epsOut.textContent = (+ui.eps.value).toFixed(2).replace('0.','.'); });
+    document.querySelectorAll('#modebar button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#modebar button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        view = btn.dataset.view;
+        render();
+      });
+    });
+    canvas.addEventListener('pointerdown', selectPatch);
+    window.addEventListener('resize', resize);
+    window.addEventListener('keydown', ev => {
+      if(ev.key === ' '){ ev.preventDefault(); togglePlay(); }
+      if(ev.key === 'ArrowRight') stepFrame(1);
+      if(ev.key === 'ArrowLeft') stepFrame(-1);
+      if(ev.key.toLowerCase() === 't') train(80);
+      if(ev.key.toLowerCase() === 'r') resetPolicy();
+    });
+  }
+
+  function boot(){
+    generateDemoFrames();
+    bind();
+    resize();
+    runPipeline();
+    train(20);
+    toast('PATCH POLICY READY');
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

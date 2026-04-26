@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Tactile Arc-Tunnel Assembly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #05060a;
+            --fg: #f1f5f9;
+            --dim: #64748b;
+            --hot: #9CFFB8;
+            --blood: #d83a1a;
+            --c0: #6ee7b7;
+            --c1: #a78bfa;
+            --c2: #fb7185;
+            --c3: #fbbf24
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: radial-gradient(circle at 50% 45%, rgba(80, 0, 12, .22), transparent 58%), #05060a;
+            cursor: crosshair
+        }
+
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            z-index: 20;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(5, 6, 10, .96), rgba(5, 6, 10, 0))
+        }
+
+        .title strong {
+            display: block;
+            color: var(--blood);
+            font-size: 12px;
+            letter-spacing: .22em;
+            text-transform: uppercase;
+            pointer-events: none
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto
+        }
+
+        button {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(100, 116, 139, .75);
+            background: rgba(15, 23, 42, .42);
+            color: var(--fg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .1s cubic-bezier(.2, .8, .2, 1);
+            backdrop-filter: blur(8px)
+        }
+
+        button:hover,
+        button.on {
+            border-color: var(--hot);
+            color: var(--hot);
+            box-shadow: 0 0 16px rgba(156, 255, 184, .25);
+            background: rgba(156, 255, 184, .12)
+        }
+
+        button:active {
+            transform: scale(.92)
+        }
+
+        button svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2
+        }
+
+        #readout {
+            position: fixed;
+            left: 28px;
+            bottom: 28px;
+            z-index: 20;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            pointer-events: none
+        }
+
+        .track-indicator {
+            display: flex;
+            gap: 9px;
+            pointer-events: auto
+        }
+
+        .trk-dot {
+            width: 40px;
+            height: 8px;
+            background: var(--dim);
+            opacity: .3;
+            cursor: pointer
+        }
+
+        .focus {
+            height: 26px;
+            min-width: 92px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(156, 255, 184, .28);
+            color: var(--hot);
+            background: rgba(5, 6, 10, .52);
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: .08em;
+            box-shadow: 0 0 20px rgba(156, 255, 184, .08)
+        }
+
+        #monitor {
+            position: fixed;
+            right: 24px;
+            top: 82px;
+            width: 230px;
+            height: 126px;
+            background: #000;
+            border: 1px solid rgba(100, 116, 139, .8);
+            border-radius: 7px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            overflow: hidden;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .55)
+        }
+
+        #monitor:before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, .35) 50%);
+            background-size: 100% 4px;
+            z-index: 2
+        }
+
+        #monitor:after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 46px rgba(0, 0, 0, .9);
+            z-index: 3
+        }
+
+        #monitor-id {
+            z-index: 4;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--dim);
+            letter-spacing: .04em
+        }
+
+        .center-mark {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 38px;
+            height: 38px;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 50%;
+            z-index: 15;
+            pointer-events: none
+        }
+
+        .center-mark.pulse {
+            border-color: var(--hot);
+            box-shadow: 0 0 18px rgba(156, 255, 184, .35)
+        }
+
+        .center-mark:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 2px;
+            height: 2px;
+            background: var(--hot);
+            border-radius: 50%;
+            transform: translate(-50%, -50%)
+        }
+
+        @media(max-width:760px) {
+            #hud {
+                height: 58px;
+                padding: 0 14px
+            }
+
+            .title strong {
+                font-size: 10px
+            }
+
+            .controls {
+                gap: 7px
+            }
+
+            button {
+                width: 38px;
+                height: 38px
+            }
+
+            #monitor {
+                top: auto;
+                bottom: 108px;
+                right: 18px;
+                width: 150px;
+                height: 84px
+            }
+
+            #monitor-id {
+                font-size: 17px
+            }
+
+            #readout {
+                left: 18px;
+                bottom: 18px
+            }
+
+            .trk-dot {
+                width: 28px
+            }
+
+            .focus {
+                min-width: 72px;
+                font-size: 11px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+    <div class="center-mark" id="centerMark"></div>
+    <div id="hud">
+        <div class="title"><strong>Tactile Arc-Tunnel Assembly</strong></div>
+        <div class="controls">
+            <button id="btnView" title="view"><svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M3 12h18M12 3v18"></path>
+                </svg></button>
+            <button id="btnPlay" title="play"><svg id="playIcon" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" fill="currentColor" stroke="none"></path>
+                </svg></button>
+            <button id="btnSound" class="on" title="sound"><svg viewBox="0 0 24 24">
+                    <path d="M11 5 6 9H3v6h3l5 4z"></path>
+                    <path d="M15 9a5 5 0 0 1 0 6"></path>
+                </svg></button>
+            <button id="btnReset" title="reset"><svg viewBox="0 0 24 24">
+                    <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                    <path d="M3 4v6h6"></path>
+                </svg></button>
+        </div>
+    </div>
+    <div id="monitor">
+        <div id="monitor-id">NO SIGNAL</div>
+    </div>
+    <div id="readout">
+        <div class="track-indicator" id="trackIndicator">
+            <div class="trk-dot" data-t="0"></div>
+            <div class="trk-dot" data-t="1"></div>
+            <div class="trk-dot" data-t="2"></div>
+            <div class="trk-dot" data-t="3"></div>
+        </div>
+        <div class="focus" id="focus">-</div>
+    </div>
+    <script>
+        (function () {
+            'use strict';
+            var canvas = document.getElementById('c'), ctx = canvas.getContext('2d', { alpha: false }), centerMark = document.getElementById('centerMark'), focusEl = document.getElementById('focus'), monitorId = document.getElementById('monitor-id');
+            var COLORS = ['#6ee7b7', '#a78bfa', '#fb7185', '#fbbf24'];
+            var NAMES = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERABLE'];
+            var SNAP = 50, LANE_H = 92, FAR = 3600, FOV = 720, TUBE_R = 235, nextId = 1;
+            var tracks = [[], [], [], []], drag = null, hover = null, rendered = [], dirty = true, raf = 0;
+            var S = { W: 0, H: 0, CX: 0, CY: 0, view: 1, z: 0, speed: 0, play: false, sound: true, active: 2, roll: 0, targetRoll: 0, flat: 1, targetFlat: 1, selected: null, cohort: null, cohortStart: null, cohortEnd: null, pulseUntil: 0 };
+            var audio = null, master = null;
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function snap(v) { return Math.round(v / SNAP) * SNAP }
+            function q(v) { return Math.round(v / (Math.PI / 2)) * (Math.PI / 2) }
+            function didx(v) { return ((Math.round(v / (Math.PI / 2)) % 4) + 4) % 4 }
+            function norm(a) { while (a < -Math.PI) a += Math.PI * 2; while (a >= Math.PI) a -= Math.PI * 2; return a }
+            function id() { return 'SC-' + String(nextId++).padStart(3, '0') }
+            function markDirty() { if (!dirty) { dirty = true; requestFrame() } }
+            function requestFrame() { if (!raf) raf = requestAnimationFrame(tick) }
+            function resize() { var d = Math.min(window.devicePixelRatio || 1, 1.6); S.W = window.innerWidth; S.H = window.innerHeight; S.CX = S.W / 2; S.CY = S.H / 2; canvas.width = Math.floor(S.W * d); canvas.height = Math.floor(S.H * d); canvas.style.width = S.W + 'px'; canvas.style.height = S.H + 'px'; ctx.setTransform(d, 0, 0, d, 0, 0); markDirty() }
+            function setupAudio() { if (audio) return; audio = new (window.AudioContext || window.webkitAudioContext)(); master = audio.createGain(); master.gain.value = .25; master.connect(audio.destination) }
+            function blip(kind) { if (!S.sound || !audio) return; var now = audio.currentTime, o = audio.createOscillator(), g = audio.createGain(), f = kind === 'tick' ? 1400 : kind === 'snap' ? 360 : kind === 'thud' ? 80 : 800; o.type = kind === 'thud' ? 'sine' : 'triangle'; o.frequency.setValueAtTime(f, now); o.frequency.exponentialRampToValueAtTime(Math.max(40, f * .32), now + (kind === 'thud' ? .16 : .06)); g.gain.setValueAtTime(.001, now); g.gain.exponentialRampToValueAtTime(kind === 'tick' ? .09 : .18, now + .01); g.gain.exponentialRampToValueAtTime(.001, now + (kind === 'thud' ? .18 : .08)); o.connect(g).connect(master); o.start(now); o.stop(now + (kind === 'thud' ? .2 : .09)); if (navigator.vibrate) try { navigator.vibrate(kind === 'tick' ? 3 : kind === 'snap' ? [10, 12] : 16) } catch (e) { } }
+            function pulse() { S.pulseUntil = performance.now() + 130; centerMark.classList.add('pulse'); setTimeout(function () { centerMark.classList.remove('pulse') }, 130) }
+            function init() { var t, z, d; nextId = 1; for (t = 0; t < 4; t++) { tracks[t] = []; z = 0; while (z < 7200) { d = snap(90 + Math.random() * 190); tracks[t].push({ id: id(), start: z, dur: d, roll: 0 }); z += d } } S.z = 0; S.speed = 0; S.selected = null; S.cohort = null; markDirty() }
+            function visibleClips() { var out = [], t, i, c, a = S.z - 300, b = S.z + FAR; for (t = 0; t < 4; t++) { for (i = 0; i < tracks[t].length; i++) { c = tracks[t][i]; if (c.start + c.dur >= a && c.start <= b) out.push({ track: t, index: i, clip: c }) } } return out }
+            function overlap(a0, a1, b0, b1) { return a0 < b1 && b0 < a1 }
+            function buildCohort(item) { var a = item.clip.start, b = item.clip.start + item.clip.dur, t, i, c, items = []; for (t = 0; t < 4; t++) { for (i = 0; i < tracks[t].length; i++) { c = tracks[t][i]; if (overlap(a, b, c.start, c.start + c.dur)) items.push({ track: t, index: i, clip: c, base: c.roll || 0 }) } } S.cohortStart = a; S.cohortEnd = b; return items }
+            function laneY(t) { return S.CY + (t - 1.5) * LANE_H }
+            function zToX(z) { var left = 92, right = S.W - 72, span = 2200; return left + ((z - S.z + 260) / span) * (right - left) }
+            function xToZ(x) { var left = 92, right = S.W - 72, span = 2200; return S.z - 260 + ((x - left) / (right - left)) * span }
+            function sideRect(item) { var y = laneY(item.track), x0 = zToX(item.clip.start), x1 = zToX(item.clip.start + item.clip.dur), h = 54; return { x0: x0, x1: x1, y0: y - h / 2, y1: y + h / 2, cx: (x0 + x1) / 2, cy: y } }
+            function project(x, y, z) { var A = S.flat > 0.7 ? Math.PI / 2 : 0, D = 980, fz = S.z + D * .34, camX = D * Math.sin(A), camZ = fz - D * Math.cos(A), vx = x - camX, vy = y, vz = z - camZ, rx = vx * Math.cos(-A) - vz * Math.sin(-A), rz = vx * Math.sin(-A) + vz * Math.cos(-A), sc; if (rz < 20) return null; sc = FOV / rz; return { x: S.CX + rx * sc, y: S.CY + vy * sc, s: sc, d: rz } }
+            function tunnelPoly(item) { var clip = item.clip, t = item.track, R = TUBE_R, base = t * Math.PI / 2 - Math.PI / 2 + S.roll + (clip.roll || 0), a0 = base - Math.PI / 4 + .06, a1 = base + Math.PI / 4 - .06, z0 = clip.start, z1 = clip.start + clip.dur, pts = [], i, a, p; for (i = 0; i <= 3; i++) { a = a0 + (a1 - a0) * i / 3; p = project(R * Math.cos(a), R * Math.sin(a), z0); if (!p) return null; pts.push(p) } for (i = 3; i >= 0; i--) { a = a0 + (a1 - a0) * i / 3; p = project(R * Math.cos(a), R * Math.sin(a), z1); if (!p) return null; pts.push(p) } return pts }
+            function drawPath(pts) { var i; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (i = 1; i < pts.length; i++)ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath() }
+            function inside(x, y, pts) { var inn = false, i, j, xi, yi, xj, yj; for (i = 0, j = pts.length - 1; i < pts.length; j = i++) { xi = pts[i].x; yi = pts[i].y; xj = pts[j].x; yj = pts[j].y; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || .0001) + xi)) inn = !inn } return inn }
+            function rollPoint(rect) { return { x: rect.cx, y: rect.y0 - 42 } }
+            function drawRollDial(p, clip, active) { var r = active ? 30 : 22, idx = didx(clip.roll || 0), i, a; ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, r + 12, 0, Math.PI * 2); ctx.strokeStyle = active ? 'rgba(156,255,184,.18)' : 'rgba(156,255,184,.08)'; ctx.lineWidth = 9; ctx.stroke(); for (i = 0; i < 4; i++) { a = -Math.PI / 2 + i * Math.PI / 2; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * (r + 16), p.y + Math.sin(a) * (r + 16), i === idx ? 7 : 4, 0, Math.PI * 2); ctx.fillStyle = i === idx ? '#fff' : 'rgba(156,255,184,.36)'; ctx.fill() } ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(5,6,10,.92)'; ctx.fill(); ctx.strokeStyle = active ? '#fff' : 'rgba(156,255,184,.8)'; ctx.lineWidth = 2; ctx.stroke(); a = -Math.PI / 2 + idx * Math.PI / 2; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(a) * (r - 5), p.y + Math.sin(a) * (r - 5)); ctx.strokeStyle = active ? '#fff' : '#9CFFB8'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore() }
+            function drawSide() {
+                var items = visibleClips(), i, item, r, color, sel, cohort = false, major, z, x, tickTop = 92, tickBot = S.H - 128; rendered = []; ctx.save(); for (i = 0; i < 4; i++) { ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.moveTo(72, laneY(i)); ctx.lineTo(S.W - 52, laneY(i)); ctx.stroke() } for (z = snap(S.z - 400); z < S.z + 2600; z += SNAP) { x = zToX(z); if (x < 70 || x > S.W - 50) continue; major = Math.round(z / SNAP) % 4 === 0; ctx.strokeStyle = major ? 'rgba(156,255,184,.25)' : 'rgba(156,255,184,.10)'; ctx.beginPath(); ctx.moveTo(x, tickTop); ctx.lineTo(x, major ? tickTop + 44 : tickTop + 20); ctx.moveTo(x, tickBot); ctx.lineTo(x, major ? tickBot - 44 : tickBot - 20); ctx.stroke() }
+                if (S.cohort && S.cohortStart !== null) { var xa = zToX(S.cohortStart), xb = zToX(S.cohortEnd); ctx.fillStyle = 'rgba(156,255,184,.06)'; ctx.fillRect(Math.min(xa, xb), 92, Math.abs(xb - xa), S.H - 220); ctx.strokeStyle = 'rgba(156,255,184,.35)'; ctx.setLineDash([6, 7]); ctx.beginPath(); ctx.moveTo(xa, 92); ctx.lineTo(xa, S.H - 128); ctx.moveTo(xb, 92); ctx.lineTo(xb, S.H - 128); ctx.stroke(); ctx.setLineDash([]) }
+                for (i = 0; i < items.length; i++) { item = items[i]; r = sideRect(item); if (r.x1 < 60 || r.x0 > S.W - 40) continue; color = COLORS[item.track]; sel = S.selected && S.selected.clip === item.clip; cohort = S.cohort && S.cohort.some(function (o) { return o.clip === item.clip }); ctx.globalAlpha = (S.active === item.track || S.view !== 1) ? 1 : .28; ctx.fillStyle = color; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); ctx.strokeStyle = sel || cohort ? '#fff' : color; ctx.lineWidth = sel || cohort ? 2 : 1; ctx.strokeRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0); if (sel || hover && hover.clip === item.clip) { ctx.fillStyle = '#05060a'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x0, r.cy, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(r.x1, r.cy, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(r.x0 - 5, r.cy - 1, 10, 2); ctx.fillRect(r.x1 - 5, r.cy - 1, 10, 2); drawRollDial(rollPoint(r), item.clip, sel || drag && drag.type === 'roll' && drag.clip === item.clip) } rendered.push({ view: 'side', item: item, rect: r }) } ctx.globalAlpha = 1; ctx.restore()
+            }
+            function drawTunnel() { var items = visibleClips(), queue = [], i, item, pts, avg, j, sel, cohort; rendered = []; ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.055)'; for (i = 0; i < 14; i++) { var p = project(0, 0, S.z + i * 240); if (p) { ctx.beginPath(); ctx.arc(p.x, p.y, TUBE_R * p.s, 0, Math.PI * 2); ctx.stroke() } } for (i = 0; i < items.length; i++) { pts = tunnelPoly(items[i]); if (!pts) continue; avg = 0; for (j = 0; j < pts.length; j++)avg += pts[j].d; queue.push({ item: items[i], pts: pts, depth: avg / pts.length }) } queue.sort(function (a, b) { return b.depth - a.depth }); for (i = 0; i < queue.length; i++) { item = queue[i].item; pts = queue[i].pts; sel = S.selected && S.selected.clip === item.clip; cohort = S.cohort && S.cohort.some(function (o) { return o.clip === item.clip }); drawPath(pts); ctx.globalAlpha = (S.active === item.track || sel || cohort) ? .88 : .18; ctx.fillStyle = COLORS[item.track]; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = sel || cohort ? '#fff' : COLORS[item.track]; ctx.lineWidth = sel || cohort ? 2 : 1; ctx.stroke(); rendered.push({ view: 'tunnel', item: item, pts: pts }) } ctx.restore() }
+            function drawMap() { var items = [], t, i, c, y, x0, x1, scale = (S.W - 150) / 7200; rendered = []; for (t = 0; t < 4; t++) { for (i = 0; i < tracks[t].length; i++)items.push({ track: t, index: i, clip: tracks[t][i] }) } ctx.save(); for (t = 0; t < 4; t++) { y = 120 + t * 86; ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.moveTo(90, y); ctx.lineTo(S.W - 60, y); ctx.stroke() } for (i = 0; i < items.length; i++) { c = items[i].clip; y = 120 + items[i].track * 86; x0 = 90 + c.start * scale; x1 = 90 + (c.start + c.dur) * scale; if (x1 < 60 || x0 > S.W - 40) continue; ctx.fillStyle = COLORS[items[i].track]; ctx.globalAlpha = S.selected && S.selected.clip === c ? 1 : .68; ctx.fillRect(x0, y - 24, x1 - x0, 48); ctx.strokeStyle = S.selected && S.selected.clip === c ? '#fff' : COLORS[items[i].track]; ctx.strokeRect(x0, y - 24, x1 - x0, 48); rendered.push({ view: 'map', item: items[i], rect: { x0: x0, x1: x1, y0: y - 24, y1: y + 24, cx: (x0 + x1) / 2, cy: y } }) } x0 = 90 + S.z * scale; ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, 82); ctx.lineTo(x0, 420); ctx.stroke(); ctx.restore() }
+            function draw() { dirty = false; ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, S.W, S.H); var g = ctx.createRadialGradient(S.CX, S.CY, 0, S.CX, S.CY, Math.max(S.W, S.H) * .7); g.addColorStop(0, 'rgba(80,0,12,.23)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, S.W, S.H); S.flat += (S.targetFlat - S.flat) * .18; S.roll += (S.targetRoll - S.roll) * .18; if (S.view === 0) drawTunnel(); else if (S.view === 1) drawSide(); else drawMap(); updateHUD() }
+            function updateHUD() { var clip = null, t = S.active, i; for (i = 0; i < tracks[t].length; i++) { var c = tracks[t][i]; if (c.start <= S.z && c.start + c.dur > S.z) { clip = c; break } } monitorId.textContent = clip ? clip.id : 'NO SIGNAL'; monitorId.style.color = clip ? COLORS[t] : 'var(--dim)'; document.querySelectorAll('.trk-dot').forEach(function (d, i) { d.style.background = COLORS[i]; d.style.opacity = i === S.active ? '1' : '.3'; d.style.boxShadow = i === S.active ? '0 0 12px ' + COLORS[i] : 'none' }); focusEl.textContent = hover ? (hover.type === 'roll' ? 'ROLL' : hover.clip.id) : (S.selected ? S.selected.clip.id : '-') }
+            function tick(now) { raf = 0; if (S.play && !drag) { S.speed += (14 - S.speed) * .08 } else if (!drag) { S.speed *= .86 } if (Math.abs(S.speed) > .02) { S.z = clamp(S.z + S.speed, 0, 7000); dirty = true } if (now < S.pulseUntil) dirty = true; if (dirty) draw(); if (S.play || Math.abs(S.speed) > .02 || dirty) requestFrame() }
+            function setView(v) { S.view = v % 3; S.targetFlat = S.view === 0 ? 0 : 1; document.getElementById('btnView').classList.toggle('on', S.view !== 0); markDirty(); blip('thud') }
+            function hit(x, y) { var i, r, o; for (i = rendered.length - 1; i >= 0; i--) { o = rendered[i]; if (o.view === 'side' || o.view === 'map') { r = o.rect; if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) { var rp = rollPoint(r); if (o.view === 'side' && Math.hypot(x - rp.x, y - rp.y) < 34) return { type: 'roll', obj: o }; if (o.view === 'side' && Math.abs(x - r.x0) < 18) return { type: 'start', obj: o }; if (o.view === 'side' && Math.abs(x - r.x1) < 18) return { type: 'end', obj: o }; return { type: 'body', obj: o } } if (o.view === 'side') { var r2 = o.rect, rhp = rollPoint(r2); if (Math.hypot(x - rhp.x, y - rhp.y) < 34) return { type: 'roll', obj: o } } } else if (inside(x, y, o.pts)) return { type: 'body', obj: o } } return null }
+            function dragCohort(item) { S.cohort = buildCohort(item); S.selected = item; S.cohortStart = item.clip.start; S.cohortEnd = item.clip.start + item.clip.dur }
+            function begin(e) { e.preventDefault(); setupAudio(); var h = hit(e.clientX, e.clientY); hover = null; drag = null; if (h) { S.selected = h.obj.item; S.active = h.obj.item.track; if (h.type === 'roll') { dragCohort(h.obj.item); var r = h.obj.rect || sideRect(h.obj.item), p = rollPoint(r); drag = { type: 'roll', item: h.obj.item, cx: p.x, cy: p.y, startAng: Math.atan2(e.clientY - p.y, e.clientX - p.x), lastDet: didx(h.obj.item.clip.roll || 0), cohort: S.cohort.map(function (o) { return { clip: o.clip, base: o.clip.roll || 0 } }) }; blip('thud') } else { drag = { type: h.type, item: h.obj.item, x: e.clientX, y: e.clientY, start: S.z, startDur: h.obj.item.clip.dur, startStart: h.obj.item.clip.start, startTrack: h.obj.item.track }; blip('ping') } } else { drag = { type: 'scrub', x: e.clientX, y: e.clientY, start: S.z }; S.selected = null; S.cohort = null } canvas.setPointerCapture(e.pointerId); markDirty() }
+            function move(e) { var h, dx, dy, clip, newDur, newStart, newTrack, ang, delta, sdet, i; if (drag) { dx = e.clientX - drag.x; dy = e.clientY - drag.y; if (drag.type === 'scrub') { S.z = clamp(drag.start - (S.view === 0 ? dy * 4 : dx * 3), 0, 7000); S.speed = 0 } else if (drag.type === 'end') { clip = drag.item.clip; newDur = Math.max(SNAP, snap(drag.startDur + dx * 2)); if (newDur !== clip.dur) { clip.dur = newDur; blip('tick'); pulse() } } else if (drag.type === 'start') { clip = drag.item.clip; newStart = snap(drag.startStart + dx * 2); newStart = clamp(newStart, 0, drag.startStart + drag.startDur - SNAP); newDur = drag.startStart + drag.startDur - newStart; if (newStart !== clip.start) { clip.start = newStart; clip.dur = newDur; blip('tick'); pulse() } } else if (drag.type === 'body') { newTrack = clamp(drag.startTrack + Math.round(dy / 70), 0, 3); drag.item.track = newTrack; drag.item.clip.start = snap(drag.startStart + dx * 2); S.active = newTrack } else if (drag.type === 'roll') { ang = Math.atan2(e.clientY - drag.cy, e.clientX - drag.cx); delta = q(norm(ang - drag.startAng)); sdet = didx(delta); if (sdet !== drag.lastDet) { drag.lastDet = sdet; blip('tick'); pulse() } for (i = 0; i < drag.cohort.length; i++)drag.cohort[i].clip.roll = drag.cohort[i].base + delta } markDirty(); return } h = hit(e.clientX, e.clientY); if (h) { hover = { type: h.type, clip: h.obj.item.clip }; canvas.style.cursor = h.type === 'roll' ? 'alias' : h.type === 'start' || h.type === 'end' ? 'ew-resize' : 'grab' } else { hover = null; canvas.style.cursor = 'crosshair' } markDirty() }
+            function end(e) { if (drag && drag.type === 'body') { var item = drag.item, old = tracks[drag.startTrack], idx = old.indexOf(item.clip); if (idx >= 0) old.splice(idx, 1); tracks[item.track].push(item.clip); tracks[item.track].sort(function (a, b) { return a.start - b.start }); blip('snap') } else if (drag && drag.type === 'roll') { for (var i = 0; i < drag.cohort.length; i++)drag.cohort[i].clip.roll = q(drag.cohort[i].clip.roll || 0); blip('snap') } drag = null; S.cohort = null; try { canvas.releasePointerCapture(e.pointerId) } catch (err) { } markDirty() }
+            canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); return false });
+            canvas.addEventListener('pointerdown', begin); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+            window.addEventListener('wheel', function (e) { S.z = clamp(S.z + e.deltaY * 1.4, 0, 7000); S.speed = e.deltaY * .08; markDirty() }, { passive: true });
+            document.getElementById('btnView').onclick = function () { setView(S.view + 1) };
+            document.getElementById('btnPlay').onclick = function () { S.play = !S.play; this.classList.toggle('on', S.play); document.getElementById('playIcon').innerHTML = S.play ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" stroke="none"/>' : '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>'; blip('ping'); requestFrame() };
+            document.getElementById('btnSound').onclick = function () { setupAudio(); S.sound = !S.sound; this.classList.toggle('on', S.sound) };
+            document.getElementById('btnReset').onclick = function () { init(); setView(1); blip('snap') };
+            document.querySelectorAll('.trk-dot').forEach(function (d, i) { d.onpointerdown = function (e) { e.stopPropagation(); S.active = i; S.targetRoll = (2 - i) * Math.PI / 2; markDirty(); blip('thud') } });
+            window.addEventListener('keydown', function (e) { if (e.key === ' ') document.getElementById('btnPlay').click(); if (e.key === 'v') setView(S.view + 1); if (e.key >= '1' && e.key <= '4') { S.active = parseInt(e.key, 10) - 1; S.targetRoll = (2 - S.active) * Math.PI / 2; markDirty() } });
+            resize(); init(); setView(1); window.addEventListener('resize', resize); requestFrame();
+        })();
+    </script>
+</body>
+
+</html>

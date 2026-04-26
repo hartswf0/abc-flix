@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Sensorama / VR Futures Cone Wheel</title>
+<style>
+  :root{
+    --bg:#f2f1ec;
+    --fg:#1b1b1b;
+    --muted:rgba(27,27,27,.56);
+    --faint:rgba(27,27,27,.14);
+    --paper:rgba(248,247,241,.92);
+    --c3:rgba(196,212,196,.74);
+    --c2:rgba(154,192,148,.72);
+    --c1:rgba(111,205,75,.70);
+    --c0:rgba(190,235,45,.72);
+    --s3:#8c988a;
+    --s2:#648b5e;
+    --s1:#3f8a2e;
+    --s0:#8a9818;
+    --hot:#d50000;
+    --pressure:#9e2f22;
+    --source:#967311;
+    --function:#166657;
+    --form:#1b1b1b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;border-radius:0!important}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Courier New",monospace}
+  body{touch-action:none}
+  #app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;background:var(--bg)}
+  header,footer{z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px max(14px,env(safe-area-inset-left)) 12px max(14px,env(safe-area-inset-right));background:var(--paper);border-bottom:1px solid var(--faint);pointer-events:none}
+  footer{border-bottom:none;border-top:1px solid var(--faint);padding-bottom:max(12px,env(safe-area-inset-bottom))}
+  header{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  header strong{color:var(--hot);font-weight:900}
+  .right,.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;pointer-events:auto}
+  .data{display:flex;flex-direction:column;gap:3px;font-size:9px;font-weight:900;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+  .data b{font-size:12px;color:var(--fg);letter-spacing:.02em}.data.hot b{color:var(--hot)}
+  .group{display:flex;flex-direction:column;gap:4px}.group label{font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  input[type="range"]{width:min(230px,34vw);accent-color:var(--hot)}
+  button{background:transparent;color:var(--fg);border:1px solid var(--faint);min-height:32px;padding:0 12px;font:inherit;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  button[data-on="true"],button:active{background:var(--fg);color:var(--bg)}
+  main{position:relative;min-height:0;overflow:hidden;cursor:crosshair}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .hit{cursor:crosshair;pointer-events:all;transition:stroke-width .12s,opacity .12s}
+  .hit:hover,.active{stroke:var(--hot)!important;stroke-width:3!important;opacity:1!important}
+  #info{position:absolute;left:18px;bottom:18px;z-index:8;background:rgba(242,241,236,.94);border:1px solid var(--fg);box-shadow:5px 5px 0 rgba(0,0,0,.12);padding:10px 12px;max-width:430px;pointer-events:none}
+  .info-top{display:flex;justify-content:space-between;gap:10px;color:var(--hot);font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}.info-name{font-size:15px;font-weight:900;text-transform:uppercase;margin-bottom:4px}.info-text{font-size:12px;line-height:1.36;color:var(--muted);font-weight:700}
+  .formula{font-weight:900;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  @media(max-width:860px){
+    html,body{overflow:hidden}header,footer{align-items:flex-start;flex-direction:column;padding-left:12px;padding-right:12px;gap:8px}header{font-size:10px}.right{gap:14px}.data{font-size:8px}.data b{font-size:11px}.controls{width:100%;gap:8px}input[type="range"]{width:52vw}button{min-height:34px;padding:0 10px;font-size:9px}.formula{display:none}#info{left:10px;right:10px;bottom:10px;max-width:none;padding:10px;box-shadow:4px 4px 0 rgba(0,0,0,.10)}.info-name{font-size:13px}.info-text{font-size:11px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div><strong>A TAXONOMY OF SENSORAMA / VR FUTURES</strong> / possible, plausible, probable, preferred remain present</div>
+    <div class="right">
+      <div class="data">phase <b id="rPhase">layers</b></div>
+      <div class="data">base <b id="rBase">6</b></div>
+      <div class="data hot">focus <b id="rFocus">Sensorama</b></div>
+    </div>
+  </header>
+  <main id="field">
+    <svg id="svg" viewBox="0 0 1440 860" preserveAspectRatio="xMidYMid meet" aria-label="Sensorama and VR futures taxonomy: separate layers, composite wheel, persistent future cone"></svg>
+    <div id="info">
+      <div class="info-top"><span id="infoLayer">Preferable</span><span id="infoPhase">cone field</span></div>
+      <div class="info-name" id="infoName">Sensorama Archive Booth</div>
+      <div class="info-text" id="infoText">A museum kiosk replays historical places through image, sound, wind, scent, vibration, and seated orientation.</div>
+    </div>
+  </main>
+  <footer>
+    <div class="controls">
+      <div class="group"><label for="phaseRange">unfold</label><input id="phaseRange" type="range" min="0" max="1000" value="0" /></div>
+      <div class="group"><label for="baseRange">slice base</label><input id="baseRange" type="range" min="4" max="16" value="6" /></div>
+      <button id="playBtn" data-on="true">play</button>
+      <button id="labelsBtn" data-on="true">labels</button>
+      <button id="resetBtn">reset</button>
+    </div>
+    <div class="formula">SEPARATE FUTURE LAYERS → UNROLLED APPARATUS STRIPS → COMPOSITE VR WHEEL → SAME SENSORAMA CONE</div>
+  </footer>
+</div>
+<script>
+(function(){
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('svg');
+  const field = document.getElementById('field');
+  const phaseRange = document.getElementById('phaseRange');
+  const baseRange = document.getElementById('baseRange');
+  const playBtn = document.getElementById('playBtn');
+  const labelsBtn = document.getElementById('labelsBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const rPhase = document.getElementById('rPhase');
+  const rBase = document.getElementById('rBase');
+  const rFocus = document.getElementById('rFocus');
+  const infoLayer = document.getElementById('infoLayer');
+  const infoPhase = document.getElementById('infoPhase');
+  const infoName = document.getElementById('infoName');
+  const infoText = document.getElementById('infoText');
+  const TWO = Math.PI * 2;
+  const state = { phase:0, base:6, playing:true, labels:true, focus:'m01', mobile:false, dragging:false, last:performance.now() };
+
+  const kindLabel = {pressure:'Pressure', source:'Source', function:'Function', form:'Form'};
+  const kindCode = {pressure:'P', source:'S', function:'F', form:'M'};
+
+  const units = {
+    p01:{name:'Optical Supremacy', kind:'pressure', icon:'pressure', note:'The eye becomes the master sense while the body is treated as decoration.'},
+    p02:{name:'Television Compression', kind:'pressure', icon:'screen', note:'Public spectacle collapses into the small domestic rectangle.'},
+    p03:{name:'Disembodied Spectatorship', kind:'pressure', icon:'pressure', note:'The viewer believes in worlds while remaining passive and outside the scene.'},
+    p04:{name:'Flat-Screen Fatigue', kind:'pressure', icon:'screen', note:'Screens multiply but remain glassy, repetitive, and bodily thin.'},
+    s01:{name:'Cinerama Wrap', kind:'source', icon:'screen', note:'Curved peripheral spectacle pulls the edges of vision into the media event.'},
+    s02:{name:'Nickelodeon Cabinet', kind:'source', icon:'cabinet', note:'Cinema becomes compact, mechanical, paid, repeatable, and individually entered.'},
+    s03:{name:'Kinetoscope Peepshow', kind:'source', icon:'cabinet', note:'Viewing means leaning into a machine rather than sitting before a distant screen.'},
+    s04:{name:'Fairground Ride', kind:'source', icon:'simulator', note:'Spectacle, danger, enclosure, timing, and bodily motion become one attraction.'},
+    f01:{name:'Somatic Belief', kind:'function', icon:'body', note:'The body believes a mediated world when several senses corroborate the same event.'},
+    f02:{name:'Peripheral Presence', kind:'function', icon:'body', note:'Immersion begins at the edges of vision and bodily orientation.'},
+    f03:{name:'Sensory Corroboration', kind:'function', icon:'body', note:'Wind, scent, vibration, sound, and image confirm the scene together.'},
+    f04:{name:'Safe Risk Rehearsal', kind:'function', icon:'simulator', note:'Dangerous actions become trainable without actual injury or material loss.'},
+    m01:{name:'Sensorama Archive Booth', kind:'form', icon:'sensorama', note:'A museum kiosk replays places through image, sound, wind, scent, vibration, and seated orientation.'},
+    m02:{name:'Embodied Media Timeline', kind:'form', icon:'archive', note:'A walk-in line from Cinerama, Smell-O-Vision, Link Trainer, Sensorama, VR, and XR.'},
+    m03:{name:'Urban Ride Simulator', kind:'form', icon:'simulator', note:'A seated rig reconstructs motorcycle, bus, train, elevator, escalator, and highway motion.'},
+    m04:{name:'Scented Documentary Station', kind:'form', icon:'scent', note:'A nonfiction booth treats scent as evidence: gasoline, rain, dust, food, oil, asphalt.'},
+
+    p05:{name:'Failed Presence', kind:'pressure', icon:'pressure', note:'Media promises “being there” but delivers only representation at higher resolution.'},
+    p06:{name:'Novelty Arms Race', kind:'pressure', icon:'pressure', note:'Entertainment escalates through widescreen, 3D, smell, motion, vibration, and gimmickry.'},
+    p07:{name:'Sensory Amputation', kind:'pressure', icon:'pressure', note:'Smell, wind, temperature, balance, and peripheral bodily cues are cut away.'},
+    p08:{name:'Urban Speed Anxiety', kind:'pressure', icon:'simulator', note:'Cars, motorcycles, highways, and elevators produce rhythms static media cannot hold.'},
+    s05:{name:'Link Trainer', kind:'source', icon:'simulator', note:'Mechanical simulation teaches dangerous bodily skills before real-world exposure.'},
+    s06:{name:'Cockpit Interface', kind:'source', icon:'simulator', note:'Perception, decision, motion, and feedback are fused inside an instrumented seat.'},
+    s07:{name:'Smell-O-Vision', kind:'source', icon:'scent', note:'Aroma becomes narrative information and atmospheric evidence, not decoration.'},
+    s08:{name:'Stereo Sound Stage', kind:'source', icon:'screen', note:'Directional sound anchors the body inside a simulated place.'},
+    f05:{name:'Embodied Spectatorship', kind:'function', icon:'body', note:'The viewer becomes rider, passenger, trainee, witness, operator, or participant.'},
+    f06:{name:'Atmospheric Memory', kind:'function', icon:'scent', note:'Places persist as pressure, scent, rhythm, speed, vibration, weather, and surface.'},
+    f07:{name:'Mechanical Trust', kind:'function', icon:'cabinet', note:'The user trusts the world because the machine visibly works on the body.'},
+    f08:{name:'Situated Learning', kind:'function', icon:'simulator', note:'Knowledge is learned through position, timing, friction, orientation, and feedback.'},
+    m05:{name:'Mechanical VR Cabinet', kind:'form', icon:'sensorama', note:'A non-headset immersive machine with motors, vents, knobs, pedals, lenses, and seat feedback.'},
+    m06:{name:'Multisensory Classroom Pod', kind:'form', icon:'cabinet', note:'A teaching station for history, geography, ecology, infrastructure, and media studies.'},
+    m07:{name:'Simulator Literacy Lab', kind:'form', icon:'archive', note:'Students compare film, cockpit, arcade, theme-park, headset, and web forms of presence.'},
+    m08:{name:'Climate Atmosphere Chamber', kind:'form', icon:'scent', note:'Heat, humidity, wind, vibration, sound, and smell teach environmental change.'},
+
+    p09:{name:'Training Without Risk', kind:'pressure', icon:'simulator', note:'Aviation, military, emergency, and industrial systems need safe rehearsal before danger.'},
+    p10:{name:'Passive Consumer Body', kind:'pressure', icon:'pressure', note:'The spectator is seated, monetized, and managed, but rarely activated.'},
+    p11:{name:'Coin-Op Attention Economy', kind:'pressure', icon:'cabinet', note:'Public machines require compact, repeatable, high-intensity experiences per coin drop.'},
+    p12:{name:'Format Obsolescence', kind:'pressure', icon:'archive', note:'Ambitious immersive formats become too expensive, fragile, or unsupported to survive.'},
+    s09:{name:'Automobile Windshield', kind:'source', icon:'simulator', note:'Velocity, road vibration, airflow, danger, and perspective become a framing system.'},
+    s10:{name:'Travelogue Cinema', kind:'source', icon:'screen', note:'Mediated travel substitutes for physically visiting a place, route, city, or landscape.'},
+    s11:{name:'Arcade Cabinet Economy', kind:'source', icon:'cabinet', note:'Spectacle compresses into a short, durable, replayable public machine.'},
+    s12:{name:'Theme Park Control', kind:'source', icon:'sensorama', note:'Image, sound, motion, scent, lighting, enclosure, and crowd flow run as one system.'},
+    f09:{name:'Sensory Literacy', kind:'function', icon:'body', note:'Scent, airflow, vibration, spatial audio, and texture become legible media cues.'},
+    f10:{name:'Kinesthetic Narrative', kind:'function', icon:'simulator', note:'Story becomes movement, speed, resistance, and bodily transition.'},
+    f11:{name:'Environmental Attention', kind:'function', icon:'scent', note:'Media restores attention to air, surfaces, temperature, terrain, weather, and infrastructure.'},
+    f12:{name:'Operational Imagination', kind:'function', icon:'simulator', note:'People imagine systems by inhabiting conditions rather than reading about them.'},
+    m09:{name:'Coin-Op Future Theater', kind:'form', icon:'cabinet', note:'One body, one coin, one intense designed atmosphere at a time.'},
+    m10:{name:'Haptic Film Player', kind:'form', icon:'sensorama', note:'A video player maps scenes to vibration, airflow, scent cards, lighting, and seat motion.'},
+    m11:{name:'Total Cinema Toolkit', kind:'form', icon:'archive', note:'A maker kit: fan, transducer, scent strip, stereo field, cues, pedal, and sequencer.'},
+    m12:{name:'Media Archaeology Cabinet', kind:'form', icon:'cabinet', note:'Obsolete immersive technologies become living design patterns rather than dead curiosities.'},
+
+    p13:{name:'Mechanical Complexity', kind:'pressure', icon:'sensorama', note:'True immersion requires synchronizing image, sound, airflow, motion, vibration, scent, and enclosure.'},
+    p14:{name:'Content Scarcity', kind:'pressure', icon:'archive', note:'A machine fails without enough experiences, pipelines, and authors trained for it.'},
+    p15:{name:'Simulator Sickness Gap', kind:'pressure', icon:'pressure', note:'The body rebels when visual motion and physical feedback disagree.'},
+    p16:{name:'Immersion Without Memory', kind:'pressure', icon:'pressure', note:'Spectacle impresses but fails to become durable embodied memory.'},
+    s13:{name:'Scientific Demonstration', kind:'source', icon:'archive', note:'The prototype itself proves a future medium is technically and culturally possible.'},
+    s14:{name:'Total Sensation Theater', kind:'source', icon:'sensorama', note:'Stage, ride, theater, and cabinet act on the whole body, not only the eye.'},
+    s15:{name:'Military Simulation', kind:'source', icon:'simulator', note:'Controlled illusion prepares bodies for operational environments before danger begins.'},
+    s16:{name:'Haptic Craft Machinery', kind:'source', icon:'cabinet', note:'Levers, vents, motors, seats, lenses, gears, pedals, and feedback return as media components.'},
+    f13:{name:'Public Demonstration', kind:'function', icon:'archive', note:'A prototype becomes a cultural argument people can physically test and remember.'},
+    f14:{name:'Format Consciousness', kind:'function', icon:'screen', note:'Users notice how every medium selects senses and excludes others.'},
+    f15:{name:'Interface Grounding', kind:'function', icon:'cabinet', note:'Controls, seats, vents, lenses, motors, pedals, and housings make interaction tangible.'},
+    f16:{name:'Multisensory Archive', kind:'function', icon:'sensorama', note:'Historical experience is rebuilt as atmosphere, movement, scent, sound, and orientation.'},
+    m13:{name:'Training Without Danger Rig', kind:'form', icon:'simulator', note:'A compact simulator for emergency drills, machine operation, evacuation rehearsal, and field prep.'},
+    m14:{name:'Peripheral Vision Theater', kind:'form', icon:'screen', note:'A small curved-screen theater centered on edge vision and environmental awareness.'},
+    m15:{name:'Embodied Oral History Booth', kind:'form', icon:'scent', note:'Elders archive memories as routes, smells, sounds, surfaces, weather, posture, and rhythm.'},
+    m16:{name:'Sensorama Browser Prototype', kind:'form', icon:'sensorama', note:'A single-file prototype sequences media, fan cues, vibration cues, scent prompts, logs, and exports.'},
+
+    kinetoscope:{name:'Kinetoscope', kind:'source', icon:'cabinet', note:'Early peepshow cinema turns looking into a machine encounter.'},
+    cinerama:{name:'Cinerama', kind:'source', icon:'screen', note:'Peripheral spectacle pushes cinema beyond the flat rectangle.'},
+    linktrainer:{name:'Link Trainer', kind:'source', icon:'simulator', note:'Analog flight simulation turns risk into bodily rehearsal.'},
+    smellovision:{name:'Smell-O-Vision', kind:'source', icon:'scent', note:'Smell enters cinema as timed atmosphere and narrative cue.'},
+    sensorama:{name:'Sensorama', kind:'source', icon:'sensorama', note:'Heilig combines stereoscopy, stereo sound, wind, scent, vibration, and cabinet enclosure.'},
+    telesphere:{name:'Telesphere Mask', kind:'source', icon:'headset', note:'A prehistory of the head-mounted display, before consumer VR gave it a market.'},
+    sword:{name:'Sword of Damocles', kind:'source', icon:'headset', note:'The early AR/VR headset is literally suspended as heavy apparatus.'},
+    consumerVR:{name:'Consumer VR', kind:'form', icon:'headset', note:'Headset VR becomes the probable commercial path, but often forgets the body.'},
+    xrBooth:{name:'XR Booth', kind:'form', icon:'sensorama', note:'The preferred branch returns headset media to cabinet, room, scent, vibration, and public demonstration.'}
+  };
+
+  const tracks = [
+    {key:'possible', label:'Possible', mult:4, color:'var(--c3)', stroke:'var(--s3)', items:['p01','p02','p03','p04','s01','s02','s03','s04','f01','f02','f03','f04','m01','m02','m03','m04']},
+    {key:'plausible', label:'Plausible', mult:3, color:'var(--c2)', stroke:'var(--s2)', items:['p05','p06','p07','p08','s05','s06','s07','s08','f05','f06','f07','f08','m05','m06','m07','m08']},
+    {key:'probable', label:'Probable', mult:2, color:'var(--c1)', stroke:'var(--s1)', items:['p09','p10','p11','p12','s09','s10','s11','s12','f09','f10','f11','f12','m09','m10','m11','m12']},
+    {key:'preferable', label:'Preferable', mult:1, color:'var(--c0)', stroke:'var(--s0)', items:['p13','p14','p15','p16','s13','s14','s15','s16','f13','f14','f15','f16','m13','m14','m15','m16']}
+  ];
+
+  function el(tag, attrs){ const n = document.createElementNS(NS, tag); Object.entries(attrs || {}).forEach(([k,v]) => n.setAttribute(k,String(v))); return n; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function stage(t,a,b){ return clamp((t-a)/(b-a),0,1); }
+  function polar(cx,cy,r,a){ return {x:cx+r*Math.cos(a), y:cy+r*Math.sin(a)}; }
+  function path(pts,close){ return pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ') + (close?' Z':''); }
+  function line(x1,y1,x2,y2,stroke,width,dash){ svg.appendChild(el('line',{x1,y1,x2,y2,stroke:stroke || 'rgba(27,27,27,.22)','stroke-width':width || 1,'stroke-dasharray':dash || '','vector-effect':'non-scaling-stroke'})); }
+  function text(x,y,s,size,anchor,fill,weight,rot){ const n=el('text',{x,y,'font-size':size||11,'text-anchor':anchor||'middle',fill:fill||'var(--fg)','font-weight':weight||700,'font-family':'ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace','letter-spacing':'.04em'}); if(rot)n.setAttribute('transform','rotate('+rot+' '+x+' '+y+')'); n.textContent=s; svg.appendChild(n); return n; }
+  function sectorPath(cx,cy,r,a0,a1){ const pts=[{x:cx,y:cy}]; const steps=Math.max(8,Math.ceil(Math.abs(a1-a0)/TWO*80)); for(let i=0;i<=steps;i++) pts.push(polar(cx,cy,r,lerp(a0,a1,i/steps))); return path(pts,true); }
+  function bandPath(cx,cy,r0,r1,a0,a1){ const pts=[]; const steps=Math.max(8,Math.ceil(Math.abs(a1-a0)/TWO*80)); for(let i=0;i<=steps;i++) pts.push(polar(cx,cy,r1,lerp(a0,a1,i/steps))); for(let i=steps;i>=0;i--) pts.push(polar(cx,cy,r0,lerp(a0,a1,i/steps))); return path(pts,true); }
+  function conePath(apexX,apexY,endX,halfH){ return 'M'+apexX+','+apexY+' L'+endX+','+(apexY-halfH)+' L'+endX+','+(apexY+halfH)+' Z'; }
+  function triPath(x,y,w,h,up){ return up ? 'M'+x+','+(y+h)+' L'+(x+w/2)+','+y+' L'+(x+w)+','+(y+h)+' Z' : 'M'+x+','+y+' L'+(x+w/2)+','+(y+h)+' L'+(x+w)+','+y+' Z'; }
+  function cssColor(track,alpha){ return track.color.replace(')',','+alpha+')').replace('rgb','rgba'); }
+  function item(track,i){ return track.items[i % track.items.length]; }
+  function count(track){ return Math.max(1, Math.min(track.items.length, Math.round(state.base * track.mult))); }
+  function phaseName(){ const p=state.phase; if(p<.25)return 'layers'; if(p<.50)return 'strips'; if(p<.74)return 'wheel'; return 'cone'; }
+  function unit(id){ return units[id] || units.m01; }
+
+  function setFocus(id, layer){
+    state.focus = id;
+    const u = unit(id);
+    infoLayer.textContent = (layer || 'cone field') + ' / ' + kindLabel[u.kind];
+    infoPhase.textContent = phaseName();
+    infoName.textContent = u.name;
+    infoText.textContent = u.note;
+    rFocus.textContent = u.name.split(' ')[0];
+    draw();
+  }
+  function attach(shape,id,layer,index){
+    const u = unit(id);
+    shape.classList.add('hit');
+    if(id === state.focus) shape.classList.add('active');
+    shape.addEventListener('pointerenter',function(){ infoLayer.textContent=layer+' / '+kindLabel[u.kind]; infoPhase.textContent=kindCode[u.kind]+' segment '+index; infoName.textContent=u.name; infoText.textContent=u.note; });
+    shape.addEventListener('pointerdown',function(e){ e.stopPropagation(); setFocus(id,layer); });
+  }
+
+  function drawRig(parent,x,y,scale,type,stroke,opacity,rot){
+    const g = el('g',{transform:'translate('+x+' '+y+') rotate('+(rot||0)+') scale('+scale+')',opacity:opacity==null?1:opacity});
+    const common = {fill:'none',stroke:stroke||'var(--fg)','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round','vector-effect':'non-scaling-stroke'};
+    if(type==='headset'){
+      g.appendChild(el('path',{...common,d:'M -34 -8 Q -26 -24 0 -24 Q 26 -24 34 -8 L 28 14 Q 9 22 -9 22 Q -28 14 -34 -8 Z'}));
+      g.appendChild(el('path',{...common,d:'M -19 -2 Q -8 -8 0 -2 Q 8 -8 19 -2 M -7 10 L 7 10'}));
+      g.appendChild(el('path',{...common,d:'M -38 -4 L -52 -16 M 38 -4 L 52 -16'}));
+    } else if(type==='cabinet'){
+      g.appendChild(el('rect',{...common,x:-26,y:-34,width:52,height:70}));
+      g.appendChild(el('rect',{...common,x:-18,y:-25,width:36,height:24}));
+      g.appendChild(el('path',{...common,d:'M -16 14 L 16 14 M -10 23 L 10 23 M -7 36 L -13 48 M 7 36 L 13 48'}));
+      g.appendChild(el('circle',{...common,cx:17,cy:9,r:3}));
+    } else if(type==='simulator'){
+      g.appendChild(el('path',{...common,d:'M -36 15 Q -18 -34 20 -30 Q 45 -4 30 20 Z'}));
+      g.appendChild(el('path',{...common,d:'M -18 5 L 12 5 M -2 -11 L 24 -11 M 30 20 L 45 36 M -28 20 L -40 36'}));
+      g.appendChild(el('circle',{...common,cx:17,cy:7,r:7}));
+    } else if(type==='scent'){
+      g.appendChild(el('path',{...common,d:'M -14 -30 L 14 -30 L 18 26 Q 0 38 -18 26 Z'}));
+      g.appendChild(el('path',{...common,d:'M -8 -40 L 8 -40 L 8 -30 L -8 -30 Z M 26 -24 Q 42 -13 28 0 Q 42 12 28 24 M -26 -24 Q -42 -13 -28 0 Q -42 12 -28 24'}));
+    } else if(type==='screen'){
+      g.appendChild(el('path',{...common,d:'M -42 -24 Q 0 -34 42 -24 L 42 24 Q 0 34 -42 24 Z'}));
+      g.appendChild(el('path',{...common,d:'M -20 34 L 20 34 M 0 24 L 0 34'}));
+      g.appendChild(el('path',{...common,d:'M -30 -3 Q -12 -16 0 -3 Q 14 10 30 -3'}));
+    } else if(type==='archive'){
+      g.appendChild(el('path',{...common,d:'M -34 -20 L -6 -35 L 34 -16 L 6 0 Z M -34 -20 L -34 18 L 6 38 L 6 0 M 34 -16 L 34 20 L 6 38'}));
+      g.appendChild(el('path',{...common,d:'M -18 -5 L 17 12 M -20 8 L 16 26'}));
+    } else if(type==='body'){
+      g.appendChild(el('circle',{...common,cx:0,cy:-20,r:10}));
+      g.appendChild(el('path',{...common,d:'M 0 -10 L 0 28 M -26 -2 L 26 -2 M -18 45 L 0 28 L 18 45 M -43 -24 Q -28 -38 -10 -38 M 43 -24 Q 28 -38 10 -38'}));
+      g.appendChild(el('path',{...common,d:'M -52 10 Q -35 0 -22 8 M 52 10 Q 35 0 22 8'}));
+    } else if(type==='pressure'){
+      g.appendChild(el('rect',{...common,x:-36,y:-26,width:72,height:48}));
+      g.appendChild(el('path',{...common,d:'M -18 -26 L -4 -5 L -13 -5 L 4 22 L -1 2 L 10 2 L -6 -26'}));
+      g.appendChild(el('path',{...common,d:'M -18 32 L 18 32 M 0 22 L 0 32'}));
+    } else { // sensorama
+      g.appendChild(el('rect',{...common,x:-32,y:-36,width:64,height:72}));
+      g.appendChild(el('path',{...common,d:'M -22 -24 L 22 -24 L 22 4 Q 0 16 -22 4 Z'}));
+      g.appendChild(el('circle',{...common,cx:-10,cy:-10,r:5}));
+      g.appendChild(el('circle',{...common,cx:10,cy:-10,r:5}));
+      g.appendChild(el('path',{...common,d:'M -42 -8 Q -58 4 -42 18 M 42 -8 Q 58 4 42 18 M -18 28 L 18 28'}));
+    }
+    parent.appendChild(g); return g;
+  }
+  function rigKind(id){ return unit(id).icon || 'sensorama'; }
+
+  function layout(){
+    if(state.mobile){ return {w:900,h:1320,titleX:34,titleY:48,rows:[188,316,444,572],layerX:130,stripX:272,stripW:360,stripH:54,coneApexX:92,coneEndX:812,coneY:735,wheelX:450,wheelY:990,wheelR:180,timelineY:1210}; }
+    return {w:1440,h:860,titleX:38,titleY:54,rows:[178,336,494,652],layerX:170,stripX:330,stripW:292,stripH:82,coneApexX:690,coneEndX:1370,coneY:420,wheelX:810,wheelY:420,wheelR:182,timelineY:760};
+  }
+
+  function drawTitle(L){
+    text(L.titleX,L.titleY,'A TAXONOMY',state.mobile?34:44,'start','var(--fg)',900);
+    text(L.titleX,L.titleY+(state.mobile?42:56),'OF VR FUTURES',state.mobile?34:44,'start','var(--fg)',900);
+    if(!state.mobile){ text(230,176,'SEPARATE LAYERS',24,'middle','var(--fg)',900); line(36,194,620,194,'var(--fg)',1); text(1040,176,'PERSISTENT SENSORAMA CONE',24,'middle','var(--fg)',900); line(690,194,1410,194,'var(--fg)',1); }
+    else { text(450,146,'SEPARATE LAYERS',22,'middle','var(--fg)',900); line(42,164,858,164,'var(--fg)',1); text(450,668,'PERSISTENT SENSORAMA CONE',22,'middle','var(--fg)',900); line(42,686,858,686,'var(--fg)',1); }
+  }
+
+  function drawConeScaffold(L){
+    const p = state.phase;
+    const apexX = L.coneApexX, apexY = L.coneY, endX = L.coneEndX;
+    const maxH = state.mobile ? 250 : 270;
+    line(apexX,apexY-maxH-18,apexX,apexY+maxH+18,'rgba(27,27,27,.22)',1,'4 6');
+    text(apexX-12,apexY-8,'PRESENT',state.mobile?10:12,'end','rgba(27,27,27,.70)',900);
+    text(endX+8,apexY+5,'FUTURES',state.mobile?10:12,'start','rgba(27,27,27,.70)',900);
+    const sorted = tracks.slice().sort(function(a,b){ return b.mult - a.mult; });
+    sorted.forEach(function(track){
+      const halfH = maxH * (track.mult/4);
+      const fillOp = .10 + .16*stage(p,.45,.82);
+      const activeTrack = track.items.includes(state.focus);
+      const cone = el('path',{d:conePath(apexX,apexY,endX,halfH),fill:cssColor(track,fillOp),stroke:track.stroke,'stroke-width':activeTrack ? 2 : 1,'stroke-opacity':activeTrack ? .78 : .48,'vector-effect':'non-scaling-stroke'});
+      svg.appendChild(cone);
+      text(endX - 8,apexY-halfH+15,track.label,state.mobile?10:12,'end','rgba(27,27,27,.66)',800);
+    });
+    text(apexX+22,apexY-maxH-34,'CONE STAYS PRESENT',state.mobile?10:12,'start','rgba(27,27,27,.50)',900);
+  }
+
+  function drawKindTicks(cx,cy,r,track,n){
+    if(!state.labels) return;
+    for(let i=0;i<n;i++){
+      const id=item(track,i), u=unit(id), a=-Math.PI/2+(i+.5)*TWO/n;
+      const p=polar(cx,cy,r+12,a);
+      text(p.x,p.y,kindCode[u.kind],state.mobile?7:8,'middle','rgba(27,27,27,.38)',900);
+    }
+  }
+
+  function drawSeparateLayers(L){
+    const unroll = stage(state.phase,.06,.40);
+    const fade = 1 - .50*stage(state.phase,.70,.96);
+    tracks.forEach(function(track,ti){
+      const y = L.rows[ti];
+      const n = count(track);
+      text(state.mobile?42:36,y+5,track.label,state.mobile?15:19,'start','var(--fg)',700);
+      svg.appendChild(el('circle',{cx:L.layerX,cy:y,r:state.mobile?47:56,fill:'none',stroke:'rgba(27,27,27,'+(.56*fade)+')','stroke-width':1.2}));
+      for(let i=0;i<n;i++){
+        const a0=-Math.PI/2+i*TWO/n, a1=-Math.PI/2+(i+1)*TWO/n, id=item(track,i);
+        const seg=el('path',{d:sectorPath(L.layerX,y,(state.mobile?45:54),a0,a1),fill:cssColor(track,.58*fade),stroke:id===state.focus?'var(--hot)':'rgba(27,27,27,.58)','stroke-width':id===state.focus?2.5:1,'opacity':id===state.focus?1:.86*fade,'vector-effect':'non-scaling-stroke'});
+        attach(seg,id,track.label,i); svg.appendChild(seg);
+      }
+      drawKindTicks(L.layerX,y,state.mobile?45:54,track,n);
+      const hero=item(track,Math.floor(n/3));
+      drawRig(svg,L.layerX,y,state.mobile?.42:.52,rigKind(hero),hero===state.focus?'var(--hot)':'rgba(27,27,27,.72)',fade,unroll*720);
+      text(L.layerX+(state.mobile?68:86),y+5,'→',state.mobile?24:30,'middle','var(--fg)',900);
+      const sx=L.stripX, sy=y-L.stripH/2, sw=L.stripW, sh=L.stripH;
+      svg.appendChild(el('rect',{x:sx,y:sy,width:sw,height:sh,fill:'none',stroke:'rgba(27,27,27,'+(.40*fade)+')','stroke-width':1}));
+      for(let i=0;i<n;i++){
+        const w=sw/n, id=item(track,i), u=unit(id), reveal=clamp(unroll*n-i+.5,0,1);
+        const tri=el('path',{d:triPath(sx+i*w,sy,w,sh,i%2===0),fill:cssColor(track,.54*reveal*fade),stroke:id===state.focus?'var(--hot)':'rgba(27,27,27,.45)','stroke-width':id===state.focus?2.5:1,'opacity':id===state.focus?1:.28+.62*reveal*fade,'vector-effect':'non-scaling-stroke'});
+        attach(tri,id,track.label,i); svg.appendChild(tri);
+        if(state.labels && reveal>.55 && w>18) text(sx+i*w+w/2, y+(i%2===0?18:-14), kindCode[u.kind], state.mobile?7:8,'middle','rgba(27,27,27,.42)',900);
+      }
+      const moving=item(track,ti+1);
+      drawRig(svg,sx+sw*unroll,y,state.mobile?.34:.42,rigKind(moving),moving===state.focus?'var(--hot)':'rgba(27,27,27,.62)',.35+.65*unroll,unroll*720);
+    });
+  }
+
+  function drawWheel(L){
+    const wheelIn = stage(state.phase,.34,.70);
+    const op = .10 + .88*wheelIn;
+    const cX=L.wheelX,cY=L.wheelY,R=L.wheelR;
+    svg.appendChild(el('circle',{cx:cX,cy:cY,r:R,fill:'rgba(255,255,255,.08)',stroke:'rgba(27,27,27,'+(.20+.42*op)+')','stroke-width':1.2}));
+    tracks.forEach(function(track,ti){
+      const n=count(track), r0=(state.mobile?34:38)+ti*(state.mobile?28:32), r1=R-ti*(state.mobile?10:12);
+      const rot = ti*.11 + state.phase*TWO*.10;
+      for(let i=0;i<n;i++){
+        const a0=-Math.PI/2+rot+i*TWO/n, a1=-Math.PI/2+rot+(i+1)*TWO/n, id=item(track,i);
+        const seg=el('path',{d:bandPath(cX,cY,r0,r1,a0,a1),fill:cssColor(track,.11+.36*op),stroke:id===state.focus?'var(--hot)':'rgba(27,27,27,.24)','stroke-width':id===state.focus?2.8:.65,'opacity':id===state.focus?1:.30+.50*op,'vector-effect':'non-scaling-stroke'});
+        attach(seg,id,'Composite VR Wheel',i); svg.appendChild(seg);
+      }
+    });
+    for(let r=state.mobile?46:52;r<R;r+=state.mobile?24:26) svg.appendChild(el('circle',{cx:cX,cy:cY,r,fill:'none',stroke:'rgba(27,27,27,.07)','stroke-width':1}));
+    drawRig(svg,cX,cY,state.mobile?.48:.58,rigKind(state.focus),'rgba(27,27,27,.90)',op,state.phase*720);
+    if(state.phase>.34) text(cX,cY+R+28,'COMPOSITE VR WHEEL',state.mobile?10:12,'middle','rgba(27,27,27,.55)',900);
+  }
+
+  function drawConeFromWheel(L){
+    const fillIn = stage(state.phase,.62,.98);
+    const apexX=L.coneApexX, apexY=L.coneY, endX=L.coneEndX;
+    const maxH=state.mobile?250:270;
+    tracks.forEach(function(track,ti){
+      const n=count(track);
+      const halfH=maxH*(track.mult/4);
+      for(let i=0;i<n;i++){
+        const id=item(track,i);
+        const t0=(i+.15)/n, t1=(i+.85)/n;
+        const x0=apexX+(endX-apexX)*t0*fillIn;
+        const x1=apexX+(endX-apexX)*t1*fillIn;
+        const y0a=apexY-halfH*t0, y0b=apexY+halfH*t0;
+        const y1a=apexY-halfH*t1, y1b=apexY+halfH*t1;
+        if(fillIn>.04){
+          const poly=el('path',{d:path([{x:x0,y:y0a},{x:x1,y:y1a},{x:x1,y:y1b},{x:x0,y:y0b}],true),fill:cssColor(track,.16+.34*fillIn),stroke:id===state.focus?'var(--hot)':'rgba(27,27,27,.20)','stroke-width':id===state.focus?2.4:.55,'opacity':id===state.focus?1:.44+.36*fillIn,'vector-effect':'non-scaling-stroke'});
+          attach(poly,id,track.label+' Cone',i); svg.appendChild(poly);
+        }
+      }
+      const rigT=clamp(fillIn*(1.15-ti*.08),0,1);
+      if(rigT>.02){
+        const id=item(track,Math.floor(n*.62));
+        const bx=lerp(apexX,endX-44,rigT);
+        const by=apexY + (ti-1.5)*(state.mobile?18:24);
+        drawRig(svg,bx,by,state.mobile?.28:.34,rigKind(id),id===state.focus?'var(--hot)':track.stroke,.35+.65*fillIn,rigT*720);
+      }
+    });
+  }
+
+  function drawConnectors(L){
+    const roll=stage(state.phase,.22,.64);
+    if(roll<=0)return;
+    tracks.forEach(function(track,ti){
+      const y=L.rows[ti], sx=L.stripX+L.stripW, ex=L.wheelX-L.wheelR+ti*8, ey=L.wheelY+(ti-1.5)*(state.mobile?32:38);
+      const mx=lerp(sx,ex,.5);
+      svg.appendChild(el('path',{d:'M'+sx+','+y+' Q'+mx+','+(lerp(y,ey,.5)-34*roll)+' '+ex+','+ey,fill:'none',stroke:'rgba(27,27,27,'+(.05+.22*roll)+')','stroke-width':1.1,'stroke-dasharray':'4 7','vector-effect':'non-scaling-stroke'}));
+      const t=roll, tx=(1-t)*(1-t)*sx+2*(1-t)*t*mx+t*t*ex, ty=(1-t)*(1-t)*y+2*(1-t)*t*(lerp(y,ey,.5)-34*roll)+t*t*ey;
+      const id=item(track,ti);
+      drawRig(svg,tx,ty,state.mobile?.24:.30,rigKind(id),track.stroke,.25+.65*roll,roll*720);
+    });
+  }
+
+  function drawTimeline(L){
+    const ids=['kinetoscope','cinerama','linktrainer','smellovision','sensorama','telesphere','sword','consumerVR','xrBooth'];
+    const y=state.mobile?L.timelineY:760, x0=state.mobile?66:650, gap=state.mobile?96:82;
+    const op=stage(state.phase,.76,1);
+    line(x0,y+42,x0+gap*(ids.length-1),y+42,'rgba(27,27,27,'+(.12+.26*op)+')',1,'2 4');
+    ids.forEach(function(id,i){
+      const x=x0+i*gap, u=unit(id), active=id===state.focus;
+      drawRig(svg,x,y,state.mobile?.42:.50,rigKind(id),active?'var(--hot)':'rgba(27,27,27,.76)',active?1:op,0);
+      svg.appendChild(el('circle',{cx:x,cy:y+42,r:active?6:4,fill:active?'var(--hot)':'rgba(27,27,27,.32)',stroke:'rgba(27,27,27,.45)','stroke-width':1,opacity:op}));
+      if(state.labels && op>.6 && (!state.mobile || active || i%2===0)){ text(x,y+65,u.name.toUpperCase(),state.mobile?7:8,'middle','rgba(27,27,27,'+(.28+.55*op)+')',800); }
+      const hit=el('rect',{x:x-40,y:y-38,width:80,height:116,fill:'transparent'}); attach(hit,id,'Apparatus Lineage',i); svg.appendChild(hit);
+    });
+  }
+
+  function drawLegend(L){
+    if(!state.labels) return;
+    const items=[['P','Pressure'],['S','Source'],['F','Function'],['M','Form']];
+    const y=state.mobile?112:130, x=state.mobile?585:1010;
+    items.forEach(function(k,i){ text(x+i*(state.mobile?70:80),y,k[0]+' '+k[1],state.mobile?8:9,'start','rgba(27,27,27,.48)',900); });
+  }
+
+  function draw(){
+    detectMode();
+    const L=layout();
+    svg.innerHTML='';
+    svg.setAttribute('viewBox','0 0 '+L.w+' '+L.h);
+    svg.appendChild(el('rect',{x:0,y:0,width:L.w,height:L.h,fill:'transparent'}));
+    drawTitle(L);
+    drawLegend(L);
+    drawConeScaffold(L);
+    drawSeparateLayers(L);
+    drawConnectors(L);
+    drawWheel(L);
+    drawConeFromWheel(L);
+    drawTimeline(L);
+    rPhase.textContent=phaseName();
+    rBase.textContent=state.base;
+    rFocus.textContent=unit(state.focus).name.split(' ')[0];
+    phaseRange.value=Math.round(state.phase*1000);
+    baseRange.value=state.base;
+    infoPhase.textContent=phaseName();
+  }
+
+  function detectMode(){ state.mobile=field.clientWidth<760; }
+  function scrub(x,y){ const rect=svg.getBoundingClientRect(); state.phase=clamp((x-rect.left)/rect.width,0,1); state.base=Math.round(clamp(16-((y-rect.top)/rect.height)*12,4,16)); draw(); }
+  field.addEventListener('pointerdown',function(e){ state.playing=false; playBtn.dataset.on='false'; state.dragging=true; field.setPointerCapture(e.pointerId); scrub(e.clientX,e.clientY); });
+  field.addEventListener('pointermove',function(e){ if(state.dragging) scrub(e.clientX,e.clientY); });
+  field.addEventListener('pointerup',function(e){ state.dragging=false; try{field.releasePointerCapture(e.pointerId);}catch(_){} });
+  field.addEventListener('pointercancel',function(){ state.dragging=false; });
+  phaseRange.addEventListener('input',function(){ state.playing=false; playBtn.dataset.on='false'; state.phase=Number(phaseRange.value)/1000; draw(); });
+  baseRange.addEventListener('input',function(){ state.base=Number(baseRange.value); draw(); });
+  playBtn.addEventListener('click',function(){ state.playing=!state.playing; playBtn.dataset.on=String(state.playing); state.last=performance.now(); });
+  labelsBtn.addEventListener('click',function(){ state.labels=!state.labels; labelsBtn.dataset.on=String(state.labels); draw(); });
+  resetBtn.addEventListener('click',function(){ state.phase=0; state.base=6; state.focus='m01'; state.playing=true; playBtn.dataset.on='true'; setFocus('m01','Preferable'); });
+  window.addEventListener('resize',draw);
+
+  function runTests(){
+    console.assert(tracks.length===4,'there are four futures tracks');
+    console.assert(tracks[0].label==='Possible' && tracks[3].label==='Preferable','possible-to-preferable ordering retained');
+    console.assert(tracks[0].mult>tracks[3].mult,'possible cone is widest and preferable is narrowest');
+    console.assert(count(tracks[0])>count(tracks[3]),'possible has more visible slices than preferable at default base');
+    console.assert(Object.keys(units).length>=64,'Sensorama / VR unit library is populated');
+    console.assert(typeof conePath(0,0,10,5)==='string','conePath returns a string');
+    console.assert(typeof bandPath(0,0,1,2,0,1)==='string','bandPath returns a string');
+  }
+  function tick(now){
+    if(state.playing && !state.dragging){
+      const dt=Math.min(44,now-state.last); state.last=now;
+      state.phase += dt*0.000043;
+      if(state.phase>1) state.phase=0;
+      draw();
+    } else state.last=now;
+    requestAnimationFrame(tick);
+  }
+  runTests();
+  setFocus('m01','Preferable');
+  draw();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

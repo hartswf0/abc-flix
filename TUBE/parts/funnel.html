@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>Arc Splice Operator</title>
+    <style>
+        :root {
+            --bg: #fff;
+            --fg: #000;
+            --slot: 44px;
+            --top: 46px;
+            --status: 44px;
+            --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: var(--font)
+        }
+
+        button,
+        input {
+            font: inherit;
+            color: #000
+        }
+
+        button {
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 0;
+            height: 38px;
+            padding: 0 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            cursor: pointer;
+            touch-action: manipulation
+        }
+
+        button:active {
+            background: #000;
+            color: #fff
+        }
+
+        .app {
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: calc(var(--top) + env(safe-area-inset-top)) minmax(0, 1fr) calc(var(--status) + env(safe-area-inset-bottom));
+            background: #fff;
+            color: #000
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: env(safe-area-inset-top) 8px 0;
+            border-bottom: 3px solid #000;
+            background: #fff;
+            min-width: 0
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0
+        }
+
+        .mark {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #000;
+            border-radius: 50%;
+            position: relative;
+            flex: 0 0 auto
+        }
+
+        .mark:before,
+        .mark:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            background: #000;
+            transform-origin: left center
+        }
+
+        .mark:before {
+            width: 15px;
+            height: 3px;
+            transform: rotate(18deg)
+        }
+
+        .mark:after {
+            width: 13px;
+            height: 3px;
+            transform: rotate(112deg)
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .bar {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex: 0 0 auto
+        }
+
+        .bar button {
+            height: 34px;
+            font-size: 11px;
+            padding: 0 9px
+        }
+
+        .primary {
+            background: #000;
+            color: #fff
+        }
+
+        .primary:active {
+            background: #fff;
+            color: #000
+        }
+
+        .file {
+            display: none
+        }
+
+        .main {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 250px minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr);
+            background: #fff
+        }
+
+        .logic {
+            border-right: 3px solid #000;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            min-height: 0
+        }
+
+        .logicHead {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            border-bottom: 3px solid #000;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .logicLines {
+            display: grid;
+            grid-template-rows: repeat(4, 1fr);
+            min-height: 0
+        }
+
+        .line {
+            border: 0;
+            border-bottom: 2px solid #000;
+            background: #fff;
+            color: #000;
+            text-align: left;
+            height: auto;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.15;
+            letter-spacing: 0;
+            text-transform: none
+        }
+
+        .line b {
+            display: block;
+            font-size: 15px;
+            text-transform: uppercase;
+            margin-bottom: 4px
+        }
+
+        .line.active {
+            background: #000;
+            color: #fff
+        }
+
+        .bench {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: 26% 42% 32%;
+            background: #fff
+        }
+
+        .bay {
+            min-height: 0;
+            border-bottom: 3px solid #000;
+            position: relative;
+            overflow: hidden;
+            background: #fff
+        }
+
+        .bayTitle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 24px;
+            background: #000;
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            z-index: 4
+        }
+
+        .objectBound {
+            outline: 5px solid #000;
+            outline-offset: -5px
+        }
+
+        .sourceBay {
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr);
+            padding-top: 24px
+        }
+
+        .barrelBox {
+            border-right: 3px solid #000;
+            display: grid;
+            place-items: center;
+            position: relative
+        }
+
+        .barrel {
+            width: min(128px, 18vh);
+            height: min(128px, 18vh);
+            border: 4px solid #000;
+            border-radius: 50%;
+            position: relative;
+            background: #fff
+        }
+
+        .barrel:before {
+            content: "";
+            position: absolute;
+            inset: 18%;
+            border: 3px solid #000;
+            border-radius: 50%
+        }
+
+        .barrel:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            border-left: 3px solid #000;
+            transform: rotate(35deg)
+        }
+
+        .readyStamp {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            right: 8px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            padding: 5px;
+            font-size: 11px;
+            font-weight: 900;
+            text-align: center
+        }
+
+        .readyStamp.hatch {
+            background: repeating-linear-gradient(45deg, #000 0 8px, #fff 8px 16px);
+            color: #000;
+            text-shadow: 1px 1px #fff
+        }
+
+        .sourceWork {
+            min-width: 0;
+            display: grid;
+            grid-template-rows: 34px minmax(0, 1fr)
+        }
+
+        .trackFacts {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border-bottom: 3px solid #000;
+            font-size: 11px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden
+        }
+
+        .trackFacts span {
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .sliceStrip {
+            min-height: 0;
+            display: flex;
+            gap: 6px;
+            align-items: stretch;
+            padding: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            touch-action: pan-x
+        }
+
+        .slice {
+            min-width: 54px;
+            border: 3px solid #000;
+            background: #fff;
+            color: #000;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: grab;
+            user-select: none
+        }
+
+        .slice.active,
+        .slice:hover {
+            background: #000;
+            color: #fff
+        }
+
+        .slice small {
+            display: block;
+            font-size: 9px
+        }
+
+        .sequenceBay {
+            padding-top: 24px;
+            display: grid;
+            grid-template-rows: 28px minmax(0, 1fr)
+        }
+
+        .railHead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #000;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 900
+        }
+
+        .railWrap {
+            position: relative;
+            min-height: 0;
+            background: #fff;
+            touch-action: none
+        }
+
+        .ticks {
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(to right, #000 0 2px, transparent 2px);
+            background-size: var(--slot) 100%;
+            pointer-events: none
+        }
+
+        .lane {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-bottom: 2px solid #000
+        }
+
+        .laneLabel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 32px;
+            background: #000;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 900;
+            display: grid;
+            place-items: center;
+            z-index: 2
+        }
+
+        .clip {
+            position: absolute;
+            background: #fff;
+            color: #000;
+            border: 4px solid #000;
+            min-width: var(--slot);
+            height: calc(100% - 8px);
+            top: 4px;
+            display: grid;
+            grid-template-columns: 1fr 14px;
+            z-index: 5;
+            cursor: grab;
+            user-select: none
+        }
+
+        .clip.active {
+            background: #000;
+            color: #fff
+        }
+
+        .clipBody {
+            min-width: 0;
+            padding: 5px 4px;
+            font-size: 11px;
+            font-weight: 900;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis
+        }
+
+        .trim {
+            border-left: 4px solid #000;
+            background: repeating-linear-gradient(45deg, #000 0 5px, #fff 5px 10px);
+            cursor: ew-resize
+        }
+
+        .clip.active .trim {
+            border-left: 4px solid #fff;
+            background: repeating-linear-gradient(45deg, #fff 0 5px, #000 5px 10px)
+        }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #000;
+            z-index: 9;
+            pointer-events: none
+        }
+
+        .playhead:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -8px;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 14px solid #000
+        }
+
+        .landing {
+            position: absolute;
+            border: 4px dashed #000;
+            background: #fff;
+            height: calc(33.333% - 8px);
+            display: none;
+            z-index: 4;
+            pointer-events: none
+        }
+
+        .monitorBay {
+            padding-top: 24px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 240px
+        }
+
+        .monitor {
+            position: relative;
+            min-width: 0;
+            border-right: 3px solid #000;
+            background: #fff;
+            display: grid;
+            place-items: center;
+            overflow: hidden
+        }
+
+        .monitor video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #fff
+        }
+
+        .monitorMsg {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            font-size: clamp(22px, 4vw, 56px);
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 12px;
+            background: #fff;
+            color: #000
+        }
+
+        .monitorMsg.hidden {
+            display: none
+        }
+
+        .statePanel {
+            min-height: 0;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 32px minmax(0, 1fr)
+        }
+
+        .stateTitle {
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            border-bottom: 3px solid #000;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .stateFields {
+            overflow: auto;
+            padding: 8px;
+            font-size: 11px;
+            line-height: 1.45
+        }
+
+        .stateFields div {
+            display: grid;
+            grid-template-columns: 88px minmax(0, 1fr);
+            border-bottom: 1px solid #000;
+            padding: 3px 0
+        }
+
+        .stateFields b {
+            text-transform: uppercase
+        }
+
+        .status {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            border-top: 3px solid #000;
+            background: #fff;
+            color: #000;
+            padding: 0 8px calc(env(safe-area-inset-bottom));
+            font-size: 11px;
+            font-weight: 900;
+            min-width: 0
+        }
+
+        .facts {
+            display: flex;
+            gap: 12px;
+            white-space: nowrap;
+            overflow: hidden
+        }
+
+        .facts span {
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .ghost {
+            position: fixed;
+            z-index: 99;
+            pointer-events: none;
+            border: 4px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 12px;
+            font-weight: 900;
+            padding: 8px;
+            display: none
+        }
+
+        .exportArea {
+            position: fixed;
+            left: 8px;
+            right: 8px;
+            bottom: calc(var(--status) + 8px + env(safe-area-inset-bottom));
+            height: 34vh;
+            background: #fff;
+            color: #000;
+            border: 4px solid #000;
+            z-index: 90;
+            display: none;
+            grid-template-rows: 34px minmax(0, 1fr)
+        }
+
+        .exportArea.open {
+            display: grid
+        }
+
+        .exportArea header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #000;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 900
+        }
+
+        .exportArea pre {
+            margin: 0;
+            padding: 8px;
+            overflow: auto;
+            font-size: 11px;
+            line-height: 1.35;
+            white-space: pre-wrap
+        }
+
+        .boundTrack .barrelBox,
+        .boundTrack .trackFacts {
+            background: #000;
+            color: #fff
+        }
+
+        .boundSlice .slice.active,
+        .boundClip .clip.active,
+        .boundTransport .playhead {
+            outline: 5px solid #000;
+            outline-offset: 2px
+        }
+
+        @media(max-width:900px) {
+            :root {
+                --top: 44px;
+                --status: 40px
+            }
+
+            .main {
+                grid-template-columns: 1fr
+            }
+
+            .logic {
+                display: none
+            }
+
+            .bench {
+                grid-template-rows: 43% 32% 25%;
+                grid-template-areas: "sequence" "monitor" "source"
+            }
+
+            .sourceBay {
+                grid-area: source;
+                grid-template-columns: 84px minmax(0, 1fr)
+            }
+
+            .sequenceBay {
+                grid-area: sequence
+            }
+
+            .monitorBay {
+                grid-area: monitor;
+                grid-template-columns: 1fr 116px
+            }
+
+            .barrel {
+                width: 62px;
+                height: 62px;
+                border-width: 3px
+            }
+
+            .barrel:before {
+                border-width: 2px
+            }
+
+            .trackFacts {
+                font-size: 10px
+            }
+
+            .sliceStrip {
+                padding: 6px
+            }
+
+            .slice {
+                min-width: 58px;
+                font-size: 12px
+            }
+
+            .stateFields {
+                font-size: 10px;
+                padding: 5px
+            }
+
+            .stateFields div {
+                grid-template-columns: 52px 1fr
+            }
+
+            .bayTitle {
+                height: 20px;
+                font-size: 10px;
+                padding: 3px 6px
+            }
+
+            .sourceBay,
+            .sequenceBay,
+            .monitorBay {
+                padding-top: 20px
+            }
+
+            .railHead {
+                height: 24px;
+                font-size: 10px
+            }
+
+            .top button {
+                height: 32px;
+                padding: 0 8px
+            }
+
+            .brand h1 {
+                font-size: 12px
+            }
+
+            .brand .mark {
+                width: 28px;
+                height: 28px
+            }
+
+            .monitorMsg {
+                font-size: 24px
+            }
+
+            .status {
+                grid-template-columns: 1fr
+            }
+
+            .status button {
+                display: none
+            }
+
+            .facts {
+                gap: 7px
+            }
+
+            .clipBody {
+                font-size: 10px
+            }
+
+            .laneLabel {
+                width: 25px
+            }
+
+            .exportArea {
+                height: 48vh
+            }
+        }
+
+        @media(max-width:520px) {
+            .bar button:nth-child(4) {
+                display: none
+            }
+
+            .brand h1 {
+                font-size: 11px
+            }
+
+            .top {
+                gap: 4px
+            }
+
+            .bar {
+                gap: 4px
+            }
+
+            .top button {
+                font-size: 10px;
+                padding: 0 6px
+            }
+
+            .bench {
+                grid-template-rows: 45% 32% 23%
+            }
+
+            .monitorBay {
+                grid-template-columns: 1fr 96px
+            }
+
+            .sourceBay {
+                grid-template-columns: 70px 1fr
+            }
+
+            .slice {
+                min-width: 56px
+            }
+
+            .stateTitle {
+                font-size: 10px
+            }
+
+            .stateFields {
+                font-size: 9px
+            }
+
+            .trackFacts span:nth-child(n+4) {
+                display: none
+            }
+
+            .facts span:nth-child(n+4) {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app" id="app">
+        <header class="top">
+            <div class="brand">
+                <div class="mark"></div>
+                <h1>Arc Splice Operator</h1>
+            </div>
+            <div class="bar">
+                <input class="file" id="fileInput" type="file" accept="video/*">
+                <button id="loadBtn" class="primary">Load</button>
+                <button id="playBtn">Play</button>
+                <button id="exportBtn">Export</button>
+                <button id="clearBtn">Clear</button>
+            </div>
+        </header>
+
+        <main class="main" id="main">
+            <aside class="logic" id="logicPanel">
+                <div class="logicHead"><span>Logic Lines</span><span id="boundName">Track</span></div>
+                <div class="logicLines">
+                    <button class="line active" data-bind="Track"><b>Track</b>bind source barrel, load target,
+                        readiness, duration, slice count</button>
+                    <button class="line" data-bind="Slice"><b>Slice</b>bind one source second and draggable
+                        chip</button>
+                    <button class="line" data-bind="Clip"><b>Clip</b>bind block, layer, slot, duration, trim
+                        handle</button>
+                    <button class="line" data-bind="Transport"><b>Transport</b>bind playhead, monitor, active clip,
+                        timecode</button>
+                </div>
+            </aside>
+
+            <section class="bench" id="bench">
+                <section class="bay sourceBay" id="sourceBay" data-object="Track">
+                    <div class="bayTitle">Source Bay</div>
+                    <div class="barrelBox" id="barrelBox">
+                        <div class="barrel"></div>
+                        <div class="readyStamp" id="readyStamp">NO VIDEO</div>
+                    </div>
+                    <div class="sourceWork">
+                        <div class="trackFacts" id="trackFacts"><span>track: T0</span><span>file:
+                                none</span><span>duration: 0</span><span>slices: 0</span></div>
+                        <div class="sliceStrip" id="sliceStrip"></div>
+                    </div>
+                </section>
+
+                <section class="bay sequenceBay" id="sequenceBay" data-object="Transport">
+                    <div class="bayTitle">Sequence Bay</div>
+                    <div class="railHead"><span>magnetic rail outside footage geometry</span><span id="railReadout">slot
+                            0 / layer 0</span></div>
+                    <div class="railWrap" id="railWrap">
+                        <div class="ticks"></div>
+                        <div class="landing" id="landing"></div>
+                        <div class="playhead" id="playhead"></div>
+                    </div>
+                </section>
+
+                <section class="bay monitorBay" id="monitorBay" data-object="Transport">
+                    <div class="bayTitle">Monitor Bay</div>
+                    <div class="monitor" id="monitor">
+                        <video id="monitorVideo" muted playsinline></video>
+                        <div class="monitorMsg" id="monitorMsg">NO VIDEO</div>
+                    </div>
+                    <div class="statePanel">
+                        <div class="stateTitle" id="stateTitle">Track State</div>
+                        <div class="stateFields" id="stateFields"></div>
+                    </div>
+                </section>
+            </section>
+        </main>
+
+        <footer class="status">
+            <div class="facts" id="facts"><span>time 0.00</span><span>mode idle</span><span>video
+                    none</span><span>splices 0</span></div>
+            <button id="logicBtn">Logic</button>
+        </footer>
+    </div>
+    <div class="ghost" id="ghost"></div>
+    <section class="exportArea" id="exportArea">
+        <header><span>EDL Export</span><button id="closeExport">Close</button></header>
+        <pre id="exportText"></pre>
+    </section>
+
+    <script>
+        (function () {
+            var layers = 3;
+            var sequenceSlots = 16;
+            var state = {
+                mode: 'idle',
+                bound: 'Track',
+                track: { id: 'T0', name: 'none', file: null, url: null, videoReady: 'NO VIDEO', duration: 0, sliceCount: 0, uploaded: false, drawable: false, error: '', mime: '' },
+                slices: [],
+                clips: [],
+                transport: { time: 0, playing: false, activeClips: [], renderSource: 'none' },
+                drag: null,
+                selectedSlice: null,
+                selectedClip: null,
+                lastFrame: 0
+            };
+            function id(x) { return document.getElementById(x) }
+            var el = {
+                app: id('app'), file: id('fileInput'), load: id('loadBtn'), play: id('playBtn'), exportBtn: id('exportBtn'), clear: id('clearBtn'),
+                ready: id('readyStamp'), facts: id('facts'), trackFacts: id('trackFacts'), sliceStrip: id('sliceStrip'), rail: id('railWrap'), railReadout: id('railReadout'),
+                landing: id('landing'), playhead: id('playhead'), monitor: id('monitor'), video: id('monitorVideo'), msg: id('monitorMsg'), ghost: id('ghost'),
+                stateTitle: id('stateTitle'), stateFields: id('stateFields'), exportArea: id('exportArea'), exportText: id('exportText'), closeExport: id('closeExport'), logicBtn: id('logicBtn'), logicPanel: id('logicPanel'), boundName: id('boundName')
+            };
+            function clamp(v, a, b) { v = Number(v); return Math.max(a, Math.min(b, Number.isFinite(v) ? v : a)) }
+            function fmt(t) { t = Math.max(0, Number(t) || 0); var m = Math.floor(t / 60); var s = (t - m * 60).toFixed(2); if (Number(s) < 10) s = '0' + s; return m + ':' + s }
+            function setMode(m) { state.mode = m; renderStatus() }
+            function bindObject(name) { state.bound = name; document.querySelectorAll('.line').forEach(function (x) { x.classList.toggle('active', x.dataset.bind === name) }); el.boundName.textContent = name; el.app.classList.toggle('boundTrack', name === 'Track'); el.app.classList.toggle('boundSlice', name === 'Slice'); el.app.classList.toggle('boundClip', name === 'Clip'); el.app.classList.toggle('boundTransport', name === 'Transport'); renderState() }
+            function renderStatus() { el.facts.innerHTML = '<span>time ' + state.transport.time.toFixed(2) + '</span><span>mode ' + state.mode + '</span><span>video ' + state.track.videoReady + '</span><span>splices ' + state.clips.length + '</span>' }
+            function renderTrack() { el.ready.textContent = state.track.videoReady; el.ready.classList.toggle('hatch', state.track.videoReady === 'UNSUPPORTED'); el.trackFacts.innerHTML = '<span>track: ' + state.track.id + '</span><span>file: ' + state.track.name + '</span><span>duration: ' + state.track.duration.toFixed(2) + '</span><span>slices: ' + state.track.sliceCount + '</span>'; renderStatus() }
+            function makeDemoSlices() { state.slices = []; for (var i = 0; i < 12; i++)state.slices.push({ track_id: 'T0', source_start: i, source_duration: 1 }) }
+            function makeVideoSlices() { state.slices = []; var count = Math.max(1, Math.floor(state.track.duration)); count = Math.min(count, 90); for (var i = 0; i < count; i++)state.slices.push({ track_id: state.track.id, source_start: i, source_duration: 1 }); state.track.sliceCount = count }
+            function renderSlices() { el.sliceStrip.innerHTML = ''; state.slices.forEach(function (s, i) { var b = document.createElement('button'); b.className = 'slice'; b.dataset.index = i; b.dataset.object = 'Slice'; b.innerHTML = '<span>' + s.source_start + 's<small>slice</small></span>'; b.addEventListener('pointerdown', startSliceDrag); b.addEventListener('click', function () { state.selectedSlice = i; bindObject('Slice'); renderSlices(); renderState() }); if (state.selectedSlice === i) b.classList.add('active'); el.sliceStrip.appendChild(b) }) }
+            function slotWidth() { return el.rail.clientWidth / sequenceSlots }
+            function laneHeight() { return el.rail.clientHeight / layers }
+            function getSlotLayer(x, y) { var r = el.rail.getBoundingClientRect(); var sw = slotWidth(); var lh = laneHeight(); var slot = clamp(Math.floor((x - r.left) / sw), 0, sequenceSlots - 1); var visualLane = clamp(Math.floor((y - r.top) / lh), 0, layers - 1); var layer = layers - 1 - visualLane; return { slot: slot, layer: layer, inside: x >= r.left && x <= r.right && y >= r.top && y <= r.bottom } }
+            function clipAtTime(t) { var active = state.clips.filter(function (c) { return t >= c.sequence_slot && t < c.sequence_slot + c.duration }); active.sort(function (a, b) { return b.layer - a.layer }); state.transport.activeClips = active.map(function (c) { return c.id }); return active[0] || null }
+            function renderLanes() { Array.from(el.rail.querySelectorAll('.lane')).forEach(function (x) { x.remove() }); var lh = laneHeight(); for (var i = 0; i < layers; i++) { var layer = layers - 1 - i; var lane = document.createElement('div'); lane.className = 'lane'; lane.style.top = (i * lh) + 'px'; lane.style.height = lh + 'px'; lane.innerHTML = '<div class="laneLabel">L' + layer + '</div>'; el.rail.appendChild(lane) } }
+            function renderClips() { Array.from(el.rail.querySelectorAll('.clip')).forEach(function (x) { x.remove() }); var sw = slotWidth(); var lh = laneHeight(); state.clips.forEach(function (c) { var d = document.createElement('div'); d.className = 'clip'; if (c.id === state.selectedClip) d.classList.add('active'); d.dataset.clip = c.id; d.dataset.object = 'Clip'; d.style.left = (c.sequence_slot * sw) + 'px'; d.style.width = (c.duration * sw) + 'px'; d.style.top = ((layers - 1 - c.layer) * lh + 4) + 'px'; d.style.height = (lh - 8) + 'px'; d.innerHTML = '<div class="clipBody">' + c.id + ' S' + c.source_start + ' D' + c.duration + '</div><div class="trim" data-trim="' + c.id + '"></div>'; d.addEventListener('pointerdown', startClipPointer); d.addEventListener('click', function (e) { e.stopPropagation(); state.selectedClip = c.id; bindObject('Clip'); render() }); el.rail.appendChild(d) }) }
+            function renderPlayhead() { el.playhead.style.left = (state.transport.time * slotWidth()) + 'px' }
+            function render() { renderTrack(); renderSlices(); renderLanes(); renderClips(); renderPlayhead(); updateMonitor(); renderState(); renderStatus() }
+            function updateMonitor() { var c = clipAtTime(state.transport.time); if (!state.track.uploaded) { el.video.style.display = 'none'; el.msg.classList.remove('hidden'); el.msg.textContent = 'LOAD OR DROP VIDEO'; state.transport.renderSource = 'none'; return } if (state.track.videoReady.indexOf('UNSUPPORTED') === 0) { el.video.style.display = 'none'; el.msg.classList.remove('hidden'); el.msg.textContent = state.track.videoReady; state.transport.renderSource = state.track.error || 'unsupported'; return } if (state.track.videoReady !== 'READY') { el.video.style.display = 'none'; el.msg.classList.remove('hidden'); el.msg.textContent = state.track.videoReady; state.transport.renderSource = state.track.videoReady.toLowerCase(); return } if (!c) { el.video.style.display = 'block'; el.msg.classList.add('hidden'); state.transport.renderSource = 'track preview'; safeSeek(0); return } el.video.style.display = 'block'; el.msg.classList.add('hidden'); var sourceTime = c.source_start + (state.transport.time - c.sequence_slot); sourceTime = clamp(sourceTime, 0, Math.max(0, state.track.duration - .05)); state.transport.renderSource = c.id + ' @ ' + sourceTime.toFixed(2); safeSeek(sourceTime) }
+            function safeSeek(t) { if (!state.track.drawable) return; try { if (Math.abs((el.video.currentTime || 0) - t) > .12) el.video.currentTime = t } catch (e) { } }
+            function videoErrorText() { var e = el.video.error; if (!e) return ''; var map = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' }; return map[e.code] || ('CODE_' + e.code) }
+            function setVideoState(label, error) { state.track.videoReady = label; state.track.error = error || ''; renderTrack(); renderState(); renderStatus() }
+            function loadVideo(file) {
+                if (!file) return;
+                clearProject(false);
+                if (state.track.url) URL.revokeObjectURL(state.track.url);
+                state.track.uploaded = true;
+                state.track.drawable = false;
+                state.track.name = file.name || 'local video';
+                state.track.file = file.name || 'local video';
+                state.track.mime = file.type || 'unknown';
+                state.track.duration = 0;
+                state.track.sliceCount = 0;
+                state.slices = [];
+                state.clips = [];
+                state.transport.time = 0;
+                state.selectedClip = null;
+                state.selectedSlice = null;
+                setMode('loading_video');
+                setVideoState('DECODING', '');
+                var support = file.type ? el.video.canPlayType(file.type) : '';
+                state.track.error = support ? ('canPlayType=' + support) : 'canPlayType=unknown';
+                el.video.pause();
+                el.video.removeAttribute('src');
+                el.video.preload = 'auto';
+                el.video.muted = true;
+                el.video.playsInline = true;
+                el.video.onloadedmetadata = function () {
+                    state.track.duration = Number(el.video.duration) || 0;
+                    state.track.error = 'metadata loaded; mime ' + state.track.mime;
+                    makeVideoSlices();
+                    setVideoState('DECODING', state.track.error);
+                    try { el.video.currentTime = 0 } catch (e) { }
+                    render();
+                };
+                el.video.onloadeddata = function () {
+                    state.track.drawable = true;
+                    state.track.error = 'decoded first frame; mime ' + state.track.mime;
+                    makeVideoSlices();
+                    setMode('idle');
+                    setVideoState('READY', state.track.error);
+                    render();
+                };
+                el.video.oncanplay = function () {
+                    state.track.drawable = true;
+                    if (state.track.videoReady !== 'READY') {
+                        state.track.error = 'can play; mime ' + state.track.mime;
+                        makeVideoSlices();
+                        setMode('idle');
+                        setVideoState('READY', state.track.error);
+                        render();
+                    }
+                };
+                el.video.onerror = function () {
+                    var err = videoErrorText();
+                    state.track.drawable = false;
+                    state.track.duration = 0;
+                    state.track.sliceCount = 0;
+                    state.slices = [];
+                    setMode('idle');
+                    setVideoState('UNSUPPORTED ' + err, 'mime ' + state.track.mime + '; ' + err);
+                    render();
+                };
+                state.track.url = URL.createObjectURL(file);
+                el.video.src = state.track.url;
+                el.video.load();
+                render();
+            }
+            function clearProject(resetTrack) { state.clips = []; state.transport.time = 0; state.transport.playing = false; state.selectedClip = null; state.selectedSlice = null; if (resetTrack) { if (state.track.url) URL.revokeObjectURL(state.track.url); state.track = { id: 'T0', name: 'none', file: null, url: null, videoReady: 'NO VIDEO', duration: 0, sliceCount: 0, uploaded: false, drawable: false, error: '', mime: '' }; el.video.removeAttribute('src'); makeDemoSlices(); state.track.sliceCount = state.slices.length } render() }
+            function createClip(slice, slot, layer) { var id = 'C' + String(state.clips.length + 1).padStart(2, '0'); var clip = { id: id, track_id: slice.track_id, source_start: slice.source_start, sequence_slot: slot, layer: layer, duration: slice.source_duration }; state.clips.push(clip); state.selectedClip = id; state.transport.time = slot; bindObject('Clip'); confirm('created ' + id + ' slot ' + slot + ' layer ' + layer + ' duration ' + clip.duration); render() }
+            function confirm(text) { el.railReadout.textContent = text }
+            function startSliceDrag(e) { e.preventDefault(); var idx = Number(e.currentTarget.dataset.index); var slice = state.slices[idx]; state.selectedSlice = idx; bindObject('Slice'); state.drag = { kind: 'slice', slice: slice }; showGhost('SLICE ' + slice.source_start + 's', e.clientX, e.clientY); setMode('dragging_slice'); window.addEventListener('pointermove', moveDrag); window.addEventListener('pointerup', endDrag, { once: true }) }
+            function startClipPointer(e) { var trim = e.target.getAttribute('data-trim'); var node = e.currentTarget; var cid = node.dataset.clip; var clip = state.clips.find(function (c) { return c.id === cid }); state.selectedClip = cid; bindObject('Clip'); if (trim) { state.drag = { kind: 'trim', clip: clip, startX: e.clientX, startDuration: clip.duration }; setMode('trimming_clip') } else { state.drag = { kind: 'clip', clip: clip, origSlot: clip.sequence_slot, origLayer: clip.layer }; showGhost(cid, e.clientX, e.clientY); setMode('dragging_clip') } e.preventDefault(); e.stopPropagation(); window.addEventListener('pointermove', moveDrag); window.addEventListener('pointerup', endDrag, { once: true }) }
+            function showGhost(text, x, y) { el.ghost.textContent = text; el.ghost.style.display = 'block'; moveGhost(x, y) }
+            function moveGhost(x, y) { el.ghost.style.left = (x + 12) + 'px'; el.ghost.style.top = (y + 12) + 'px' }
+            function hideGhost() { el.ghost.style.display = 'none' }
+            function showLanding(slot, layer, duration) { var sw = slotWidth(), lh = laneHeight(); el.landing.style.display = 'block'; el.landing.style.left = (slot * sw) + 'px'; el.landing.style.width = (duration * sw) + 'px'; el.landing.style.top = ((layers - 1 - layer) * lh + 4) + 'px' }
+            function hideLanding() { el.landing.style.display = 'none' }
+            function moveDrag(e) { if (!state.drag) return; var pos = getSlotLayer(e.clientX, e.clientY); if (state.drag.kind === 'slice') { moveGhost(e.clientX, e.clientY); if (pos.inside) { showLanding(pos.slot, pos.layer, state.drag.slice.source_duration); confirm('landing slot ' + pos.slot + ' layer ' + pos.layer) } else hideLanding() } if (state.drag.kind === 'clip') { moveGhost(e.clientX, e.clientY); if (pos.inside) { showLanding(pos.slot, pos.layer, state.drag.clip.duration); confirm('move slot ' + pos.slot + ' layer ' + pos.layer) } else hideLanding() } if (state.drag.kind === 'trim') { var sw = slotWidth(); var delta = Math.round((e.clientX - state.drag.startX) / sw); state.drag.clip.duration = Math.max(1, state.drag.startDuration + delta); confirm('trim ' + state.drag.clip.id + ' duration ' + state.drag.clip.duration); renderClips(); renderState() } }
+            function endDrag(e) { if (!state.drag) return; var d = state.drag; var pos = getSlotLayer(e.clientX, e.clientY); hideGhost(); hideLanding(); if (d.kind === 'slice' && pos.inside) createClip(d.slice, pos.slot, pos.layer); else if (d.kind === 'clip') { if (pos.inside) { d.clip.sequence_slot = pos.slot; d.clip.layer = pos.layer; confirm('moved ' + d.clip.id + ' slot ' + pos.slot + ' layer ' + pos.layer) } else { d.clip.sequence_slot = d.origSlot; d.clip.layer = d.origLayer; confirm('restored ' + d.clip.id) } } else if (d.kind === 'trim') { confirm('trimmed ' + d.clip.id + ' duration ' + d.clip.duration) } state.drag = null; setMode('idle'); render() }
+            function scrubFromPointer(e) { if (e.target.closest('.clip')) return; var pos = getSlotLayer(e.clientX, e.clientY); if (!pos.inside) return; state.transport.time = pos.slot; bindObject('Transport'); setMode('scrubbing'); render(); window.addEventListener('pointermove', scrubMove); window.addEventListener('pointerup', scrubEnd, { once: true }) }
+            function scrubMove(e) { var pos = getSlotLayer(e.clientX, e.clientY); if (pos.inside) { state.transport.time = pos.slot; renderPlayhead(); updateMonitor(); renderStatus(); renderState() } }
+            function scrubEnd() { setMode('idle') }
+            function tick(now) { if (!state.transport.playing) return; if (!state.lastFrame) state.lastFrame = now; var dt = (now - state.lastFrame) / 1000; state.lastFrame = now; state.transport.time += dt; if (state.transport.time > sequenceSlots) state.transport.time = 0; renderPlayhead(); updateMonitor(); renderStatus(); renderState(); requestAnimationFrame(tick) }
+            function playPause() { state.transport.playing = !state.transport.playing; el.play.textContent = state.transport.playing ? 'Pause' : 'Play'; bindObject('Transport'); if (state.transport.playing) { state.lastFrame = 0; setMode('playing'); if (state.track.videoReady === 'READY') el.video.play().catch(function () { }); requestAnimationFrame(tick) } else { setMode('idle'); el.video.pause() } }
+            function edl() { return state.clips.map(function (c, i) { return { event: i + 1, track: c.track_id, source_file: state.track.file || state.track.name, layer: c.layer, source_in: fmt(c.source_start), source_out: fmt(c.source_start + c.duration), sequence_in: fmt(c.sequence_slot), sequence_out: fmt(c.sequence_slot + c.duration), source_start_sec: c.source_start, sequence_start_sec: c.sequence_slot, duration_sec: c.duration } }) }
+            function exportEDL() { var text = JSON.stringify(edl(), null, 2); el.exportText.textContent = text; el.exportArea.classList.add('open'); if (navigator.clipboard) navigator.clipboard.writeText(text); confirm('exported ' + state.clips.length + ' edit decisions') }
+            function renderState() { var title = state.bound + ' State'; el.stateTitle.textContent = title; var rows = []; if (state.bound === 'Track') rows = [['id', state.track.id], ['name', state.track.name], ['source_file', state.track.file || 'none'], ['readiness', state.track.videoReady], ['mime', state.track.mime || 'none'], ['error', state.track.error || 'none'], ['duration', state.track.duration.toFixed(2)], ['slice_count', state.track.sliceCount]]; if (state.bound === 'Slice') { var s = state.slices[state.selectedSlice] || state.slices[0]; rows = s ? [['track_id', s.track_id], ['source_start', s.source_start], ['source_duration', s.source_duration]] : [['slice', 'none']] } if (state.bound === 'Clip') { var c = state.clips.find(function (x) { return x.id === state.selectedClip }) || state.clips[0]; rows = c ? [['track_id', c.track_id], ['source_start', c.source_start], ['sequence_slot', c.sequence_slot], ['layer', c.layer], ['duration', c.duration]] : [['clip', 'none']] } if (state.bound === 'Transport') rows = [['time', state.transport.time.toFixed(2)], ['playing', state.transport.playing], ['active_clips', state.transport.activeClips.join(', ') || 'none'], ['render_source', state.transport.renderSource]]; el.stateFields.innerHTML = rows.map(function (r) { return '<div><b>' + r[0] + '</b><span>' + r[1] + '</span></div>' }).join('') }
+            function bindEvents() { el.load.onclick = function () { el.file.click() }; el.file.onchange = function () { loadVideo(el.file.files[0]) };['dragenter', 'dragover'].forEach(function (type) { document.addEventListener(type, function (e) { e.preventDefault(); el.monitorMsg && el.msg.classList.remove('hidden'); if (!state.track.uploaded) el.msg.textContent = 'DROP VIDEO' }) }); document.addEventListener('drop', function (e) { e.preventDefault(); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadVideo(f) }); el.play.onclick = playPause; el.clear.onclick = function () { clearProject(true); confirm('cleared') }; el.exportBtn.onclick = exportEDL; el.closeExport.onclick = function () { el.exportArea.classList.remove('open') }; document.querySelectorAll('.line').forEach(function (b) { b.onclick = function () { bindObject(b.dataset.bind) } }); el.rail.addEventListener('pointerdown', scrubFromPointer); el.monitor.onclick = function () { bindObject('Transport') }; id('sourceBay').onclick = function () { bindObject('Track') }; el.logicBtn.onclick = function () { bindObject(state.bound === 'Track' ? 'Transport' : 'Track') } }
+            function init() { makeDemoSlices(); state.track.sliceCount = state.slices.length; bindEvents(); render(); confirm('load or drop MP4/WebM video; no proxy after upload') }
+            window.addEventListener('resize', render); init();
+        })();
+    </script>
+</body>
+
+</html>

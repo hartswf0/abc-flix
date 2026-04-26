@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Riverbed Video Editor</title>
+    <style>
+        :root {
+            --bg: #050505;
+            --panel: #0b0b0c;
+            --panel2: #121214;
+            --line: #26262a;
+            --line2: #3a3a40;
+            --fg: #f5f5f5;
+            --muted: #8e8e96;
+            --dim: #5c5c64;
+            --hot: #9cffb8;
+            --cyan: #69d9ff;
+            --amber: #ffd36a;
+            --red: #ff5577;
+            --violet: #b59cff;
+            --blue: #7db7ff;
+            --shadow: 0 18px 60px rgba(0, 0, 0, .55);
+            --top: 48px;
+            --bottom: 232px;
+            --side: 250px;
+            --right: 300px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none
+        }
+
+        button,
+        input {
+            font: inherit
+        }
+
+        button {
+            border: 1px solid var(--line2);
+            background: #111;
+            color: var(--fg);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: .12s transform, .12s border-color, .12s background
+        }
+
+        button:active {
+            transform: scale(.97)
+        }
+
+        button.primary {
+            border-color: rgba(156, 255, 184, .65);
+            background: rgba(156, 255, 184, .11);
+            color: var(--hot)
+        }
+
+        button.ghost {
+            background: transparent;
+            color: var(--muted)
+        }
+
+        button.tiny {
+            padding: 5px 8px;
+            border-radius: 8px;
+            font-size: 11px
+        }
+
+        #app {
+            height: 100dvh;
+            width: 100vw;
+            display: grid;
+            grid-template-columns: var(--side) 1fr var(--right);
+            grid-template-rows: var(--top) 1fr var(--bottom);
+            grid-template-areas: "top top top" "left viewer right" "bottom bottom bottom";
+            background: radial-gradient(circle at 50% 20%, #171719 0, #050505 54%, #000 100%)
+        }
+
+        #topbar {
+            grid-area: top;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            background: rgba(5, 5, 5, .96);
+            padding: 0 14px;
+            z-index: 20;
+            gap: 10px
+        }
+
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            min-width: 0
+        }
+
+        .brand b {
+            font-size: 13px;
+            letter-spacing: .14em;
+            color: var(--hot);
+            white-space: nowrap
+        }
+
+        .brand span {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .topActions {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .topActions .state {
+            font-size: 11px;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 9px;
+            background: #090909;
+            max-width: 360px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #left {
+            grid-area: left;
+            border-right: 1px solid var(--line);
+            background: linear-gradient(180deg, #0b0b0c, #070708);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 0
+        }
+
+        #viewerWrap {
+            grid-area: viewer;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: #030303;
+            position: relative;
+            overflow: hidden
+        }
+
+        #right {
+            grid-area: right;
+            border-left: 1px solid var(--line);
+            background: linear-gradient(180deg, #0b0b0c, #070708);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 0
+        }
+
+        #bottom {
+            grid-area: bottom;
+            border-top: 1px solid var(--line);
+            background: rgba(8, 8, 9, .98);
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            min-height: 0;
+            overflow: hidden
+        }
+
+        .panelHead {
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            padding: 0 10px;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            flex: none
+        }
+
+        .panelHead b {
+            color: var(--fg);
+            font-size: 11px
+        }
+
+        .panelBody {
+            overflow: auto;
+            min-height: 0;
+            padding: 10px
+        }
+
+        .panelBody::-webkit-scrollbar {
+            width: 6px
+        }
+
+        .panelBody::-webkit-scrollbar-thumb {
+            background: #2a2a2f;
+            border-radius: 99px
+        }
+
+        .sourceDrop {
+            border: 1px dashed var(--line2);
+            border-radius: 15px;
+            padding: 14px;
+            background: #0e0e10;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+            margin-bottom: 10px
+        }
+
+        .sourceDrop strong {
+            color: var(--fg)
+        }
+
+        .clipItem,
+        .spanItem,
+        .futureItem {
+            border: 1px solid var(--line);
+            border-radius: 13px;
+            padding: 10px;
+            background: #0e0e10;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: .12s border-color, .12s background, .12s transform
+        }
+
+        .clipItem:hover,
+        .spanItem:hover,
+        .futureItem:hover {
+            border-color: #555
+        }
+
+        .clipItem.active,
+        .spanItem.active,
+        .futureItem.active {
+            border-color: rgba(156, 255, 184, .75);
+            background: rgba(156, 255, 184, .08)
+        }
+
+        .clipItem .name,
+        .spanItem .name {
+            font-size: 12px;
+            color: var(--fg);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .meta {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+            margin-top: 7px
+        }
+
+        .pill {
+            font-size: 10px;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            background: #080808;
+            border-radius: 999px;
+            padding: 4px 6px
+        }
+
+        .pill.hot {
+            color: var(--hot);
+            border-color: rgba(156, 255, 184, .45)
+        }
+
+        .pill.cyan {
+            color: var(--cyan);
+            border-color: rgba(105, 217, 255, .4)
+        }
+
+        .pill.amber {
+            color: var(--amber);
+            border-color: rgba(255, 211, 106, .4)
+        }
+
+        .viewerTop {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            padding: 0 10px;
+            background: #070707;
+            flex: none
+        }
+
+        .viewerTop .readout {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+            font-size: 11px;
+            color: var(--muted)
+        }
+
+        .viewerTop .readout b {
+            color: var(--fg);
+            font-size: 12px;
+            white-space: nowrap
+        }
+
+        .viewerTop .readout span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .viewerStage {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #171717, #030303 72%);
+            overflow: hidden
+        }
+
+        .viewerStage video {
+            max-width: 100%;
+            max-height: 100%;
+            background: #000;
+            box-shadow: var(--shadow);
+            outline: 1px solid #222
+        }
+
+        .emptyViewer {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--muted);
+            padding: 22px;
+            line-height: 1.5
+        }
+
+        .emptyViewer strong {
+            display: block;
+            color: var(--hot);
+            margin-bottom: 8px
+        }
+
+        .viewerOverlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none
+        }
+
+        .overlayBox {
+            position: absolute;
+            left: 14px;
+            bottom: 14px;
+            border: 1px solid rgba(156, 255, 184, .35);
+            background: rgba(0, 0, 0, .72);
+            backdrop-filter: blur(8px);
+            border-radius: 14px;
+            padding: 10px;
+            min-width: min(480px, calc(100% - 28px));
+            box-shadow: var(--shadow)
+        }
+
+        .overlayGrid {
+            display: grid;
+            grid-template-columns: 86px 1fr;
+            gap: 6px 10px;
+            font-size: 11px;
+            line-height: 1.25
+        }
+
+        .overlayGrid label {
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: .08em
+        }
+
+        .overlayGrid div {
+            color: var(--fg);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .overlayLine {
+            position: absolute;
+            height: 1px;
+            background: rgba(156, 255, 184, .55);
+            box-shadow: 0 0 14px rgba(156, 255, 184, .35);
+            transform-origin: left center
+        }
+
+        .anchorDot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--hot);
+            border-radius: 50%;
+            box-shadow: 0 0 18px rgba(156, 255, 184, .55);
+            transform: translate(-50%, -50%)
+        }
+
+        .transport {
+            height: 48px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 12px;
+            background: #050505;
+            flex: none
+        }
+
+        .transport .timebar {
+            height: 8px;
+            background: #151518;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            flex: 1;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden
+        }
+
+        .transport .fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 0;
+            background: linear-gradient(90deg, var(--hot), var(--cyan));
+            border-radius: 999px
+        }
+
+        .transport .knob {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--fg);
+            border: 3px solid #000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(156, 255, 184, .4)
+        }
+
+        .transport .tc {
+            font-size: 11px;
+            color: var(--muted);
+            min-width: 84px;
+            text-align: right
+        }
+
+        .inspectorSection {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #0e0e10;
+            margin-bottom: 10px;
+            overflow: hidden
+        }
+
+        .sectionTitle {
+            height: 32px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .08em
+        }
+
+        .sectionContent {
+            padding: 10px
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 88px 1fr;
+            gap: 8px;
+            font-size: 11px;
+            line-height: 1.35;
+            margin-bottom: 8px
+        }
+
+        .kv label {
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        .kv div {
+            color: var(--fg)
+        }
+
+        .miniList {
+            display: grid;
+            gap: 6px
+        }
+
+        .miniRow {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+            font-size: 11px;
+            color: var(--fg);
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #080809
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--hot);
+            box-shadow: 0 0 10px rgba(156, 255, 184, .5);
+            flex: none
+        }
+
+        .dot.cyan {
+            background: var(--cyan)
+        }
+
+        .dot.amber {
+            background: var(--amber)
+        }
+
+        .dot.red {
+            background: var(--red)
+        }
+
+        #arcPanel {
+            position: relative;
+            min-width: 0;
+            overflow: hidden;
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column
+        }
+
+        .arcHead {
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            padding: 0 10px;
+            background: #070707;
+            flex: none
+        }
+
+        .arcHead .modeButtons {
+            display: flex;
+            gap: 7px;
+            align-items: center
+        }
+
+        .arcHead b {
+            font-size: 11px;
+            color: var(--hot);
+            letter-spacing: .1em
+        }
+
+        .arcHead span {
+            font-size: 10px;
+            color: var(--muted)
+        }
+
+        .arcCanvasWrap {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 58%, #16181a 0, #070708 58%, #020202 100%)
+        }
+
+        #arcCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: grab
+        }
+
+        #arcCanvas:active {
+            cursor: grabbing
+        }
+
+        .arcHint {
+            position: absolute;
+            left: 12px;
+            bottom: 10px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            pointer-events: none
+        }
+
+        .arcHint .hintPill {
+            font-size: 10px;
+            color: var(--muted);
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, .5);
+            padding: 6px 8px;
+            backdrop-filter: blur(8px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .arcCenterPlay {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 1px solid rgba(156, 255, 184, .6);
+            background: rgba(0, 0, 0, .55);
+            box-shadow: 0 0 40px rgba(156, 255, 184, .15);
+            color: var(--hot);
+            font-size: 20px
+        }
+
+        .arcCenterPlay:active {
+            transform: translate(-50%, -50%) scale(.96)
+        }
+
+        #projection {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden
+        }
+
+        .futureItem {
+            cursor: pointer
+        }
+
+        .futureItem .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--fg);
+            margin-bottom: 6px
+        }
+
+        .futureItem .body {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.35
+        }
+
+        .futureItem .risk {
+            color: var(--amber);
+            margin-top: 6px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        .mobileDrawerToggle {
+            display: none
+        }
+
+        .drawerShade {
+            display: none
+        }
+
+        .mobileState {
+            display: none
+        }
+
+        @media (max-width:900px) {
+            :root {
+                --top: 46px;
+                --bottom: 238px
+            }
+
+            #app {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--top) 1fr 36px var(--bottom);
+                grid-template-areas: "top" "viewer" "mobileState" "bottom"
+            }
+
+            #left,
+            #right {
+                position: fixed;
+                top: var(--top);
+                bottom: 0;
+                width: min(88vw, 360px);
+                z-index: 50;
+                background: #080809;
+                box-shadow: var(--shadow);
+                transition: transform .22s ease;
+                display: flex
+            }
+
+            #left {
+                left: 0;
+                transform: translateX(-104%);
+                border-right: 1px solid var(--line)
+            }
+
+            #right {
+                right: 0;
+                transform: translateX(104%);
+                border-left: 1px solid var(--line)
+            }
+
+            body.leftOpen #left {
+                transform: translateX(0)
+            }
+
+            body.rightOpen #right {
+                transform: translateX(0)
+            }
+
+            .drawerShade {
+                display: block;
+                position: fixed;
+                inset: var(--top) 0 0 0;
+                background: rgba(0, 0, 0, .55);
+                z-index: 45;
+                opacity: 0;
+                pointer-events: none;
+                transition: .18s opacity
+            }
+
+            body.leftOpen .drawerShade,
+            body.rightOpen .drawerShade {
+                opacity: 1;
+                pointer-events: auto
+            }
+
+            #bottom {
+                grid-template-columns: 1fr;
+                grid-area: bottom
+            }
+
+            .projectionDesktop {
+                display: none !important
+            }
+
+            .mobileState {
+                grid-area: mobileState;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                overflow: hidden;
+                padding: 0 8px;
+                border-top: 1px solid var(--line);
+                border-bottom: 1px solid var(--line);
+                background: #070707;
+                font-size: 10px;
+                color: var(--muted)
+            }
+
+            .mobileState b {
+                color: var(--hot)
+            }
+
+            .mobileState span {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            .mobileDrawerToggle {
+                display: inline-flex
+            }
+
+            .topActions .state {
+                display: none
+            }
+
+            .brand span {
+                display: none
+            }
+
+            .viewerTop {
+                height: 36px
+            }
+
+            .overlayBox {
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+                min-width: 0
+            }
+
+            .overlayGrid {
+                grid-template-columns: 72px 1fr;
+                font-size: 10px
+            }
+
+            .transport {
+                height: 44px;
+                padding: 0 8px
+            }
+
+            .transport .tc {
+                display: none
+            }
+
+            .arcCenterPlay {
+                width: 58px;
+                height: 58px
+            }
+
+            .arcHint {
+                bottom: 7px
+            }
+
+            .arcHint .hintPill:last-child {
+                display: none
+            }
+        }
+
+        @media (max-width:520px) {
+            .topActions {
+                gap: 5px
+            }
+
+            .topActions button {
+                padding: 7px 8px;
+                font-size: 11px
+            }
+
+            .brand b {
+                font-size: 11px;
+                letter-spacing: .1em
+            }
+
+            .arcHead span {
+                display: none
+            }
+
+            .panelBody {
+                padding: 8px
+            }
+
+            .sourceDrop {
+                font-size: 11px
+            }
+
+            .viewerStage video {
+                width: 100%;
+                max-height: 100%;
+                box-shadow: none
+            }
+
+            .overlayBox {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header id="topbar">
+            <div class="brand"><b>RIVERBED EDITOR</b><span>bed / flow / sediment video control</span></div>
+            <div class="topActions">
+                <button class="tiny ghost mobileDrawerToggle" id="openSources">SOURCES</button>
+                <button class="tiny primary" id="loadBtn">LOAD VIDEO</button>
+                <button class="tiny ghost" id="demoBtn">DEMO</button>
+                <button class="tiny ghost mobileDrawerToggle" id="openInspector">INSPECT</button>
+                <div class="state" id="topState">No source loaded. Load a video or run demo.</div>
+            </div>
+        </header>
+
+        <aside id="left">
+            <div class="panelHead"><b>Sources</b><button class="tiny ghost mobileDrawerToggle"
+                    id="closeLeft">CLOSE</button></div>
+            <div class="panelBody">
+                <div class="sourceDrop" id="dropZone"><strong>Load real clips.</strong><br>Each clip becomes
+                    media-bearing time. The system builds provisional spans and 8-second patches from metadata.</div>
+                <div id="clipList"></div>
+                <div class="panelHead" style="margin:12px -10px 10px;border-top:1px solid var(--line)"><b>Continuity
+                        Spans</b><span id="spanCount">0</span></div>
+                <div id="spanList"></div>
+            </div>
+        </aside>
+
+        <main id="viewerWrap">
+            <div class="viewerTop">
+                <div class="readout"><b id="viewerTitle">NO SOURCE</b><span id="viewerSub">load media to create
+                        field</span></div>
+                <div class="readout"><span id="imageType">—</span></div>
+            </div>
+            <div class="viewerStage" id="viewerStage">
+                <video id="video" playsinline preload="metadata"></video>
+                <div class="emptyViewer" id="emptyViewer">
+                    <div><strong>LOAD A CLIP OR RUN DEMO</strong>Real media stays in the viewer. The arc barrel controls
+                        time; snap rails live outside the footage.</div>
+                </div>
+                <div class="viewerOverlay" id="viewerOverlay">
+                    <div class="anchorDot" id="anchorDot" style="left:50%;top:50%"></div>
+                    <div class="overlayLine" id="motionLine"
+                        style="left:50%;top:50%;width:140px;transform:rotate(0deg)"></div>
+                    <div class="overlayBox">
+                        <div class="overlayGrid">
+                            <label>ANCHOR</label>
+                            <div id="ovAnchor">—</div>
+                            <label>CARRY</label>
+                            <div id="ovCarry">—</div>
+                            <label>DELTA</label>
+                            <div id="ovDelta">—</div>
+                            <label>RISK</label>
+                            <div id="ovRisk">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="transport">
+                <button id="playBtn" class="primary">PLAY</button>
+                <button id="lockBtn" class="ghost">LOCK</button>
+                <div class="timebar" id="timebar">
+                    <div class="fill" id="timeFill"></div>
+                    <div class="knob" id="timeKnob"></div>
+                </div>
+                <div class="tc" id="tc">00:00 / 00:00</div>
+            </div>
+        </main>
+
+        <aside id="right">
+            <div class="panelHead"><b>Inspector</b><button class="tiny ghost mobileDrawerToggle"
+                    id="closeRight">CLOSE</button></div>
+            <div class="panelBody" id="inspector"></div>
+        </aside>
+
+        <div class="mobileState"><b id="mobAnchor">ANCHOR —</b><span id="mobDelta">DELTA —</span></div>
+
+        <section id="bottom">
+            <div id="arcPanel">
+                <div class="arcHead">
+                    <div><b>ARC-TUNNEL</b> <span id="arcModeLabel">selected barrel rotates only</span></div>
+                    <div class="modeButtons">
+                        <button class="tiny primary" id="modeRoll">ROLL</button>
+                        <button class="tiny ghost" id="modeScrub">SCRUB</button>
+                        <button class="tiny ghost" id="modeProject">PROJECT</button>
+                    </div>
+                </div>
+                <div class="arcCanvasWrap" id="arcWrap">
+                    <canvas id="arcCanvas"></canvas>
+                    <button class="arcCenterPlay" id="centerPlay">▶</button>
+                    <div class="arcHint">
+                        <div class="hintPill" id="arcHintA">drag the selected barrel • snap rails are outside footage
+                        </div>
+                        <div class="hintPill" id="arcHintB">external ticks prevent shrink/stretch</div>
+                    </div>
+                </div>
+            </div>
+            <div id="projection" class="projectionDesktop">
+                <div class="panelHead"><b>Projected Futures</b><span id="futureCount">0</span></div>
+                <div class="panelBody" id="futureList"></div>
+            </div>
+        </section>
+    </div>
+    <div class="drawerShade" id="shade"></div>
+    <input type="file" id="fileInput" accept="video/*" multiple hidden />
+
+    <script>
+        (function () {
+            'use strict';
+
+            const $ = (id) => document.getElementById(id);
+            const els = {
+                app: $('app'), video: $('video'), empty: $('emptyViewer'), loadBtn: $('loadBtn'), demoBtn: $('demoBtn'), fileInput: $('fileInput'),
+                clipList: $('clipList'), spanList: $('spanList'), spanCount: $('spanCount'), topState: $('topState'), viewerTitle: $('viewerTitle'), viewerSub: $('viewerSub'), imageType: $('imageType'),
+                playBtn: $('playBtn'), lockBtn: $('lockBtn'), timebar: $('timebar'), timeFill: $('timeFill'), timeKnob: $('timeKnob'), tc: $('tc'),
+                inspector: $('inspector'), futureList: $('futureList'), futureCount: $('futureCount'),
+                canvas: $('arcCanvas'), arcWrap: $('arcWrap'), centerPlay: $('centerPlay'), arcModeLabel: $('arcModeLabel'), arcHintA: $('arcHintA'), arcHintB: $('arcHintB'),
+                modeRoll: $('modeRoll'), modeScrub: $('modeScrub'), modeProject: $('modeProject'),
+                ovAnchor: $('ovAnchor'), ovCarry: $('ovCarry'), ovDelta: $('ovDelta'), ovRisk: $('ovRisk'), anchorDot: $('anchorDot'), motionLine: $('motionLine'),
+                mobAnchor: $('mobAnchor'), mobDelta: $('mobDelta'), dropZone: $('dropZone'), shade: $('shade'),
+                openSources: $('openSources'), openInspector: $('openInspector'), closeLeft: $('closeLeft'), closeRight: $('closeRight')
+            };
+            const ctx = els.canvas.getContext('2d');
+
+            const state = {
+                clips: [], activeClip: 0, activeSpanId: null, mode: 'roll', locked: true, dragging: false,
+                dragStartAngle: 0, dragStartTime: 0, lastAngle: 0, lastMoveTime: 0, velocity: 0, inertia: 0, snap: true,
+                currentFuture: 0, demo: false, projectionOpen: false
+            };
+
+            const labels = {
+                actions: ['held field', 'rightward force', 'threshold approach', 'gesture transfer', 'suspended pressure', 'return with residue', 'surface breach', 'scale cascade'],
+                anchors: ['face', 'doorway', 'hand', 'window line', 'screen plane', 'table edge', 'corridor wall', 'object silhouette'],
+                carry: ['low hum', 'blue edge-light', 'rightward motion', 'breath noise', 'tile reflection', 'monitor glow', 'footstep rhythm', 'shadow band'],
+                risks: ['eyeline drift', 'sound discontinuity', 'axis flip', 'lost object relation', 'gesture cut too early', 'muddy overlay state', 'weak threshold', 'unmotivated scale jump'],
+                functions: ['Opsign', 'Action-Image', 'Perception-Image', 'Affection-Image', 'Sonsign', 'Crystal-Image', 'Recollection-Image']
+            };
+
+            function pad(n) { return String(Math.floor(n)).padStart(2, '0') }
+            function fmt(sec) { if (!isFinite(sec)) sec = 0; return pad(sec / 60) + ':' + pad(sec % 60) }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function normAngle(a) { while (a < 0) a += Math.PI * 2; while (a >= Math.PI * 2) a -= Math.PI * 2; return a }
+            function uid(prefix) { return prefix + Math.random().toString(36).slice(2, 7) }
+            function activeClip() { return state.clips[state.activeClip] || null }
+            function activeSpan() { const c = activeClip(); return c ? c.spans.find(s => s.id === state.activeSpanId) || c.spans[0] : null }
+            function activePatch() { const c = activeClip(); if (!c) return null; const t = els.video.currentTime || 0; return c.patches.find(p => t >= p.start && t < p.end) || c.patches[c.patches.length - 1] || null }
+
+            function buildModel(duration) {
+                duration = Math.max(8, isFinite(duration) && duration > 0 ? duration : 64);
+                const patchDur = 8;
+                const spanDur = 24;
+                const patches = [];
+                const spans = [];
+                let pIndex = 0;
+                for (let s = 0; s < duration; s += patchDur) {
+                    const end = Math.min(duration, s + patchDur);
+                    patches.push({
+                        id: 'P' + String(++pIndex).padStart(2, '0'), start: s, end: end,
+                        action: labels.actions[pIndex % labels.actions.length],
+                        anchor: labels.anchors[pIndex % labels.anchors.length],
+                        carry: labels.carry[pIndex % labels.carry.length],
+                        risk: labels.risks[pIndex % labels.risks.length],
+                        fn: labels.functions[pIndex % labels.functions.length]
+                    });
+                }
+                let spanIndex = 0;
+                for (let s = 0; s < duration; s += spanDur) {
+                    const end = Math.min(duration, s + spanDur);
+                    const localPatches = patches.filter(p => p.start < end && p.end > s);
+                    const k = spanIndex;
+                    spans.push({
+                        id: 'S' + String(++spanIndex).padStart(2, '0'), start: s, end: end,
+                        name: ['Stable Field', 'Threshold Pressure', 'Carryover Run', 'Return Channel', 'Branch Pocket'][k % 5],
+                        location: ['source plane', 'interior zone', 'threshold corridor', 'surface tunnel', 'future branch'][k % 5],
+                        riverbed: ['media identity', 'timecode sync', 'screen direction', 'sound bed', 'selected barrel isolation'][k % 5],
+                        water: ['camera drift', 'gesture flow', 'light shift', 'roll velocity', 'surface texture'][k % 5],
+                        sediment: ['ghost frame', 'hum residue', 'color stain', 'edit scar', 'motion trail'][k % 5],
+                        pressure: ['next threshold', 'scale change', 'sound bridge', 'cut stress', 'loop closure'][k % 5],
+                        patches: localPatches.map(p => p.id)
+                    });
+                }
+                return { duration, patches, spans };
+            }
+
+            function addClip(file) {
+                const url = URL.createObjectURL(file);
+                const clip = { id: uid('C'), name: file.name || 'clip', url, duration: 64, spans: [], patches: [], file };
+                const model = buildModel(64); Object.assign(clip, model);
+                state.clips.push(clip);
+                const probe = document.createElement('video');
+                probe.preload = 'metadata'; probe.src = url;
+                probe.onloadedmetadata = () => {
+                    const m = buildModel(probe.duration || 64);
+                    clip.duration = m.duration; clip.spans = m.spans; clip.patches = m.patches;
+                    if (activeClip() === clip) { state.activeSpanId = clip.spans[0]?.id; renderAll(); }
+                };
+                if (state.clips.length === 1) { selectClip(0); } else { renderAll(); }
+            }
+
+            function loadDemo() {
+                const model = buildModel(72);
+                state.demo = true;
+                state.clips = [{
+                    id: 'DEMO', name: 'procedural_field_demo.mp4', url: '', duration: model.duration, spans: model.spans, patches: model.patches, file: null
+                }];
+                state.activeClip = 0; state.activeSpanId = state.clips[0].spans[0].id;
+                els.video.removeAttribute('src'); els.video.load();
+                els.empty.innerHTML = '<div><strong>DEMO FIELD</strong>No media file loaded. Arc, spans, deltas, projection, and inspector are active. Load a real video to replace this.</div>';
+                renderAll();
+            }
+
+            function selectClip(i) {
+                state.activeClip = i;
+                const c = activeClip(); if (!c) return;
+                state.activeSpanId = c.spans[0]?.id || null;
+                if (c.url) { els.video.src = c.url; els.video.currentTime = 0; els.empty.style.display = 'none'; }
+                else { els.video.removeAttribute('src'); els.video.load(); els.empty.style.display = 'flex'; }
+                renderAll();
+            }
+
+            function selectSpan(id, seek = true) {
+                const c = activeClip(); if (!c) return;
+                const s = c.spans.find(x => x.id === id); if (!s) return;
+                state.activeSpanId = id;
+                if (seek && c.url) { els.video.currentTime = s.start; }
+                renderAll();
+            }
+
+            function currentSpanByTime() {
+                const c = activeClip(); if (!c) return null;
+                const t = els.video.currentTime || 0;
+                return c.spans.find(s => t >= s.start && t < s.end) || c.spans[c.spans.length - 1] || null;
+            }
+
+            function syncSpanToTime() {
+                const s = currentSpanByTime();
+                if (s && s.id !== state.activeSpanId) { state.activeSpanId = s.id; renderLists(); renderInspector(); }
+            }
+
+            function setMode(mode) {
+                state.mode = mode;
+                [els.modeRoll, els.modeScrub, els.modeProject].forEach(b => { b.className = 'tiny ghost'; });
+                if (mode === 'roll') els.modeRoll.className = 'tiny primary';
+                if (mode === 'scrub') els.modeScrub.className = 'tiny primary';
+                if (mode === 'project') els.modeProject.className = 'tiny primary';
+                els.arcModeLabel.textContent = mode === 'roll' ? 'selected barrel rotates only' : mode === 'scrub' ? 'scrub through media time' : 'preview projected futures';
+                els.arcHintA.textContent = mode === 'roll' ? 'drag around arc to roll selected barrel' : mode === 'scrub' ? 'drag left/right to scrub time' : 'drag to audition future branches';
+                drawArc();
+            }
+
+            function renderLists() {
+                const c = activeClip();
+                els.clipList.innerHTML = state.clips.map((clip, i) => `<div class="clipItem ${i === state.activeClip ? 'active' : ''}" data-clip="${i}"><div class="name">${escapeHtml(clip.name)}</div><div class="meta"><span class="pill hot">${fmt(clip.duration)}</span><span class="pill">${clip.spans.length} spans</span><span class="pill">${clip.patches.length} patches</span></div></div>`).join('');
+                els.clipList.querySelectorAll('[data-clip]').forEach(el => el.onclick = () => selectClip(Number(el.dataset.clip)));
+                if (!c) { els.spanList.innerHTML = ''; els.spanCount.textContent = '0'; return; }
+                els.spanCount.textContent = String(c.spans.length);
+                els.spanList.innerHTML = c.spans.map(s => `<div class="spanItem ${s.id === state.activeSpanId ? 'active' : ''}" data-span="${s.id}"><div class="name">${s.id} — ${escapeHtml(s.name)}</div><div class="meta"><span class="pill cyan">${fmt(s.start)}–${fmt(s.end)}</span><span class="pill">${escapeHtml(s.location)}</span></div></div>`).join('');
+                els.spanList.querySelectorAll('[data-span]').forEach(el => el.onclick = () => selectSpan(el.dataset.span, true));
+            }
+
+            function renderInspector() {
+                const c = activeClip(), s = activeSpan(), p = activePatch();
+                if (!c || !s) {
+                    els.inspector.innerHTML = '<div class="sourceDrop"><strong>No field yet.</strong><br>Load a video to build provisional riverbed spans.</div>';
+                    els.futureList.innerHTML = ''; els.futureCount.textContent = '0'; return;
+                }
+                const next = c.spans[c.spans.indexOf(s) + 1] || c.spans[0];
+                const futures = buildFutures(s, next, p);
+                els.inspector.innerHTML = `
+      <div class="inspectorSection"><div class="sectionTitle"><span>Riverbed</span><span>${s.id}</span></div><div class="sectionContent">
+        ${kv('Holds', s.riverbed)}${kv('Location', s.location)}${kv('Identity', 'source media + timecode + selected section isolation')}
+      </div></div>
+      <div class="inspectorSection"><div class="sectionTitle"><span>Water</span><span>moving variables</span></div><div class="sectionContent">
+        ${kv('Flow', s.water)}${kv('Pressure', s.pressure)}${kv('Image', p ? p.fn : '—')}
+      </div></div>
+      <div class="inspectorSection"><div class="sectionTitle"><span>Sediment</span><span>memory</span></div><div class="sectionContent">
+        <div class="miniList">
+          ${mini('ghost frame', 'hot')}${mini(s.sediment, 'cyan')}${mini(p ? p.carry : 'sound residue', 'amber')}
+        </div>
+      </div></div>
+      <div class="inspectorSection"><div class="sectionTitle"><span>Delta</span><span>${s.id} → ${next.id}</span></div><div class="sectionContent">
+        ${kv('Preserve', p ? p.carry : s.riverbed)}${kv('Change', s.location + ' → ' + next.location)}${kv('Risk', p ? p.risk : 'drift')}
+      </div></div>`;
+                els.futureList.innerHTML = futures.map((f, i) => `<div class="futureItem ${i === state.currentFuture ? 'active' : ''}" data-future="${i}"><div class="top"><b>${escapeHtml(f.name)}</b><span>${f.score}</span></div><div class="body">${escapeHtml(f.body)}</div><div class="risk">risk: ${escapeHtml(f.risk)}</div></div>`).join('');
+                els.futureList.querySelectorAll('[data-future]').forEach(el => el.onclick = () => { state.currentFuture = Number(el.dataset.future); renderInspector(); drawArc(); });
+                els.futureCount.textContent = String(futures.length);
+            }
+
+            function kv(k, v) { return `<div class="kv"><label>${escapeHtml(k)}</label><div>${escapeHtml(v)}</div></div>` }
+            function mini(text, tone) { return `<div class="miniRow"><span class="dot ${tone === 'cyan' ? 'cyan' : tone === 'amber' ? 'amber' : tone === 'red' ? 'red' : ''}"></span><span>${escapeHtml(text)}</span></div>` }
+            function escapeHtml(s) { return String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m])) }
+
+            function buildFutures(s, next, p) {
+                return [
+                    { name: 'MATCH FORCE', score: 'A', body: `preserve ${p ? p.anchor : s.riverbed}; carry ${p ? p.carry : s.water}; change ${s.location} into ${next.location}`, risk: p ? p.risk : 'axis drift' },
+                    { name: 'SOUND BRIDGE', score: 'B', body: `hold the sonic bed across the threshold; let image change first while sound remains continuous`, risk: 'sound overpowers image delta' },
+                    { name: 'RESIDUE LOOP', score: 'C', body: `return to prior geometry with ${s.sediment} visible as altered memory`, risk: 'loop reads as repetition if no residue changes' },
+                    { name: 'CRYSTAL BREACH', score: 'D', body: `use reflection or screen layer as the interface into next field`, risk: 'decorative unless reflection is already present' }
+                ];
+            }
+
+            function renderViewerState() {
+                const c = activeClip(), s = activeSpan(), p = activePatch();
+                if (!c) {
+                    els.viewerTitle.textContent = 'NO SOURCE'; els.viewerSub.textContent = 'load media to create field'; els.imageType.textContent = '—';
+                    els.topState.textContent = 'No source loaded. Load a video or run demo.'; return;
+                }
+                els.empty.style.display = c.url ? 'none' : 'flex';
+                els.viewerTitle.textContent = c.name;
+                els.viewerSub.textContent = s ? `${s.id} ${s.location} • ${fmt(s.start)}–${fmt(s.end)}` : 'no span';
+                els.imageType.textContent = p ? p.fn : 'field';
+                els.ovAnchor.textContent = p ? p.anchor : '—';
+                els.ovCarry.textContent = p ? p.carry : '—';
+                els.ovDelta.textContent = s ? `${s.location} → ${(nextSpan(s) || s).location}` : '—';
+                els.ovRisk.textContent = p ? p.risk : '—';
+                els.mobAnchor.textContent = 'ANCHOR ' + (p ? p.anchor : '—');
+                els.mobDelta.textContent = 'DELTA ' + (s ? `${s.location} → ${(nextSpan(s) || s).location}` : '—');
+                els.topState.textContent = s ? `LOCK ${s.riverbed} • FLOW ${s.water} • DEPOSIT ${s.sediment}` : 'field loaded';
+                const pct = c.duration ? ((els.video.currentTime || 0) / c.duration) * 100 : 0;
+                els.timeFill.style.width = clamp(pct, 0, 100) + '%';
+                els.timeKnob.style.left = clamp(pct, 0, 100) + '%';
+                els.tc.textContent = fmt(els.video.currentTime || 0) + ' / ' + fmt(c.duration);
+                const t = els.video.currentTime || 0;
+                const x = 45 + Math.sin(t * .7) * 16, y = 48 + Math.cos(t * .43) * 14;
+                els.anchorDot.style.left = x + '%'; els.anchorDot.style.top = y + '%';
+                els.motionLine.style.left = x + '%'; els.motionLine.style.top = y + '%'; els.motionLine.style.width = (110 + Math.sin(t * .35) * 36) + 'px'; els.motionLine.style.transform = `rotate(${Math.sin(t * .22) * 34}deg)`;
+            }
+
+            function nextSpan(s) { const c = activeClip(); if (!c || !s) return null; return c.spans[c.spans.indexOf(s) + 1] || c.spans[0]; }
+
+            function drawArc() {
+                const c = activeClip();
+                const dpr = Math.max(1, window.devicePixelRatio || 1);
+                const rect = els.arcWrap.getBoundingClientRect();
+                els.canvas.width = Math.max(1, rect.width * dpr); els.canvas.height = Math.max(1, rect.height * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                const w = rect.width, h = rect.height, cx = w / 2, cy = h * .54;
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#050506'; ctx.fillRect(0, 0, w, h);
+                const r = Math.min(w, h) * .34;
+                const outer = r + 28, inner = r - 30;
+                drawGrid(cx, cy, outer, w, h);
+                if (!c) { drawNoField(cx, cy, r); return; }
+                const total = c.duration;
+                // External snap rails: outside footage.
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1;
+                c.patches.forEach((p, i) => {
+                    const a = -Math.PI / 2 + (p.start / total) * Math.PI * 2;
+                    const x1 = cx + Math.cos(a) * (outer + 6), y1 = cy + Math.sin(a) * (outer + 6);
+                    const x2 = cx + Math.cos(a) * (outer + 32), y2 = cy + Math.sin(a) * (outer + 32);
+                    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                    if (i % 3 === 0) { ctx.fillStyle = 'rgba(255,255,255,.38)'; ctx.font = '10px ui-monospace'; ctx.fillText(fmt(p.start), cx + Math.cos(a) * (outer + 39) - 14, cy + Math.sin(a) * (outer + 39) + 3); }
+                });
+                ctx.restore();
+
+                // Static tube bed.
+                ctx.save();
+                ctx.lineWidth = 34; ctx.lineCap = 'butt';
+                c.spans.forEach((s, i) => {
+                    const a1 = -Math.PI / 2 + (s.start / total) * Math.PI * 2;
+                    const a2 = -Math.PI / 2 + (s.end / total) * Math.PI * 2 - .01;
+                    const active = s.id === state.activeSpanId;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, a1, a2, false);
+                    ctx.strokeStyle = active ? 'rgba(156,255,184,.26)' : 'rgba(255,255,255,.08)';
+                    ctx.stroke();
+                    ctx.lineWidth = active ? 36 : 30;
+                });
+                ctx.restore();
+
+                // Selected barrel: isolated moving surface.
+                const s = activeSpan();
+                if (s) {
+                    const a1 = -Math.PI / 2 + (s.start / total) * Math.PI * 2;
+                    const a2 = -Math.PI / 2 + (s.end / total) * Math.PI * 2;
+                    const t = els.video.currentTime || 0;
+                    const local = (t - s.start) / (s.end - s.start || 1);
+                    const localA = a1 + local * (a2 - a1);
+                    ctx.save();
+                    ctx.lineCap = 'round';
+                    ctx.lineWidth = 42;
+                    const grad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+                    grad.addColorStop(0, 'rgba(156,255,184,.55)'); grad.addColorStop(.55, 'rgba(105,217,255,.45)'); grad.addColorStop(1, 'rgba(255,211,106,.42)');
+                    ctx.strokeStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, r, a1 + .02, a2 - .02, false); ctx.stroke();
+                    // Footage ribs that roll inside selected barrel only.
+                    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.55)';
+                    const ribs = 18;
+                    const off = (local * Math.PI * 2) % ((a2 - a1) / ribs);
+                    for (let i = 0; i < ribs; i++) {
+                        const a = a1 + (i / ribs) * (a2 - a1) + off;
+                        if (a < a1 || a > a2) continue;
+                        ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner); ctx.lineTo(cx + Math.cos(a) * (outer - 6), cy + Math.sin(a) * (outer - 6)); ctx.stroke();
+                    }
+                    // Current playhead.
+                    ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(cx + Math.cos(localA) * (inner - 14), cy + Math.sin(localA) * (inner - 14)); ctx.lineTo(cx + Math.cos(localA) * (outer + 20), cy + Math.sin(localA) * (outer + 20)); ctx.stroke();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx + Math.cos(localA) * (outer + 26), cy + Math.sin(localA) * (outer + 26), 5, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                    // Label.
+                    ctx.fillStyle = 'rgba(0,0,0,.72)'; roundRect(ctx, cx - 95, cy + r + 28, 190, 28, 14); ctx.fill();
+                    ctx.fillStyle = '#9cffb8'; ctx.font = '12px ui-monospace'; ctx.textAlign = 'center'; ctx.fillText(`${s.id} ${s.name} • ${fmt(t)}`, cx, cy + r + 46);
+                    ctx.textAlign = 'left';
+                }
+
+                // Prior/future ghost arcs.
+                ctx.save(); ctx.lineWidth = 10; ctx.lineCap = 'round';
+                const prev = prevSpan(s), next = nextSpan(s);
+                if (prev) drawSpanArc(prev, 'rgba(181,156,255,.35)', r - 54, total, cx, cy);
+                if (next) drawSpanArc(next, 'rgba(255,211,106,.33)', r + 54, total, cx, cy);
+                ctx.restore();
+            }
+
+            function prevSpan(s) { const c = activeClip(); if (!c || !s) return null; const i = c.spans.indexOf(s); return c.spans[i - 1] || c.spans[c.spans.length - 1]; }
+            function drawSpanArc(s, color, r, total, cx, cy) { const a1 = -Math.PI / 2 + (s.start / total) * Math.PI * 2; const a2 = -Math.PI / 2 + (s.end / total) * Math.PI * 2 - .02; ctx.strokeStyle = color; ctx.beginPath(); ctx.arc(cx, cy, r, a1, a2, false); ctx.stroke(); }
+            function drawGrid(cx, cy, r, w, h) {
+                ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 1;
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * (r + 58), cy + Math.sin(a) * (r + 58)); ctx.stroke(); }
+                ctx.strokeStyle = 'rgba(255,255,255,.07)';[r - 60, r, r + 60].forEach(rr => { ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke(); });
+                ctx.restore();
+            }
+            function drawNoField(cx, cy, r) {
+                ctx.save(); ctx.strokeStyle = 'rgba(156,255,184,.25)'; ctx.lineWidth = 32; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '12px ui-monospace'; ctx.textAlign = 'center'; ctx.fillText('LOAD VIDEO', cx, cy + r + 40); ctx.restore();
+            }
+            function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+            function canvasAngle(e) {
+                const rect = els.canvas.getBoundingClientRect(); const x = (e.clientX - rect.left), y = (e.clientY - rect.top); const cx = rect.width / 2, cy = rect.height * .54; return Math.atan2(y - cy, x - cx);
+            }
+            function seekByAngle(a) {
+                const c = activeClip(), s = activeSpan(); if (!c || !s) return;
+                let n = normAngle(a + Math.PI / 2) / (Math.PI * 2);
+                let t;
+                if (state.mode === 'roll' || state.mode === 'project') {
+                    // Isolate selected barrel section: angle maps only inside active span.
+                    t = s.start + n * (s.end - s.start);
+                } else {
+                    t = n * c.duration;
+                }
+                if (state.snap) { t = snapTime(t); }
+                t = clamp(t, 0, c.duration - .05);
+                if (c.url) { els.video.currentTime = t; } else { els.video.currentTime = t; }
+                syncSpanToTime(); renderViewerState(); drawArc();
+            }
+            function snapTime(t) {
+                const c = activeClip(); if (!c) return t;
+                let best = t, dist = Infinity;
+                c.patches.forEach(p => [p.start, p.end].forEach(x => { const d = Math.abs(x - t); if (d < dist) { dist = d; best = x; } }));
+                return dist < .45 ? best : t;
+            }
+
+            function tick() { renderViewerState(); if (!state.dragging) syncSpanToTime(); drawArc(); requestAnimationFrame(tick); }
+
+            // Events.
+            els.loadBtn.onclick = () => els.fileInput.click();
+            els.fileInput.onchange = (e) => { [...e.target.files].forEach(addClip); e.target.value = ''; };
+            els.demoBtn.onclick = loadDemo;
+            els.playBtn.onclick = () => { if (!activeClip()?.url) { animateDemoPlay(); return; } if (els.video.paused) { els.video.play(); } else { els.video.pause(); } };
+            els.centerPlay.onclick = () => els.playBtn.click();
+            els.video.onplay = () => { els.playBtn.textContent = 'PAUSE'; els.centerPlay.textContent = 'Ⅱ'; };
+            els.video.onpause = () => { els.playBtn.textContent = 'PLAY'; els.centerPlay.textContent = '▶'; };
+            els.video.ontimeupdate = () => { syncSpanToTime(); renderViewerState(); };
+            els.lockBtn.onclick = () => { state.locked = !state.locked; els.lockBtn.textContent = state.locked ? 'LOCK' : 'FREE'; els.lockBtn.className = state.locked ? 'ghost' : 'primary'; };
+            els.modeRoll.onclick = () => setMode('roll'); els.modeScrub.onclick = () => setMode('scrub'); els.modeProject.onclick = () => setMode('project');
+            els.timebar.onpointerdown = (e) => { const c = activeClip(); if (!c) return; const rect = els.timebar.getBoundingClientRect(); const n = clamp((e.clientX - rect.left) / rect.width, 0, 1); els.video.currentTime = n * c.duration; renderAll(); };
+            els.canvas.addEventListener('pointerdown', e => { if (!activeClip()) return; state.dragging = true; els.canvas.setPointerCapture(e.pointerId); state.dragStartAngle = canvasAngle(e); state.dragStartTime = els.video.currentTime || 0; state.lastAngle = state.dragStartAngle; state.lastMoveTime = performance.now(); state.velocity = 0; });
+            els.canvas.addEventListener('pointermove', e => { if (!state.dragging) return; const a = canvasAngle(e); const now = performance.now(); let da = a - state.lastAngle; if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2; state.velocity = da / Math.max(1, now - state.lastMoveTime); state.lastAngle = a; state.lastMoveTime = now; seekByAngle(a); });
+            els.canvas.addEventListener('pointerup', e => { if (!state.dragging) return; state.dragging = false; try { els.canvas.releasePointerCapture(e.pointerId) } catch (_) { } startInertia(); });
+            els.canvas.addEventListener('pointercancel', () => { state.dragging = false });
+
+            function startInertia() {
+                const c = activeClip(); if (!c) return;
+                let v = state.velocity * 20;
+                if (Math.abs(v) < .003) return;
+                let a = state.lastAngle;
+                let frames = 0;
+                function step() {
+                    if (state.dragging) return;
+                    a += v; v *= .91; frames++;
+                    seekByAngle(a);
+                    if (Math.abs(v) > .002 && frames < 80) requestAnimationFrame(step);
+                    else { const t = snapTime(els.video.currentTime || 0); els.video.currentTime = t; renderAll(); }
+                }
+                requestAnimationFrame(step);
+            }
+
+            let demoRAF = 0;
+            function animateDemoPlay() {
+                const c = activeClip(); if (!c) return;
+                if (demoRAF) { cancelAnimationFrame(demoRAF); demoRAF = 0; els.playBtn.textContent = 'PLAY'; els.centerPlay.textContent = '▶'; return; }
+                els.playBtn.textContent = 'PAUSE'; els.centerPlay.textContent = 'Ⅱ';
+                let last = performance.now();
+                function step(now) {
+                    const dt = (now - last) / 1000; last = now;
+                    els.video.currentTime = (els.video.currentTime + dt) % c.duration;
+                    syncSpanToTime(); renderViewerState(); drawArc();
+                    demoRAF = requestAnimationFrame(step);
+                }
+                demoRAF = requestAnimationFrame(step);
+            }
+
+            function renderAll() { renderLists(); renderInspector(); renderViewerState(); drawArc(); }
+            window.addEventListener('resize', drawArc);
+
+            // Drag/drop.
+            ['dragenter', 'dragover'].forEach(ev => els.dropZone.addEventListener(ev, e => { e.preventDefault(); els.dropZone.style.borderColor = 'rgba(156,255,184,.8)'; }));
+            ['dragleave', 'drop'].forEach(ev => els.dropZone.addEventListener(ev, e => { e.preventDefault(); els.dropZone.style.borderColor = ''; }));
+            els.dropZone.addEventListener('drop', e => { [...e.dataTransfer.files].filter(f => f.type.startsWith('video/')).forEach(addClip); });
+
+            // Mobile drawers.
+            els.openSources.onclick = () => document.body.classList.add('leftOpen');
+            els.openInspector.onclick = () => document.body.classList.add('rightOpen');
+            els.closeLeft.onclick = () => document.body.classList.remove('leftOpen');
+            els.closeRight.onclick = () => document.body.classList.remove('rightOpen');
+            els.shade.onclick = () => document.body.classList.remove('leftOpen', 'rightOpen');
+
+            // Keyboard.
+            window.addEventListener('keydown', e => {
+                if (e.code === 'Space') { e.preventDefault(); els.playBtn.click(); }
+                if (e.key === '1') setMode('roll'); if (e.key === '2') setMode('scrub'); if (e.key === '3') setMode('project');
+                const c = activeClip(); if (!c) return;
+                if (e.key === 'ArrowRight') { els.video.currentTime = clamp((els.video.currentTime || 0) + 1, 0, c.duration); }
+                if (e.key === 'ArrowLeft') { els.video.currentTime = clamp((els.video.currentTime || 0) - 1, 0, c.duration); }
+            });
+
+            setMode('roll');
+            renderAll();
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

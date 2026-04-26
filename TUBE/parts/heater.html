@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Arc Tunnel Beast — Shared Dial</title>
+    <style>
+        :root {
+            --bg: #000;
+            --fg: #f5f5f5;
+            --dim: #6e6e6e;
+            --line: #242424;
+            --hot: #9cffb8;
+            --warn: #ffd34d;
+            --bad: #ff4f3e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100dvh;
+            background: #000;
+            cursor: default
+        }
+
+        #fileInput {
+            position: fixed;
+            left: -9999px;
+            top: -9999px;
+            opacity: 0
+        }
+
+        #dropHint {
+            position: fixed;
+            inset: 0;
+            display: none;
+            z-index: 5;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .78);
+            border: 2px dashed var(--hot);
+            color: var(--hot);
+            font: 900 14px ui-monospace, monospace;
+            letter-spacing: .16em;
+            text-transform: uppercase
+        }
+
+        body.dragging #dropHint {
+            display: flex
+        }
+    </style>
+</head>
+
+<body>
+    <input id="fileInput" type="file" accept="video/*" multiple />
+    <div id="dropHint">drop media into tunnel</div>
+    <canvas id="beast"></canvas>
+    <script>
+        (() => {
+            'use strict';
+            const canvas = document.getElementById('beast');
+            const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+            const fileInput = document.getElementById('fileInput');
+            const TAU = Math.PI * 2;
+            const COLORS = ['#9CFFB8', '#8bc7ff', '#d7a5ff', '#ffd34d', '#ff8a65', '#ff77aa', '#d7ff58', '#72ffe1'];
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const uid = (() => { let n = 1; return p => `${p}_${(n++).toString(36)}` })();
+            let W = 0, H = 0, DPR = 1, audioCtx = null;
+            const state = {
+                tracks: 4, total: 42, playhead: 3, playing: false, last: performance.now(),
+                clips: [], selected: null, cohort: [], section: null, preview: null,
+                pointer: null, mode: null, buttons: [], hits: [], dial: null, layout: null,
+                camera: { yaw: -.18, targetYaw: -.18, zoom: 1, targetZoom: 1 },
+                history: [], importCount: 0, mobile: false,
+                message: 'scroll = scrub · shift-scroll = orbit · tap title = change view',
+                view: 'tunnel', views: ['tunnel', 'pipe', 'stack']
+            };
+            function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth | 0; H = innerHeight | 0; canvas.width = W * DPR; canvas.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); state.mobile = W < 760 || H > W * 1.22 }
+            addEventListener('resize', resize, { passive: true }); resize();
+            function makeClip(o) { const s = o.start ?? 0, e = Math.max(s + .4, o.end ?? s + 5); return { id: o.id || uid('clip'), track: o.track ?? 0, start: s, end: e, roll: o.roll || 0, label: o.label || 'CLIP', kind: o.kind || 'ghost', color: o.color || COLORS[state.clips.length % COLORS.length], video: o.video || null, source: o.source || '', fileName: o.fileName || '', ready: !!o.ready, failed: false, proxyState: o.proxyState || 'GHOST', inPoint: 0, outPoint: e - s, sediment: [] } }
+            function seed() {
+                [
+                    [0, .8, 6.5, 'GHOST'], [1, 3.8, 10.8, 'SYNC'], [2, 2.1, 8.4, 'MOTION'], [3, 7.3, 14.2, 'SPLIT'],
+                    [0, 11.3, 18.2, 'PROXY'], [1, 14.5, 22.5, 'COHORT'], [2, 17.6, 25.7, 'ROLL'], [3, 20.4, 29.4, 'IMPORT'],
+                    [0, 25.5, 33.6, 'SCAR'], [2, 30.2, 39.0, 'STORM']
+                ].forEach((s, i) => state.clips.push(makeClip({ track: s[0], start: s[1], end: s[2], label: s[3], color: COLORS[i % COLORS.length] }))); state.selected = state.clips[1].id; armSection()
+            }
+            seed();
+            function selected() { return state.clips.find(c => c.id === state.selected) || null }
+            function dur(c) { return Math.max(.25, c.end - c.start) }
+            function overlap(a, b, c, d) { return a < d && c < b }
+            function armSection() { const c = selected(); if (!c) { state.section = null; state.cohort = []; return } state.section = { start: c.start, end: c.end, source: c.id }; state.cohort = state.clips.filter(x => overlap(x.start, x.end, c.start, c.end)).map(x => x.id) }
+            function setSelected(id) { if (!id) return; state.selected = id; armSection(); const c = selected(); state.message = c ? `${c.label} · ${state.cohort.length} linked` : state.message; tick(220, .025) }
+            function snapTime(t) { return Math.round(t / .5) * .5 }
+            function snapRoll(r) { const q = Math.PI / 2; return Math.round(r / q) * q }
+            function detents(r) { return Math.round(r / (Math.PI / 2)) }
+            function fmt(t) { const m = Math.floor(t / 60), s = Math.floor(t % 60), f = Math.floor((t % 1) * 24); return `${m}:${String(s).padStart(2, '0')}.${String(f).padStart(2, '0')}` }
+            function snapshot() { return state.clips.map(c => ({ id: c.id, track: c.track, start: c.start, end: c.end, roll: c.roll, label: c.label, color: c.color, sediment: [...c.sediment] })) }
+            function restore(snap) { const map = new Map(state.clips.map(c => [c.id, c])); snap.forEach(s => { const c = map.get(s.id); if (c) Object.assign(c, s) }); sortClips(); armSection() }
+            function push(name, before) { state.history.push({ name, before }); if (state.history.length > 80) state.history.shift() }
+            function undo() { const h = state.history.pop(); if (h) { restore(h.before); state.message = `undo ${h.name}`; tick(130, .04) } }
+            function sortClips() { state.clips.sort((a, b) => a.track - b.track || a.start - b.start) }
+            function layout() { const top = 38, pad = state.mobile ? 10 : 16, dialR = state.mobile ? 44 : 48, stripH = state.mobile ? 86 : 92, bottom = dialR * 2 + 22; const tunnel = { x: pad, y: top + pad, w: W - pad * 2, h: Math.max(190, H - top - pad * 3 - stripH - bottom) }; const strip = { x: pad, y: tunnel.y + tunnel.h + pad, w: W - pad * 2, h: stripH }; const dial = { x: W / 2, y: H - dialR - 12, r: dialR, inner: dialR * .46 }; state.layout = { top: { x: 0, y: 0, w: W, h: top }, tunnel, strip, dial }; state.dial = dial; return state.layout }
+            function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath() }
+            function text(s, x, y, size = 11, color = '#fff', align = 'left', weight = '800') { ctx.fillStyle = color; ctx.font = `${weight} ${size}px ui-monospace,SFMono-Regular,Menlo,monospace`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(s, x, y) }
+            function panel(r, stroke = 'rgba(255,255,255,.14)') { ctx.fillStyle = '#050505'; rr(r.x, r.y, r.w, r.h, 18); ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke() }
+            function rgba(hex, a) { const h = hex.replace('#', ''); return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})` }
+            function drawTop(L) { state.buttons = []; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, L.top.h); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.moveTo(0, L.top.h - .5); ctx.lineTo(W, L.top.h - .5); ctx.stroke(); const title = `ARC ${state.view.toUpperCase()}`; text(title, 14, L.top.h / 2, 12, '#9cffb8', 'left', '900'); state.buttons.push({ id: 'view', x: 8, y: 5, w: state.mobile ? 112 : 150, h: 28 }); text(fmt(state.playhead), state.mobile ? W / 2 : 170, L.top.h / 2, 12, '#fff', state.mobile ? 'center' : 'left', '900'); let x = W - 10; const items = state.mobile ? [['export', 'EDL'], ['undo', '↶'], ['import', '+']] : [['export', 'EDL'], ['undo', 'UNDO'], ['import', 'IMPORT']]; for (let i = items.length - 1; i >= 0; i--) { const [id, label] = items[i], w = state.mobile ? 42 : id === 'import' ? 70 : 58; x -= w; drawButton(id, label, x, 7, w, 24, id === 'import'); x -= 8 } }
+            function drawButton(id, label, x, y, w, h, hot = false) { state.buttons.push({ id, x, y, w, h }); ctx.fillStyle = hot ? 'rgba(156,255,184,.13)' : 'rgba(255,255,255,.045)'; rr(x, y, w, h, 8); ctx.fill(); ctx.strokeStyle = hot ? 'rgba(156,255,184,.8)' : 'rgba(255,255,255,.18)'; ctx.stroke(); text(label, x + w / 2, y + h / 2, 10, hot ? '#9cffb8' : '#fff', 'center', '900') }
+            function drawTunnel(r) { panel(r); ctx.save(); rr(r.x, r.y, r.w, r.h, 18); ctx.clip(); ctx.fillStyle = '#000'; ctx.fillRect(r.x, r.y, r.w, r.h); drawTunnelGrid(r); drawTunnelClips(r); drawCohortTube(r); ctx.restore(); const c = selected(); if (c) { text(`${c.label}`, r.x + 14, r.y + 18, 11, '#fff', 'left', '900'); text(`${state.cohort.length} linked`, r.x + r.w - 14, r.y + 18, 10, '#9cffb8', 'right', '900') } }
+            function project(theta, z, r) { const yaw = state.camera.yaw; const cx = r.x + r.w / 2, cy = r.y + r.h * .55; const depth = (z - state.playhead) + 12; const sc = clamp((1 / (1 + Math.max(0, depth) * .055)) * state.camera.zoom, .25, 1.6); const rad = Math.min(r.w, r.h) * .34; const a = theta + yaw; return { x: cx + Math.cos(a) * rad * sc, y: cy + Math.sin(a) * rad * .42 * sc - (depth - 12) * Math.min(22, r.h * .03), scale: sc, depth, front: Math.sin(a) > -.55 } }
+            function trackAngle(track, roll = 0) { return track / state.tracks * TAU + roll }
+            function clipPoly(c, r, delta = 0) { const w = TAU / state.tracks * .72, th = trackAngle(c.track, c.roll + delta); return [project(th - w / 2, c.start, r), project(th + w / 2, c.start, r), project(th + w / 2, c.end, r), project(th - w / 2, c.end, r)] }
+            function pathPoly(pts) { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++)ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath() }
+            function pointPoly(p, pts) { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if (((a.y > p.y) != (b.y > p.y)) && (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y + 1e-9) + a.x)) inside = !inside } return inside }
+            function drawTunnelGrid(r) { const cx = r.x + r.w / 2, cy = r.y + r.h * .55, rad = Math.min(r.w, r.h) * .34; ctx.save(); for (let z = 0; z <= state.total; z += 4) { const d = (z - state.playhead) + 12, s = clamp(1 / (1 + Math.max(0, d) * .055) * state.camera.zoom, .25, 1.4); ctx.strokeStyle = 'rgba(156,255,184,.08)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(cx, cy - (d - 12) * Math.min(22, r.h * .03), rad * s, rad * .42 * s, 0, 0, TAU); ctx.stroke() } for (let t = 0; t < state.tracks; t++) { ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); for (let z = 0; z <= state.total; z += 1) { const p = project(trackAngle(t, 0) - state.camera.yaw, z, r); if (z === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y) } ctx.stroke() } ctx.restore() }
+            function drawTunnelClips(r) { state.hitTunnel = []; const items = state.clips.map(c => { const delta = state.preview && state.preview.kind === 'roll' && state.cohort.includes(c.id) ? state.preview.delta : 0; const pts = clipPoly(c, r, delta); return { c, pts, avg: pts.reduce((s, p) => s + p.depth, 0) / pts.length } }).sort((a, b) => b.avg - a.avg); for (const it of items) { const c = it.c, pts = it.pts, sel = c.id === state.selected, co = state.cohort.includes(c.id), front = pts.some(p => p.front); ctx.save(); ctx.globalAlpha = front ? 1 : .35; if (co) { ctx.shadowColor = 'rgba(156,255,184,.38)'; ctx.shadowBlur = sel ? 20 : 8 } pathPoly(pts); ctx.fillStyle = sel ? 'rgba(156,255,184,.32)' : co ? 'rgba(156,255,184,.14)' : rgba(c.color, .42); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = sel ? '#9cffb8' : co ? 'rgba(156,255,184,.68)' : 'rgba(255,255,255,.18)'; ctx.lineWidth = sel ? 2.4 : 1; pathPoly(pts); ctx.stroke(); if (sel && !state.mobile) { const m = pts.reduce((a, p) => ({ x: a.x + p.x / 4, y: a.y + p.y / 4 }), { x: 0, y: 0 }); text(c.label, m.x, m.y, 10, '#fff', 'center', '900') } ctx.restore(); state.hitTunnel.push({ id: c.id, pts }) } }
+            function drawCohortTube(r) { if (!state.section) return; ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (let t = 0; t < state.tracks; t++) { const p0 = project(trackAngle(t), state.section.start, r), p1 = project(trackAngle(t), state.section.end, r); ctx.strokeStyle = 'rgba(156,255,184,.12)'; ctx.lineWidth = 14 * p0.scale; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke() } ctx.restore() }
+            function stripInner(r) { return { x: r.x + 12, y: r.y + 12, w: r.w - 24, h: r.h - 24 } }
+            function timeToX(t, inner) { return inner.x + (t / state.total) * inner.w }
+            function xToTime(x, inner) { return clamp(((x - inner.x) / inner.w) * state.total, 0, state.total) }
+            function laneY(track, inner) { return inner.y + inner.h * (.20 + track * (.60 / (state.tracks - 1))) }
+            function drawStrip(r) { panel(r, 'rgba(255,255,255,.12)'); const inner = stripInner(r); drawSnapTicks(inner); drawStripLanes(inner); drawStripCohort(inner); drawStripClips(inner); drawStripPlayhead(inner); text(state.message, r.x + 12, r.y + r.h - 8, 9, '#777', 'left', '700') }
+            function drawSnapTicks(inner) { ctx.save(); for (let t = 0; t <= state.total; t += .5) { const x = timeToX(t, inner), major = Math.abs(t - Math.round(t)) < .01; ctx.strokeStyle = major ? 'rgba(156,255,184,.38)' : 'rgba(156,255,184,.13)'; ctx.lineWidth = major ? 1.2 : 1; ctx.beginPath(); ctx.moveTo(x, inner.y - 4); ctx.lineTo(x, inner.y + (major ? 8 : 4)); ctx.moveTo(x, inner.y + inner.h + 4); ctx.lineTo(x, inner.y + inner.h - (major ? 8 : 4)); ctx.stroke() } ctx.restore() }
+            function drawStripLanes(inner) { ctx.strokeStyle = 'rgba(255,255,255,.08)'; for (let t = 0; t < state.tracks; t++) { const y = laneY(t, inner); ctx.beginPath(); ctx.moveTo(inner.x, y); ctx.lineTo(inner.x + inner.w, y); ctx.stroke() } }
+            function drawStripCohort(inner) { if (!state.section) return; const x0 = timeToX(state.section.start, inner), x1 = timeToX(state.section.end, inner); ctx.save(); ctx.fillStyle = 'rgba(156,255,184,.055)'; ctx.fillRect(x0, inner.y, x1 - x0, inner.h); ctx.strokeStyle = 'rgba(156,255,184,.45)'; ctx.setLineDash([6, 5]); ctx.strokeRect(x0, inner.y, x1 - x0, inner.h); ctx.setLineDash([]); ctx.restore() }
+            function drawStripClips(inner) { state.hitSide = []; for (const c of state.clips) { let st = c.start, en = c.end, roll = c.roll; if (state.preview) { if ((state.preview.kind === 'drag' || state.preview.kind === 'trim') && state.preview.id === c.id) { st = state.preview.start; en = state.preview.end } if (state.preview.kind === 'roll' && state.cohort.includes(c.id)) { roll = c.roll + state.preview.delta } } const y = laneY(c.track, inner), x0 = timeToX(st, inner), x1 = timeToX(en, inner), h = state.mobile ? 18 : 22, sel = c.id === state.selected, co = state.cohort.includes(c.id); ctx.save(); if (co) { ctx.shadowColor = 'rgba(156,255,184,.36)'; ctx.shadowBlur = sel ? 12 : 5 } rr(x0, y - h / 2, Math.max(10, x1 - x0), h, h / 2); ctx.fillStyle = sel ? 'rgba(156,255,184,.30)' : co ? 'rgba(156,255,184,.13)' : rgba(c.color, .40); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = sel ? '#9cffb8' : co ? 'rgba(156,255,184,.55)' : 'rgba(255,255,255,.16)'; ctx.lineWidth = sel ? 2 : 1; ctx.stroke(); ctx.fillStyle = c.color; ctx.globalAlpha = .75; ctx.fillRect(x0 + 5, y - h / 2 + 5, 3, h - 10); ctx.globalAlpha = 1; if (sel || !state.mobile) text(c.label, x0 + 12, y, 9, sel ? '#fff' : '#cfcfcf', 'left', '800'); if (sel) text(`R${((detents(roll) % 4) + 4) % 4}`, x1 - 8, y, 8, '#030303', 'right', '900'); ctx.restore(); state.hitSide.push({ id: c.id, type: 'body', x: x0, y: y - h / 2, w: Math.max(10, x1 - x0), h }); state.hitSide.push({ id: c.id, type: 'trimL', x: x0 - 10, y: y - h / 2, w: 20, h }); state.hitSide.push({ id: c.id, type: 'trimR', x: x1 - 10, y: y - h / 2, w: 20, h }) } }
+            function drawStripPlayhead(inner) { const x = timeToX(state.playhead, inner); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, inner.y - 6); ctx.lineTo(x, inner.y + inner.h + 6); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, inner.y + inner.h / 2, 4, 0, TAU); ctx.fill() }
+            function drawDial(d) { const c = selected(); ctx.save(); ctx.globalAlpha = .96; ctx.fillStyle = '#050505'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r + 7, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1; ctx.stroke(); ctx.strokeStyle = 'rgba(156,255,184,.65)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.stroke(); for (let i = 0; i < 16; i++) { const a = i / 16 * TAU - Math.PI / 2, major = i % 4 === 0; ctx.strokeStyle = major ? '#9cffb8' : 'rgba(156,255,184,.26)'; ctx.lineWidth = major ? 3 : 1; ctx.beginPath(); ctx.moveTo(d.x + Math.cos(a) * d.r * (major ? .72 : .80), d.y + Math.sin(a) * d.r * (major ? .72 : .80)); ctx.lineTo(d.x + Math.cos(a) * d.r * .98, d.y + Math.sin(a) * d.r * .98); ctx.stroke() } const angle = (state.preview && state.preview.kind === 'roll' ? state.preview.delta : (c ? c.roll : 0)) - Math.PI / 2; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + Math.cos(angle) * d.r * .58, d.y + Math.sin(angle) * d.r * .58); ctx.stroke(); ctx.fillStyle = state.playing ? 'rgba(156,255,184,.24)' : 'rgba(255,255,255,.075)'; ctx.beginPath(); ctx.arc(d.x, d.y, d.inner, 0, TAU); ctx.fill(); ctx.strokeStyle = state.playing ? '#9cffb8' : 'rgba(255,255,255,.28)'; ctx.stroke(); text(state.playing ? 'II' : '▶', d.x, d.y, 17, '#fff', 'center', '900'); const q = state.preview && state.preview.kind === 'roll' ? detents(state.preview.delta) : 0; if (q) text(`${q > 0 ? '+' : ''}${q}`, d.x, d.y - d.r - 15, 12, '#ffd34d', 'center', '900'); else text(c ? `${state.cohort.length}` : '0', d.x, d.y - d.r - 15, 10, '#777', 'center', '900'); text('ROLL', d.x, d.y + d.r + 14, 9, '#777', 'center', '900'); ctx.restore() }
+            function update(dt) { if (state.playing) { state.playhead += dt; if (state.playhead > state.total) state.playhead = 0 } state.camera.yaw = lerp(state.camera.yaw, state.camera.targetYaw, .12); state.camera.zoom = lerp(state.camera.zoom, state.camera.targetZoom, .10) }
+            function render(now = performance.now()) { const dt = Math.min(.05, (now - state.last) / 1000 || 0); state.last = now; update(dt); const L = layout(); ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); drawTop(L); drawMainView(L.tunnel); drawStrip(L.strip); drawDial(L.dial); requestAnimationFrame(render) }
+            function drawMainView(r) { if (state.view === 'pipe') drawPipeView(r); else if (state.view === 'stack') drawStackView(r); else drawTunnel(r) }
+            function cycleView(dir = 1) { const i = state.views.indexOf(state.view); state.view = state.views[(i + dir + state.views.length) % state.views.length]; state.message = `view ${state.view} · same strip and dial`; tick(260, .025) }
+            function drawPipeView(r) { panel(r); ctx.save(); rr(r.x, r.y, r.w, r.h, 18); ctx.clip(); ctx.fillStyle = '#000'; ctx.fillRect(r.x, r.y, r.w, r.h); const inner = { x: r.x + 28, y: r.y + 42, w: r.w - 56, h: r.h - 84 }; ctx.strokeStyle = 'rgba(156,255,184,.18)'; ctx.lineWidth = 2; rr(inner.x, inner.y, inner.w, inner.h, inner.h / 2); ctx.stroke(); for (let t = 0; t < state.tracks; t++) { const y = inner.y + inner.h * (.20 + t * (.60 / (state.tracks - 1))); ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.beginPath(); ctx.moveTo(inner.x, y); ctx.lineTo(inner.x + inner.w, y); ctx.stroke() } if (state.section) { const sx = inner.x + (state.section.start / state.total) * inner.w, ex = inner.x + (state.section.end / state.total) * inner.w; ctx.fillStyle = 'rgba(156,255,184,.08)'; ctx.fillRect(sx, inner.y, ex - sx, inner.h) } for (const c of state.clips) { let roll = c.roll; if (state.preview && state.preview.kind === 'roll' && state.cohort.includes(c.id)) roll += state.preview.delta; const x0 = inner.x + (c.start / state.total) * inner.w, x1 = inner.x + (c.end / state.total) * inner.w, y = inner.y + inner.h * (.20 + c.track * (.60 / (state.tracks - 1))), h = state.mobile ? 22 : 28, sel = c.id === state.selected, co = state.cohort.includes(c.id); ctx.save(); if (co) { ctx.shadowColor = 'rgba(156,255,184,.35)'; ctx.shadowBlur = sel ? 16 : 7 } rr(x0, y - h / 2, Math.max(12, x1 - x0), h, h / 2); ctx.fillStyle = sel ? 'rgba(156,255,184,.32)' : co ? 'rgba(156,255,184,.14)' : rgba(c.color, .45); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = sel ? '#9cffb8' : co ? 'rgba(156,255,184,.58)' : 'rgba(255,255,255,.18)'; ctx.stroke(); if (sel || !state.mobile) text(c.label, x0 + 12, y, 9, '#fff', 'left', '900'); ctx.restore() } const px = inner.x + (state.playhead / state.total) * inner.w; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, inner.y - 16); ctx.lineTo(px, inner.y + inner.h + 16); ctx.stroke(); ctx.restore(); text('PIPE VIEW · time as flow', r.x + 14, r.y + 18, 11, '#9cffb8', 'left', '900') }
+            function drawStackView(r) { panel(r); ctx.save(); rr(r.x, r.y, r.w, r.h, 18); ctx.clip(); ctx.fillStyle = '#000'; ctx.fillRect(r.x, r.y, r.w, r.h); const base = r.y + r.h - 42, top = r.y + 42, axis = r.x + r.w / 2; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(r.x + 22, base); ctx.lineTo(r.x + r.w - 22, base); ctx.moveTo(axis, top); ctx.lineTo(axis, base); ctx.stroke(); for (let t = 0; t <= state.total; t += 6) { const y = base - (t / state.total) * (base - top); ctx.strokeStyle = 'rgba(156,255,184,.15)'; ctx.beginPath(); ctx.moveTo(axis - 8, y); ctx.lineTo(axis + 8, y); ctx.stroke() } if (state.section) { const y0 = base - (state.section.start / state.total) * (base - top), y1 = base - (state.section.end / state.total) * (base - top); ctx.fillStyle = 'rgba(156,255,184,.08)'; ctx.fillRect(r.x + 22, y0, r.w - 44, y1 - y0) } for (const c of state.clips) { const mid = (c.start + c.end) / 2, y = base - (mid / state.total) * (base - top), x = axis + (c.track - 1.5) * (state.mobile ? 48 : 76), w = state.mobile ? 58 : 76, h = 24, sel = c.id === state.selected, co = state.cohort.includes(c.id); ctx.save(); if (co) { ctx.shadowColor = 'rgba(156,255,184,.35)'; ctx.shadowBlur = sel ? 14 : 6 } ctx.fillStyle = sel ? '#9cffb8' : '#050505'; ctx.strokeStyle = sel ? '#9cffb8' : co ? 'rgba(156,255,184,.56)' : 'rgba(255,255,255,.22)'; ctx.lineWidth = sel ? 2 : 1; ctx.beginPath(); ctx.rect(x - w / 2, y - h / 2, w, h); ctx.fill(); ctx.stroke(); text(c.label, x, y, 8, sel ? '#000' : '#fff', 'center', '900'); ctx.restore() } const py = base - (state.playhead / state.total) * (base - top); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(r.x + 16, py); ctx.lineTo(r.x + r.w - 16, py); ctx.stroke(); ctx.restore(); text('STACK VIEW · dependency from base', r.x + 14, r.y + 18, 11, '#9cffb8', 'left', '900') }
+            requestAnimationFrame(render);
+            function pos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, id: e.pointerId } }
+            function inRect(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h }
+            function hitTunnel(p) { const hits = (state.hitTunnel || []).filter(h => pointPoly(p, h.pts)); return hits[hits.length - 1] || null }
+            function hitStrip(p) { const hits = (state.hitSide || []).filter(h => inRect(p, h)); hits.sort((a, b) => (a.type === 'body' ? 1 : 0) - (b.type === 'body' ? 1 : 0)); return hits[0] || null }
+            function hitButton(p) { for (const b of state.buttons) if (inRect(p, b)) return b; return null }
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            canvas.addEventListener('pointerdown', e => { const p = pos(e); canvas.setPointerCapture(e.pointerId); state.pointer = { start: p, last: p, before: snapshot() }; const b = hitButton(p); if (b) { handleButton(b.id); state.mode = 'button'; return } const d = state.dial, dist = d ? Math.hypot(p.x - d.x, p.y - d.y) : 999; if (d && dist < d.inner) { togglePlay(); state.mode = 'play'; return } if (d && dist < d.r + 18 && dist > d.inner * .86) { beginRoll(p); return } if (inRect(p, state.layout.strip)) { const h = hitStrip(p); if (h) beginStripEdit(h, p); else beginScrub(p); return } if (inRect(p, state.layout.tunnel)) { const h = hitTunnel(p); if (h) { setSelected(h.id); state.mode = 'select'; return } state.mode = 'camera'; state.message = 'orbit tunnel'; return } });
+            canvas.addEventListener('pointermove', e => { const p = pos(e); if (!state.pointer) return; const dx = p.x - state.pointer.last.x, dy = p.y - state.pointer.last.y; state.pointer.last = p; if (state.mode === 'camera') { state.camera.targetYaw += dx * .006; state.camera.targetZoom = clamp(state.camera.targetZoom + dy * .002, .6, 1.7) } else if (state.mode === 'roll') updateRoll(p); else if (state.mode === 'dragClip' || state.mode === 'trimL' || state.mode === 'trimR') updateStripEdit(p); else if (state.mode === 'scrub') updateScrub(p) });
+            canvas.addEventListener('pointerup', e => { if (state.mode === 'roll') commitRoll(); if (state.mode === 'dragClip' || state.mode === 'trimL' || state.mode === 'trimR') commitStripEdit(); state.preview = null; state.mode = null; state.pointer = null; armSection(); try { canvas.releasePointerCapture(e.pointerId) } catch (_) { } });
+            canvas.addEventListener('pointercancel', () => { state.preview = null; state.mode = null; state.pointer = null });
+            canvas.addEventListener('wheel', e => { e.preventDefault(); const L = state.layout || layout(); const p = { x: e.clientX, y: e.clientY }; const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY; if (e.shiftKey) { state.camera.targetYaw += dx * .004; state.message = 'scroll orbit'; return } if (e.ctrlKey || e.metaKey || e.altKey) { state.camera.targetZoom = clamp(state.camera.targetZoom - dx * .002, .6, 1.8); state.message = 'scroll zoom'; return } if (inRect(p, L.tunnel) || inRect(p, L.strip) || inRect(p, L.dial)) { state.playing = false; state.playhead = clamp(state.playhead + dx * .025, 0, state.total); state.message = `scroll scrub ${fmt(state.playhead)}`; } }, { passive: false });
+            function handleButton(id) { if (id === 'view') cycleView(1); if (id === 'import') fileInput.click(); if (id === 'undo') undo(); if (id === 'export') exportEDL() }
+            function togglePlay() { state.playing = !state.playing; state.message = state.playing ? 'play' : 'hold'; tick(state.playing ? 260 : 120, .04) }
+            function beginRoll(p) { const c = selected(); if (!c) { state.message = 'select a segment first'; return } armSection(); state.mode = 'roll'; state.pointer.startAngle = Math.atan2(p.y - state.dial.y, p.x - state.dial.x); state.preview = { kind: 'roll', delta: 0, raw: 0, before: state.pointer.before }; state.message = `roll preview · ${state.cohort.length} linked`; tick(180, .025) }
+            function updateRoll(p) { const a = Math.atan2(p.y - state.dial.y, p.x - state.dial.x); let raw = a - state.pointer.startAngle; while (raw > Math.PI) raw -= TAU; while (raw < -Math.PI) raw += TAU; const snapped = snapRoll(raw), old = state.preview.delta; state.preview.raw = raw; state.preview.delta = snapped; if (old !== snapped) tick(230 + Math.abs(detents(snapped)) * 70, .018) }
+            function commitRoll() { const pv = state.preview; if (!pv || pv.kind !== 'roll') return; const d = pv.delta; if (Math.abs(d) > 1e-4) { push('ROLL', pv.before); state.clips.forEach(c => { if (state.cohort.includes(c.id)) { c.roll = snapRoll(c.roll + d); c.sediment.push(`roll ${detents(d)}`) } }); state.message = `rolled ${state.cohort.length} linked · ${detents(d)} detents`; tick(350, .045) } else state.message = 'roll cancelled' }
+            function beginStripEdit(h, p) { const c = state.clips.find(x => x.id === h.id); if (!c) return; setSelected(c.id); state.mode = h.type === 'trimL' ? 'trimL' : h.type === 'trimR' ? 'trimR' : 'dragClip'; const inner = stripInner(state.layout.strip); state.pointer.editId = c.id; state.pointer.base = { start: c.start, end: c.end }; state.pointer.offset = p.x - timeToX(c.start, inner); state.preview = { kind: h.type === 'body' ? 'drag' : 'trim', id: c.id, start: c.start, end: c.end, before: state.pointer.before }; state.message = state.mode === 'dragClip' ? 'move in strip' : 'trim in strip' }
+            function updateStripEdit(p) { const c = state.clips.find(x => x.id === state.pointer.editId); if (!c) return; const inner = stripInner(state.layout.strip), base = state.pointer.base; if (state.mode === 'dragClip') { const d = base.end - base.start; const t = clamp(snapTime(xToTime(p.x - state.pointer.offset, inner)), 0, state.total - d); state.preview.start = t; state.preview.end = t + d } else if (state.mode === 'trimL') { state.preview.start = clamp(snapTime(xToTime(p.x, inner)), 0, base.end - .25); state.preview.end = base.end } else { state.preview.start = base.start; state.preview.end = clamp(snapTime(xToTime(p.x, inner)), base.start + .25, state.total) } state.section = { start: state.preview.start, end: state.preview.end, source: c.id }; state.cohort = state.clips.filter(x => overlap(x.start, x.end, state.section.start, state.section.end)).map(x => x.id) }
+            function commitStripEdit() { const pv = state.preview; if (!pv || !(pv.kind === 'drag' || pv.kind === 'trim')) return; const c = state.clips.find(x => x.id === pv.id); if (!c) return; if (Math.abs(c.start - pv.start) > 1e-5 || Math.abs(c.end - pv.end) > 1e-5) { push(pv.kind === 'drag' ? 'MOVE' : 'TRIM', pv.before); c.start = pv.start; c.end = pv.end; c.outPoint = c.inPoint + dur(c); c.sediment.push(pv.kind); sortClips(); armSection(); state.message = `${pv.kind} committed`; tick(300, .035) } }
+            function beginScrub(p) { state.mode = 'scrub'; updateScrub(p) }
+            function updateScrub(p) { const inner = stripInner(state.layout.strip); state.playing = false; state.playhead = xToTime(p.x, inner); state.message = `scrub ${fmt(state.playhead)}` }
+            function addFiles(files) { const arr = [...files].filter(f => f.type.startsWith('video/')); if (!arr.length) { state.message = 'no video files'; tick(80, .04); return } const before = snapshot(); arr.forEach((file, i) => { const url = URL.createObjectURL(file), video = document.createElement('video'); video.preload = 'metadata'; video.muted = true; video.playsInline = true; video.src = url; const start = snapTime((state.playhead + i * 2) % Math.max(2, state.total - 8)); const c = makeClip({ kind: 'media', track: (state.importCount + i) % state.tracks, start, end: start + 6, label: file.name.replace(/\.[^.]+$/, '').slice(0, 12).toUpperCase(), source: url, fileName: file.name, video, proxyState: 'RAW' }); state.clips.push(c); state.selected = c.id; video.addEventListener('loadedmetadata', () => { const d = Number.isFinite(video.duration) ? clamp(video.duration, 1, state.total) : 6; c.ready = true; c.proxyState = 'VIDEO'; c.end = clamp(c.start + Math.min(d, 10), c.start + .5, state.total); c.outPoint = dur(c); armSection(); state.message = `imported ${c.label}`; tick(360, .035) }, { once: true }); video.addEventListener('error', () => { c.failed = true; c.proxyState = 'BROKEN'; state.message = `failed ${c.label}`; tick(70, .06) }, { once: true }) }); state.importCount += arr.length; push('IMPORT', before); sortClips(); armSection(); tick(240, .035) }
+            fileInput.addEventListener('change', e => { addFiles(e.target.files); fileInput.value = '' });
+            addEventListener('dragenter', e => { e.preventDefault(); document.body.classList.add('dragging') }); addEventListener('dragover', e => e.preventDefault()); addEventListener('dragleave', e => { if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= W || e.clientY >= H) document.body.classList.remove('dragging') }); addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('dragging'); if (e.dataTransfer) addFiles(e.dataTransfer.files) });
+            function exportEDL() { const edl = { title: 'Arc Tunnel Shared Dial EDL', generated: new Date().toISOString(), total: state.total, clips: state.clips.map(c => ({ id: c.id, label: c.label, track: c.track, start: +c.start.toFixed(3), end: +c.end.toFixed(3), rollDetents: detents(c.roll), kind: c.kind, source: c.fileName || c.source || c.kind, inPoint: c.inPoint, outPoint: c.outPoint, sediment: c.sediment })), gestureLedger: state.history.map(h => h.name) }; const blob = new Blob([JSON.stringify(edl, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arc-tunnel-shared-dial-edl.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); state.message = 'edl exported'; tick(420, .05) }
+            function tick(freq = 220, dur = .03) { try { audioCtx = audioCtx || new (AudioContext || webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'triangle'; o.frequency.value = freq; g.gain.value = .0001; o.connect(g); g.connect(audioCtx.destination); const t = audioCtx.currentTime; g.gain.exponentialRampToValueAtTime(.045, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.start(t); o.stop(t + dur + .02) } catch (_) { } }
+            addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); togglePlay() } if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo() } if (e.key.toLowerCase() === 'v') cycleView(1); if (e.key.toLowerCase() === 'i') fileInput.click(); if (e.key === 'ArrowLeft') state.playhead = clamp(state.playhead - .5, 0, state.total); if (e.key === 'ArrowRight') state.playhead = clamp(state.playhead + .5, 0, state.total) });
+            console.assert(overlap(0, 2, 1, 3), 'overlap true'); console.assert(!overlap(0, 1, 1, 2), 'touch edge false'); console.assert(snapTime(1.26) === 1.5, 'snap time'); console.assert(detents(snapRoll(1.7)) === 1, 'roll snap');
+        })();
+    </script>
+</body>
+
+</html>

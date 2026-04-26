@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Living Shield Tube — Operational Instrument</title>
+    <style>
+        :root {
+            --white: #fff;
+            --black: #000;
+            --paper: #fff;
+            --ink: #000
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            background: #fff;
+            z-index: 1;
+            cursor: crosshair
+        }
+
+        .ui {
+            position: fixed;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none
+        }
+
+        .panel {
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+            box-shadow: none;
+            backdrop-filter: none
+        }
+
+        #brand {
+            position: absolute;
+            left: 18px;
+            top: 14px;
+            font-size: 17px;
+            font-weight: 950;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            background: #fff;
+            padding: 4px 8px;
+            border: 2px solid #000;
+            pointer-events: auto
+        }
+
+        #brand span {
+            font-weight: 500;
+            margin-left: 10px
+        }
+
+        #time {
+            position: absolute;
+            left: 50%;
+            top: 16px;
+            transform: translateX(-50%);
+            font-size: 19px;
+            font-weight: 950;
+            letter-spacing: .08em;
+            background: #fff;
+            border: 2px solid #000;
+            padding: 5px 10px;
+            pointer-events: auto
+        }
+
+        #stateCard {
+            position: absolute;
+            right: 16px;
+            top: 14px;
+            width: 230px;
+            padding: 10px 12px;
+            pointer-events: auto
+        }
+
+        #stateCard .id {
+            font-size: 25px;
+            font-weight: 950;
+            line-height: 1;
+            text-align: center
+        }
+
+        #stateCard .sub {
+            margin-top: 7px;
+            font-size: 11px;
+            line-height: 1.25;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            text-align: center
+        }
+
+        #index {
+            position: absolute;
+            left: 18px;
+            top: 70px;
+            width: 214px;
+            bottom: 84px;
+            overflow: auto;
+            pointer-events: auto;
+            background: #fff;
+            border: 2px solid #000
+        }
+
+        #index h1 {
+            font-size: 11px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding: 10px;
+            background: #000;
+            color: #fff
+        }
+
+        .slip {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 9px;
+            padding: 10px;
+            border-bottom: 2px solid #000;
+            cursor: pointer;
+            background: #fff;
+            color: #000
+        }
+
+        .slip:hover {
+            background: #000;
+            color: #fff
+        }
+
+        .slip.active {
+            background: #000;
+            color: #fff
+        }
+
+        .slip .sid {
+            font-size: 11px;
+            font-weight: 950
+        }
+
+        .slip .txt {
+            font-size: 12px;
+            line-height: 1.28;
+            font-weight: 800
+        }
+
+        .slip .op {
+            grid-column: 1/3;
+            font-size: 10px;
+            line-height: 1.28;
+            text-transform: uppercase;
+            letter-spacing: .04em
+        }
+
+        #reader {
+            position: absolute;
+            right: 16px;
+            top: 92px;
+            width: min(430px, calc(100vw - 270px));
+            bottom: 84px;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
+        }
+
+        #reader h1 {
+            font-size: 11px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding: 10px;
+            background: #000;
+            color: #fff
+        }
+
+        #reader h2 {
+            font-size: 22px;
+            line-height: 1.08;
+            padding: 13px 13px 8px;
+            border-bottom: 2px solid #000
+        }
+
+        #reader .kicker {
+            font-size: 11px;
+            line-height: 1.4;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            padding: 9px 13px;
+            border-bottom: 2px solid #000;
+            font-weight: 900
+        }
+
+        #reader .copy {
+            font-size: 14px;
+            line-height: 1.62;
+            overflow: auto;
+            padding: 13px;
+            flex: 1
+        }
+
+        .copy b {
+            background: #000;
+            color: #fff;
+            padding: 0 2px
+        }
+
+        .copy::-webkit-scrollbar,
+        #index::-webkit-scrollbar {
+            width: 8px
+        }
+
+        .copy::-webkit-scrollbar-thumb,
+        #index::-webkit-scrollbar-thumb {
+            background: #000
+        }
+
+        #ops {
+            position: absolute;
+            left: 18px;
+            right: 16px;
+            bottom: 14px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            pointer-events: auto
+        }
+
+        .btn {
+            height: 38px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            padding: 0 14px;
+            font-weight: 950;
+            font-size: 12px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        .btn:hover,
+        .btn.active {
+            background: #000;
+            color: #fff
+        }
+
+        .btn.play {
+            min-width: 74px
+        }
+
+        .grow {
+            flex: 1;
+            height: 2px;
+            background: #000;
+            position: relative
+        }
+
+        .grow:after {
+            content: "";
+            position: absolute;
+            top: -5px;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #000;
+            background: #fff;
+            left: var(--p, 4%);
+            transform: translateX(-50%)
+        }
+
+        #toast {
+            position: absolute;
+            left: 50%;
+            bottom: 84px;
+            transform: translateX(-50%) translateY(8px);
+            opacity: 0;
+            background: #000;
+            color: #fff;
+            border: 2px solid #000;
+            padding: 9px 13px;
+            font-size: 12px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            transition: .12s;
+            pointer-events: none
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        #exportBox {
+            position: absolute;
+            left: 250px;
+            bottom: 84px;
+            width: min(560px, calc(100vw - 700px));
+            max-height: 210px;
+            display: none;
+            pointer-events: auto;
+            background: #fff;
+            border: 2px solid #000;
+            overflow: auto;
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.45;
+            white-space: pre-wrap
+        }
+
+        #exportBox.show {
+            display: block
+        }
+
+        @media(max-width:900px) {
+            #brand {
+                left: 8px;
+                top: 8px;
+                font-size: 12px
+            }
+
+            #brand span {
+                display: none
+            }
+
+            #time {
+                top: 8px;
+                font-size: 12px;
+                padding: 4px 6px
+            }
+
+            #stateCard {
+                right: 8px;
+                top: 42px;
+                width: 126px;
+                padding: 7px
+            }
+
+            .stateCard .id,
+            #stateCard .id {
+                font-size: 16px
+            }
+
+            #stateCard .sub {
+                font-size: 8px
+            }
+
+            #index {
+                left: 8px;
+                top: 42px;
+                width: 122px;
+                bottom: 72px
+            }
+
+            .slip {
+                grid-template-columns: 1fr;
+                padding: 7px
+            }
+
+            .slip .sid {
+                font-size: 10px
+            }
+
+            .slip .txt {
+                font-size: 10px
+            }
+
+            .slip .op {
+                display: none
+            }
+
+            #reader {
+                left: 138px;
+                right: 8px;
+                top: auto;
+                bottom: 72px;
+                width: auto;
+                height: 31vh
+            }
+
+            #reader h2 {
+                font-size: 15px;
+                padding: 8px
+            }
+
+            #reader .kicker {
+                font-size: 9px;
+                padding: 6px 8px
+            }
+
+            .reader .copy,
+            #reader .copy {
+                font-size: 11px;
+                line-height: 1.42;
+                padding: 8px
+            }
+
+            #ops {
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+                height: 52px;
+                gap: 5px;
+                padding: 6px
+            }
+
+            .btn {
+                height: 34px;
+                padding: 0 8px;
+                font-size: 9px
+            }
+
+            .btn.play {
+                min-width: 50px
+            }
+
+            #exportBox {
+                left: 138px;
+                right: 8px;
+                width: auto;
+                bottom: 128px;
+                max-height: 140px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="stage"></canvas>
+    <div class="ui">
+        <div id="brand">LIVING SHIELD TUBE <span>OPERATIONAL INSTRUMENT</span></div>
+        <div id="time">00:00:00:00</div>
+
+        <nav id="index">
+            <h1>CLICKABLE SLIPS</h1>
+        </nav>
+        <section id="reader" class="panel">
+            <h1>BOUND CHRONICLE</h1>
+            <h2 id="rTitle"></h2>
+            <div class="kicker" id="rKick"></div>
+            <div class="copy" id="rCopy"></div>
+        </section>
+        <pre id="exportBox"></pre>
+        <div id="ops" class="panel"><button class="btn play" id="play">PLAY</button><button class="btn"
+                id="editBtn">EDIT</button><button class="btn" id="flowLabel">TIME HEAD COLLECTS TEXT -> ROUTES
+                TUBES</button><button class="btn active" data-view="tube">TUBE</button><button class="btn"
+                data-view="end">END</button><button class="btn" data-view="side">SIDE</button><button class="btn"
+                data-view="strip">STRIP</button>
+            <div class="grow" id="scrub"></div><button class="btn active" data-export="EDL">EDL</button><button
+                class="btn" data-export="JSON">JSON</button><button class="btn"
+                data-export="PROMPT_PACK">PROMPTS</button><button class="btn"
+                data-export="STILLS_LIST">STILLS</button><button class="btn" id="freeze">FREEZE</button>
+        </div>
+        <div id="toast"></div>
+    </div>
+    <script>
+        (() => {
+            'use strict';
+            const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d');
+            const index = document.getElementById('index'), rTitle = document.getElementById('rTitle'), rKick = document.getElementById('rKick'), rCopy = document.getElementById('rCopy');
+            const timeEl = document.getElementById('time'), toastEl = document.getElementById('toast'), playBtn = document.getElementById('play'), editBtn = document.getElementById('editBtn'), scrub = document.getElementById('scrub'), exportBox = document.getElementById('exportBox');
+            let W = 0, H = 0, DPR = 1, drag = false, toastTimer = 0, exportMode = 'EDL';
+            const clips = [
+                { id: 'FORGE', lane: 0, s0: .03, s1: .16, title: 'The hammer falls once.', kick: 'Payload starts. Shield wakes. First object binds.', copy: 'Not silent. Quiet. The difference matters to the smith. Silence is dead metal. Quiet is metal deciding whether to speak.<br><br>The shield leans upright in his blackened hands, large as a moon torn from the furnace. Its rim glows with the last orange of the coals. Gold catches in the trenches. Silver holds in the high places. Tin flashes where the sea has been rubbed into being. The smith has made shields before, but this one looks back.<br><br><b>Therefore</b> he lowers his face closer. The first thing to move is not a warrior. It is a star.', op: 'Bind first object. Wake payload. Establish base.' },
+                { id: 'COSMOS', lane: 0, s0: .18, s1: .30, title: 'The shield becomes weather.', kick: 'Celestial payload maps star beads to ticks.', copy: 'A bead of hammered light shivers above Orion’s shoulder. Then another. Then seven small fires gather into the Pleiades, not painted, not engraved, but trembling with the nervous brightness of things that know they are being watched. The Bear turns its muzzle away from the ocean’s bath. The sun, no wider than the smith’s thumb, opens its gold face with the bored patience of a king.<br><br><b>Therefore</b> the shield stops being decoration. It becomes weather. The camera enters at the rim, not grandly, not like conquest, but like a thief of scale. The bronze border swells into a mountain range. A scratch becomes a road. A dotted constellation becomes a procession of lanterns. The museum glass vanishes; the miniature world holds its breath.', op: 'Convert engraving into active state.' },
+                { id: 'CITY', lane: 1, s0: .32, s1: .46, title: 'Torches cross the stone square.', kick: 'Marriage, music, portals, public witness.', copy: 'In the first city, torches cross the stone square. The brides move slowly because their dresses are real cloth at impossible scale, each veil a fog bank, each flower crown a harvested spring. The lyre-player’s fingers are too small to trust, yet the string hums. A girl in pale linen turns her wrist, and the whole city seems to pivot on that gesture. Women stand in portals, not as background, but as witnesses. They have spent their lives learning which ceremonies are joy and which are camouflage.<br><br><b>Therefore</b> the wedding cannot remain only a wedding.', op: 'Bind ceremony to civic surface.' },
+                { id: 'JUDGE', lane: 1, s0: .48, s1: .58, title: 'Gold lies like a second corpse.', kick: 'Forum pressure. Public wound. Law as weight.', copy: 'Across the square, the elders sit with their staves. Gold lies between two men like a second corpse. One man points to the ingots. The other points to the body. The crowd divides by instinct before it divides by argument. The torches that blessed the brides now throw long courtroom shadows over the slain man’s face. A flute note bends. A child stops clapping.<br><br>The elder in the red cloak lifts his staff.<br><br><b>Therefore</b> speech becomes architecture. The crowd leans inward. The city makes a circle around the wound. The law is not clean here; it is a bowl passed between dirty hands. The gold does not settle the death. It only gives grief a weight that can be placed in public.', op: 'Bind dispute, gold, and decision.' },
+                { id: 'AMBUSH', lane: 2, s0: .60, s1: .70, title: 'The river becomes suspicious.', kick: 'Sheep, oxen, pipes, concealed bronze.', copy: 'Beyond the wall, another city sharpens itself. No one in the wedding square sees it yet, but the shield does. The shield sees both cities at once, because metal has no mercy for sequence. On the far ridge, wives and children stand above the gate while old men hold spears they can barely lift. Below them, soldiers prepare an ambush in the grass near the river.<br><br><b>Therefore</b> the river becomes suspicious. It had been water a moment ago. Now it is cover. It slides between reeds with the bright, lying face of peace. Sheep come down first, white as unasked questions. Oxen follow, swinging their horns through the afternoon. Two shepherds trail behind them, playing pipes, because innocence always announces itself before it is taken.<br><br>The spies crouch low. They do not hate the shepherds. That is the horror. They only need the herd, and need makes a clean blade. One spy raises his hand. Bronze men rise from the bank.', op: 'Bind hidden action to river seam.' },
+                { id: 'BATTLE', lane: 2, s0: .72, s1: .81, title: 'Mars and Minerva stand in the smoke.', kick: 'Collision. Mounted force. Casualty logic.', copy: '<b>Therefore</b> the pastoral scene breaks. Water explodes around ankles. Sheep scatter in bright fragments. An ox bellows with a human depth. One shepherd tries to keep playing for half a breath, as if the tune itself might hold the world together, but a spear enters the music and the pipe drops into the mud.<br><br>Mars and Pallas Minerva stand above the ridge in the smoke, too large for the valley, too still to be innocent. They do not command. They reveal what the men have already chosen.<br><br><b>Therefore</b> the battle feels fated without losing its blame. Horses crash through the river. Shields strike shields with the sound of doors being kicked open. A man in a blood-streaked tunic turns toward the camera, not asking to be saved, only stunned that the world has become this wet and loud. Fate moves among them as a woman with a stained garment. She takes the dead by the feet because dignity is one of the first casualties.<br><br>The shield does not look away. It turns.', op: 'Bind violence to consequence.' },
+                { id: 'FIELD', lane: 3, s0: .83, s1: .89, title: 'The earth is dark and useful.', kick: 'Labor absorbs battle without denying it.', copy: 'Now the earth is dark and useful. Ploughmen drive oxen through a fallow field, and the furrows open black behind them though everything is made of gold. That is the marvel: the material says wealth, the image says labor. The oxen lower their heads. The men lean their bodies into the day. At the end of the row, a cup of sweet wine passes into calloused hands.<br><br><b>Therefore</b> repetition becomes mercy. The camera slows. Breath returns. The field does not deny the battle; it absorbs it. The same ox that bellowed in the river now pulls the plough. The same hand that held a spear now gathers corn. The king stands in silence over the furrow, not above the people but among their rhythm, rejoicing because order has briefly become visible.<br><br>Beneath an oak, a feast is being prepared. Barley falls like pale dust. A huge ox gives its body to the meal. Reapers bind sheaves; boys carry armfuls; women move with the calm authority of those who know hunger by name.', op: 'Bind furrow, oxen, and repetition.' },
+                { id: 'VINE', lane: 3, s0: .90, s1: .95, title: 'The vineyard can sing.', kick: 'Grapes, lyre, harvest, dance.', copy: 'No one explains the system. The system works because everyone’s motion answers someone else’s need.<br><br><b>Therefore</b> the vineyard can sing. The scene tilts into green. Silver poles hold up the black grapes. A dark-blue trench rings the vines like a little sea. Youths carry fruit in woven baskets, purple-black clusters heavy enough to bend their arms. A boy sits among them and plays the Linus song. His voice is slender, almost breakable, but the dancers follow it because fragile things often give the strongest orders.<br><br>They beat the ground.<br><br><b>Therefore</b> the earth remembers joy. The dance begins before anyone announces it. A girl reaches for a wrist. A boy answers. Three become seven. Seven become a ring. The vineyard workers laugh, not because life is safe, but because harvest has cornered them into gratitude. The camera catches a face no larger than a fingernail, painted with such care that its smile looks temporary and holy.', op: 'Bind harvest to song.' },
+                { id: 'LIONS', lane: 2, s0: .955, s1: .982, title: 'The dogs bark.', kick: 'Pasture terror. Failed courage. Hunger.', copy: 'Then the dogs bark. At the pasture’s edge, lions have taken the bull. The shift is brutal because the scene was beautiful. The herd still shines with gold and tin. The river still murmurs. The reeds still wave. But the bull’s mouth is open, and black blood runs down its flank. The dogs refuse the lions, barking from the border of courage. The herdsmen press forward with staffs, but their bodies already know the answer.<br><br><b>Therefore</b> bravery becomes a shape without guarantee. One herdsman steps closer than the others. His spear trembles. The lion lifts its head, mane wet, mouth dark, not evil, only absolute. The miniature does not soften nature into symbolism. Hunger has entered the exhibit. It has a jaw.<br><br>Behind them, white sheep stand in their folds. Cottages wait. Sheds wait. The beautiful grove remains beautiful. That is the unbearable precision of the shield: catastrophe does not cancel the rest of the world. It happens inside it.', op: 'Bind predation to pasture.' },
+                { id: 'OCEANUS', lane: 0, s0: .985, s1: .998, title: 'Oceanus closes the ring.', kick: 'Border. Circular closure. Export memory.', copy: '<b>Therefore</b> the final dance must carry everything. Wide Gnossus appears as a circular stage on the rim of the shield. Daedalus has made a floor that teaches bodies how to turn without colliding. Young men and women hold each other by the wrist, each grip both freedom and constraint. Their robes flare. Their tunics shine faintly with oil. Silver belts catch the torchlight. Golden swords hang at their sides, ceremonial until they are not.<br><br>The tumblers enter the middle. They spin.<br><br><b>Therefore</b> the whole shield spins with them. The wedding circle, the elders’ circle, the ambush ring, the furrow’s turn, the vineyard path, the lions around the bull, the dancers at Gnossus: all of them are one grammar of rotation. Human beings keep making circles because straight lines lead too quickly to the grave.<br><br>At the edge, Oceanus rises. Not as backdrop. As verdict. The river that fed the cattle, hid the ambush, watered the field, bordered the vineyard, and glittered beneath the pasture now becomes the outer law. Oceanus encircles the whole shield with muscular patience. He does not rescue anyone. He contains them.<br><br><b>Therefore</b> the smith understands what he has made. Not a weapon with pictures. A world that can be carried into violence. The final image is small enough to fit in a warrior’s hands and large enough to accuse the gods. The forge fire returns in the background. Sparks climb. The smith tilts the shield toward the dark, and all the miniatures freeze at the edge of motion: bride turning, elder judging, spy lifting his hand, plough entering soil, boy touching lyre, lion biting down, tumbler inverted, Oceanus closing the ring.<br><br>Then the shield is lifted. And the world goes to war wearing its own memory.', op: 'Bind final border to whole sequence.' }
+            ];
+            const chain = { FORGE: 'COSMOS', COSMOS: 'CITY', CITY: 'JUDGE', JUDGE: 'AMBUSH', AMBUSH: 'BATTLE', BATTLE: 'FIELD', FIELD: 'VINE', VINE: 'LIONS', LIONS: 'OCEANUS' };
+            const state = { play: .04, playing: false, active: 'FORGE', frozen: false, view: 'tube', editing: false };
+            function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0) }
+            function lerp(a, b, t) { return a + (b - a) * t } function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function toast(t) { clearTimeout(toastTimer); toastEl.textContent = t; toastEl.classList.add('show'); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 700) }
+            function geom() { let mob = W < 900; return { baseX: mob ? W * .42 : W * .43, baseY: H - (mob ? 116 : 104), tipX: mob ? W * .55 : W * .54, tipY: mob ? 112 : 108, rx0: mob ? 138 : 245, ry0: mob ? 74 : 128, rx1: mob ? 22 : 42, ry1: mob ? 13 : 24 } }
+            function center(s, g) { return { x: lerp(g.baseX, g.tipX, s), y: lerp(g.baseY, g.tipY, s) } } function rad(s, g) { return { rx: lerp(g.rx0, g.rx1, s), ry: lerp(g.ry0, g.ry1, s) } }
+            function pt(s, a, g) { let c = center(s, g), r = rad(s, g); return { x: c.x + Math.cos(a) * r.rx, y: c.y + Math.sin(a) * r.ry } }
+            function band(cl, g) { let a0 = [-2.58, -1.05, .28, 1.38][cl.lane], a1 = a0 + .60, pts = []; for (let i = 0; i <= 16; i++)pts.push(pt(lerp(cl.s0, cl.s1, i / 16), a0, g)); for (let i = 1; i <= 5; i++)pts.push(pt(cl.s1, lerp(a0, a1, i / 5), g)); for (let i = 16; i >= 0; i--)pts.push(pt(lerp(cl.s0, cl.s1, i / 16), a1, g)); for (let i = 4; i > 0; i--)pts.push(pt(cl.s0, lerp(a0, a1, i / 5), g)); return pts }
+            function path(pts) { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++)ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath() }
+            function bg() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.globalAlpha = .08; for (let y = 0; y < H; y += 12) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke() } for (let x = 0; x < W; x += 12) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke() } ctx.globalAlpha = 1 }
+            function tube(g) { ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; for (let i = 0; i <= 18; i++) { let s = i / 18, c = center(s, g), r = rad(s, g); ctx.beginPath(); ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2); ctx.stroke() } ctx.lineWidth = 1;[-2.7, -1.7, -.7, .3, 1.3, 2.3].forEach(a => { ctx.beginPath(); for (let i = 0; i <= 64; i++) { let q = pt(i / 64, a, g); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y) } ctx.stroke() }); let b = center(0, g); ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(b.x - g.rx0 * 1.15, b.y + g.ry0 * 1.05); ctx.lineTo(b.x + g.rx0 * 1.15, b.y + g.ry0 * 1.05); ctx.stroke(); ctx.font = '900 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.fillText('BASE / GROUND CONTACT', b.x, b.y + g.ry0 + 24); ctx.restore() }
+            function drawClips(g) { clips.forEach(cl => { let pts = band(cl, g), active = cl.id === state.active; ctx.save(); path(pts); ctx.fillStyle = active ? '#000' : '#fff'; ctx.fill(); ctx.lineWidth = active ? 4 : 2; ctx.strokeStyle = '#000'; ctx.stroke(); let mid = pt((cl.s0 + cl.s1) / 2, [-2.28, -.75, .58, 1.68][cl.lane], g); ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '950 ' + (W < 900 ? 9 : 12) + 'px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cl.id, mid.x, mid.y); ctx.restore() }) }
+            function clipWords(cl) { return (cl.id + ' ' + cl.title + ' ' + cl.kick).replace(/[^A-Za-z0-9 ]/g, ' ').split(' ').filter(w => w.length > 2).slice(0, 18) }
+            function drawTextField(g) {
+                ctx.save();
+                ctx.font = (W < 900 ? '7px' : '9px') + ' ui-monospace,monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                clips.forEach(cl => {
+                    let words = clipWords(cl);
+                    words.forEach((w, i) => {
+                        let t = (i + .5) / Math.max(1, words.length);
+                        let s = lerp(cl.s0, cl.s1, t);
+                        let c = center(s, g), r = rad(s, g);
+                        let ring = [.18, .36, .54, .72][(i + cl.lane) % 4];
+                        let a = (i * .92) + (cl.lane * .72);
+                        let q = { x: c.x + Math.cos(a) * r.rx * ring, y: c.y + Math.sin(a) * r.ry * ring };
+                        let active = cl.id === state.active;
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.ellipse(c.x, c.y, r.rx * .86, r.ry * .86, 0, 0, Math.PI * 2);
+                        ctx.clip();
+                        ctx.fillStyle = active ? '#fff' : '#000';
+                        if (active) {
+                            ctx.save();
+                            ctx.strokeStyle = '#000'; ctx.lineWidth = 11; ctx.lineCap = 'round';
+                            ctx.beginPath(); ctx.moveTo(q.x - 13, q.y); ctx.lineTo(q.x + 13, q.y); ctx.stroke();
+                            ctx.restore(); ctx.fillStyle = '#fff';
+                        }
+                        ctx.translate(q.x, q.y);
+                        ctx.rotate(Math.sin(a) * .18);
+                        ctx.fillText(w.toUpperCase(), 0, 0);
+                        ctx.restore();
+                    });
+                });
+                ctx.restore();
+            }
+            function drawRoutingTubes(g) {
+                let cl = activeClip(), c = center(state.play, g), r = rad(state.play, g);
+                let outs = [
+                    { name: 'READER', x: W - (W < 900 ? 54 : 92), y: H * .30 },
+                    { name: 'EXPORT', x: W - (W < 900 ? 54 : 92), y: H * .46 },
+                    { name: 'PROMPT', x: W - (W < 900 ? 54 : 92), y: H * .62 }
+                ];
+                ctx.save();
+                outs.forEach((o, i) => {
+                    ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.ellipse(o.x, o.y, W < 900 ? 24 : 38, W < 900 ? 12 : 19, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(c.x + r.rx * .95, c.y); ctx.quadraticCurveTo((c.x + o.x) / 2, c.y + (i - 1) * 44, o.x - (W < 900 ? 24 : 38), o.y); ctx.stroke();
+                    ctx.fillStyle = '#000'; ctx.font = '900 ' + (W < 900 ? 7 : 10) + 'px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.name, o.x, o.y);
+                });
+                ctx.font = '900 ' + (W < 900 ? 8 : 10) + 'px ui-monospace,monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#000';
+                let routed = cl.id + ' -> ' + cl.title.toUpperCase().slice(0, 24);
+                ctx.fillText(routed, c.x + r.rx + 10, c.y - 18);
+                ctx.restore();
+            }
+            function playhead(g) {
+                const s = state.play;
+                const cl = activeClip();
+                const c = center(s, g), r = rad(s, g);
+                ctx.save();
+                ctx.strokeStyle = '#000';
+                ctx.fillStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.ellipse(c.x, c.y, r.rx * 1.08, r.ry * 1.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(c.x, c.y, r.rx * .72, r.ry * .72, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([7, 5]);
+                ctx.beginPath();
+                ctx.moveTo(c.x - r.rx * .95, c.y);
+                ctx.lineTo(c.x + r.rx * .95, c.y);
+                ctx.moveTo(c.x, c.y - r.ry * .95);
+                ctx.lineTo(c.x, c.y + r.ry * .95);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#000';
+                ctx.font = '950 ' + (W < 900 ? 10 : 13) + 'px ui-monospace,monospace';
+                ctx.fillText('COLLECT', c.x, c.y - (W < 900 ? 14 : 17));
+                ctx.font = '950 ' + (W < 900 ? 10 : 13) + 'px ui-monospace,monospace';
+                ctx.fillText(cl.id, c.x, c.y);
+                ctx.font = '700 ' + (W < 900 ? 7 : 9) + 'px ui-monospace,monospace';
+                let label = cl.kick.toUpperCase();
+                if (label.length > 26) label = label.slice(0, 26) + '...';
+                ctx.fillText(label, c.x, c.y + (W < 900 ? 13 : 17));
+                ctx.restore();
+            }
+            function activeClip() { return clips.find(c => state.play >= c.s0 && state.play <= c.s1) || clips.reduce((a, c) => Math.abs(c.s0 - state.play) < Math.abs(a.s0 - state.play) ? c : a, clips[0]) }
+            function bind(id, source = 'bind') { let cl = clips.find(c => c.id === id); if (!cl) return; state.active = id; state.play = cl.s0 + .004; rTitle.textContent = cl.title; rKick.textContent = cl.kick; rCopy.innerHTML = cl.copy; document.querySelectorAll('.slip').forEach(x => x.classList.toggle('active', x.dataset.id === id)); let el = document.querySelector(`.slip[data-id="${id}"]`); if (el) el.scrollIntoView({ block: 'nearest' }); updateExport(); toast(source.toUpperCase() + ' → ' + id) }
+            function updateFromPlay() { let cl = activeClip(); if (cl.id !== state.active && !state.editing) bind(cl.id, 'playhead') }
+            function buildIndex() { clips.forEach(cl => { let d = document.createElement('div'); d.className = 'slip'; d.dataset.id = cl.id; d.innerHTML = `<div class="sid">${cl.id}</div><div class="txt">${cl.title}</div><div class="op">${cl.op}</div>`; d.addEventListener('click', () => bind(cl.id, 'text')); index.appendChild(d) }) }
+            function exportText() {
+                if (exportMode === 'EDL') {
+                    return clips.map(c => `${c.id}	${c.s0.toFixed(3)}	${c.s1.toFixed(3)}	LANE_${c.lane}	${c.title}`).join('\n');
+                }
+                if (exportMode === 'JSON') {
+                    return JSON.stringify({ active: state.active, playhead: state.play, chain, clips }, null, 2);
+                }
+                if (exportMode === 'PROMPT_PACK') {
+                    return clips.map(c => `[${c.id}] museum-grade miniature film scene: ${c.title} ${c.kick}`).join('\n\n');
+                }
+                return clips.map((c, i) => `${String(i + 1).padStart(2, '0')}. ${c.id} - ${c.title}`).join('\n');
+            }
+            function updateExport() { exportBox.textContent = exportText() }
+            function activeData() { return clips.find(c => c.id === state.active) || clips[0] }
+            function commitEdit() { let cl = activeData(); cl.title = rTitle.textContent.trim() || cl.title; cl.kick = rKick.textContent.trim() || cl.kick; cl.copy = rCopy.innerHTML.trim() || cl.copy; let slip = document.querySelector(`.slip[data-id="${cl.id}"] .txt`); if (slip) slip.textContent = cl.title; updateExport() }
+            function setEditMode(on) { state.editing = on; rTitle.contentEditable = on; rKick.contentEditable = on; rCopy.contentEditable = on; editBtn.classList.toggle('active', on); if (on) { toast('EDIT MODE'); rCopy.focus() } else { commitEdit(); toast('EDITS SAVED') } }
+            function drawEndView(g) { bg(); let c = { x: W * .52, y: H * .5 }, rx = Math.min(W, H) * .22, ry = rx * .58, cl = activeClip(), angs = [[-2.58, -1.98], [-1.05, -.45], [.28, .88], [1.38, 1.98]]; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2); ctx.stroke(); clips.forEach(item => { let a = angs[item.lane], active = item.id === state.active; ctx.beginPath(); ctx.ellipse(c.x, c.y, rx * .82, ry * .82, 0, a[0], a[1]); ctx.lineWidth = active ? 8 : 4; ctx.stroke() }); ctx.beginPath(); ctx.ellipse(c.x, c.y, rx * .44, ry * .44, 0, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.font = '950 18px ui-monospace,monospace'; ctx.fillText(cl.id, c.x, c.y - 10); ctx.font = '700 10px ui-monospace,monospace'; ctx.fillText(cl.kick.toUpperCase().slice(0, 42), c.x, c.y + 12); ctx.font = '900 12px ui-monospace,monospace'; ctx.fillText('END VIEW', c.x, c.y - ry - 28); ctx.restore() }
+            function drawSideView(g) { bg(); let x0 = W * .22, x1 = W * .82, y = H * .5, h = H * .24; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(x0, y - h / 2, x1 - x0, h); for (let i = 1; i < 4; i++) { let yy = y - h / 2 + (h / 4) * i; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke() } clips.forEach(cl => { let active = cl.id === state.active, yy = y - h / 2 + cl.lane * (h / 4) + 8, hh = h / 4 - 16, xx0 = lerp(x0, x1, cl.s0), xx1 = lerp(x0, x1, cl.s1); ctx.fillStyle = active ? '#000' : '#fff'; ctx.lineWidth = active ? 4 : 2; ctx.fillRect(xx0, yy, xx1 - xx0, hh); ctx.strokeRect(xx0, yy, xx1 - xx0, hh); ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 11px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cl.id, (xx0 + xx1) / 2, yy + hh / 2) }); let px = lerp(x0, x1, state.play); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, y - h / 2 - 18); ctx.lineTo(px, y + h / 2 + 18); ctx.stroke(); ctx.font = '900 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText('SIDE VIEW', W * .52, y - h / 2 - 34); ctx.restore() }
+            function drawStripView(g) { bg(); let x0 = W * .18, x1 = W * .86, y0 = H * .24, rowH = H * .12, labels = ['FORGE/COSMOS', 'CITY/JUDGE', 'WAR', 'FIELD/VINE']; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; labels.forEach((label, i) => { let y = y0 + i * rowH; ctx.strokeRect(x0, y, x1 - x0, rowH - 10); ctx.font = '900 11px ui-monospace,monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText(label, x0 - 10, y + (rowH - 10) / 2) }); clips.forEach(cl => { let active = cl.id === state.active, y = y0 + cl.lane * rowH + 8, h = rowH - 26, xx0 = lerp(x0, x1, cl.s0), xx1 = lerp(x0, x1, cl.s1); ctx.fillStyle = active ? '#000' : '#fff'; ctx.lineWidth = active ? 4 : 2; ctx.fillRect(xx0, y, xx1 - xx0, h); ctx.strokeRect(xx0, y, xx1 - xx0, h); ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 10px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cl.id, (xx0 + xx1) / 2, y + h / 2) }); let px = lerp(x0, x1, state.play); ctx.beginPath(); ctx.moveTo(px, y0 - 16); ctx.lineTo(px, y0 + rowH * 4 - 10); ctx.stroke(); ctx.font = '900 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText('STRIP VIEW', W * .52, y0 - 34); ctx.restore() }
+            function draw() { if (state.playing && !state.frozen && !state.editing) { state.play += .00048; if (state.play > .999) state.play = .03; updateFromPlay() } scrub.style.setProperty('--p', (state.play * 100) + '%'); let f = Math.floor(state.play * 3600), m = String(Math.floor(f / 1440)).padStart(2, '0'), s = String(Math.floor((f % 1440) / 24)).padStart(2, '0'), fr = String(f % 24).padStart(2, '0'); timeEl.textContent = `00:${m}:${s}:${fr}`; let g = geom(); if (state.view === 'tube') { bg(); tube(g); drawClips(g); drawTextField(g); playhead(g); drawRoutingTubes(g) } else if (state.view === 'end') { drawEndView(g) } else if (state.view === 'side') { drawSideView(g) } else { drawStripView(g) } requestAnimationFrame(draw) }
+            canvas.addEventListener('pointerdown', e => { drag = true; setPlayFromPoint(e.clientX, e.clientY); canvas.setPointerCapture(e.pointerId) }); canvas.addEventListener('pointermove', e => { if (drag) setPlayFromPoint(e.clientX, e.clientY) }); canvas.addEventListener('pointerup', e => { drag = false; try { canvas.releasePointerCapture(e.pointerId) } catch (_) { } });
+            function setPlayFromPoint(x, y) {
+                if (state.editing) return;
+                if (state.view === 'side') { state.play = clamp((x - W * .22) / (W * .82 - W * .22), .02, .999); updateFromPlay(); return }
+                if (state.view === 'strip') { state.play = clamp((x - W * .18) / (W * .86 - W * .18), .02, .999); updateFromPlay(); return }
+                let g = geom();
+                let ax = g.baseX, ay = g.baseY, bx = g.tipX, by = g.tipY;
+                let vx = bx - ax, vy = by - ay;
+                let len2 = vx * vx + vy * vy || 1;
+                let t = ((x - ax) * vx + (y - ay) * vy) / len2;
+                state.play = clamp(t, .02, .999);
+                updateFromPlay();
+            }
+            canvas.addEventListener('click', e => { let g = geom(), best = null, dist = 1e9; clips.forEach(cl => { let q = pt((cl.s0 + cl.s1) / 2, [-2.28, -.75, .58, 1.68][cl.lane], g), d = Math.hypot(q.x - e.clientX, q.y - e.clientY); if (d < dist) { dist = d; best = cl } }); if (best && dist < 60) bind(best.id, 'tube') });
+            playBtn.addEventListener('click', () => { state.playing = !state.playing; playBtn.textContent = state.playing ? 'PAUSE' : 'PLAY'; toast(state.playing ? 'PLAY' : 'PAUSE') }); document.getElementById('freeze').addEventListener('click', () => { state.frozen = !state.frozen; document.getElementById('freeze').classList.toggle('active', state.frozen); toast(state.frozen ? 'FROZEN' : 'LIVE') }); editBtn.addEventListener('click', () => setEditMode(!state.editing));['input', 'blur'].forEach(ev => { rTitle.addEventListener(ev, () => { if (state.editing) commitEdit() }); rKick.addEventListener(ev, () => { if (state.editing) commitEdit() }); rCopy.addEventListener(ev, () => { if (state.editing) commitEdit() }) });
+            document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-view]').forEach(x => x.classList.remove('active')); b.classList.add('active'); state.view = b.dataset.view; toast('VIEW → ' + state.view.toUpperCase()) }));
+            document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-export]').forEach(x => x.classList.remove('active')); b.classList.add('active'); exportMode = b.dataset.export; exportBox.classList.add('show'); updateExport(); toast(exportMode) }));
+            window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); playBtn.click() } if (e.key === 'ArrowRight') { let n = chain[state.active]; if (n) bind(n, 'key') } if (e.key === 'ArrowLeft') { let p = Object.entries(chain).find(([k, v]) => v === state.active); if (p) bind(p[0], 'key') } if (e.key === 'Escape') { exportBox.classList.remove('show') } });
+            resize(); addEventListener('resize', resize); buildIndex(); bind('FORGE', 'init'); draw();
+        })();
+    </script>
+</body>
+
+</html>

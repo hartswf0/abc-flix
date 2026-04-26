@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NSDS · RL Playback + Policy Analyzer</title>
+<style>
+:root{--bg:#efeee8;--ink:#080808;--mut:#6c6a62;--paper:#fffdf3;--line:#080808;--red:#d71920;--blue:#0057c2;--gold:#d5a900;--green:#14824c;--bar:42px;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;border-radius:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none}
+button,input,select{font:inherit}input[type="file"]{display:none}
+button,.fileBtn{border:2px solid var(--line);background:var(--paper);color:var(--ink);font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;min-height:34px;padding:0 8px;box-shadow:2px 2px 0 var(--line);display:flex;align-items:center;justify-content:center;font-size:10px}
+button:active,.fileBtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--line)}
+button.on{background:var(--ink);color:var(--paper)}button.pri{background:var(--red);color:#fff}
+.bl{background:var(--blue)!important;color:#fff!important}.gd{background:var(--gold)!important;color:var(--ink)!important}.gn{background:var(--green)!important;color:#fff!important}
+#app{height:100dvh;display:grid;grid-template-rows:var(--bar) minmax(0,1fr) auto auto}
+header{height:var(--bar);display:grid;grid-template-columns:1fr auto;align-items:center;background:var(--ink);color:#fff;border-bottom:3px solid var(--line);overflow:hidden}
+.title{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{height:100%;display:flex;align-items:center;border-left:1px solid #333}
+.st{height:100%;display:flex;align-items:center;gap:4px;padding:0 8px;border-right:1px solid #333;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.st b{color:var(--gold);font-variant-numeric:tabular-nums}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 280px;overflow:hidden}
+#stage{position:relative;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px;background:linear-gradient(90deg,rgba(0,0,0,.04) 1px,transparent 1px),linear-gradient(0deg,rgba(0,0,0,.04) 1px,transparent 1px),#dedbd1;background-size:20px 20px;overflow:hidden}
+#cw{position:relative;background:var(--paper);border:3px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.15);max-width:100%;max-height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none;image-rendering:pixelated}
+#side{border-left:3px solid var(--line);background:var(--paper);min-width:0;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+.pnl{border:2px solid var(--line)}.pnl h2{margin:0;padding:6px 8px;background:var(--ink);color:#fff;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.bd{padding:7px;display:grid;gap:6px}
+.rw{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+label{display:grid;gap:3px;font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+input[type="range"]{width:100%;accent-color:var(--ink)}
+select{width:100%;background:var(--paper);border:2px solid var(--line);min-height:32px;font-weight:900;text-transform:uppercase;padding:0 6px;font-size:10px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.3;white-space:pre-wrap;color:#111;background:#f4f2e8;border:2px solid var(--line);padding:6px;min-height:40px;max-height:160px;overflow:auto}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.25;white-space:pre-wrap;color:#111;background:#f9f7ed;border:2px solid var(--line);padding:6px;min-height:50px;max-height:140px;overflow:auto}
+#tl{border-top:3px solid var(--line);background:var(--paper);padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:46px}
+#tl label{flex:1}
+#progress{height:6px;background:#ddd;border:1px solid var(--line);position:relative;overflow:hidden}
+#progressBar{height:100%;background:var(--red);width:0%;transition:width .1s}
+/* Drop zone styling */
+#dropZone{position:absolute;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,87,194,.15);border:4px dashed var(--blue)}
+#dropZone.active{display:flex}
+#dropZone span{font-size:16px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);background:rgba(255,253,243,.9);padding:20px 40px;border:3px solid var(--blue)}
+footer{display:none}
+@media(max-width:860px){
+header{grid-template-columns:1fr}.stats{display:none}
+main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+#side{border-left:0;border-top:3px solid var(--line);max-height:38dvh;padding:6px}
+.pnl{display:none}.pnl.hot{display:block}
+footer{display:grid;grid-template-columns:repeat(3,1fr);border-top:3px solid var(--line);padding-bottom:var(--safe);background:var(--paper)}
+footer button{border:0;border-right:2px solid var(--line);box-shadow:none;min-height:42px;background:var(--paper)}
+footer button.on{background:var(--ink);color:#fff}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="title" id="headerTitle">NSDS · RL Playback + Policy Analyzer</div>
+  <div class="stats">
+    <div class="st">TYPE <b id="sType">--</b></div>
+    <div class="st">TOKEN <b id="sCur">0</b> / <b id="sTotal">0</b></div>
+    <div class="st">FRAME <b id="sFrame">0</b></div>
+    <div class="st">FILL <b id="sFill">0%</b></div>
+    <div class="st">ENTROPY <b id="sEnt">0.00</b></div>
+  </div>
+</header>
+<main>
+  <section id="stage">
+    <div id="dropZone"><span>Drop .bfx or .json file here</span></div>
+    <div id="cw"><canvas id="c"></canvas></div>
+  </section>
+  <aside id="side">
+    <section class="pnl hot" data-tab="play">
+      <h2>Load + Playback</h2>
+      <div class="bd">
+        <label class="fileBtn bl" style="min-height:44px;font-size:12px">
+          Drop or Click to Load File
+          <input id="loadFile" type="file" accept="*">
+        </label>
+        <div class="mono" style="font-size:10px;color:var(--blue)">Accepts:
+.bfx (BEFLIX code from Code-Gen RL)
+.json (Q-table from Hierarchical/Multi/Single RL)
+Any filename — auto-detects format.</div>
+        <div class="rw"><button id="btnPlay" class="pri">Play</button><button id="btnStep">Step</button></div>
+        <div class="r3"><button id="btnRew">Rew</button><button id="btnFF">FF x10</button><button id="btnReset">Reset</button></div>
+        <label>Speed (tokens/tick) <input id="speed" type="range" min="1" max="200" value="40"></label>
+        <label>View <select id="viewMode">
+          <option value="canvas">Canvas (ink)</option>
+          <option value="heatmap">Paint Heatmap</option>
+          <option value="frequency">Ink Spectrum</option>
+          <option value="diff">Frame Diff</option>
+          <option value="value">Value Function (Q)</option>
+          <option value="policy">Policy Arrows (Q)</option>
+        </select></label>
+        <div id="progress"><div id="progressBar"></div></div>
+        <div class="mono" id="readout">Drag a file onto the canvas
+or click "Drop or Click to Load"
+to load exported RL data.
+
+Supported formats:
+  .bfx  BEFLIX code (PNT tokens)
+  .json  Q-table policy data</div>
+      </div>
+    </section>
+    <section class="pnl" data-tab="analysis">
+      <h2>Policy Analysis</h2>
+      <div class="bd">
+        <button id="btnPolicy" class="gd">Extract Policy</button>
+        <div class="mono" id="policyOut">Load data first, then extract
+the converged policy to see
+what the RL agent learned.</div>
+        <button id="btnGenNew" class="gn">Re-Generate from Policy</button>
+        <div class="rw">
+          <button id="btnExportFrame">Export PNG</button>
+          <button id="btnExportPolicy">Export JSON</button>
+        </div>
+      </div>
+    </section>
+    <section class="pnl" data-tab="code">
+      <h2>Token Inspector</h2>
+      <div class="bd">
+        <div class="code" id="tokenView">No tokens loaded.</div>
+        <label>Jump to token <input id="jumpTo" type="range" min="0" max="100" value="0"></label>
+      </div>
+    </section>
+  </aside>
+</main>
+<div id="tl">
+  <label style="flex:1">Scrub <input id="scrub" type="range" min="0" max="100" step=".1" value="0"></label>
+</div>
+<footer>
+  <button class="tab on" data-tab="play">Play</button>
+  <button class="tab" data-tab="analysis">Policy</button>
+  <button class="tab" data-tab="code">Tokens</button>
+</footer>
+</div>
+<script>
+(() => {
+  // ═══ NSDS OPERATOR COMPLIANCE: 128×96 GRID ═══
+  const G=128,R=96,N=G*R,A=5;
+  const dirs=[[0,-1],[1,0],[0,1],[-1,0],[0,0]];
+  const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+  const $=id=>document.getElementById(id);
+
+  // ── Shared state ──
+  let dataType='none'; // 'bfx' or 'json'
+  let tokens=[];         // for BFX playback
+  let Q=null;            // for JSON Q-table visualization
+  let jsonData=null;     // raw parsed JSON
+  let canvas=new Uint8Array(N);
+  let paintCount=new Uint32Array(N);
+  let inkHistogram=new Uint32Array(8);
+  let blockPolicy={};
+  let prevCanvas=new Uint8Array(N);
+  let cursor=0,playing=false,raf=0,lt=0;
+  let frameCount=0,blocksPerScan=0;
+  let fileName='';
+
+  // ══════════════════════════════════════
+  // BEFLIX .bfx PARSER
+  // ══════════════════════════════════════
+  function parseBFX(text){
+    const lines=text.split(/\r?\n/).filter(l=>l.trim()&&!l.startsWith(';'));
+    const parsed=[];
+    for(const line of lines){
+      const p=line.trim().split(/\s+/);
+      if(p[0]==='PNT'&&p.length>=4){
+        const [xs,ys]=p[1].split(',').map(Number);
+        const [ws,hs]=p[2].split('x').map(Number);
+        const ink=parseInt(p[3]);
+        if(!isNaN(xs)&&!isNaN(ys)&&!isNaN(ws)&&!isNaN(hs)&&!isNaN(ink))
+          parsed.push({cmd:'PNT',x:xs,y:ys,w:ws,h:hs,ink});
+      } else if(p[0]==='CLR'){
+        parsed.push({cmd:'CLR',x:0,y:0,w:G,h:R,ink:parseInt(p[1])||0});
+      }
+    }
+    return parsed;
+  }
+
+  // ══════════════════════════════════════
+  // FILE LOADING (FileReader only — no fetch)
+  // ══════════════════════════════════════
+  function ingestFile(file){
+    fileName=file.name;
+    $('readout').textContent=`Loading ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)...`;
+
+    const reader=new FileReader();
+    reader.onprogress=e=>{
+      if(e.lengthComputable){
+        const pct=(e.loaded/e.total*100).toFixed(0);
+        $('readout').textContent=`Reading... ${pct}%`;
+      }
+    };
+    reader.onload=ev=>{
+      const text=ev.target.result;
+      $('readout').textContent='Parsing...';
+
+      // Auto-detect format
+      const trimmed=text.trimStart();
+      if(trimmed.startsWith('{')){
+        // JSON format
+        try{
+          loadJSON(JSON.parse(text));
+        }catch(e){
+          $('readout').textContent=`JSON parse error: ${e.message}`;
+        }
+      } else {
+        // BFX text format
+        loadBFX(text);
+      }
+    };
+    reader.onerror=()=>{
+      $('readout').textContent='Error reading file. Try again.';
+    };
+    reader.readAsText(file);
+  }
+
+  function loadBFX(text){
+    dataType='bfx';
+    tokens=parseBFX(text);
+    cursor=0;canvas.fill(0);prevCanvas.fill(0);
+    paintCount.fill(0);inkHistogram.fill(0);blockPolicy={};frameCount=0;
+    Q=null;jsonData=null;
+
+    if(tokens.length>0){
+      const bs=tokens[0].w||16;
+      blocksPerScan=Math.ceil(G/bs)*Math.ceil(R/(tokens[0].h||bs));
+    }
+
+    $('sType').textContent='BFX';
+    $('sTotal').textContent=tokens.length.toLocaleString();
+    $('scrub').max=tokens.length;
+    $('jumpTo').max=tokens.length;
+    $('headerTitle').textContent=`NSDS · BEFLIX Playback · ${tokens.length.toLocaleString()} tokens`;
+    $('readout').textContent=
+`Loaded ${tokens.length.toLocaleString()} BEFLIX tokens
+File: ${fileName}
+Grid: ${G}x${R}  Block: ${tokens[0]?.w||'?'}x${tokens[0]?.h||'?'}
+Blocks/scan: ~${blocksPerScan}
+Est. frames: ~${Math.floor(tokens.length/Math.max(1,blocksPerScan))}
+
+Press PLAY to animate or STEP to advance.`;
+    draw();
+  }
+
+  function loadJSON(data){
+    dataType='json';
+    jsonData=data;
+    tokens=[];cursor=0;canvas.fill(0);prevCanvas.fill(0);
+    paintCount.fill(0);inkHistogram.fill(0);blockPolicy={};frameCount=0;
+
+    // Extract Q-table from any of the RL formats
+    if(data.type==='hierarchical-meta-rl'&&data.L0&&data.L0.Q){
+      Q=new Float32Array(data.L0.Q);
+      $('headerTitle').textContent='NSDS · Hierarchical Meta-RL Policy Viewer';
+      $('readout').textContent=
+`Loaded: hierarchical-meta-rl
+File: ${fileName}
+Grid: ${data.L0.grid?.cols||G}x${data.L0.grid?.rows||R}
+L0 Q-table: ${Q.length.toLocaleString()} entries (${(Q.length/A).toLocaleString()} states x ${A} actions)
+L0 agents: ${data.L0.agents||'?'}
+L0 epsilon: ${data.L0.epsilon?.toFixed(3)||'?'}
+L0 crowd: ${data.L0.crowd?.toFixed(2)||'?'}
+L1 Q-table: ${data.L1?.Q?.length||'?'} entries
+L1 meta-frame: ${data.L1?.metaFrame||'?'}
+L1 meta-eps: ${data.L1?.metaEps?.toFixed(3)||'?'}
+L1 actions: ${data.L1?.actions?.join(', ')||'?'}
+Frame: ${data.frame||'?'}
+Match: ${Math.round((data.match||0)*100)}%
+
+Use VIEW: "Value Function" or "Policy Arrows"
+to visualize the learned policy.`;
+    } else if(data.type==='single-agent-rl'&&data.Q){
+      Q=new Float32Array(data.Q);
+      $('headerTitle').textContent='NSDS · Single-Agent Policy Viewer';
+      $('readout').textContent=
+`Loaded: single-agent-rl
+File: ${fileName}
+Grid: ${data.grid?.cols||G}x${data.grid?.rows||R}
+Q-table: ${Q.length.toLocaleString()} entries
+Frame: ${data.frame||'?'}
+Match: ${Math.round((data.match||0)*100)}%
+Epsilon: ${data.epsilon?.toFixed(3)||'?'}
+
+Use VIEW: "Value Function" or "Policy Arrows"
+to visualize the learned policy.`;
+    } else if(data.type==='multi-agent-rl'&&data.policies){
+      // Merge all patch Q-tables into a global view
+      const cols=data.patches?.cols||16,rows=data.patches?.rows||9;
+      const pw=data.patches?.patchW||8,ph=data.patches?.patchH||8;
+      Q=new Float32Array(N*A);
+      for(const p of data.policies){
+        const pc=p.id%cols,pr=Math.floor(p.id/cols);
+        const pQ=p.Q;
+        const localN=pw*ph;
+        for(let ly=0;ly<ph;ly++)for(let lx=0;lx<pw;lx++){
+          const gx=pc*pw+lx,gy=pr*ph+ly;
+          if(gx<G&&gy<R){
+            const gIdx=(gy*G+gx)*A;
+            const lIdx=(ly*pw+lx)*A;
+            for(let a=0;a<A&&lIdx+a<pQ.length;a++) Q[gIdx+a]=pQ[lIdx+a];
+          }
+        }
+      }
+      $('headerTitle').textContent='NSDS · Multi-Agent Policy Viewer (merged)';
+      $('readout').textContent=
+`Loaded: multi-agent-rl
+File: ${fileName}
+Grid: ${data.grid?.cols||G}x${data.grid?.rows||R}
+Patches: ${cols}x${rows} = ${data.policies.length}
+Patch size: ${pw}x${ph}
+Frame: ${data.frame||'?'}
+Merged Q-table: ${Q.length.toLocaleString()} entries
+
+Use VIEW: "Value Function" or "Policy Arrows"
+to visualize the merged policy.`;
+    } else if(data.type==='beflix-policy'&&data.blocks){
+      // BEFLIX extracted policy
+      Q=null;
+      canvas.fill(0);
+      for(const [key,val] of Object.entries(data.blocks)){
+        const [bx,by]=key.split(',').map(Number);
+        const ink=val.bestInk||0;
+        for(let dy=0;dy<16&&by+dy<R;dy++)
+          for(let dx=0;dx<16&&bx+dx<G;dx++)
+            canvas[(by+dy)*G+(bx+dx)]=ink;
+      }
+      $('headerTitle').textContent='NSDS · BEFLIX Policy Viewer';
+      $('readout').textContent=
+`Loaded: beflix-policy
+File: ${fileName}
+Blocks: ${Object.keys(data.blocks).length}
+Ink histogram: ${(data.inkHistogram||[]).join(', ')}
+
+Canvas shows the converged frame.`;
+    } else {
+      $('readout').textContent=`Unknown JSON format: ${data.type||'no type field'}\nKeys: ${Object.keys(data).join(', ')}`;
+      Q=null;
+    }
+
+    $('sType').textContent='JSON';
+    $('sTotal').textContent=Q?Q.length.toLocaleString():'--';
+    draw();
+  }
+
+  // ══════════════════════════════════════
+  // BFX PLAYBACK ENGINE
+  // ══════════════════════════════════════
+  function execToken(tok){
+    if(!tok)return;
+    const key=`${tok.x},${tok.y}`;
+    if(!blockPolicy[key])blockPolicy[key]={counts:new Uint32Array(8),total:0};
+    blockPolicy[key].counts[tok.ink]++;
+    blockPolicy[key].total++;
+    inkHistogram[tok.ink]++;
+    for(let dy=0;dy<tok.h;dy++)for(let dx=0;dx<tok.w;dx++){
+      const gx=tok.x+dx,gy=tok.y+dy;
+      if(gx<G&&gy<R){const idx=gy*G+gx;canvas[idx]=tok.ink;paintCount[idx]++;}
+    }
+  }
+
+  function stepForward(count){
+    prevCanvas.set(canvas);
+    const end=Math.min(cursor+count,tokens.length);
+    for(let i=cursor;i<end;i++)execToken(tokens[i]);
+    cursor=end;
+    if(blocksPerScan>0)frameCount=Math.floor(cursor/blocksPerScan);
+  }
+
+  function seekTo(pos){
+    if(pos<cursor){canvas.fill(0);paintCount.fill(0);inkHistogram.fill(0);blockPolicy={};prevCanvas.fill(0);cursor=0;}
+    stepForward(pos-cursor);
+  }
+
+  // ══════════════════════════════════════
+  // Q-TABLE HELPERS
+  // ══════════════════════════════════════
+  function maxQ(s){if(!Q)return 0;const o=s*A;let m=Q[o]||0;for(let a=1;a<A;a++)if((Q[o+a]||0)>m)m=Q[o+a]||0;return m;}
+  function bestA_(s){if(!Q)return 4;const o=s*A;let b=0,v=Q[o]||0;for(let a=1;a<A;a++)if((Q[o+a]||0)>v){v=Q[o+a]||0;b=a;}return b;}
+
+  // ══════════════════════════════════════
+  // RENDERING
+  // ══════════════════════════════════════
+  function resize(){
+    const s=$('stage').getBoundingClientRect();
+    const mW=s.width-20,mH=s.height-20,asp=G/R;
+    let w=mW,h=w/asp;if(h>mH){h=mH;w=h*asp;}
+    w=Math.max(260,Math.floor(w));h=Math.floor(w/asp);
+    cv.width=Math.floor(w*devicePixelRatio);cv.height=Math.floor(h*devicePixelRatio);
+    cv.style.width=w+'px';cv.style.height=h+'px';
+    $('cw').style.width=w+'px';$('cw').style.height=h+'px';
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);draw();
+  }
+
+  function draw(){
+    const W=parseFloat(cv.style.width)||640,H=parseFloat(cv.style.height)||360;
+    const cw=W/G,ch=H/R,mode=$('viewMode').value;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#fffdf3';ctx.fillRect(0,0,W,H);
+
+    let maxPaint=1;
+    if(mode==='heatmap')for(let i=0;i<N;i++)if(paintCount[i]>maxPaint)maxPaint=paintCount[i];
+
+    // Find Q range for value normalization
+    let qMin=0,qMax=0.001;
+    if(Q&&(mode==='value'||mode==='policy')){
+      for(let s=0;s<N;s++){const v=maxQ(s);if(v<qMin)qMin=v;if(v>qMax)qMax=v;}
+    }
+
+    for(let y=0;y<R;y++)for(let x=0;x<G;x++){
+      const idx=y*G+x;
+      const ink=canvas[idx];
+
+      if(mode==='heatmap'){
+        const v=paintCount[idx]/maxPaint;
+        ctx.fillStyle=`rgb(${Math.floor(215*v)},${Math.floor(169*(1-v)*.5)},${Math.floor(32*(1-v))})`;
+      } else if(mode==='frequency'){
+        const hue=(ink/7)*280;
+        ctx.fillStyle=ink>0?`hsl(${hue},70%,${40+ink*8}%)`:'#fffdf3';
+      } else if(mode==='diff'){
+        const diff=Math.abs(canvas[idx]-prevCanvas[idx]);
+        if(diff>0){ctx.fillStyle=`rgba(215,25,32,${.2+diff*.1})`;}
+        else{const g=255-Math.floor(ink*255/7);ctx.fillStyle=`rgb(${g},${g},${g})`;}
+      } else if(mode==='value'&&Q){
+        const v=(maxQ(idx)-qMin)/(qMax-qMin);
+        ctx.fillStyle=`rgba(${Math.floor(136*(1-v))},${Math.floor(68*v)},${Math.floor(204*v)},${.1+v*.7})`;
+      } else if(mode==='policy'&&Q){
+        const v=(maxQ(idx)-qMin)/(qMax-qMin);
+        ctx.fillStyle=`rgba(0,87,194,${.02+v*.15})`;
+      } else {
+        const g=255-Math.floor(ink*255/7);
+        ctx.fillStyle=`rgb(${g},${g},${g})`;
+      }
+      ctx.fillRect(x*cw,y*ch,cw+.5,ch+.5);
+    }
+
+    // Policy arrows
+    if(mode==='policy'&&Q){
+      ctx.lineWidth=1;
+      const step=Math.max(2,Math.ceil(3/cw));
+      for(let y=1;y<R;y+=step)for(let x=1;x<G;x+=step){
+        const s=y*G+x,a=bestA_(s);
+        if(a===4)continue;
+        const mq=maxQ(s);
+        if(Math.abs(mq)<Math.abs(qMax)*.01)continue;
+        const opacity=Math.min(.7,.15+Math.abs((mq-qMin)/(qMax-qMin))*.6);
+        ctx.strokeStyle=`rgba(0,0,0,${opacity})`;ctx.fillStyle=ctx.strokeStyle;
+        const cx=x*cw+cw/2,cy=y*ch+ch/2,len=Math.min(cw,ch)*.6;
+        ctx.save();ctx.translate(cx,cy);
+        ctx.rotate([-Math.PI/2,0,Math.PI/2,Math.PI][a]);
+        ctx.beginPath();ctx.moveTo(-len*.4,0);ctx.lineTo(len*.4,0);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(len*.4,0);ctx.lineTo(len*.15,-len*.18);ctx.lineTo(len*.15,len*.18);ctx.closePath();ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Block grid
+    if(dataType==='bfx'&&tokens.length>0){
+      const bs=tokens[0]?.w||16;
+      ctx.strokeStyle='rgba(0,0,0,.06)';ctx.lineWidth=.5;
+      for(let x=0;x<=G;x+=bs){ctx.beginPath();ctx.moveTo(x*cw,0);ctx.lineTo(x*cw,H);ctx.stroke();}
+      for(let y=0;y<=R;y+=bs){ctx.beginPath();ctx.moveTo(0,y*ch);ctx.lineTo(W,y*ch);ctx.stroke();}
+      if(cursor>0&&cursor<=tokens.length){
+        const last=tokens[cursor-1];
+        if(last){ctx.strokeStyle='rgba(215,25,32,.7)';ctx.lineWidth=2;
+        ctx.strokeRect(last.x*cw,last.y*ch,last.w*cw,last.h*ch);}
+      }
+    }
+
+    // Grid for Q views
+    if(Q&&(mode==='value'||mode==='policy')){
+      ctx.strokeStyle='rgba(0,0,0,.05)';ctx.lineWidth=.5;
+      for(let x=0;x<=G;x+=8){ctx.beginPath();ctx.moveTo(x*cw,0);ctx.lineTo(x*cw,H);ctx.stroke();}
+      for(let y=0;y<=R;y+=8){ctx.beginPath();ctx.moveTo(0,y*ch);ctx.lineTo(W,y*ch);ctx.stroke();}
+    }
+  }
+
+  function updateReadout(){
+    const pct=tokens.length>0?(cursor/tokens.length*100).toFixed(1):0;
+    $('sCur').textContent=dataType==='bfx'?cursor.toLocaleString():'--';
+    $('sFrame').textContent=frameCount;
+    let filled=0;for(let i=0;i<N;i++)if(canvas[i]>0)filled++;
+    $('sFill').textContent=Math.round(filled/N*100)+'%';
+    const total=inkHistogram.reduce((a,b)=>a+b,0);
+    let entropy=0;if(total>0)for(let i=0;i<8;i++){const p=inkHistogram[i]/total;if(p>0)entropy-=p*Math.log2(p);}
+    $('sEnt').textContent=entropy.toFixed(2);
+    $('progressBar').style.width=pct+'%';
+    if(dataType==='bfx')$('scrub').value=cursor;
+
+    // Token view
+    if(dataType==='bfx'&&cursor>0){
+      const start=Math.max(0,cursor-6),end=Math.min(tokens.length,cursor+4);
+      let lines=[];
+      for(let i=start;i<end;i++){
+        const t=tokens[i],mark=i===cursor-1?'>>>':'   ';
+        lines.push(`${mark} ${String(i).padStart(7)} PNT ${t.x},${t.y} ${t.w}x${t.h} ink=${t.ink}`);
+      }
+      $('tokenView').textContent=lines.join('\n');
+    }
+  }
+
+  // ── Policy Extraction ──
+  function extractPolicy(){
+    if(dataType==='json'&&Q){
+      // Analyze Q-table
+      let nonZero=0,maxVal=0;
+      const actionCounts=new Uint32Array(A);
+      for(let s=0;s<N;s++){
+        const a=bestA_(s);actionCounts[a]++;
+        const v=Math.abs(maxQ(s));if(v>0.0001)nonZero++;if(v>maxVal)maxVal=v;
+      }
+      const labels=['UP','RIGHT','DOWN','LEFT','STAY'];
+      $('policyOut').textContent=
+`Q-TABLE POLICY ANALYSIS
+States with learned values: ${nonZero}/${N} (${(nonZero/N*100).toFixed(1)}%)
+Peak Q value: ${maxVal.toExponential(3)}
+
+ACTION DISTRIBUTION:
+${labels.map((l,i)=>`  ${l.padEnd(6)} ${actionCounts[i]} (${(actionCounts[i]/N*100).toFixed(1)}%)`).join('\n')}
+
+${jsonData?.L1?`META-AGENT (L1):
+  Meta-frame: ${jsonData.L1.metaFrame}
+  Meta-epsilon: ${jsonData.L1.metaEps?.toFixed(3)}
+  Actions: ${jsonData.L1.actions?.join(', ')}
+  L1 Q entries: ${jsonData.L1.Q?.length}`:''}\n\nSwitch to "Value Function" or "Policy Arrows"\nview to see the spatial distribution.`;
+    } else if(dataType==='bfx'){
+      const blocks=Object.entries(blockPolicy).sort((a,b)=>b[1].total-a[1].total);
+      let out=`BEFLIX POLICY: ${blocks.length} blocks\nTokens played: ${cursor.toLocaleString()}\nFrames: ~${frameCount}\n\n`;
+      for(const [key,data] of blocks.slice(0,30)){
+        let best=0,bc=0;
+        for(let i=0;i<8;i++)if(data.counts[i]>bc){bc=data.counts[i];best=i;}
+        out+=`  ${key.padEnd(8)} ink=${best} (${(bc/data.total*100).toFixed(0)}% of ${data.total})\n`;
+      }
+      const tot=inkHistogram.reduce((a,b)=>a+b,0);
+      out+='\nINK USAGE:\n';
+      for(let i=0;i<8;i++){
+        const bar='#'.repeat(Math.round(inkHistogram[i]/Math.max(1,tot)*40));
+        out+=`  ink${i}: ${(inkHistogram[i]/Math.max(1,tot)*100).toFixed(1)}% ${bar}\n`;
+      }
+      $('policyOut').textContent=out;
+    } else {
+      $('policyOut').textContent='No data loaded.';
+    }
+  }
+
+  function regenFromPolicy(){
+    if(dataType==='json'&&Q){
+      // Use policy arrows to fill canvas: ink = best action index? 
+      // Better: use value function as brightness
+      canvas.fill(0);
+      let qMin=0,qMax=0.001;
+      for(let s=0;s<N;s++){const v=maxQ(s);if(v<qMin)qMin=v;if(v>qMax)qMax=v;}
+      for(let s=0;s<N;s++){
+        const v=(maxQ(s)-qMin)/(qMax-qMin);
+        canvas[s]=Math.round(v*7);
+      }
+    } else if(dataType==='bfx'){
+      canvas.fill(0);
+      for(const [key,data] of Object.entries(blockPolicy)){
+        const [bx,by]=key.split(',').map(Number);
+        let best=0,bc=0;
+        for(let i=0;i<8;i++)if(data.counts[i]>bc){bc=data.counts[i];best=i;}
+        const bs=tokens[0]?.w||16,bh=tokens[0]?.h||16;
+        for(let dy=0;dy<bh&&by+dy<R;dy++)
+          for(let dx=0;dx<bs&&bx+dx<G;dx++)
+            canvas[(by+dy)*G+(bx+dx)]=best;
+      }
+    }
+    draw();updateReadout();
+  }
+
+  // ── Main Loop ──
+  function tick(t){
+    if(playing&&dataType==='bfx'&&cursor<tokens.length){
+      const interval=1000/60;
+      if(t-lt>interval){stepForward(+$('speed').value);draw();updateReadout();lt=t;}
+    }
+    if(cursor>=tokens.length&&playing){playing=false;$('btnPlay').textContent='Play';$('btnPlay').classList.remove('on');$('btnPlay').classList.add('pri');}
+    raf=requestAnimationFrame(tick);
+  }
+
+  // ══════════════════════════════════════
+  // EVENTS
+  // ══════════════════════════════════════
+  $('loadFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)ingestFile(f);};
+
+  // Drag and drop
+  const stage=$('stage');
+  const dropZone=$('dropZone');
+  ['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.add('active');}));
+  ['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.classList.remove('active');}));
+  stage.addEventListener('drop',e=>{
+    const f=e.dataTransfer?.files?.[0];if(f)ingestFile(f);
+  });
+
+  $('btnPlay').onclick=()=>{
+    if(dataType==='json'){$('viewMode').value='value';draw();return;}
+    if(cursor>=tokens.length){cursor=0;canvas.fill(0);paintCount.fill(0);inkHistogram.fill(0);blockPolicy={};}
+    playing=!playing;
+    $('btnPlay').textContent=playing?'Pause':'Play';
+    $('btnPlay').classList.toggle('on',playing);
+    $('btnPlay').classList.toggle('pri',!playing);
+  };
+  $('btnStep').onclick=()=>{if(dataType==='bfx'){stepForward(1);draw();updateReadout();}};
+  $('btnRew').onclick=()=>{if(dataType==='bfx'){seekTo(Math.max(0,cursor-(+$('speed').value)*10));draw();updateReadout();}};
+  $('btnFF').onclick=()=>{if(dataType==='bfx'){stepForward(+$('speed').value*10);draw();updateReadout();}};
+  $('btnReset').onclick=()=>{if(dataType==='bfx'){seekTo(0);draw();updateReadout();}};
+  $('scrub').oninput=()=>{if(dataType==='bfx'){seekTo(parseInt($('scrub').value));draw();updateReadout();}};
+  $('jumpTo').oninput=()=>{if(dataType==='bfx'){seekTo(parseInt($('jumpTo').value));draw();updateReadout();}};
+  $('viewMode').onchange=()=>{draw();};
+  $('btnPolicy').onclick=extractPolicy;
+  $('btnGenNew').onclick=regenFromPolicy;
+  $('btnExportFrame').onclick=()=>{
+    const oc=document.createElement('canvas');oc.width=G;oc.height=R;
+    const octx=oc.getContext('2d');
+    for(let y=0;y<R;y++)for(let x=0;x<G;x++){
+      const ink=canvas[y*G+x],g=255-Math.floor(ink*255/7);
+      octx.fillStyle=`rgb(${g},${g},${g})`;octx.fillRect(x,y,1,1);
+    }
+    const a=document.createElement('a');a.href=oc.toDataURL('image/png');
+    a.download=`beflix_frame_${cursor}.png`;a.click();
+  };
+  $('btnExportPolicy').onclick=()=>{
+    const data={type:'extracted-policy',source:dataType,fileName,grid:{cols:G,rows:R}};
+    if(Q){data.Q=Array.from(Q);data.qLength=Q.length;}
+    if(Object.keys(blockPolicy).length>0){
+      data.blocks={};
+      for(const[key,val]of Object.entries(blockPolicy)){
+        let best=0,bc=0;
+        for(let i=0;i<8;i++)if(val.counts[i]>bc){bc=val.counts[i];best=i;}
+        data.blocks[key]={bestInk:best,confidence:bc/val.total,counts:Array.from(val.counts)};
+      }
+    }
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='rl-policy-extracted.json';a.click();
+  };
+
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    document.querySelectorAll('.pnl').forEach(p=>p.classList.toggle('hot',p.dataset.tab===b.dataset.tab));
+  });
+
+  window.addEventListener('resize',resize);
+  resize();raf=requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

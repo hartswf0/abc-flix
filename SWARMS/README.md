@@ -1,39 +1,37 @@
 # SWARMS
 
-**Latent Choreography & Flow Console Archive** — 10 prototypes spanning the ICARO animation editing pipeline from manual frame-by-frame drawing through spatiotemporal analysis to the theoretical kernel of inception code.
+Spatiotemporal animation tools from the ICARO operative ecology. All files are self-contained, zero-dependency HTML. Open any directly in a browser.
 
-## Families
+## Canonical Tools
 
-### Flow Console Builds (3 files, 240–285KB)
-The heaviest prototypes. Full ICARO-PRO editing surfaces with multi-canvas compositing, pen/eraser/rect/line drawing tools, BEFLIX-128 script engine, timeline with selection/split/reverse, clip bin, memory gauge, undo stack, and WebM/GIF export. The three variants progressively add resonance analysis and policy training capabilities.
+### icaro-compiler.html
+**BEFLIX Spatiotemporal Compiler.** Draw on a 128×96 grid, 8-ink palette, 3-layer compositing (source/script/hand). BEFLIX script grammar for procedural animation. Round-trip fidelity testing: frame → grid → code → tokens → reconstruct → error score. Flow analysis with heuristic displacement vectors, motion heat, prediction. Export: PNG, GIF, WebM, MP4, contact sheet, project JSON, analysis JSON, EDL. Camera capture. Media ingest (image/video). Procedural generators: typewriter, scroll, ripple, flicker, onion trail, slideshow.
 
-- `icaro-flow-console.html` — Base editor (240KB)
-- `icaro-flow-resonance.html` — + Resonance/FFT analysis (276KB)
-- `icaro-policy-trainer-final.html` — + Self-improving policy iteration (285KB)
+### icaro-choreography.html
+**Latent Choreography Kernel.** Particle swarm simulator with boid physics (alignment, cohesion, separation). Hidden fields: predator eyes, vortices, oscillators, shear channels. Standing-wave resonance manifold (Chladni patterns). Inverse inference engine: observe trajectories → cluster swarms → guess hidden field configuration. Live equation sketch.
 
-### Flow V2 Series (3 files, 75–78KB)
-Second-generation architecture. Cleaner separation into four modes: Frame (canvas), Text (BEFLIX rasterizer), Motion (wave/ripple generators), Signal (temporal analysis). The V2.1 variant introduces "Inception Field" mode — generating sequences from underlying field equations rather than manual drawing.
+### icaro-pro-v2.html
+**ICARO-PRO v2 — the ancestral genome.** Compact 258-line prototype. 128×96 BEFLIX grid, timeline, round-trip decompiler, flow analysis, prediction, dream engine, tensor export. The original from which `icaro-compiler.html` evolved.
 
-- `icaro-flow-v2.html` — Core V2 (77KB)
-- `icaro-flow-v2 (1).html` — V2.1 with Inception Field (78KB)
-- `preview (27).html` — Earlier V2 snapshot (75KB)
+## Extended Console Variants
 
-### Spatiotemporal Engines (2 files, 221–231KB)
-Analysis instruments. Compute optical flow (how pixels move frame-to-frame), visualize motion as vector overlays, and provide diagnostic panels for drift, ambiguity, and confidence. The NSDS variant enforces Negative Space Design protocols; the Swarm variant detects emergent motion patterns (flocking, vortex, standing wave).
+These are expanding forks of the flow console. Each adds specific capabilities but shares ~80% of engine code with the others.
 
-- `icaro_nsds_analyze_operator.html` — NSDS optical flow diagnostics (221KB)
-- `icaro_swarm_resonance_operator.html` — Swarm pattern detection (231KB)
+| File | Focus | Lines |
+|------|-------|-------|
+| `icaro-flow-console.html` | Extended flow diagnostics | 5137 |
+| `icaro-resonance-console.html` | Standing-wave resonance overlays | 5921 |
+| `icaro-policy-console.html` | NSDS-influenced policy/training UI | 6256 |
+| `icaro-nsds-operator.html` | NSDS analysis operator | 4650 |
+| `icaro-swarm-operator.html` | Swarm + resonance operator | 4890 |
 
-### Kernel / Theory (2 files, 45–47KB)
-The theoretical core of the entire SWARMS concept.
+## What's Not Here (Yet)
 
-- **Latent Choreography Kernel** (`icaro_latent_choreography_kernel.html`, 47KB): Treats pixels as "parcel-bodies" under hidden force fields (predator eyes, vortices, Chladni standing-wave attractors, shear channels). Four material regimes. An inverse engine infers hidden causes from observed movement. The philosophical premise: animation is not drawing pixels but defining the invisible fields that move them.
+- Shared state between tools (choreography → frame capture bridge)
+- IndexedDB persistence
+- Connection to ARGO world-graph or Golden Egg spatial editor
+- Audio/soundtrack integration from the Achilles engine
 
-- **Spatiotemporal Compiler** (`icaro_pro_v_2_single_file.html`, 45KB): Round-trip diagnostic workbench. Encodes frames to BEFLIX, decodes, and measures pixel error, compression ratio, and token count. Verifies encoding fidelity.
+## Filesystem Note
 
-## Architecture
-
-The SWARMS collection traces a lineage from **manual editing** (Flow Console) through **structured modes** (V2) to **analysis** (Spatiotemporal) and finally **theory** (Kernel). The Latent Choreography Kernel is the conceptual terminus: animation understood as inception code — the hidden rules that generate visible movement.
-
-## Quick Start
-Open `index.html` for an interactive searchable index with family filtering and live iframe previews of all 10 prototypes.
+The former `SWARMS_01/` directory was an identical pre-README copy and has been removed. The duplicates `icaro-flow-v2 (1).html` and `preview (27).html` were browser/preview download artifacts and have also been removed.

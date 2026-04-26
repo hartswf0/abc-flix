@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Root Cut Operator</title>
+    <style>
+        :root {
+            --black: #000000;
+            --white: #ffffff;
+            --top: 38px;
+            --bottom: 214px;
+            --left: 214px;
+            --right: 214px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--black);
+            color: var(--white);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none
+        }
+
+        button,
+        input {
+            font: inherit
+        }
+
+        button {
+            border: 1px solid var(--white);
+            background: var(--black);
+            color: var(--white);
+            border-radius: 0;
+            padding: 7px 9px;
+            cursor: pointer;
+            text-transform: uppercase
+        }
+
+        button:active,
+        button.active {
+            background: var(--white);
+            color: var(--black)
+        }
+
+        button.small {
+            font-size: 11px;
+            padding: 5px 7px
+        }
+
+        #app {
+            width: 100vw;
+            height: 100dvh;
+            display: grid;
+            grid-template-columns: var(--left) 1fr var(--right);
+            grid-template-rows: var(--top) 1fr var(--bottom);
+            grid-template-areas: "top top top" "left viewer right" "base base base";
+            background: var(--black)
+        }
+
+        #top {
+            grid-area: top;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--white);
+            padding: 0 8px;
+            gap: 8px;
+            background: var(--black);
+            min-width: 0
+        }
+
+        .brand {
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .14em;
+            white-space: nowrap
+        }
+
+        .topBtns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0
+        }
+
+        .status {
+            border: 1px solid var(--white);
+            padding: 5px 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 440px
+        }
+
+        #left {
+            grid-area: left;
+            border-right: 1px solid var(--white);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+            background: var(--black)
+        }
+
+        #viewer {
+            grid-area: viewer;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            background: var(--black)
+        }
+
+        #right {
+            grid-area: right;
+            border-left: 1px solid var(--white);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+            background: var(--black)
+        }
+
+        #base {
+            grid-area: base;
+            border-top: 1px solid var(--white);
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--black)
+        }
+
+        .head {
+            height: 32px;
+            border-bottom: 1px solid var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            flex: none
+        }
+
+        .body {
+            padding: 8px;
+            overflow: auto;
+            min-height: 0
+        }
+
+        .body::-webkit-scrollbar {
+            width: 0;
+            height: 0
+        }
+
+        .drop {
+            border: 1px dashed var(--white);
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.35;
+            margin-bottom: 8px
+        }
+
+        .drop b {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .item {
+            border: 1px solid var(--white);
+            padding: 8px;
+            margin-bottom: 7px;
+            cursor: pointer;
+            background: var(--black);
+            color: var(--white)
+        }
+
+        .item.active {
+            background: var(--white);
+            color: var(--black)
+        }
+
+        .item .name {
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .item .sub {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px
+        }
+
+        .pill {
+            font-size: 10px;
+            border: 1px solid currentColor;
+            padding: 3px 5px;
+            background: transparent;
+            color: inherit
+        }
+
+        .viewerTop {
+            height: 34px;
+            border-bottom: 1px solid var(--white);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 0 8px;
+            gap: 8px
+        }
+
+        .viewerTop b {
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .viewerTop span {
+            font-size: 11px;
+            white-space: nowrap
+        }
+
+        .stage {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: var(--black)
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            background: var(--black);
+            outline: 1px solid var(--white)
+        }
+
+        .empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.4;
+            padding: 22px
+        }
+
+        .empty b {
+            display: block;
+            margin-bottom: 8px
+        }
+
+        .rangeOverlay {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            height: 26px;
+            border: 1px solid var(--white);
+            display: none;
+            overflow: hidden;
+            background: var(--black)
+        }
+
+        .rangeOverlay .outside {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: var(--black)
+        }
+
+        .rangeOverlay .inside {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: var(--white)
+        }
+
+        .rangeOverlay .play {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--black);
+            outline: 1px solid var(--white)
+        }
+
+        .command {
+            height: 44px;
+            border-top: 1px solid var(--white);
+            display: grid;
+            grid-template-columns: 52px 1fr 74px;
+            align-items: center;
+            background: var(--black)
+        }
+
+        .command label {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--white);
+            font-size: 12px;
+            font-weight: 900
+        }
+
+        .command input {
+            height: 100%;
+            width: 100%;
+            border: 0;
+            background: var(--black);
+            color: var(--white);
+            padding: 0 10px;
+            outline: 0;
+            text-transform: uppercase
+        }
+
+        .command button {
+            height: 100%;
+            border-top: 0;
+            border-bottom: 0;
+            border-right: 0
+        }
+
+        .transport {
+            height: 44px;
+            border-top: 1px solid var(--white);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 8px;
+            background: var(--black)
+        }
+
+        .bar {
+            height: 12px;
+            flex: 1;
+            position: relative;
+            border: 1px solid var(--white);
+            cursor: pointer;
+            overflow: hidden
+        }
+
+        .barFill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            background: var(--white);
+            width: 0
+        }
+
+        .barInOut {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-left: 3px solid var(--white);
+            border-right: 3px solid var(--white)
+        }
+
+        .barKnob {
+            position: absolute;
+            top: -5px;
+            bottom: -5px;
+            width: 3px;
+            background: var(--white);
+            transform: translateX(-1px)
+        }
+
+        .tc {
+            font-size: 11px;
+            min-width: 92px;
+            text-align: right
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 62px 1fr;
+            gap: 8px;
+            font-size: 11px;
+            margin-bottom: 7px
+        }
+
+        .row label {
+            font-weight: 900
+        }
+
+        .box {
+            border: 1px solid var(--white);
+            margin-bottom: 8px
+        }
+
+        .boxHead {
+            height: 28px;
+            border-bottom: 1px solid var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .boxBody {
+            padding: 8px
+        }
+
+        .btnGrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 6px
+        }
+
+        .btnGrid.three {
+            grid-template-columns: 1fr 1fr 1fr
+        }
+
+        .btnGrid:last-child {
+            margin-bottom: 0
+        }
+
+        .arcWrap {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden
+        }
+
+        .arcHead {
+            height: 32px;
+            border-bottom: 1px solid var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px
+        }
+
+        .arcHead b {
+            font-size: 11px;
+            letter-spacing: .12em
+        }
+
+        .modes {
+            display: flex;
+            gap: 5px
+        }
+
+        #arcCanvas {
+            position: absolute;
+            inset: 32px 0 0 0;
+            width: 100%;
+            height: calc(100% - 32px);
+            cursor: grab;
+            touch-action: none
+        }
+
+        #arcCanvas:active {
+            cursor: grabbing
+        }
+
+        .centerPlay {
+            position: absolute;
+            left: 50%;
+            top: calc(50% + 16px);
+            transform: translate(-50%, -50%);
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            font-size: 18px;
+            background: var(--black);
+            color: var(--white)
+        }
+
+        .centerPlay:active {
+            transform: translate(-50%, -50%) scale(.96);
+            background: var(--white);
+            color: var(--black)
+        }
+
+        .hint {
+            position: absolute;
+            left: 8px;
+            bottom: 7px;
+            border: 1px solid var(--white);
+            background: var(--black);
+            color: var(--white);
+            font-size: 10px;
+            padding: 5px 7px;
+            pointer-events: none;
+            text-transform: uppercase
+        }
+
+        .strip {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+            border-left: 1px solid var(--white)
+        }
+
+        .stripCanvasWrap {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            background: var(--black)
+        }
+
+        .stripCanvasWrap canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none
+        }
+
+        .drawerBtn {
+            display: none
+        }
+
+        .shade {
+            display: none
+        }
+
+        .mobileState {
+            display: none
+        }
+
+        .mobileNavBtn {
+            display: none
+        }
+
+        .mobilePanel {
+            display: none
+        }
+
+        .desktopOnly {
+            display: block
+        }
+
+        @media(max-width:900px) {
+            :root {
+                --top: 40px;
+                --bottom: 230px
+            }
+
+            #app {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--top) 1fr 32px var(--bottom);
+                grid-template-areas: "top" "viewer" "mobile" "base"
+            }
+
+            #left,
+            #right {
+                display: none !important
+            }
+
+            #viewer {
+                grid-area: viewer;
+                min-height: 0
+            }
+
+            #base {
+                grid-area: base;
+                grid-template-columns: 1fr;
+                min-height: 0
+            }
+
+            .strip {
+                display: none !important
+            }
+
+            .desktopOnly {
+                display: none !important
+            }
+
+            .drawerBtn {
+                display: none !important
+            }
+
+            .mobileNavBtn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center
+            }
+
+            .status {
+                display: none
+            }
+
+            .mobileState {
+                grid-area: mobile;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 0 8px;
+                border-top: 1px solid var(--white);
+                border-bottom: 1px solid var(--white);
+                font-size: 10px;
+                overflow: hidden
+            }
+
+            .mobileState b,
+            .mobileState span {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            .brand {
+                font-size: 10px;
+                letter-spacing: .08em
+            }
+
+            .topBtns {
+                gap: 3px;
+                overflow-x: auto;
+                scrollbar-width: none
+            }
+
+            .topBtns::-webkit-scrollbar {
+                display: none
+            }
+
+            button.small {
+                font-size: 10px;
+                padding: 5px 6px
+            }
+
+            .viewerTop {
+                height: 30px
+            }
+
+            .transport {
+                height: 40px
+            }
+
+            .command {
+                height: 40px;
+                grid-template-columns: 50px 1fr 64px
+            }
+
+            .tc {
+                display: none
+            }
+
+            .centerPlay {
+                width: 54px;
+                height: 54px
+            }
+
+            .rangeOverlay {
+                display: none !important
+            }
+
+            .mobilePanel {
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                left: 0;
+                right: 0;
+                top: var(--top);
+                bottom: var(--bottom);
+                z-index: 80;
+                background: var(--black);
+                border-top: 1px solid var(--white);
+                border-bottom: 1px solid var(--white);
+                transform: translateY(105%);
+                transition: transform .16s linear;
+                min-height: 0;
+                overflow: hidden
+            }
+
+            .mobilePanel.active {
+                transform: translateY(0)
+            }
+
+            #stripPanel {
+                top: auto;
+                bottom: var(--bottom);
+                height: 180px
+            }
+
+            .stripBody {
+                padding: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column
+            }
+
+            .stripBody .stripCanvasWrap {
+                flex: 1;
+                min-height: 0
+            }
+
+            .shade {
+                display: block;
+                position: fixed;
+                inset: var(--top) 0 var(--bottom) 0;
+                background: var(--black);
+                z-index: 70;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity .16s linear
+            }
+
+            body.mobilePanelOpen .shade {
+                opacity: .84;
+                pointer-events: auto
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header id="top">
+            <div class="brand">ROOT CUT</div>
+            <div class="topBtns">
+                <button class="small mobileNavBtn" id="navStackBtn">STACK</button>
+                <button class="small mobileNavBtn" id="navSegmentsBtn">SEGMENTS</button>
+                <button class="small mobileNavBtn" id="navOpsBtn">OPS</button>
+                <button class="small mobileNavBtn" id="navStripBtn">STRIP</button>
+                <button class="small active" id="loadBtn">LOAD</button>
+                <button class="small" id="demoBtn">DEMO</button>
+                <div class="status" id="status">ROOT AWAITS COMMAND</div>
+            </div>
+        </header>
+
+        <aside id="left">
+            <div class="head"><b>STACK</b></div>
+            <div class="body">
+                <div class="drop" id="drop"><b>LOAD VIDEO</b>DROP FILE. SELECT SEGMENT. OPERATE.</div>
+                <div id="clipList"></div>
+                <div class="head" style="margin:10px -8px 8px;border-top:1px solid var(--white)"><b>SEGMENTS</b><span
+                        id="segCount">0</span></div>
+                <div id="segList"></div>
+            </div>
+        </aside>
+
+        <main id="viewer">
+            <div class="viewerTop"><b id="title">NO FILE</b><span id="timeRead">00:00.00</span></div>
+            <div class="stage" id="rootViewport">
+                <video id="video" playsinline webkit-playsinline preload="metadata"
+                    controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture></video>
+                <div class="empty" id="empty">
+                    <div><b>COMMAND ROOT</b>TYPE LOAD, DEMO, PLAY, IN, OUT, SPLIT, ROLL +1, TRIM IN +1.</div>
+                </div>
+                <div class="rangeOverlay" id="rangeOverlay">
+                    <div class="outside" id="roLeft"></div>
+                    <div class="inside" id="roInside"></div>
+                    <div class="outside" id="roRight"></div>
+                    <div class="play" id="roPlay"></div>
+                </div>
+            </div>
+            <div class="command">
+                <label for="rootInput">ROOT</label>
+                <input id="rootInput" autocomplete="off" spellcheck="false" value=""
+                    placeholder="TYPE COMMAND. ENTER EXECUTES." />
+                <button id="runCmd">RUN</button>
+            </div>
+            <div class="transport">
+                <button id="play" class="active">PLAY</button>
+                <button id="loop">LOOP</button>
+                <div class="bar" id="bar">
+                    <div class="barInOut" id="barRange"></div>
+                    <div class="barFill" id="barFill"></div>
+                    <div class="barKnob" id="barKnob"></div>
+                </div>
+                <div class="tc" id="tc">00:00 / 00:00</div>
+            </div>
+        </main>
+
+        <aside id="right">
+            <div class="head"><b>OPS</b></div>
+            <div class="body" id="opsBodyDesktop"></div>
+        </aside>
+
+        <div class="mobileState"><b id="mobileSeg">SEG —</b><span id="mobileRange">IN — OUT —</span></div>
+
+        <section id="base">
+            <div class="arcWrap">
+                <div class="arcHead"><b>BASE ARC</b>
+                    <div class="modes"><button class="small active" id="modeScrub">SCRUB</button><button class="small"
+                            id="modeRoll">ROLL</button><button class="small" id="modeTrimIn">IN</button><button
+                            class="small" id="modeTrimOut">OUT</button></div>
+                </div>
+                <canvas id="arcCanvas"></canvas>
+                <button class="centerPlay" id="centerPlay">▶</button>
+                <div class="hint" id="hint">SCRUB</div>
+            </div>
+            <div class="strip desktopOnly">
+                <div class="head"><b>GROUND STRIP</b><span>TIME BASE</span></div>
+                <div class="stripCanvasWrap"><canvas id="stripCanvas"></canvas>
+                    <div class="hint">DRAG STRIP</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <aside id="stackPanel" class="mobilePanel">
+        <div class="head"><b>STACK</b><button class="small mobileClose">CLOSE</button></div>
+        <div class="body">
+            <div class="drop" id="mobileDrop"><b>LOAD VIDEO</b>SELECT FILE. CHOOSE FROM FILES OR PHOTOS.<br><br><button
+                    class="small active" id="mobileLoadBtn" type="button">LOAD FILE</button></div>
+            <div id="clipListMobile"></div>
+        </div>
+    </aside>
+
+    <aside id="segmentsPanel" class="mobilePanel">
+        <div class="head"><b>SEGMENTS</b><button class="small mobileClose">CLOSE</button></div>
+        <div class="body">
+            <div id="segListMobile"></div>
+        </div>
+    </aside>
+
+    <aside id="opsPanel" class="mobilePanel">
+        <div class="head"><b>OPS</b><button class="small mobileClose">CLOSE</button></div>
+        <div class="body" id="opsBodyMobile"></div>
+    </aside>
+
+    <aside id="stripPanel" class="mobilePanel">
+        <div class="head"><b>STRIP</b><button class="small mobileClose">CLOSE</button></div>
+        <div class="body stripBody">
+            <div class="stripCanvasWrap"><canvas id="stripCanvasMobile"></canvas>
+                <div class="hint">DRAG STRIP</div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="shade" id="shade"></div>
+    <input id="fileInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm" multiple hidden />
+    <script>
+        (function () {
+            'use strict';
+            const $ = id => document.getElementById(id);
+            const els = {
+                video: $('video'), fileInput: $('fileInput'), loadBtn: $('loadBtn'), demoBtn: $('demoBtn'), status: $('status'), title: $('title'), empty: $('empty'),
+                clipList: $('clipList'), clipListMobile: $('clipListMobile'), segList: $('segList'), segListMobile: $('segListMobile'), segCount: $('segCount'),
+                play: $('play'), loop: $('loop'), bar: $('bar'), barFill: $('barFill'), barKnob: $('barKnob'), barRange: $('barRange'), tc: $('tc'), timeRead: $('timeRead'),
+                mobileSeg: $('mobileSeg'), mobileRange: $('mobileRange'), modeScrub: $('modeScrub'), modeRoll: $('modeRoll'), modeTrimIn: $('modeTrimIn'), modeTrimOut: $('modeTrimOut'),
+                hint: $('hint'), arcCanvas: $('arcCanvas'), stripCanvas: $('stripCanvas'), stripCanvasMobile: $('stripCanvasMobile'), centerPlay: $('centerPlay'),
+                drop: $('drop'), mobileDrop: $('mobileDrop'), rangeOverlay: $('rangeOverlay'), roLeft: $('roLeft'), roInside: $('roInside'), roRight: $('roRight'), roPlay: $('roPlay'),
+                shade: $('shade'), rootInput: $('rootInput'), runCmd: $('runCmd'), rootViewport: $('rootViewport'), opsBodyDesktop: $('opsBodyDesktop'), opsBodyMobile: $('opsBodyMobile'),
+                navStackBtn: $('navStackBtn'), navSegmentsBtn: $('navSegmentsBtn'), navOpsBtn: $('navOpsBtn'), navStripBtn: $('navStripBtn'), mobileLoadBtn: $('mobileLoadBtn'),
+                stackPanel: $('stackPanel'), segmentsPanel: $('segmentsPanel'), opsPanel: $('opsPanel'), stripPanel: $('stripPanel')
+            };
+            const arcCtx = els.arcCanvas.getContext('2d'), stripCtx = els.stripCanvas.getContext('2d'), stripMobileCtx = els.stripCanvasMobile.getContext('2d');
+            const state = { clips: [], clipIndex: 0, segIndex: 0, mode: 'scrub', snap: true, loop: false, drag: false, lastTime: 0, demoTimer: 0 };
+
+            const opsHTML = `
+    <div class="box"><div class="boxHead"><span>SELECTED</span><span data-selected-id>—</span></div><div class="boxBody">
+      <div class="row"><label>IN</label><div data-in-read>—</div></div>
+      <div class="row"><label>OUT</label><div data-out-read>—</div></div>
+      <div class="row"><label>DUR</label><div data-dur-read>—</div></div>
+      <div class="row"><label>PLAY</label><div data-play-read>—</div></div>
+    </div></div>
+    <div class="box"><div class="boxHead"><span>MARK</span></div><div class="boxBody"><div class="btnGrid"><button data-op="markIn">IN</button><button data-op="markOut">OUT</button></div><div class="btnGrid"><button data-op="newSeg">NEW SEG</button><button data-op="split">SPLIT</button></div></div></div>
+    <div class="box"><div class="boxHead"><span>TRIM</span><span>1 SEC</span></div><div class="boxBody"><div class="btnGrid"><button data-op="trimInL">IN −</button><button data-op="trimInR">IN +</button></div><div class="btnGrid"><button data-op="trimOutL">OUT −</button><button data-op="trimOutR">OUT +</button></div></div></div>
+    <div class="box"><div class="boxHead"><span>ROLL</span><span>LOCK DUR</span></div><div class="boxBody"><div class="btnGrid three"><button data-op="rollL">−1</button><button data-op="rollZero">MID</button><button data-op="rollR">+1</button></div></div></div>
+    <div class="box"><div class="boxHead"><span>SNAP</span><span data-snap-read>ON</span></div><div class="boxBody"><div class="btnGrid"><button data-op="snapToggle" data-snap-toggle class="active">SNAP</button><button data-op="reset">RESET</button></div></div></div>
+    <div class="box"><div class="boxHead"><span>OUTPUT</span><span>CUTLIST</span></div><div class="boxBody"><div class="btnGrid"><button data-op="exportJSON">JSON</button><button data-op="copyJSON">COPY</button></div><div class="btnGrid"><button data-op="exportEDL">EDL</button><button data-op="copyFFMPEG">FFMPEG</button></div><div class="btnGrid"><button data-op="renderWEBM">RENDER WEBM</button><button data-op="exportProject">PROJECT</button></div></div></div>`;
+            els.opsBodyDesktop.innerHTML = opsHTML;
+            els.opsBodyMobile.innerHTML = opsHTML;
+
+            function clip() { return state.clips[state.clipIndex] || null }
+            function seg() { const c = clip(); return c ? c.segments[state.segIndex] || c.segments[0] : null }
+            function fmt(t) { t = Math.max(0, isFinite(t) ? t : 0); const m = Math.floor(t / 60), s = Math.floor(t % 60), cs = Math.floor((t % 1) * 100); return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '.' + String(cs).padStart(2, '0') }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function esc(s) { return String(s ?? '').replace(/[&<>\"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[m])) }
+            function snap(t) { return state.snap ? Math.round(t) : t }
+            function newId() { return 'S' + String(Date.now()).slice(-4) }
+            function dur(s) { return Math.max(0, s.out - s.in) }
+            function isMobile() { return window.innerWidth <= 900 }
+
+            function closeMobilePanels() {
+                document.body.classList.remove('mobilePanelOpen');
+                [els.stackPanel, els.segmentsPanel, els.opsPanel, els.stripPanel].forEach(p => p.classList.remove('active'));
+                [els.navStackBtn, els.navSegmentsBtn, els.navOpsBtn, els.navStripBtn].forEach(b => b.classList.remove('active'));
+            }
+            function openMobilePanel(name) {
+                const panels = { stack: els.stackPanel, segments: els.segmentsPanel, ops: els.opsPanel, strip: els.stripPanel };
+                const btns = { stack: els.navStackBtn, segments: els.navSegmentsBtn, ops: els.navOpsBtn, strip: els.navStripBtn };
+                const target = panels[name];
+                const already = target.classList.contains('active');
+                closeMobilePanels();
+                if (already) return;
+                document.body.classList.add('mobilePanelOpen');
+                target.classList.add('active');
+                btns[name].classList.add('active');
+                render();
+            }
+            function maybeClose() { if (isMobile()) closeMobilePanels(); }
+
+            function addFile(file) {
+                const url = URL.createObjectURL(file), c = { name: file.name, url, duration: 60, segments: [{ id: 'S01', in: 0, out: 10 }] };
+                state.clips.push(c);
+                const p = document.createElement('video'); p.preload = 'metadata'; p.src = url;
+                p.onloadedmetadata = () => { c.duration = Math.max(.1, p.duration || 60); c.segments = [{ id: 'S01', in: 0, out: c.duration }]; if (clip() === c) loadClip(state.clips.indexOf(c)) };
+                if (state.clips.length === 1) loadClip(0); else render();
+            }
+            function demo() { state.clips = [{ name: 'DEMO', url: '', duration: 72, segments: [{ id: 'S01', in: 0, out: 12 }, { id: 'S02', in: 18, out: 30 }, { id: 'S03', in: 40, out: 56 }] }]; loadClip(0); els.empty.innerHTML = '<div><b>DEMO</b>COMMANDS ACTIVE.</div>' }
+            function loadClip(i) { state.clipIndex = i; state.segIndex = 0; const c = clip(); if (!c) return; if (c.url) { els.video.src = c.url; els.video.currentTime = c.segments[0].in; els.empty.style.display = 'none' } else { els.video.removeAttribute('src'); els.video.load(); els.video.currentTime = c.segments[0].in; els.empty.style.display = 'flex' } render(); maybeClose() }
+            function seekTo(t) { const c = clip(); if (!c) return; els.video.currentTime = clamp(snap(t), 0, c.duration); render() }
+            function selectSeg(i, seek = true) { const c = clip(); if (!c) return; state.segIndex = clamp(i, 0, c.segments.length - 1); if (seek) seekTo(seg().in); render(); maybeClose() }
+            function setMode(m) { state.mode = m;[els.modeScrub, els.modeRoll, els.modeTrimIn, els.modeTrimOut].forEach(b => b.className = 'small'); ({ scrub: els.modeScrub, roll: els.modeRoll, trimIn: els.modeTrimIn, trimOut: els.modeTrimOut }[m]).className = 'small active'; els.hint.textContent = { scrub: 'SCRUB', roll: 'ROLL SEGMENT', trimIn: 'TRIM IN', trimOut: 'TRIM OUT' }[m]; render() }
+            function trim(which, d) { const c = clip(), s = seg(); if (!c || !s) return; if (which === 'in') s.in = clamp(snap(s.in + d), 0, s.out - .1); else s.out = clamp(snap(s.out + d), s.in + .1, c.duration); seekTo(which === 'in' ? s.in : s.out) }
+            function roll(d) { const c = clip(), s = seg(); if (!c || !s) return; const len = dur(s), ni = clamp(snap(s.in + d), 0, c.duration - len); s.in = ni; s.out = ni + len; seekTo(s.in) }
+            function mark(which) { const c = clip(), s = seg(); if (!c || !s) return; const t = snap(els.video.currentTime || 0); if (which === 'in') s.in = clamp(t, 0, s.out - .1); else s.out = clamp(t, s.in + .1, c.duration); render() }
+            function makeSeg() { const c = clip(); if (!c) return; const t = snap(els.video.currentTime || 0); c.segments.push({ id: newId(), in: t, out: clamp(t + 8, 0, c.duration) }); state.segIndex = c.segments.length - 1; render() }
+            function split() { const c = clip(), s = seg(); if (!c || !s) return; const t = snap(els.video.currentTime || 0); if (t <= s.in + .1 || t >= s.out - .1) return; c.segments.splice(state.segIndex, 1, { id: s.id + 'A', in: s.in, out: t }, { id: s.id + 'B', in: t, out: s.out }); state.segIndex++; render() }
+            function reset() { const c = clip(); if (!c) return; c.segments = [{ id: 'S01', in: 0, out: c.duration }]; state.segIndex = 0; seekTo(0) }
+            function op(name) {
+                if (name === 'markIn') mark('in'); else if (name === 'markOut') mark('out'); else if (name === 'newSeg') makeSeg(); else if (name === 'split') split();
+                else if (name === 'trimInL') trim('in', -1); else if (name === 'trimInR') trim('in', 1); else if (name === 'trimOutL') trim('out', -1); else if (name === 'trimOutR') trim('out', 1);
+                else if (name === 'rollL') roll(-1); else if (name === 'rollR') roll(1); else if (name === 'rollZero') { const s = seg(); if (s) seekTo((s.in + s.out) / 2) }
+                else if (name === 'snapToggle') { state.snap = !state.snap; render() } else if (name === 'reset') reset(); else if (name === 'exportJSON') exportJSON(); else if (name === 'copyJSON') copyJSON(); else if (name === 'exportEDL') exportEDL(); else if (name === 'copyFFMPEG') copyFFMPEG(); else if (name === 'renderWEBM') renderWEBM(); else if (name === 'exportProject') exportProject();
+            }
+
+            function renderLists() {
+                const clipHTML = state.clips.map((c, i) => `<div class="item ${i === state.clipIndex ? 'active' : ''}" data-clip="${i}"><div class="name">${esc(c.name)}</div><div class="sub"><span class="pill">${fmt(c.duration)}</span><span class="pill">${c.segments.length} SEG</span></div></div>`).join('');
+                els.clipList.innerHTML = clipHTML; els.clipListMobile.innerHTML = clipHTML;
+                document.querySelectorAll('[data-clip]').forEach(n => n.onclick = () => loadClip(+n.dataset.clip));
+                const c = clip(); els.segCount.textContent = c ? c.segments.length : 0;
+                const segHTML = c ? c.segments.map((s, i) => `<div class="item ${i === state.segIndex ? 'active' : ''}" data-seg="${i}"><div class="name">${esc(s.id)}</div><div class="sub"><span class="pill">IN ${fmt(s.in)}</span><span class="pill">OUT ${fmt(s.out)}</span><span class="pill">${fmt(dur(s))}</span></div></div>`).join('') : '';
+                els.segList.innerHTML = segHTML; els.segListMobile.innerHTML = segHTML;
+                document.querySelectorAll('[data-seg]').forEach(n => n.onclick = () => selectSeg(+n.dataset.seg, true));
+            }
+            function renderText() {
+                const c = clip(), s = seg(), t = els.video.currentTime || 0;
+                els.title.textContent = c ? c.name : 'NO FILE'; els.timeRead.textContent = fmt(t); els.status.textContent = c ? `SEG ${s.id} IN ${fmt(s.in)} OUT ${fmt(s.out)} DUR ${fmt(dur(s))}` : 'ROOT AWAITS COMMAND';
+                document.querySelectorAll('[data-selected-id]').forEach(n => n.textContent = s ? s.id : '—');
+                document.querySelectorAll('[data-in-read]').forEach(n => n.textContent = s ? fmt(s.in) : '—');
+                document.querySelectorAll('[data-out-read]').forEach(n => n.textContent = s ? fmt(s.out) : '—');
+                document.querySelectorAll('[data-dur-read]').forEach(n => n.textContent = s ? fmt(dur(s)) : '—');
+                document.querySelectorAll('[data-play-read]').forEach(n => n.textContent = fmt(t));
+                document.querySelectorAll('[data-snap-read]').forEach(n => n.textContent = state.snap ? 'ON' : 'OFF');
+                document.querySelectorAll('[data-snap-toggle]').forEach(n => n.className = state.snap ? 'active' : '');
+                els.mobileSeg.textContent = s ? 'SEG ' + s.id : 'SEG —'; els.mobileRange.textContent = s ? `IN ${fmt(s.in)} OUT ${fmt(s.out)} DUR ${fmt(dur(s))}` : 'IN — OUT —';
+                els.loop.className = state.loop ? 'active' : '';
+                if (c) { const p = t / c.duration * 100, l = s.in / c.duration * 100, r = s.out / c.duration * 100; els.barFill.style.width = clamp(p, 0, 100) + '%'; els.barKnob.style.left = clamp(p, 0, 100) + '%'; els.barRange.style.left = l + '%'; els.barRange.style.width = Math.max(0, r - l) + '%'; els.tc.textContent = fmt(t) + ' / ' + fmt(c.duration); els.rangeOverlay.style.display = 'block'; els.roLeft.style.left = '0'; els.roLeft.style.width = l + '%'; els.roInside.style.left = l + '%'; els.roInside.style.width = (r - l) + '%'; els.roRight.style.left = r + '%'; els.roRight.style.width = (100 - r) + '%'; els.roPlay.style.left = clamp(p, 0, 100) + '%' } else { els.rangeOverlay.style.display = 'none'; els.tc.textContent = '00:00 / 00:00' }
+            }
+            function render() { renderLists(); renderText(); drawArc(); drawStrip(els.stripCanvas, stripCtx); drawStrip(els.stripCanvasMobile, stripMobileCtx) }
+
+            function sizeCanvas(canvas, ctx) { const dpr = window.devicePixelRatio || 1, r = canvas.getBoundingClientRect(); canvas.width = Math.max(1, r.width * dpr); canvas.height = Math.max(1, r.height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return r }
+            function drawArc() {
+                const c = clip(), s = seg(), rct = sizeCanvas(els.arcCanvas, arcCtx), w = rct.width, h = rct.height, cx = w / 2, cy = h / 2, r = Math.min(w, h) * .34;
+                arcCtx.clearRect(0, 0, w, h); arcCtx.fillStyle = '#000'; arcCtx.fillRect(0, 0, w, h); arcCtx.strokeStyle = '#fff'; arcCtx.lineWidth = 1; arcCtx.beginPath(); arcCtx.arc(cx, cy, r, 0, Math.PI * 2); arcCtx.stroke();
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) { arcCtx.beginPath(); arcCtx.moveTo(cx + Math.cos(a) * (r + 42), cy + Math.sin(a) * (r + 42)); arcCtx.lineTo(cx + Math.cos(a) * (r + 62), cy + Math.sin(a) * (r + 62)); arcCtx.stroke() }
+                if (!c) { arcCtx.font = '12px monospace'; arcCtx.textAlign = 'center'; arcCtx.fillStyle = '#fff'; arcCtx.fillText('LOAD', cx, cy + r + 38); return }
+                const total = c.duration; arcCtx.lineWidth = 24; arcCtx.beginPath(); arcCtx.arc(cx, cy, r, 0, Math.PI * 2); arcCtx.stroke();
+                c.segments.forEach((g, i) => { const a1 = -Math.PI / 2 + g.in / total * Math.PI * 2, a2 = -Math.PI / 2 + g.out / total * Math.PI * 2; arcCtx.lineWidth = i === state.segIndex ? 42 : 28; arcCtx.strokeStyle = i === state.segIndex ? '#fff' : '#000'; arcCtx.beginPath(); arcCtx.arc(cx, cy, r, a1, a2, false); arcCtx.stroke(); if (i !== state.segIndex) { arcCtx.lineWidth = 1; arcCtx.strokeStyle = '#fff'; arcCtx.beginPath(); arcCtx.arc(cx, cy, r, a1, a2, false); arcCtx.stroke() } });
+                if (s) { const ai = -Math.PI / 2 + s.in / total * Math.PI * 2, ao = -Math.PI / 2 + s.out / total * Math.PI * 2, ap = -Math.PI / 2 + (els.video.currentTime || 0) / total * Math.PI * 2; handle(cx, cy, r - 32, ai, 'IN'); handle(cx, cy, r + 32, ao, 'OUT'); arcCtx.lineWidth = 3; arcCtx.strokeStyle = '#fff'; arcCtx.beginPath(); arcCtx.moveTo(cx + Math.cos(ap) * (r - 64), cy + Math.sin(ap) * (r - 64)); arcCtx.lineTo(cx + Math.cos(ap) * (r + 80), cy + Math.sin(ap) * (r + 80)); arcCtx.stroke() }
+            }
+            function handle(cx, cy, r, a, label) { arcCtx.fillStyle = '#000'; arcCtx.strokeStyle = '#fff'; arcCtx.lineWidth = 2; arcCtx.beginPath(); arcCtx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 13, 0, Math.PI * 2); arcCtx.fill(); arcCtx.stroke(); arcCtx.fillStyle = '#fff'; arcCtx.font = '8px monospace'; arcCtx.textAlign = 'center'; arcCtx.fillText(label, cx + Math.cos(a) * r, cy + Math.sin(a) * r + 3) }
+            function drawStrip(canvas, ctx) {
+                const c = clip(), r = sizeCanvas(canvas, ctx), w = r.width, h = r.height; ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); if (!c) return; const y = h / 2, bh = Math.min(40, Math.max(26, h * .35)); ctx.strokeStyle = '#fff'; ctx.strokeRect(10, y - bh / 2, w - 20, bh);
+                c.segments.forEach((s, i) => { const x = 10 + s.in / c.duration * (w - 20), x2 = 10 + s.out / c.duration * (w - 20); ctx.fillStyle = i === state.segIndex ? '#fff' : '#000'; ctx.fillRect(x, y - bh / 2, x2 - x, bh); ctx.strokeStyle = '#fff'; ctx.strokeRect(x, y - bh / 2, x2 - x, bh); ctx.fillStyle = i === state.segIndex ? '#000' : '#fff'; ctx.font = '10px monospace'; ctx.fillText(s.id, x + 5, y + 4) });
+                const px = 10 + (els.video.currentTime || 0) / c.duration * (w - 20); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, 12); ctx.lineTo(px, h - 12); ctx.stroke();
+            }
+            function angle(e) { const r = els.arcCanvas.getBoundingClientRect(); return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2) }
+            function timeFromAngle(a) { const c = clip(); if (!c) return 0; let n = (a + Math.PI / 2) / (Math.PI * 2); while (n < 0) n += 1; while (n >= 1) n -= 1; return snap(n * c.duration) }
+            function arcApply(t, prev) { const c = clip(), s = seg(); if (!c || !s) return; const d = t - prev; if (state.mode === 'scrub') seekTo(t); else if (state.mode === 'roll') roll(d); else if (state.mode === 'trimIn') { s.in = clamp(t, 0, s.out - .1); seekTo(s.in) } else if (state.mode === 'trimOut') { s.out = clamp(t, s.in + .1, c.duration); seekTo(s.out) } }
+            function stripPointer(e, canvas) { const c = clip(); if (!c) return; const r = canvas.getBoundingClientRect(); const t = clamp((e.clientX - r.left) / r.width * c.duration, 0, c.duration); let hit = -1; c.segments.forEach((s, i) => { if (t >= s.in && t <= s.out) hit = i }); if (hit > -1) selectSeg(hit, false); seekTo(t) }
+            function cutlist() { const c = clip(); return c ? { app: 'ROOT CUT OPERATOR', version: 'mobile-real-video-2', source: { name: c.name, duration: c.duration, url_type: c.url ? 'local-object-url' : 'demo' }, selected_segment: state.segIndex, segments: c.segments.map((s, i) => ({ index: i, id: s.id, in: s.in, out: s.out, duration: dur(s) })) } : null }
+            function baseName(name) { return String(name || 'cutlist').replace(/\.[^.]+$/, '') }
+            function downloadText(filename, text, type = 'text/plain') { const blob = new Blob([text], { type }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000) }
+            function exportJSON() { const data = cutlist(); if (!data) return; downloadText(baseName(data.source.name) + '.rootcut.json', JSON.stringify(data, null, 2), 'application/json'); els.status.textContent = 'EXPORTED JSON' }
+            async function copyJSON() { const data = cutlist(); if (!data) return; try { await navigator.clipboard.writeText(JSON.stringify(data, null, 2)); els.status.textContent = 'COPIED JSON' } catch (e) { els.status.textContent = 'COPY FAILED — USE EXPORT JSON' } }
+            function tcEDL(sec) { sec = Math.max(0, isFinite(sec) ? sec : 0); const fps = 24, total = Math.round(sec * fps); const ff = total % fps; const ss = Math.floor(total / fps) % 60; const mm = Math.floor(total / (fps * 60)) % 60; const hh = Math.floor(total / (fps * 3600)); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0') + ':' + String(ff).padStart(2, '0') }
+            function edlText() {
+                const data = cutlist(); if (!data) return ''; let rec = 0; let out = 'TITLE: ' + baseName(data.source.name) + '
+                FCM: NON - DROP FRAME
+
+                ';data.segments.forEach((s,i)=>{const srcIn=tcEDL(s.in),srcOut=tcEDL(s.out),recIn=tcEDL(rec),recOut=tcEDL(rec+s.duration);out+=String(i+1).padStart(3,'0')+'  AX       V     C        '+srcIn+' '+srcOut+' '+recIn+' '+recOut+'
+                ';out+=' * FROM CLIP NAME: '+data.source.name+' / '+s.id+'
+                ';rec+=s.duration});return out}
+                function exportEDL() { const data = cutlist(); if (!data) return; downloadText(baseName(data.source.name) + '.edl', edlText(), 'text/plain'); els.status.textContent = 'EXPORTED EDL' }
+                function ffmpegCommand() { const data = cutlist(); if (!data) return ''; const file = data.source.name || 'input.mp4'; let filter = ''; data.segments.forEach((s, i) => { filter += `[0:v]trim=start=${s.in.toFixed(3)}:end=${s.out.toFixed(3)},setpts=PTS-STARTPTS[v${i}];`; filter += `[0:a]atrim=start=${s.in.toFixed(3)}:end=${s.out.toFixed(3)},asetpts=PTS-STARTPTS[a${i}];` }); const concat = data.segments.map((_, i) => `[v${i}][a${i}]`).join('') + `concat=n=${data.segments.length}:v=1:a=1[outv][outa]`; return `ffmpeg -i "${file}" -filter_complex "${filter}${concat}" -map "[outv]" -map "[outa]" -c:v libx264 -c:a aac "${baseName(file)}.rootcut.mp4"` }
+                async function copyFFMPEG() { const cmd = ffmpegCommand(); if (!cmd) return; try { await navigator.clipboard.writeText(cmd); els.status.textContent = 'COPIED FFMPEG' } catch (e) { downloadText('rootcut-ffmpeg-command.txt', cmd, 'text/plain'); els.status.textContent = 'DOWNLOADED FFMPEG COMMAND' } }
+                function exportProject() { const data = cutlist(); if (!data) return; downloadText(baseName(data.source.name) + '.rootcut-project.json', JSON.stringify({ project: data, ffmpeg: ffmpegCommand(), edl: edlText() }, null, 2), 'application/json'); els.status.textContent = 'EXPORTED PROJECT' }
+                function pickRecorderMime() { const options = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']; return options.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '' }
+                function waitSeek(t) { return new Promise(resolve => { let done = false; const finish = () => { if (done) return; done = true; els.video.removeEventListener('seeked', finish); resolve() }; els.video.addEventListener('seeked', finish, { once: true }); els.video.currentTime = t; setTimeout(finish, 700) }) }
+                function nextFrame() { return new Promise(r => requestAnimationFrame(r)) }
+                async function renderWEBM() {
+                    const c = clip(); if (!c || !c.url) { els.status.textContent = 'LOAD REAL VIDEO FIRST'; return }
+                    if (!window.MediaRecorder) { els.status.textContent = 'NO MEDIARECORDER EXPORT IN THIS BROWSER'; return }
+                    const mime = pickRecorderMime(); if (!mime) { els.status.textContent = 'NO WEBM RECORDER SUPPORT'; return }
+                    const capture = els.video.captureStream || els.video.mozCaptureStream;
+                    if (!capture) { els.status.textContent = 'NO VIDEO CAPTURESTREAM SUPPORT'; return }
+                    const segments = c.segments.filter(s => dur(s) > .05); if (!segments.length) return;
+                    const wasLoop = state.loop; state.loop = false; els.video.pause();
+                    const oldTime = els.video.currentTime;
+                    const stream = capture.call(els.video);
+                    const chunks = []; let rec;
+                    try { rec = new MediaRecorder(stream, { mimeType: mime }) } catch (e) { els.status.textContent = 'RECORDER FAILED'; state.loop = wasLoop; return }
+                    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data) };
+                    const stopped = new Promise(resolve => { rec.onstop = resolve });
+                    rec.start(250);
+                    els.status.textContent = 'RENDERING WEBM';
+                    try {
+                        for (let i = 0; i < segments.length; i++) {
+                            const s = segments[i]; state.segIndex = c.segments.indexOf(s); await waitSeek(s.in); await els.video.play();
+                            while (els.video.currentTime < s.out - .03) { await nextFrame(); els.status.textContent = 'RENDER ' + (i + 1) + '/' + segments.length + ' ' + fmt(els.video.currentTime) + ' → ' + fmt(s.out) }
+                            els.video.pause();
+                        }
+                    } catch (e) { els.status.textContent = 'RENDER INTERRUPTED' }
+                    rec.stop(); await stopped;
+                    const blob = new Blob(chunks, { type: mime }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = baseName(c.name) + '.rootcut.webm'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000);
+                    await waitSeek(oldTime); state.loop = wasLoop; render(); els.status.textContent = 'EXPORTED WEBM';
+                }
+                function runCommand(raw) {
+                    const c = raw.trim().toUpperCase(); if (!c) return; els.status.textContent = 'RUN ' + c;
+                    if (c === 'LOAD') els.fileInput.click(); else if (c === 'DEMO') demo(); else if (c === 'PLAY' || c === 'PAUSE') els.play.click(); else if (c === 'LOOP') els.loop.click(); else if (c === 'IN' || c === 'MARK IN') mark('in'); else if (c === 'OUT' || c === 'MARK OUT') mark('out'); else if (c === 'SPLIT') split(); else if (c === 'NEW' || c === 'NEW SEG') makeSeg(); else if (c === 'RESET') reset(); else if (c === 'SNAP') state.snap = !state.snap; else if (c === 'SNAP ON') state.snap = true; else if (c === 'SNAP OFF') state.snap = false; else if (c === 'EXPORT' || c === 'EXPORT JSON') exportJSON(); else if (c === 'COPY' || c === 'COPY JSON') copyJSON(); else if (c === 'EXPORT EDL' || c === 'EDL') exportEDL(); else if (c === 'COPY FFMPEG' || c === 'FFMPEG') copyFFMPEG(); else if (c === 'EXPORT PROJECT' || c === 'PROJECT') exportProject(); else if (c === 'RENDER' || c === 'RENDER WEBM' || c === 'EXPORT WEBM') renderWEBM(); else if (c.startsWith('ROLL')) roll(parseFloat(c.split(/\s+/)[1] || '0') || 0); else if (c.startsWith('TRIM IN')) trim('in', parseFloat(c.split(/\s+/)[2] || '0') || 0); else if (c.startsWith('TRIM OUT')) trim('out', parseFloat(c.split(/\s+/)[2] || '0') || 0); else if (c.startsWith('GOTO') || c.startsWith('SCRUB')) seekTo(parseFloat(c.split(/\s+/)[1] || '0') || 0); else if (c === 'MODE SCRUB') setMode('scrub'); else if (c === 'MODE ROLL') setMode('roll'); else if (c === 'MODE IN') setMode('trimIn'); else if (c === 'MODE OUT') setMode('trimOut');
+                    els.rootInput.value = ''; els.rootInput.focus(); render(); maybeClose();
+                }
+
+                els.loadBtn.onclick = () => els.fileInput.click(); if (els.mobileLoadBtn) els.mobileLoadBtn.onclick = () => els.fileInput.click();
+                els.fileInput.onchange = e => { [...e.target.files].forEach(addFile); e.target.value = '' };
+                els.demoBtn.onclick = demo; els.runCmd.onclick = () => runCommand(els.rootInput.value); els.rootInput.onkeydown = e => { if (e.key === 'Enter') runCommand(els.rootInput.value) }; els.rootViewport.onclick = () => els.rootInput.focus();
+                els.play.onclick = () => { const c = clip(); if (!c) return; if (!c.url) { demoPlayback(); return } if (els.video.paused) { const p = els.video.play(); if (p && p.catch) p.catch(() => { els.status.textContent = 'PLAY BLOCKED — TAP VIDEO OR PLAY AGAIN' }); } else { els.video.pause() } }; els.centerPlay.onclick = () => els.play.click();
+                els.video.onplay = () => { els.play.textContent = 'PAUSE'; els.centerPlay.textContent = 'Ⅱ' }; els.video.onpause = () => { els.play.textContent = 'PLAY'; els.centerPlay.textContent = '▶' };
+                els.video.onloadedmetadata = () => { const c = clip(); if (c && c.url) { c.duration = Math.max(.1, els.video.duration || c.duration); if (c.segments.length === 1 && c.segments[0].id === 'S01' && c.segments[0].in === 0) c.segments[0].out = c.duration; render(); } };
+                els.video.onerror = () => { els.status.textContent = 'VIDEO ERROR — CODEC OR FILE NOT SUPPORTED'; els.empty.style.display = 'flex'; els.empty.innerHTML = '<div><b>VIDEO ERROR</b>THIS BROWSER CANNOT PLAY THAT FILE/CODEC. TRY H.264 MP4.</div>'; };
+                els.video.ontimeupdate = () => { const c = clip(), s = seg(); if (c && s && state.loop && els.video.currentTime >= s.out) els.video.currentTime = s.in; renderText(); drawArc(); drawStrip(els.stripCanvas, stripCtx); drawStrip(els.stripCanvasMobile, stripMobileCtx) };
+                els.loop.onclick = () => { state.loop = !state.loop; render() };
+                els.modeScrub.onclick = () => setMode('scrub'); els.modeRoll.onclick = () => setMode('roll'); els.modeTrimIn.onclick = () => setMode('trimIn'); els.modeTrimOut.onclick = () => setMode('trimOut');
+                els.bar.onpointerdown = e => { const c = clip(); if (!c) return; const r = els.bar.getBoundingClientRect(); seekTo((e.clientX - r.left) / r.width * c.duration) };
+                els.stripCanvas.onpointerdown = e => stripPointer(e, els.stripCanvas); els.stripCanvasMobile.onpointerdown = e => stripPointer(e, els.stripCanvasMobile);
+                els.arcCanvas.onpointerdown = e => { if (!clip()) return; state.drag = true; els.arcCanvas.setPointerCapture(e.pointerId); state.lastTime = timeFromAngle(angle(e)); arcApply(state.lastTime, state.lastTime) };
+                els.arcCanvas.onpointermove = e => { if (!state.drag) return; const t = timeFromAngle(angle(e)); arcApply(t, state.lastTime); state.lastTime = t };
+                els.arcCanvas.onpointerup = e => { state.drag = false; try { els.arcCanvas.releasePointerCapture(e.pointerId) } catch (_) { }; render() }; els.arcCanvas.onpointercancel = () => state.drag = false;
+                document.addEventListener('click', e => { const btn = e.target.closest('[data-op]'); if (btn) op(btn.dataset.op) });
+                els.navStackBtn.onclick = () => openMobilePanel('stack'); els.navSegmentsBtn.onclick = () => openMobilePanel('segments'); els.navOpsBtn.onclick = () => openMobilePanel('ops'); els.navStripBtn.onclick = () => openMobilePanel('strip');
+                document.querySelectorAll('.mobileClose').forEach(b => b.onclick = closeMobilePanels); els.shade.onclick = closeMobilePanels;
+                window.addEventListener('resize', render);
+                window.addEventListener('keydown', e => { if (document.activeElement === els.rootInput) return; const c = clip(); if (e.key === '/') { e.preventDefault(); els.rootInput.focus() } if (e.code === 'Space') { e.preventDefault(); els.play.click() } if (!c) return; if (e.key === 'ArrowRight') seekTo((els.video.curr

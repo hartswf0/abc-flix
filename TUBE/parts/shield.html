@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc Splice Operator v7 — Mobile Output</title>
+    <style>
+        :root {
+            --w: #fff;
+            --b: #000;
+            --top: 46px;
+            --bot: 40px;
+            --alley: 340px
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none
+        }
+
+        button,
+        input {
+            font: inherit
+        }
+
+        button {
+            height: 34px;
+            padding: 0 9px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font-weight: 1000;
+            letter-spacing: .045em;
+            text-transform: uppercase;
+            border-radius: 0
+        }
+
+        button:active,
+        button.on {
+            background: #000;
+            color: #fff
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: var(--top) minmax(0, 1fr) var(--bot);
+            background: #fff
+        }
+
+        #bar {
+            grid-row: 1;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border-bottom: 3px solid #000;
+            padding: 4px 6px;
+            min-width: 0;
+            overflow: hidden;
+            background: #fff
+        }
+
+        #brand {
+            margin-right: auto;
+            font-size: 12px;
+            font-weight: 1000;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #stageWrap {
+            grid-row: 2;
+            position: relative;
+            overflow: hidden;
+            background: #fff
+        }
+
+        #stage {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #fff;
+            cursor: crosshair
+        }
+
+        #logicDock {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 7;
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr);
+            width: min(82vw, 340px);
+            transform: translateX(calc(100% - 32px));
+            transition: transform .16s ease;
+            background: #fff
+        }
+
+        #logicDock.open {
+            transform: translateX(0)
+        }
+
+        #logicAlley {
+            border-left: 3px solid #000;
+            border-right: 3px solid #000;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            font-size: 10px;
+            font-weight: 1000;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        #logicPanel {
+            display: grid;
+            grid-template-rows: 42px minmax(0, 1fr) 118px;
+            min-width: 0;
+            overflow: hidden;
+            background: #fff;
+            border-left: 0
+        }
+
+        #logicHead {
+            padding: 8px;
+            border-bottom: 3px solid #000;
+            font-size: 11px;
+            font-weight: 1000;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            line-height: 1.1
+        }
+
+        #logicList {
+            overflow: auto;
+            background: #fff
+        }
+
+        .logicLine {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-bottom: 2px solid #000;
+            background: #fff;
+            color: #000;
+            padding: 8px 9px;
+            min-height: 38px;
+            font-size: 10px;
+            font-weight: 1000;
+            line-height: 1.18;
+            text-transform: none
+        }
+
+        .logicLine.active {
+            background: #000;
+            color: #fff
+        }
+
+        .logicLine .k {
+            display: inline-block;
+            min-width: 76px;
+            font-weight: 1000;
+            text-transform: uppercase
+        }
+
+        #inspector {
+            border-top: 3px solid #000;
+            padding: 8px;
+            overflow: auto;
+            font-size: 10px;
+            font-weight: 1000;
+            line-height: 1.3;
+            background: #fff
+        }
+
+        #inspector b {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 11px;
+            text-transform: uppercase
+        }
+
+        #status {
+            grid-row: 3;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            border-top: 3px solid #000;
+            background: #fff
+        }
+
+        .stat {
+            min-width: 0;
+            padding: 3px 7px;
+            border-right: 2px solid #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .stat:last-child {
+            border-right: 0
+        }
+
+        .stat span {
+            font-size: 8px;
+            font-weight: 1000;
+            text-transform: uppercase
+        }
+
+        .stat output {
+            margin-left: 5px;
+            font-size: 11px;
+            font-weight: 1000
+        }
+
+        #pool,
+        input[type=file] {
+            display: none
+        }
+
+        @media(min-width:980px) {
+            #app {
+                grid-template-columns: minmax(0, 1fr) 360px;
+                grid-template-rows: 46px minmax(0, 1fr) 40px
+            }
+
+            #bar {
+                grid-column: 1/3
+            }
+
+            .hideDesk {
+                display: none !important
+            }
+
+            #stageWrap {
+                grid-column: 1;
+                grid-row: 2;
+                border-right: 3px solid #000
+            }
+
+            #logicDock {
+                position: relative;
+                grid-column: 2;
+                grid-row: 2;
+                inset: auto;
+                width: auto;
+                transform: none;
+                grid-template-columns: 0 minmax(0, 1fr);
+                border-left: 0
+            }
+
+            #logicAlley {
+                display: none
+            }
+
+            #logicPanel {
+                grid-template-rows: 48px minmax(0, 1fr) 140px
+            }
+
+            #status {
+                grid-column: 1/3;
+                grid-row: 3
+            }
+
+            .logicLine {
+                font-size: 11px
+            }
+
+            .stat span {
+                font-size: 9px
+            }
+
+            .stat output {
+                font-size: 12px
+            }
+        }
+
+        @media(max-width:480px) {
+            #brand {
+                max-width: 23vw;
+                font-size: 9px
+            }
+
+            button {
+                height: 32px;
+                padding: 0 5px;
+                font-size: 8px
+            }
+
+            .hideTiny {
+                display: none !important
+            }
+
+            #status {
+                grid-template-columns: repeat(2, 1fr)
+            }
+
+            #logicPanel {
+                grid-template-rows: 0 minmax(0, 1fr) 0
+            }
+
+            #logicHead,
+            #inspector {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header id="bar">
+            <div id="brand">ARC SPLICE</div>
+            <button id="playBtn">Play</button>
+            <button id="renderBtn">Render</button>
+            <button id="edlBtn">EDL</button>
+            <button id="saveBtn" class="hideTiny">Save</button>
+            <button id="loadProjectBtn" class="hideTiny">Load</button>
+            <button id="clearBtn">Clear</button>
+        </header>
+        <main id="stageWrap">
+            <canvas id="stage"></canvas>
+            <aside id="logicDock" aria-label="Operational alley">
+                <div id="logicAlley">SCRIPT</div>
+                <div id="logicPanel">
+                    <div id="logicHead">Operational Script<br />click line ⇄ bind object</div>
+                    <div id="logicList"></div>
+                    <div id="inspector"><b>Bound Object</b>
+                        <div>Click a line or object.</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+        <footer id="status">
+            <div class="stat"><span>time</span><output id="timeOut">00:00:00</output></div>
+            <div class="stat"><span>mode</span><output id="modeOut">idle</output></div>
+            <div class="stat"><span>video</span><output id="videoOut">none</output></div>
+            <div class="stat"><span>splices</span><output id="spliceOut">0</output></div>
+            <div class="stat"><span>bound</span><output id="boundOut">none</output></div>
+        </footer>
+    </div>
+    <div id="pool"></div>
+    <input id="videoInput" type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogv,.mov" />
+    <input id="projectInput" type="file" accept="application/json,.json" />
+    <script>
+        (() => {
+            'use strict';
+            const $ = id => document.getElementById(id), canvas = $('stage'), ctx = canvas.getContext('2d', { alpha: false });
+            const pool = $('pool'), stageWrap = $('stageWrap'), logicDock = $('logicDock'), logicList = $('logicList'), inspector = $('inspector');
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), TAU = Math.PI * 2;
+            let W = 1, H = 1, dpr = 1, last = 0, nextId = 1, M = null;
+            const S = { density: 24, time: 0, playing: false, mode: 'idle', drag: null, trim: null, scrub: false, hover: null, bound: 'Transport', loadTrack: -1, hit: [], alleyOpen: false, rendering: false, renderPct: 0, seq: [] };
+            const TRACKS = [0, 1, 2, 3].map(i => ({ id: i, name: 'TRACK_' + (i + 1), file: null, vid: null, url: null, status: 'EMPTY', error: null, duration: 24, chunks: 24, cy: 0, thumbs: [], thumbing: false }));
+            const logicLines = [
+                { id: 'Track', label: 'Track', text: 'Track owns source file, readiness, reel origin, load target, thumbnails, and slice strip.' },
+                { id: 'Slice', label: 'Slice', text: 'Slice owns one source second and shows a minimal source-frame thumbnail.' },
+                { id: 'Clip', label: 'Clip', text: 'Clip owns slot, layer, duration, head frame, tail frame, and trim handle.' },
+                { id: 'Transport', label: 'Transport', text: 'Transport owns playhead, time, active splice, monitor frame, and play state.' },
+                { id: 'VideoStrict', label: 'Video', text: 'Uploaded video never becomes proxy. It draws video, DECODING, THUMBS, or UNSUPPORTED.' },
+                { id: 'Render', label: 'Render', text: 'Render exports a low-res silent WEBM preview from the real timeline output.' },
+                { id: 'Rail', label: 'Rail', text: 'Magnetic rail quantizes placement and trim to one-second slots.' },
+                { id: 'Export', label: 'Export', text: 'EDL/project exports reconstruction facts for real finishing.' }
+            ];
+            function esc(s) { return String(s).replace(/[&<>\"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m])); }
+            function buildLogic() { logicList.innerHTML = ''; logicLines.forEach(line => { const b = document.createElement('button'); b.className = 'logicLine'; b.dataset.bind = line.id; b.innerHTML = '<span class="k">' + line.label + '</span>' + line.text; b.onclick = () => bind(line.id); logicList.appendChild(b); }); }
+            function bind(id, extra) { S.bound = id; document.querySelectorAll('.logicLine').forEach(el => el.classList.toggle('active', el.dataset.bind === id)); $('boundOut').textContent = id; updateInspector(id, extra); }
+            function updateInspector(id, extra) { let html = '<b>' + esc(id) + '</b>'; if (id === 'Track') { html += TRACKS.map(t => `<div>t${t.id + 1}: ${t.status} ${t.file ? esc(t.file) : 'no file'} thumbs=${t.thumbs.filter(Boolean).length}/${t.chunks}</div>`).join(''); } else if (id === 'Clip') { html += '<div>clips=' + S.seq.length + '</div>' + S.seq.map(c => `<div>#${c.id}: t${c.track + 1} src=${c.src}s slot=${c.slot}s layer=${c.layer + 1} dur=${c.dur}s</div>`).join(''); } else if (id === 'Render') { html += `<div>WEBM preview render: ${S.rendering ? Math.round(S.renderPct * 100) + '%' : 'idle'}</div><div>Silent, low-res, mobile-safe preview. Use EDL for finishing.</div>`; } else if (id === 'VideoStrict') { html += TRACKS.map(t => `<div>t${t.id + 1}: ${t.status}${t.error ? ' / ' + esc(t.error) : ''}</div>`).join(''); } else { html += '<div>' + (extra ? esc(extra) : 'Click a line or viewport object. Head/tail thumbnails appear on timeline clips after video loads.') + '</div>'; } inspector.innerHTML = html; }
+            function setAlley(open) { S.alleyOpen = open; logicDock.classList.toggle('open', open); } $('logicAlley').onclick = () => setAlley(!S.alleyOpen); logicDock.addEventListener('pointerdown', e => e.stopPropagation());
+            function resize() { const r = stageWrap.getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height); dpr = Math.max(1, devicePixelRatio || 1); canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr); canvas.style.width = W + 'px'; canvas.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const mobile = W < 760 || innerWidth < 980, pad = mobile ? 8 : 14; const srcH = clamp(H * (mobile ? 0.27 : 0.28), 108, mobile ? 144 : 205); const seqH = clamp(H * (mobile ? 0.35 : 0.32), 138, mobile ? 196 : 250); const monY = srcH + seqH, monH = Math.max(94, H - monY); const reelX = mobile ? 27 : 40, reelR = mobile ? 13 : 18, stripX = reelX + reelR + 16, endX = W - pad, stripW = Math.max(120, endX - stripX), slotW = stripW / S.density; const trackH = srcH / 4, railY = srcH + (mobile ? 23 : 28), rows = mobile ? 3 : 4, laneTop = srcH + (mobile ? 61 : 70), laneGap = (seqH - (mobile ? 72 : 84)) / rows; M = { mobile, pad, srcH, seqH, monY, monH, reelX, reelR, stripX, endX, stripW, slotW, trackH, railY, rows, laneTop, laneGap }; }
+            function fmt(sec) { sec = Math.max(0, sec); const f = Math.floor((sec % 1) * 24), s = Math.floor(sec) % 60, m = Math.floor(sec / 60); return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + ':' + String(f).padStart(2, '0'); }
+            function text(str, x, y, align = 'left', size = 10, invert = false) { ctx.fillStyle = invert ? '#fff' : '#000'; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.font = '1000 ' + size + 'px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'; ctx.fillText(String(str), x, y); }
+            function line(x1, y1, x2, y2, w = 2) { ctx.strokeStyle = '#000'; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+            function fillBlack(x, y, w, h) { ctx.fillStyle = '#000'; ctx.fillRect(x, y, w, h); } function strokeRect(x, y, w, h, lw = 2) { ctx.strokeStyle = '#000'; ctx.lineWidth = lw; ctx.strokeRect(x, y, w, h); } function rect(x, y, w, h, fill = true, lw = 2) { if (fill) { ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); } strokeRect(x, y, w, h, lw); }
+            function hatch(x, y, w, h, step = 8) { ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; for (let k = -h; k < w + h; k += step) { ctx.beginPath(); ctx.moveTo(x + k, y + h); ctx.lineTo(x + k + h, y); ctx.stroke(); } ctx.restore(); strokeRect(x, y, w, h, 2); }
+            function addHit(kind, bind, x, y, w, h, data) { S.hit.push({ kind, bind, x, y, w, h, data }); } function inside(h, x, y) { return x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h; } function findHit(x, y) { for (let i = S.hit.length - 1; i >= 0; i--) { const h = S.hit[i]; if (inside(h, x, y)) return h; } return null; }
+            function drawThumb(img, x, y, w, h, label) { if (img) { ctx.drawImage(img, x, y, w, h); strokeRect(x, y, w, h, 2); } else { hatch(x, y, w, h, 8); } if (label) { fillBlack(x, y, 18, 14); text(label, x + 9, y + 7, 'center', 8, true); } }
+            function drawReel(t, cy) { ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(M.reelX, cy, M.reelR, M.reelR * 1.1, 0, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.ellipse(M.reelX + 4, cy, M.reelR * .45, M.reelR * .75, 0, 0, TAU); ctx.stroke(); for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + S.time * .08; line(M.reelX + Math.cos(a) * M.reelR * .45, cy + Math.sin(a) * M.reelR * .65, M.reelX + Math.cos(a) * M.reelR * .9, cy + Math.sin(a) * M.reelR, 1.5); } line(M.reelX + M.reelR, cy, M.stripX, cy, 3); addHit('select', 'Track', M.reelX - M.reelR - 5, cy - M.reelR - 5, M.reelR * 2 + 10, M.reelR * 2 + 10, { track: t.id }); }
+            function sourceRect(t, si) { const h = M.mobile ? 24 : 28; return { x: M.stripX + si * M.slotW, y: t.cy - h / 2, w: Math.max(5, M.slotW), h }; }
+            function drawSource() { rect(0, 0, W, M.srcH, true, 3); line(0, M.srcH, W, M.srcH, 3); for (const t of TRACKS) { t.cy = t.id * M.trackH + M.trackH / 2; const cy = t.cy; drawReel(t, cy); const load = { x: 4, y: cy - 15, w: M.mobile ? 46 : 58, h: 30 }; if (t.status === 'READY') { fillBlack(load.x, load.y, load.w, load.h); strokeRect(load.x, load.y, load.w, load.h, 2); text('READY', load.x + load.w / 2, cy, 'center', M.mobile ? 8 : 9, true); } else { t.status === 'EMPTY' ? rect(load.x, load.y, load.w, load.h, true, 2) : hatch(load.x, load.y, load.w, load.h, 7); text(t.status === 'EMPTY' ? 'LOAD' : t.status, load.x + load.w / 2, cy, 'center', M.mobile ? 7 : 8); } addHit('load', 'Track', load.x, load.y, load.w, load.h, { track: t.id }); const name = t.file ? t.file.replace(/\.[^.]+$/, '').slice(0, M.mobile ? 8 : 14) : t.name; text(name, M.stripX, cy - (M.mobile ? 23 : 28), 'left', M.mobile ? 9 : 11); text(t.thumbing ? 'THUMBS' : t.status, M.endX, cy - (M.mobile ? 23 : 28), 'right', M.mobile ? 8 : 10); line(M.stripX, cy, M.endX, cy, 1); const max = Math.min(S.density, t.chunks); for (let si = 0; si < max; si++) { const r = sourceRect(t, si); if (t.thumbs[si]) drawThumb(t.thumbs[si], r.x, r.y, r.w, r.h, null); else if (t.status === 'EMPTY') hatch(r.x, r.y, r.w, r.h, 8); else rect(r.x, r.y, r.w, r.h, true, 2); if (r.w > 17) text(si, r.x + r.w / 2, cy, 'center', M.mobile ? 7 : 8, t.thumbs[si] ? true : false); addHit('slice', 'Slice', r.x, r.y, r.w, r.h, { track: t.id, si }); } } }
+            function drawRail() { const y = M.railY; rect(M.stripX, y - 16, M.stripW, 32, true, 3); for (let i = 0; i <= S.density; i++) { const x = M.stripX + i * M.slotW; line(x, y - 16, x, y + 16, i % 4 === 0 ? 3 : 2); if (i % 4 === 0 || (!M.mobile && i % 2 === 0)) text(i, x, y + 27, 'center', M.mobile ? 8 : 9); } addHit('scrub', 'Rail', M.stripX, y - 24, M.stripW, 48, {}); }
+            function clipBox(c) { const h = M.mobile ? 42 : 46, x = M.stripX + c.slot * M.slotW, y = M.laneTop + c.layer * M.laneGap; return { x, y: y - h / 2, w: c.dur * M.slotW, h, cx: x + c.dur * M.slotW / 2, cy: y }; }
+            function drawClip(c, selected = false) { const b = clipBox(c), t = TRACKS[c.track]; if (selected) fillBlack(b.x - 4, b.y - 4, b.w + 8, b.h + 8); rect(b.x, b.y, b.w, b.h, true, 3); const hw = Math.min(20, Math.max(14, M.slotW * .6)); const tail = clamp(Math.floor(c.src + c.dur - .05), 0, Math.max(0, t.thumbs.length - 1)); const headImg = t.thumbs[Math.floor(c.src)], tailImg = t.thumbs[tail]; if (b.w > 48) { const tw = Math.max(22, Math.min((b.w - hw - 4) / 2, 54)); drawThumb(headImg, b.x + 2, b.y + 2, tw, b.h - 4, 'H'); drawThumb(tailImg, b.x + b.w - hw - tw - 2, b.y + 2, tw, b.h - 4, 'T'); if (b.w > 118) text('T' + (c.track + 1) + ' ' + c.src + '+' + c.dur, b.cx, b.cy, 'center', M.mobile ? 8 : 10, false); } else text(c.dur, b.cx, b.cy, 'center', M.mobile ? 9 : 10, false); fillBlack(b.x + b.w - hw, b.y, hw, b.h); text('↔', b.x + b.w - hw / 2, b.cy, 'center', M.mobile ? 9 : 11, true); addHit('clip', 'Clip', b.x, b.y, b.w, b.h, { clip: c.id }); addHit('trim', 'Clip', b.x + b.w - hw - 10, b.y - 6, hw + 20, b.h + 12, { clip: c.id }); }
+            function drawSequence() { rect(0, M.srcH, W, M.seqH, true, 3); line(0, M.srcH, W, M.srcH, 3); line(0, M.srcH + M.seqH, W, M.srcH + M.seqH, 3); drawRail(); for (let r = 0; r < M.rows; r++) { const y = M.laneTop + r * M.laneGap; line(M.stripX, y, M.endX, y, 2); text('L' + (r + 1), M.stripX - 8, y, 'right', M.mobile ? 9 : 10); addHit('select', 'Rail', M.stripX, y - 10, M.stripW, 20, { layer: r }); } for (const c of S.seq) drawClip(c, S.bound === 'Clip' || S.hover === c.id); if (S.drag) { const d = S.drag, c = d.clip, gx = d.x - d.off, slot = clamp(Math.round((gx - M.stripX) / M.slotW), 0, S.density - c.dur), layer = clamp(Math.floor((d.y - (M.laneTop - M.laneGap / 2)) / M.laneGap), 0, M.rows - 1), b = clipBox({ ...c, slot, layer }); hatch(b.x, b.y, b.w, b.h, 9); text('DROP', b.cx, b.cy, 'center', M.mobile ? 9 : 11); line(M.stripX + slot * M.slotW, M.srcH, M.stripX + slot * M.slotW, M.srcH + M.seqH, 3); line(M.stripX + (slot + c.dur) * M.slotW, M.srcH, M.stripX + (slot + c.dur) * M.slotW, M.srcH + M.seqH, 3); } }
+            function runtime() { return S.seq.reduce((m, c) => Math.max(m, c.slot + c.dur), 0) || S.density; } function activeClipsAt(t) { return S.seq.filter(c => t >= c.slot && t < c.slot + c.dur).sort((a, b) => b.layer - a.layer); } function activeClips() { return activeClipsAt(S.time); }
+            function drawVideoState(label, x, y, w, h) { rect(x, y, w, h, true, 3); hatch(x + 10, y + 10, w - 20, h - 20, 16); text('VIDEO ' + label, x + w / 2, y + h / 2 - 8, 'center', M.mobile ? 12 : 18); text('NO PROXY FALLBACK', x + w / 2, y + h / 2 + 18, 'center', M.mobile ? 9 : 12); }
+            function seekAndDrawVideo(track, local, x, y, w, h) { const v = track.vid; if (!v) { hatch(x, y, w, h, 14); text('NO VIDEO ON TRACK', x + w / 2, y + h / 2, 'center', M.mobile ? 11 : 16); return false; } if (track.thumbing) { drawVideoState('THUMBS', x, y, w, h); return false; } if (v.error) { track.status = 'UNSUPPORTED'; track.error = 'codec rejected'; drawVideoState('UNSUPPORTED', x, y, w, h); return false; } if (v.readyState < 1) { track.status = 'LOADING'; drawVideoState('LOADING', x, y, w, h); return false; } const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : track.duration, target = ((local % dur) + dur) % dur; if (Math.abs(v.currentTime - target) > .12) { try { v.currentTime = clamp(target, 0, Math.max(.01, dur - .05)); } catch (e) { } } if (S.playing) { const p = v.play(); if (p && p.catch) p.catch(() => { }); } else if (!v.paused) { try { v.pause(); } catch (e) { } } if (v.readyState >= 2) { track.status = 'READY'; try { ctx.drawImage(v, x, y, w, h); return true; } catch (e) { track.status = 'UNSUPPORTED'; track.error = 'draw failed'; drawVideoState('UNSUPPORTED', x, y, w, h); return false; } } track.status = 'DECODING'; drawVideoState('DECODING', x, y, w, h); return false; }
+            function drawMonitor() { rect(0, M.monY, W, M.monH, true, 3); const maxW = Math.min(W - M.pad * 2, M.stripW); let vh = M.monH - (M.mobile ? 28 : 38), vw = vh * 16 / 9; if (vw > maxW) { vw = maxW; vh = vw * 9 / 16; } const x = (W - vw) / 2, y = M.monY + (M.monH - vh) / 2; rect(x, y, vw, vh, true, 3); const clips = activeClips(), preview = TRACKS.find(t => t.vid); if (clips.length) { const c = clips[0]; seekAndDrawVideo(TRACKS[c.track], (S.time - c.slot) + c.src, x, y, vw, vh); } else if (preview) { seekAndDrawVideo(preview, S.time, x, y, vw, vh); text('PREVIEW: DRAG SLICES TO CUT', x + 8, y + 18, 'left', M.mobile ? 8 : 10); } else { hatch(x, y, vw, vh, 20); text('LOAD VIDEO', x + vw / 2, y + vh / 2, 'center', M.mobile ? 15 : 22); } fillBlack(x, y, vw, 24); text(S.rendering ? 'RENDER ' + Math.round(S.renderPct * 100) + '%' : (clips.length ? 'ACTIVE SPLICE' : 'MONITOR'), x + 8, y + 12, 'left', M.mobile ? 9 : 11, true); text(fmt(S.time), x + vw / 2, y + vh - 14, 'center', M.mobile ? 11 : 13, true); addHit('monitor', 'Transport', x, y, vw, vh, {}); }
+            function drawPlayhead() { const x = M.stripX + (S.time % S.density) / S.density * M.stripW; line(x, M.srcH, x, M.monY, 3); fillBlack(x - 6, M.srcH, 12, 12); addHit('select', 'Transport', x - 12, M.srcH, 24, M.monY - M.srcH, {}); }
+            function drawBinding() { const id = S.bound; if (!id) return; ctx.save(); ctx.setLineDash([10, 6]); ctx.lineWidth = 4; ctx.strokeStyle = '#000'; if (id === 'Track') ctx.strokeRect(2, 2, W - 4, M.srcH - 4); else if (id === 'Slice') ctx.strokeRect(M.stripX, 2, M.stripW, M.srcH - 4); else if (id === 'Clip') ctx.strokeRect(M.stripX, M.srcH + 40, M.stripW, M.seqH - 44); else if (id === 'Transport' || id === 'VideoStrict' || id === 'Render') ctx.strokeRect(2, M.monY + 2, W - 4, M.monH - 4); else if (id === 'Rail') ctx.strokeRect(M.stripX, M.railY - 24, M.stripW, 48); else if (id === 'Export') ctx.strokeRect(2, 2, W - 4, H - 4); ctx.restore(); }
+            function draw() { S.hit = []; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); drawSource(); drawSequence(); drawPlayhead(); drawMonitor(); drawBinding(); }
+            function point(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; } function clipById(id) { return S.seq.find(c => c.id === id); }
+            canvas.addEventListener('contextmenu', e => e.preventDefault()); canvas.addEventListener('pointerdown', e => { if (innerWidth < 980 && S.alleyOpen) setAlley(false); const p = point(e), h = findHit(p.x, p.y); if (!h) return; bind(h.bind); if (h.kind === 'load') { S.loadTrack = h.data.track; $('videoInput').click(); return; } if (h.kind === 'slice') { const t = TRACKS[h.data.track], c = { id: nextId++, track: t.id, src: h.data.si, slot: 0, layer: 0, dur: 1 }; S.drag = { type: 'new', clip: c, x: p.x, y: p.y, off: M.slotW / 2 }; S.mode = 'drag slice'; canvas.setPointerCapture(e.pointerId); bind('Slice', 'track ' + (t.id + 1) + ' source ' + h.data.si + 's'); return; } if (h.kind === 'clip') { const c = clipById(h.data.clip); if (!c) return; const idx = S.seq.indexOf(c); S.seq.splice(idx, 1); S.drag = { type: 'existing', clip: c, x: p.x, y: p.y, off: p.x - (M.stripX + c.slot * M.slotW), restore: idx }; S.mode = 'drag clip'; canvas.setPointerCapture(e.pointerId); bind('Clip'); return; } if (h.kind === 'trim') { const c = clipById(h.data.clip); if (!c) return; S.trim = { clip: c, startX: p.x, startDur: c.dur }; S.mode = 'trim'; canvas.setPointerCapture(e.pointerId); bind('Clip'); return; } if (h.kind === 'scrub') { S.scrub = true; S.playing = false; S.time = clamp((p.x - M.stripX) / M.stripW * S.density, 0, S.density - .001); S.mode = 'scrub'; canvas.setPointerCapture(e.pointerId); bind('Rail'); return; } if (h.kind === 'monitor') { S.playing = !S.playing; bind('Transport'); } });
+            canvas.addEventListener('pointermove', e => { const p = point(e); if (S.scrub) { S.time = clamp((p.x - M.stripX) / M.stripW * S.density, 0, S.density - .001); return; } if (S.trim) { const delta = Math.round((p.x - S.trim.startX) / M.slotW); S.trim.clip.dur = clamp(S.trim.startDur + delta, 1, S.density - S.trim.clip.slot); return; } if (S.drag) { S.drag.x = p.x; S.drag.y = p.y; return; } const h = findHit(p.x, p.y); S.hover = h && h.data ? h.data.clip : null; canvas.style.cursor = h ? (h.kind === 'trim' ? 'ew-resize' : (h.kind === 'slice' || h.kind === 'clip' ? 'grab' : (h.kind === 'load' || h.kind === 'monitor' ? 'pointer' : 'crosshair'))) : 'crosshair'; });
+            function finishDrag() { if (!S.drag) return; const d = S.drag, c = d.clip; let placed = false; if (d.y > M.srcH && d.y < M.srcH + M.seqH && d.x > M.stripX - 30 && d.x < M.endX + 30) { const gx = d.x - d.off; c.slot = clamp(Math.round((gx - M.stripX) / M.slotW), 0, S.density - c.dur); c.layer = clamp(Math.floor((d.y - (M.laneTop - M.laneGap / 2)) / M.laneGap), 0, M.rows - 1); S.seq.push(c); placed = true; } if (!placed && d.type === 'existing') S.seq.splice(d.restore, 0, c); S.drag = null; S.mode = 'idle'; bind('Clip'); }
+            canvas.addEventListener('pointerup', e => { if (S.scrub) { S.scrub = false; S.mode = 'idle'; try { canvas.releasePointerCapture(e.pointerId) } catch { } return; } if (S.trim) { S.trim = null; S.mode = 'idle'; bind('Clip'); try { canvas.releasePointerCapture(e.pointerId) } catch { } return; } finishDrag(); try { canvas.releasePointerCapture(e.pointerId) } catch { } }); canvas.addEventListener('pointercancel', () => { if (S.drag && S.drag.type === 'existing') S.seq.splice(S.drag.restore, 0, S.drag.clip); S.drag = null; S.trim = null; S.scrub = false; S.mode = 'idle'; });
+            function waitEvent(target, names, timeout = 1400) { return new Promise(res => { let done = false; const finish = () => { if (done) return; done = true; names.forEach(n => target.removeEventListener(n, finish)); clearTimeout(to); res(); }; names.forEach(n => target.addEventListener(n, finish, { once: true })); const to = setTimeout(finish, timeout); }); }
+            async function seekVideo(v, t) { try { v.currentTime = t; } catch (e) { return; } await waitEvent(v, ['seeked', 'timeupdate', 'loadeddata'], 1200); }
+            async function generateThumbs(t) { if (t.thumbing || !t.vid) return; t.thumbing = true; t.status = 'THUMBS'; bind('VideoStrict'); const v = t.vid, old = v.currentTime, wasPaused = v.paused; try { v.pause(); } catch (e) { } const c = document.createElement('canvas'); c.width = 96; c.height = 54; const cx = c.getContext('2d'); const count = clamp(Math.floor(t.duration || 1), 1, S.density); t.thumbs = []; for (let i = 0; i < count; i++) { const tm = clamp(i, 0, Math.max(.01, (t.duration || count) - .05)); await seekVideo(v, tm); try { cx.fillStyle = '#fff'; cx.fillRect(0, 0, 96, 54); cx.drawImage(v, 0, 0, 96, 54); const img = new Image(); img.src = c.toDataURL('image/jpeg', 0.42); t.thumbs[i] = img; } catch (e) { t.thumbs[i] = null; } } try { v.currentTime = old; if (!wasPaused) v.play().catch(() => { }); } catch (e) { } t.thumbing = false; t.status = 'READY'; bind('VideoStrict'); }
+            function loadVideo(t, file) { let v = t.vid; if (!v) { v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = true; v.preload = 'auto'; pool.appendChild(v); t.vid = v; } if (t.url) URL.revokeObjectURL(t.url); t.url = URL.createObjectURL(file); t.file = file.name; t.status = 'LOADING'; t.error = null; t.chunks = 1; t.thumbs = []; v.pause(); v.removeAttribute('src'); v.load(); v.src = t.url; v.onloadedmetadata = () => { t.duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 24; t.chunks = clamp(Math.floor(t.duration), 1, S.density); t.status = 'DECODING'; try { v.currentTime = 0; } catch (e) { } bind('VideoStrict'); }; v.onloadeddata = () => { t.status = 'READY'; bind('VideoStrict'); generateThumbs(t); }; v.oncanplay = () => { if (!t.thumbing) t.status = 'READY'; bind('VideoStrict'); }; v.onerror = () => { t.status = 'UNSUPPORTED'; t.error = v.error ? 'media error ' + v.error.code : 'media error'; bind('VideoStrict'); }; v.load(); const p = v.play(); if (p && p.then) p.then(() => { v.pause(); if (v.readyState >= 2) { t.status = 'READY'; generateThumbs(t); } else t.status = 'DECODING'; bind('VideoStrict'); }).catch(() => bind('VideoStrict')); }
+            $('videoInput').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (!f || S.loadTrack < 0) return; loadVideo(TRACKS[S.loadTrack], f); S.loadTrack = -1; e.target.value = ''; });
+            function download(data, name, type = 'application/json') { const blob = data instanceof Blob ? data : new Blob([JSON.stringify(data, null, 2)], { type }); const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500); }
+            function exportEDL() { const out = S.seq.slice().sort((a, b) => a.slot - b.slot || a.layer - b.layer).map((c, i) => ({ event: i + 1, track: c.track + 1, source_file: TRACKS[c.track].file, layer: c.layer + 1, source_in: fmt(c.src), source_out: fmt(c.src + c.dur), sequence_in: fmt(c.slot), sequence_out: fmt(c.slot + c.dur), source_start_sec: c.src, sequence_start_sec: c.slot, duration_sec: c.dur })); download(out, 'arc_splice_edl_v7.json'); bind('Export'); }
+            function saveProject() { download({ version: 7, density: S.density, time: S.time, tracks: TRACKS.map(t => ({ id: t.id, name: t.name, file: t.file, status: t.status, chunks: t.chunks, duration: t.duration })), sequence: S.seq }, 'arc_splice_project_v7.json'); }
+            $('projectInput').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const p = JSON.parse(r.result); S.density = p.density || 24; S.time = clamp(p.time || 0, 0, S.density - .001); S.seq = (p.sequence || []).map(c => ({ ...c, id: nextId++ })); bind('Clip'); resize(); } catch (err) { alert('PROJECT JSON FAILED'); } }; r.readAsText(f); e.target.value = ''; });
+            function drawOutputFrame(octx, t, w, h, renderState) { octx.fillStyle = '#000'; octx.fillRect(0, 0, w, h); const clips = activeClipsAt(t); if (!clips.length) { octx.fillStyle = '#fff'; octx.font = '900 18px monospace'; octx.textAlign = 'center'; octx.textBaseline = 'middle'; octx.fillText('NO ACTIVE SPLICE', w / 2, h / 2); return; } const c = clips[0], tr = TRACKS[c.track], v = tr.vid, local = (t - c.slot) + c.src; if (!v || v.readyState < 2 || v.error) { octx.fillStyle = '#fff'; octx.font = '900 18px monospace'; octx.textAlign = 'center'; octx.textBaseline = 'middle'; octx.fillText(v && v.error ? 'UNSUPPORTED' : 'VIDEO NOT READY', w / 2, h / 2); return; } const key = c.id; if (renderState.key !== key) { renderState.key = key; try { v.currentTime = clamp(local, 0, Math.max(.01, (v.duration || tr.duration) - .05)); v.play().catch(() => { }); } catch (e) { } } else if (Math.abs(v.currentTime - local) > .35) { try { v.currentTime = clamp(local, 0, Math.max(.01, (v.duration || tr.duration) - .05)); } catch (e) { } } try { octx.drawImage(v, 0, 0, w, h); } catch (e) { octx.fillStyle = '#fff'; octx.fillText('DRAW FAILED', w / 2, h / 2); } }
+            async function renderWebM() { if (S.rendering) return; if (!S.seq.length) { alert('NO SPLICES TO RENDER.'); return; } if (!window.MediaRecorder) { alert('MEDIARECORDER NOT AVAILABLE ON THIS BROWSER. EXPORT EDL INSTEAD.'); return; } const oc = document.createElement('canvas'); oc.width = 480; oc.height = 270; const octx = oc.getContext('2d'); if (!oc.captureStream) { alert('CANVAS CAPTURE NOT AVAILABLE. EXPORT EDL INSTEAD.'); return; } const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || ''; const stream = oc.captureStream(24), chunks = [], rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 900000 } : { videoBitsPerSecond: 900000 }); rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); }; rec.onstop = () => { download(new Blob(chunks, { type: mime || 'video/webm' }), 'arc_splice_preview_v7.webm', 'video/webm'); S.rendering = false; S.renderPct = 0; S.mode = 'idle'; bind('Render'); }; const dur = runtime(), renderState = { key: null }; S.rendering = true; S.renderPct = 0; S.mode = 'render'; S.playing = false; bind('Render'); rec.start(250); const start = performance.now(); function step(now) { const t = Math.min(dur, (now - start) / 1000); S.renderPct = dur ? t / dur : 1; drawOutputFrame(octx, t, oc.width, oc.height, renderState); if (t < dur && S.rendering) requestAnimationFrame(step); else { try { rec.stop(); } catch (e) { S.rendering = false; } } } requestAnimationFrame(step); }
+            $('playBtn').onclick = () => { S.playing = !S.playing; bind('Transport'); }; $('renderBtn').onclick = renderWebM; $('edlBtn').onclick = exportEDL; $('saveBtn').onclick = saveProject; $('loadProjectBtn').onclick = () => $('projectInput').click(); $('clearBtn').onclick = () => { S.seq = []; S.time = 0; bind('Clip'); }; window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); S.playing = !S.playing; bind('Transport'); } if (e.key.toLowerCase() === 'e') exportEDL(); if (e.key === 'Escape') setAlley(false); }); window.addEventListener('resize', resize);
+            function updateHUD() { const st = TRACKS.some(t => t.status === 'UNSUPPORTED') ? 'unsupported' : TRACKS.some(t => t.status === 'LOADING' || t.status === 'DECODING' || t.status === 'THUMBS') ? 'decoding' : TRACKS.some(t => t.status === 'READY') ? 'ready' : 'none'; $('timeOut').textContent = fmt(S.time); $('modeOut').textContent = S.rendering ? 'render ' + Math.round(S.renderPct * 100) + '%' : (S.playing ? 'playing' : S.mode); $('videoOut').textContent = st; $('spliceOut').textContent = String(S.seq.length); $('playBtn').textContent = S.playing ? 'Pause' : 'Play'; $('playBtn').classList.toggle('on', S.playing); $('renderBtn').classList.toggle('on', S.rendering); }
+            function frame(ts) { const dt = last ? Math.min(.05, (ts - last) / 1000) : 0; last = ts; if (S.playing && !S.drag && !S.trim && !S.scrub && !S.rendering) { S.time += dt; if (S.time >= runtime()) S.time = 0; } draw(); updateHUD(); requestAnimationFrame(frame); } buildLogic(); resize(); bind('Transport'); setAlley(false); requestAnimationFrame(frame);
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Arc-Tunnel Riverbed Editor</title>
+<style>
+:root{
+  --bg:#020304;
+  --panel:#07090b;
+  --panel2:#0d1117;
+  --line:#202832;
+  --line2:#344252;
+  --fg:#f5f7fb;
+  --muted:#8b98a9;
+  --dim:#526070;
+  --hot:#7dfcc3;
+  --hot2:#a78bfa;
+  --warn:#ffd166;
+  --bad:#ff5d73;
+  --blue:#62d7ff;
+  --shadow:rgba(0,0,0,.55);
+  --safeTop:env(safe-area-inset-top,0px);
+  --safeBottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;width:100%;overflow:hidden;background:#000;color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;touch-action:none;user-select:none;-webkit-user-select:none}
+button,input{font:inherit;color:inherit}
+button{border:1px solid var(--line2);background:#0a0d11;color:var(--fg);border-radius:12px;padding:9px 11px;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.03) inset;white-space:nowrap}
+button:hover{border-color:var(--hot);background:#10161b}
+button:active{transform:translateY(1px)}
+button.primary{border-color:rgba(125,252,195,.7);color:#06100c;background:var(--hot);font-weight:900}
+button.ghost{background:transparent;border-color:var(--line);color:var(--muted)}
+button.hot{border-color:rgba(98,215,255,.7);color:var(--blue)}
+button.danger{border-color:rgba(255,93,115,.6);color:var(--bad)}
+#app{position:fixed;inset:0;background:radial-gradient(circle at 50% 35%,#0c1118 0%,#030405 48%,#000 100%);overflow:hidden}
+#topbar{position:absolute;top:var(--safeTop);left:0;right:0;height:58px;display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(3,4,6,.96),rgba(3,4,6,.72));z-index:20;backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.mark{width:30px;height:30px;border-radius:50%;border:2px solid var(--hot);position:relative;box-shadow:0 0 24px rgba(125,252,195,.18)}
+.mark:after{content:"";position:absolute;inset:7px;border-top:2px solid var(--blue);transform:rotate(-28deg)}
+.title{font-weight:950;letter-spacing:.08em;font-size:13px;line-height:1;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.controls{display:flex;align-items:center;gap:6px;overflow:auto;scrollbar-width:none;max-width:70vw}.controls::-webkit-scrollbar{display:none}
+.segment{display:flex;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:#05070a;flex:none}
+.segment button{border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;padding:9px 10px;color:var(--muted)}
+.segment button:last-child{border-right:0}.segment button.active{background:#14201c;color:var(--hot);font-weight:900}
+#stageWrap{position:absolute;inset:58px 340px 0 0;overflow:hidden}
+#stage{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+#dropHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px dashed rgba(125,252,195,.35);border-radius:26px;padding:24px;min-width:min(520px,82vw);background:rgba(3,5,7,.62);box-shadow:0 30px 90px var(--shadow);text-align:center;pointer-events:none;backdrop-filter:blur(10px)}
+#dropHint.hidden{display:none}.dropTitle{font-size:16px;letter-spacing:.08em;font-weight:950;text-transform:uppercase}.dropSub{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}.dropLaw{margin-top:14px;color:var(--hot);font-size:11px;line-height:1.45}
+#drawer{position:absolute;top:58px;right:0;bottom:0;width:340px;border-left:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,rgba(8,11,15,.96),rgba(3,4,6,.96));z-index:18;box-shadow:-22px 0 70px var(--shadow);display:flex;flex-direction:column;transition:transform .22s ease;backdrop-filter:blur(16px)}
+#drawer.closed{transform:translateX(calc(100% - 42px))}.drawerTab{position:absolute;left:-42px;top:12px;width:42px;height:96px;border-radius:16px 0 0 16px;border:1px solid rgba(255,255,255,.1);border-right:0;background:#07090b;color:var(--hot);display:grid;place-items:center;writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.drawerHead{padding:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}.drawerHead strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.drawerBody{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px;scrollbar-color:var(--line2) transparent}.section{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);border-radius:18px;overflow:hidden}.section h3{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;justify-content:space-between}.sectionBody{padding:10px 12px}.telemetry{display:grid;grid-template-columns:1fr 1fr;gap:8px}.readout{background:#030506;border:1px solid var(--line);border-radius:13px;padding:9px;min-height:48px}.readout span{display:block;font-size:9px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}.readout b{font-size:14px;color:var(--fg);font-weight:950}.readout.hot b{color:var(--hot)}.readout.blue b{color:var(--blue)}.readout.warn b{color:var(--warn)}
+#clipList{display:flex;flex-direction:column;gap:8px}.clipItem{display:grid;grid-template-columns:58px 1fr auto;gap:9px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:7px;background:#05070a;cursor:pointer}.clipItem.selected{border-color:var(--hot);background:#0b1713}.thumb{width:58px;height:36px;border-radius:9px;background:#111923;object-fit:cover;border:1px solid rgba(255,255,255,.08)}.clipMeta{min-width:0}.clipName{font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.clipState{font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pill{font-size:9px;border:1px solid var(--line2);border-radius:999px;padding:4px 6px;color:var(--muted)}.pill.locked{color:var(--warn);border-color:rgba(255,209,102,.45)}.pill.bad{color:var(--bad);border-color:rgba(255,93,115,.45)}.pill.ok{color:var(--hot);border-color:rgba(125,252,195,.45)}
+.previewVideo{width:100%;max-height:160px;background:#000;border:1px solid var(--line);border-radius:14px;display:block}.buttonGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buttonGrid button{padding:8px;font-size:11px}.futureList{display:flex;flex-direction:column;gap:8px}.futureItem{border:1px solid var(--line);background:#05070a;border-radius:14px;padding:10px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.futureItem strong{font-size:12px}.futureItem small{display:block;color:var(--muted);margin-top:4px;font-size:10px}.log{font-size:10px;color:var(--muted);line-height:1.45;max-height:110px;overflow:auto}.empty{font-size:11px;color:var(--muted);line-height:1.5}.kbd{border:1px solid var(--line2);border-bottom-width:2px;border-radius:7px;padding:1px 5px;color:var(--fg);font-size:10px;background:#090d11}
+#contextMenu{position:absolute;z-index:1000;min-width:190px;border:1px solid rgba(255,255,255,.14);background:rgba(5,7,9,.98);border-radius:16px;padding:7px;box-shadow:0 30px 90px rgba(0,0,0,.65);display:none;backdrop-filter:blur(14px)}
+#contextMenu button{display:block;width:100%;text-align:left;border:0;border-radius:10px;background:transparent;padding:9px 10px;color:var(--fg)}#contextMenu button:hover{background:#10171d;color:var(--hot)}#contextMenu hr{border:0;border-top:1px solid var(--line);margin:5px 0}
+#toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:2000;background:#07100d;border:1px solid rgba(125,252,195,.45);color:var(--hot);padding:10px 14px;border-radius:999px;font-size:12px;box-shadow:0 20px 70px rgba(0,0,0,.55);transition:.2s ease;pointer-events:none}#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.hiddenInput{display:none}
+@media (max-width: 820px){
+  #topbar{height:62px;padding:8px 9px}.title{font-size:11px}.sub{font-size:9px}.mark{width:27px;height:27px}.controls{max-width:58vw}.segment button{padding:8px 8px;font-size:11px}.controls button{font-size:11px;padding:8px 9px}
+  #stageWrap{inset:62px 0 196px 0}
+  #drawer{top:auto;left:0;right:0;bottom:0;width:100%;height:226px;border-left:0;border-top:1px solid rgba(255,255,255,.1);transform:none;border-radius:22px 22px 0 0;padding-bottom:var(--safeBottom)}
+  #drawer.closed{transform:translateY(calc(100% - 42px))}.drawerTab{writing-mode:horizontal-tb;left:calc(50% - 55px);top:-38px;width:110px;height:38px;border-radius:16px 16px 0 0;border:1px solid rgba(255,255,255,.1);border-bottom:0}.drawerHead{padding:9px 12px}.drawerBody{padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.section{min-height:0}.section h3{padding:8px 10px}.sectionBody{padding:8px 10px}.previewVideo{max-height:82px}.telemetry{grid-template-columns:1fr 1fr}.readout{min-height:38px;padding:7px}.readout b{font-size:12px}.readout span{font-size:8px}.clipItem{grid-template-columns:44px 1fr auto}.thumb{width:44px;height:28px}.clipName{font-size:11px}.clipState{font-size:9px}.futureItem{padding:8px}.futureItem strong{font-size:11px}.futureItem small{font-size:9px}.buttonGrid{grid-template-columns:1fr 1fr}.buttonGrid button{font-size:10px;padding:7px}.log{display:none}
+  #dropHint{top:45%;padding:18px;min-width:84vw}.dropTitle{font-size:13px}.dropSub{font-size:11px}.dropLaw{font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div style="min-width:0">
+        <div class="title">Arc-Tunnel Riverbed</div>
+        <div class="sub" id="statusLine">BED/FLOW/SEDIMENT ACTIVE</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="uploadBtn" class="primary">Load Clips</button>
+      <button id="undoBtn" class="ghost">Undo</button>
+      <div class="segment" id="viewSeg">
+        <button data-view="tunnel" class="active">Tunnel</button>
+        <button data-view="strip">Strip</button>
+        <button data-view="side">Side</button>
+        <button data-view="future">Future</button>
+      </div>
+      <div class="segment" id="modeSeg">
+        <button data-mode="roll" class="active">Roll</button>
+        <button data-mode="viewport">View</button>
+      </div>
+      <button id="drawerBtn" class="hot">Bay</button>
+    </div>
+  </header>
+
+  <main id="stageWrap">
+    <canvas id="stage"></canvas>
+    <div id="dropHint">
+      <div class="dropTitle">Drop video into the barrel</div>
+      <div class="dropSub">Real clips become curved media-bearing sections. Roll touches only the selected barrel. Snap rails live outside the footage.</div>
+      <div class="dropLaw">No blank failure state. No whole-tube spin unless View mode is active.</div>
+    </div>
+  </main>
+
+  <aside id="drawer">
+    <div class="drawerTab" id="drawerTab">BAY</div>
+    <div class="drawerHead">
+      <strong>Operator Bay</strong>
+      <button class="ghost" id="closeDrawerBtn">Collapse</button>
+    </div>
+    <div class="drawerBody">
+      <section class="section">
+        <h3>Telemetry <span id="clipCount">0 clips</span></h3>
+        <div class="sectionBody telemetry">
+          <div class="readout hot"><span>Selected</span><b id="selRead">NONE</b></div>
+          <div class="readout blue"><span>Roll</span><b id="rollRead">0°</b></div>
+          <div class="readout"><span>Snap</span><b id="snapRead">—</b></div>
+          <div class="readout warn"><span>Ghost</span><b id="ghostRead">0</b></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>Selected Media <span id="assetState">EMPTY</span></h3>
+        <div class="sectionBody">
+          <video id="previewVideo" class="previewVideo" controls playsinline muted></video>
+          <div class="empty" id="previewEmpty" style="margin-top:8px">Load a clip. It will appear here, in the strip, and on the barrel.</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>Clip Shelf <span>real media</span></h3>
+        <div class="sectionBody"><div id="clipList"></div></div>
+      </section>
+
+      <section class="section">
+        <h3>Actions <span>context-safe</span></h3>
+        <div class="sectionBody buttonGrid">
+          <button data-action="split">Split</button>
+          <button data-action="duplicate">Duplicate</button>
+          <button data-action="copy">Copy</button>
+          <button data-action="delete" class="danger">Delete</button>
+          <button data-action="lock">Lock</button>
+          <button data-action="annotate">Annotate</button>
+          <button data-action="revealStrip">Reveal Strip</button>
+          <button data-action="project">Project</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>Projected Futures <span id="futureCount">0</span></h3>
+        <div class="sectionBody"><div class="futureList" id="futureList"></div></div>
+      </section>
+
+      <section class="section">
+        <h3>Sediment Log <span>last marks</span></h3>
+        <div class="sectionBody"><div class="log" id="log"></div></div>
+      </section>
+    </div>
+  </aside>
+
+  <div id="contextMenu">
+    <button data-action="split">Split here</button>
+    <button data-action="copy">Copy section</button>
+    <button data-action="duplicate">Duplicate after</button>
+    <button data-action="delete">Delete section</button>
+    <hr />
+    <button data-action="lock">Lock / unlock</button>
+    <button data-action="annotate">Add annotation</button>
+    <button data-action="project">Send to future pane</button>
+    <hr />
+    <button data-action="revealStrip">Reveal in strip</button>
+    <button data-action="fit">Fit view to section</button>
+  </div>
+  <div id="toast"></div>
+  <input id="fileInput" class="hiddenInput" type="file" accept="video/*" multiple />
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d", { alpha: false });
+  const stageWrap = document.getElementById("stageWrap");
+  const fileInput = document.getElementById("fileInput");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const undoBtn = document.getElementById("undoBtn");
+  const drawer = document.getElementById("drawer");
+  const drawerBtn = document.getElementById("drawerBtn");
+  const drawerTab = document.getElementById("drawerTab");
+  const closeDrawerBtn = document.getElementById("closeDrawerBtn");
+  const dropHint = document.getElementById("dropHint");
+  const contextMenu = document.getElementById("contextMenu");
+  const previewVideo = document.getElementById("previewVideo");
+  const previewEmpty = document.getElementById("previewEmpty");
+  const statusLine = document.getElementById("statusLine");
+
+  const state = {
+    assets: {},
+    clips: {},
+    order: [],
+    spliceMarks: [],
+    annotations: [],
+    projectionFutures: [],
+    selectedClipId: null,
+    selectedArcSectionId: null,
+    activeView: "tunnel",
+    mode: "roll",
+    viewportAngle: 0,
+    viewportZoom: 1,
+    history: [],
+    clipboardClip: null,
+    gesture: null,
+    longPressTimer: null,
+    lastPointer: { x: 0, y: 0 },
+    lastSnapLabel: "—",
+    flash: 0
+  };
+
+  const colors = {
+    bg: "#020304",
+    panel: "#07090b",
+    line: "#202832",
+    line2: "#344252",
+    fg: "#f5f7fb",
+    muted: "#8b98a9",
+    dim: "#526070",
+    hot: "#7dfcc3",
+    hotSoft: "rgba(125,252,195,.22)",
+    blue: "#62d7ff",
+    blueSoft: "rgba(98,215,255,.18)",
+    warn: "#ffd166",
+    bad: "#ff5d73",
+    purple: "#a78bfa"
+  };
+
+  function uid(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function mod(n,m){ return ((n % m) + m) % m; }
+  function fmtTime(sec){
+    sec = Math.max(0, sec || 0);
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec%60);
+    const cs = Math.floor((sec - Math.floor(sec))*100);
+    return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0") + "." + String(cs).padStart(2,"0");
+  }
+  function deg(rad){ return Math.round(rad * 180 / Math.PI); }
+  function safeDuration(d){ return Number.isFinite(d) && d > 0 ? d : 8; }
+  function selectedClip(){ return state.selectedClipId ? state.clips[state.selectedClipId] : null; }
+  function selectedAsset(){ const c = selectedClip(); return c ? state.assets[c.assetId] : null; }
+
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>el.classList.remove("show"), 1300);
+  }
+
+  function snapshot(label){
+    const simpleClips = JSON.parse(JSON.stringify(state.clips));
+    const snap = {
+      label,
+      clips: simpleClips,
+      order: state.order.slice(),
+      spliceMarks: JSON.parse(JSON.stringify(state.spliceMarks)),
+      annotations: JSON.parse(JSON.stringify(state.annotations)),
+      projectionFutures: JSON.parse(JSON.stringify(state.projectionFutures)),
+      selectedClipId: state.selectedClipId,
+      activeView: state.activeView,
+      mode: state.mode,
+      viewportAngle: state.viewportAngle,
+      time: Date.now()
+    };
+    state.history.push(snap);
+    if(state.history.length > 40) state.history.shift();
+  }
+
+  function undo(){
+    const snap = state.history.pop();
+    if(!snap){ toast("No undo sediment"); return; }
+    state.clips = snap.clips;
+    state.order = snap.order;
+    state.spliceMarks = snap.spliceMarks;
+    state.annotations = snap.annotations;
+    state.projectionFutures = snap.projectionFutures;
+    state.selectedClipId = snap.selectedClipId;
+    state.activeView = snap.activeView;
+    state.mode = snap.mode;
+    state.viewportAngle = snap.viewportAngle;
+    setView(state.activeView, false);
+    setMode(state.mode, false);
+    updateUI();
+    draw();
+    toast("Undo: " + snap.label);
+  }
+
+  function resize(){
+    const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    const rect = stageWrap.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+
+  function ingestFiles(files){
+    const vids = Array.from(files || []).filter(f => f.type.startsWith("video/"));
+    if(!vids.length){ toast("No video files found"); return; }
+    snapshot("load clips");
+    vids.forEach(file => createAssetFromFile(file));
+    dropHint.classList.add("hidden");
+    updateUI();
+    draw();
+  }
+
+  function createAssetFromFile(file){
+    const assetId = uid("asset");
+    const clipId = uid("clip");
+    const url = URL.createObjectURL(file);
+    const asset = {
+      id: assetId,
+      name: file.name || "untitled video",
+      file,
+      url,
+      duration: 8,
+      width: 16,
+      height: 9,
+      status: "loading",
+      error: "",
+      frames: [],
+      poster: null,
+      video: document.createElement("video")
+    };
+    asset.video.src = url;
+    asset.video.muted = true;
+    asset.video.playsInline = true;
+    asset.video.preload = "metadata";
+    asset.video.crossOrigin = "anonymous";
+
+    state.assets[assetId] = asset;
+    state.clips[clipId] = {
+      id: clipId,
+      assetId,
+      trackId: "track_1",
+      startTime: totalTimelineDuration(),
+      duration: 8,
+      inPoint: 0,
+      outPoint: 8,
+      selected: false,
+      locked: false,
+      muted: false,
+      label: file.name.replace(/\.[^.]+$/, "").slice(0, 42),
+      rollAngle: 0,
+      localFrameOffset: 0
+    };
+    state.order.push(clipId);
+    selectClip(clipId, false);
+
+    let metadataDone = false;
+    const failTimer = setTimeout(() => {
+      if(metadataDone) return;
+      asset.status = "fallback";
+      asset.error = "metadata slow; temporary 8s barrel created";
+      logSediment("fallback", clipId, "metadata slow");
+      updateUI(); draw();
+    }, 1800);
+
+    asset.video.addEventListener("loadedmetadata", async () => {
+      metadataDone = true;
+      clearTimeout(failTimer);
+      asset.duration = safeDuration(asset.video.duration);
+      asset.width = asset.video.videoWidth || 16;
+      asset.height = asset.video.videoHeight || 9;
+      asset.status = "playable";
+      const clip = state.clips[clipId];
+      if(clip){ clip.duration = asset.duration; clip.outPoint = asset.duration; }
+      logSediment("load", clipId, "playable " + fmtTime(asset.duration));
+      updateUI(); draw();
+      try{
+        await sampleFrames(asset, 10);
+        if(asset.frames.length){ asset.status = "sampled"; asset.poster = asset.frames[0]; }
+        updateUI(); draw();
+      }catch(err){
+        asset.status = "fallback";
+        asset.error = err && err.message ? err.message : "frame sampling failed";
+        logSediment("fallback", clipId, "sampling failed");
+        updateUI(); draw();
+      }
+    });
+    asset.video.addEventListener("error", () => {
+      metadataDone = true;
+      clearTimeout(failTimer);
+      asset.status = "failed";
+      asset.error = "browser could not decode this file";
+      logSediment("failed", clipId, "decode error");
+      updateUI(); draw();
+    });
+    asset.video.load();
+  }
+
+  function totalTimelineDuration(){
+    return state.order.reduce((sum,id)=> sum + safeDuration(state.clips[id]?.duration), 0);
+  }
+
+  async function sampleFrames(asset, count){
+    const v = asset.video;
+    if(!v || !Number.isFinite(v.duration) || v.duration <= 0) throw new Error("no metadata");
+    const c = document.createElement("canvas");
+    const aspect = (asset.width || 16) / (asset.height || 9);
+    c.width = 180;
+    c.height = Math.max(80, Math.round(180 / aspect));
+    const cx = c.getContext("2d");
+    const times = [];
+    const dur = safeDuration(v.duration);
+    for(let i=0;i<count;i++) times.push(clamp((i + .5) / count * dur, 0, Math.max(.01, dur - .05)));
+    asset.frames = [];
+    for(const t of times){
+      await seekVideo(v, t);
+      cx.fillStyle = "#101820";
+      cx.fillRect(0,0,c.width,c.height);
+      try{ cx.drawImage(v, 0, 0, c.width, c.height); }catch(e){}
+      const img = new Image();
+      img.src = c.toDataURL("image/jpeg", .72);
+      await new Promise(res => { img.onload = res; img.onerror = res; });
+      asset.frames.push(img);
+    }
+  }
+
+  function seekVideo(v, time){
+    return new Promise(resolve => {
+      let done = false;
+      const finish = () => { if(done) return; done = true; v.removeEventListener("seeked", finish); resolve(); };
+      v.addEventListener("seeked", finish);
+      try{ v.currentTime = time; }catch(e){ finish(); }
+      setTimeout(finish, 900);
+    });
+  }
+
+  function selectClip(clipId, notify=true){
+    if(!state.clips[clipId]) return;
+    Object.values(state.clips).forEach(c => c.selected = false);
+    state.clips[clipId].selected = true;
+    state.selectedClipId = clipId;
+    state.selectedArcSectionId = "arc_" + clipId;
+    deriveFutures();
+    if(notify) toast("Selected " + state.clips[clipId].label);
+    updateUI();
+  }
+
+  function timelineScale(rectW, radius){
+    const total = Math.max(1, totalTimelineDuration());
+    const maxSpan = Math.PI * 1.58;
+    const base = Math.max(18, Math.min(44, rectW / Math.max(20, total)));
+    const fit = (maxSpan * radius) / total;
+    return Math.min(base, fit);
+  }
+
+  function computeArcs(){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    const cx = w * .5;
+    const cy = h * .52;
+    const radius = Math.max(92, Math.min(w, h) * .31 * state.viewportZoom);
+    const pps = timelineScale(w, radius);
+    const gap = .035;
+    const arcs = [];
+    const totalExtent = state.order.reduce((sum,id)=> sum + safeDuration(state.clips[id]?.duration) * pps / radius + gap, 0);
+    let a = -totalExtent / 2 + state.viewportAngle - Math.PI / 2;
+    state.order.forEach((id, index) => {
+      const clip = state.clips[id];
+      if(!clip) return;
+      const dur = safeDuration(clip.duration);
+      const extent = Math.max(.12, dur * pps / radius);
+      const start = a;
+      const end = a + extent;
+      arcs.push({ id:"arc_"+id, clipId:id, index, radius, arcLength:extent*radius, startAngle:start, endAngle:end, extent, cx, cy, pps });
+      a = end + gap;
+    });
+    return { arcs, cx, cy, radius, pps, w, h };
+  }
+
+  function getArcForClip(clipId){
+    return computeArcs().arcs.find(a => a.clipId === clipId);
+  }
+
+  function clipLocalOffset(clip, arc){
+    const dur = safeDuration(clip.duration);
+    const extent = Math.max(.0001, arc ? arc.extent : 1);
+    return mod((clip.rollAngle || 0) / extent * dur, dur);
+  }
+
+  function getSnapRailsForClip(clip, arc){
+    if(!clip || !arc) return [];
+    const dur = safeDuration(clip.duration);
+    const rails = [];
+    const seconds = Math.ceil(dur);
+    for(let s=0; s<=seconds; s++){
+      const time = Math.min(dur, s);
+      const angle = arc.startAngle + (time / dur) * arc.extent;
+      rails.push({ id:"sec_"+s, time, angle, label:fmtTime(time), strength: s % 5 === 0 ? 1 : .55, kind:"second" });
+    }
+    state.spliceMarks.filter(m => m.clipId === clip.id).forEach(m => {
+      rails.push({ id:m.id, time:m.time, angle:arc.startAngle + (m.time / dur) * arc.extent, label:m.kind.toUpperCase(), strength:1.25, kind:m.kind });
+    });
+    state.annotations.filter(a => a.clipId === clip.id).forEach(m => {
+      rails.push({ id:m.id, time:m.time, angle:arc.startAngle + (m.time / dur) * arc.extent, label:m.label, strength:1.15, kind:"annotation" });
+    });
+    return rails;
+  }
+
+  function nearestSnap(clip, arc){
+    if(!clip || !arc) return null;
+    const offset = clipLocalOffset(clip, arc);
+    const rails = getSnapRailsForClip(clip, arc);
+    let best = null;
+    rails.forEach(r => {
+      const d = Math.abs(r.time - offset);
+      if(!best || d < best.d) best = { rail:r, d };
+    });
+    if(best && best.d <= .22) return best;
+    return null;
+  }
+
+  function draw(){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    ctx.save();
+    ctx.setTransform(window.devicePixelRatio ? Math.max(1, Math.min(2.5, window.devicePixelRatio)) : 1,0,0,window.devicePixelRatio ? Math.max(1, Math.min(2.5, window.devicePixelRatio)) : 1,0,0);
+    ctx.clearRect(0,0,w,h);
+    drawBackground(w,h);
+    if(!state.order.length){
+      dropHint.classList.remove("hidden");
+      ctx.restore();
+      return;
+    }
+    dropHint.classList.add("hidden");
+    if(state.activeView === "tunnel") drawTunnel();
+    if(state.activeView === "strip") drawStrip();
+    if(state.activeView === "side") drawSide();
+    if(state.activeView === "future") drawFutureCanvas();
+    ctx.restore();
+  }
+
+  function drawBackground(w,h){
+    const g = ctx.createRadialGradient(w*.5,h*.42,30,w*.5,h*.5,Math.max(w,h)*.72);
+    g.addColorStop(0,"#101821");
+    g.addColorStop(.45,"#030609");
+    g.addColorStop(1,"#000");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle = "rgba(255,255,255,.045)";
+    ctx.lineWidth = 1;
+    const step = 40;
+    for(let x = (w%step); x<w; x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+    for(let y = (h%step); y<h; y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  }
+
+  function drawTunnel(){
+    const layout = computeArcs();
+    const { arcs, cx, cy, radius, w, h } = layout;
+    drawMachineCore(cx,cy,radius);
+    arcs.forEach(arc => drawArcSection(arc));
+    drawGhostNeighbors(layout);
+    drawTunnelTelemetry(layout);
+  }
+
+  function drawMachineCore(cx,cy,r){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.strokeStyle = "rgba(125,252,195,.1)";
+    ctx.lineWidth = 1;
+    for(let i=0;i<5;i++){
+      ctx.beginPath(); ctx.arc(0,0,r - 72 + i*36,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(98,215,255,.08)";
+    for(let i=0;i<16;i++){
+      const a = i/16*Math.PI*2 + state.viewportAngle;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*(r-95), Math.sin(a)*(r-95)); ctx.lineTo(Math.cos(a)*(r+75), Math.sin(a)*(r+75)); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawArcSection(arc){
+    const clip = state.clips[arc.clipId];
+    const asset = state.assets[clip.assetId];
+    const selected = clip.id === state.selectedClipId;
+    const r = arc.radius;
+    const band = selected ? 58 : 48;
+    const outer = r + band/2 + 28;
+    ctx.save();
+
+    ctx.lineCap = "round";
+    ctx.lineWidth = band + 16;
+    ctx.strokeStyle = selected ? "rgba(125,252,195,.12)" : "rgba(255,255,255,.045)";
+    ctx.beginPath(); ctx.arc(arc.cx, arc.cy, r, arc.startAngle, arc.endAngle); ctx.stroke();
+    ctx.lineWidth = band;
+    ctx.strokeStyle = selected ? "rgba(125,252,195,.18)" : "rgba(28,38,49,.88)";
+    ctx.beginPath(); ctx.arc(arc.cx, arc.cy, r, arc.startAngle, arc.endAngle); ctx.stroke();
+
+    drawExternalRails(clip, arc, outer);
+
+    const slots = clamp(Math.floor(arc.extent * r / 58), 2, 12);
+    const rollFrac = selected ? mod((clip.rollAngle || 0) / Math.max(.0001, arc.extent), 1) : 0;
+    for(let i=0;i<slots;i++){
+      const t = (i + .5) / slots;
+      const a = arc.startAngle + t * arc.extent;
+      const mediaT = mod(t + rollFrac, 1);
+      drawThumbOnArc(asset, arc.cx, arc.cy, r, a, mediaT, selected, clip);
+    }
+
+    ctx.lineWidth = selected ? 3 : 1.5;
+    ctx.strokeStyle = selected ? colors.hot : "rgba(255,255,255,.15)";
+    ctx.beginPath(); ctx.arc(arc.cx, arc.cy, r + band/2 + 3, arc.startAngle, arc.endAngle); ctx.stroke();
+    ctx.beginPath(); ctx.arc(arc.cx, arc.cy, r - band/2 - 3, arc.startAngle, arc.endAngle); ctx.stroke();
+
+    if(selected) drawRollHandle(clip, arc);
+    ctx.restore();
+  }
+
+  function drawExternalRails(clip, arc, railRadius){
+    const rails = getSnapRailsForClip(clip, arc);
+    ctx.save();
+    rails.forEach((rail, i) => {
+      const a = rail.angle;
+      const len = rail.strength > 1 ? 20 : (rail.strength > .9 ? 15 : 9);
+      const x1 = arc.cx + Math.cos(a) * railRadius;
+      const y1 = arc.cy + Math.sin(a) * railRadius;
+      const x2 = arc.cx + Math.cos(a) * (railRadius + len);
+      const y2 = arc.cy + Math.sin(a) * (railRadius + len);
+      ctx.strokeStyle = rail.kind === "annotation" ? colors.purple : (rail.kind === "cut" ? colors.warn : "rgba(255,255,255,.28)");
+      ctx.lineWidth = rail.strength > 1 ? 2 : 1;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      if(clip.id === state.selectedClipId && (i % 5 === 0 || rail.strength > 1)){
+        const lx = arc.cx + Math.cos(a) * (railRadius + len + 16);
+        const ly = arc.cy + Math.sin(a) * (railRadius + len + 16);
+        ctx.fillStyle = "rgba(255,255,255,.56)";
+        ctx.font = "9px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(rail.label.replace("00:",""), lx, ly);
+      }
+    });
+    ctx.restore();
+  }
+
+  function drawThumbOnArc(asset, cx, cy, r, angle, mediaT, selected, clip){
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    const tw = selected ? 76 : 66;
+    const th = selected ? 48 : 40;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle + Math.PI/2);
+    roundRect(ctx, -tw/2, -th/2, tw, th, 9);
+    ctx.clip();
+    ctx.fillStyle = "#101820";
+    ctx.fillRect(-tw/2,-th/2,tw,th);
+    const frames = asset.frames || [];
+    if(frames.length){
+      const img = frames[Math.floor(mediaT * frames.length) % frames.length];
+      drawImageCover(ctx, img, -tw/2, -th/2, tw, th);
+    }else{
+      drawMediaFallback(asset, clip, -tw/2, -th/2, tw, th);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle + Math.PI/2);
+    ctx.strokeStyle = selected ? colors.hot : "rgba(255,255,255,.18)";
+    ctx.lineWidth = selected ? 2 : 1;
+    roundRect(ctx, -tw/2, -th/2, tw, th, 9);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMediaFallback(asset, clip, x,y,w,h){
+    const grd = ctx.createLinearGradient(x,y,x+w,y+h);
+    const status = asset.status;
+    grd.addColorStop(0, status === "failed" ? "#351018" : "#11202b");
+    grd.addColorStop(1, status === "loading" ? "#182d25" : "#05070a");
+    ctx.fillStyle = grd;
+    ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = status === "failed" ? colors.bad : (status === "loading" ? colors.hot : colors.muted);
+    ctx.font = "8px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(status.toUpperCase(), x+w/2, y+h/2-5);
+    ctx.fillStyle = "rgba(255,255,255,.65)";
+    ctx.fillText((clip.label || asset.name || "clip").slice(0,13), x+w/2, y+h/2+7);
+  }
+
+  function drawRollHandle(clip, arc){
+    const offset = clipLocalOffset(clip, arc);
+    const a = arc.startAngle + (offset / safeDuration(clip.duration)) * arc.extent;
+    const rr = arc.radius - 47;
+    const x = arc.cx + Math.cos(a) * rr;
+    const y = arc.cy + Math.sin(a) * rr;
+    ctx.save();
+    ctx.fillStyle = colors.hot;
+    ctx.strokeStyle = "rgba(0,0,0,.65)";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x,y,9,0,Math.PI*2); ctx.stroke(); ctx.fill();
+    ctx.strokeStyle = colors.hot;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(arc.cx + Math.cos(a)*(rr-18), arc.cy + Math.sin(a)*(rr-18)); ctx.lineTo(arc.cx + Math.cos(a)*(rr+22), arc.cy + Math.sin(a)*(rr+22)); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGhostNeighbors(layout){
+    const sel = selectedClip();
+    if(!sel) return;
+    const idx = state.order.indexOf(sel.id);
+    const prev = idx > 0 ? state.clips[state.order[idx-1]] : null;
+    const next = idx < state.order.length - 1 ? state.clips[state.order[idx+1]] : null;
+    const arc = layout.arcs.find(a=>a.clipId===sel.id);
+    if(!arc) return;
+    const offset = clipLocalOffset(sel, arc);
+    const dur = safeDuration(sel.duration);
+    const pressure = Math.max(offset/dur, 1 - offset/dur);
+    state.ghostFrames = [];
+    if(prev) state.ghostFrames.push({ clipId:prev.id, position:"entering", opacity:clamp(offset/dur, .12, .5) });
+    if(next) state.ghostFrames.push({ clipId:next.id, position:"leaving", opacity:clamp(1 - offset/dur, .12, .5) });
+    const ghosts = [
+      { clip:prev, angle:arc.startAngle - .18, label:"IN" },
+      { clip:next, angle:arc.endAngle + .18, label:"OUT" }
+    ].filter(g=>g.clip);
+    ghosts.forEach(g => {
+      const asset = state.assets[g.clip.assetId];
+      const x = arc.cx + Math.cos(g.angle) * arc.radius;
+      const y = arc.cy + Math.sin(g.angle) * arc.radius;
+      ctx.save();
+      ctx.globalAlpha = .28;
+      ctx.translate(x,y); ctx.rotate(g.angle + Math.PI/2);
+      roundRect(ctx,-58/2,-36/2,58,36,8); ctx.clip();
+      if(asset.frames && asset.frames.length) drawImageCover(ctx, asset.frames[0], -29,-18,58,36);
+      else drawMediaFallback(asset,g.clip,-29,-18,58,36);
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = .65;
+      ctx.fillStyle = colors.blue;
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(g.label, x, y - 30);
+      ctx.restore();
+    });
+  }
+
+  function drawTunnelTelemetry(layout){
+    const clip = selectedClip();
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    if(clip){
+      const arc = layout.arcs.find(a=>a.clipId===clip.id);
+      const off = arc ? clipLocalOffset(clip, arc) : 0;
+      const snap = arc ? nearestSnap(clip, arc) : null;
+      state.lastSnapLabel = snap ? snap.rail.label : "—";
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      roundRect(ctx, layout.cx - 118, layout.cy - 38, 236, 76, 20); ctx.fill();
+      ctx.fillStyle = colors.hot;
+      ctx.font = "12px ui-monospace, monospace";
+      ctx.fillText("SELECTED " + String(state.order.indexOf(clip.id)+1).padStart(2,"0"), layout.cx, layout.cy - 16);
+      ctx.fillStyle = colors.fg;
+      ctx.font = "18px ui-monospace, monospace";
+      ctx.fillText(fmtTime(off), layout.cx, layout.cy + 5);
+      ctx.fillStyle = snap ? colors.warn : colors.muted;
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.fillText((clip.locked ? "LOCKED · " : "") + "ROLL " + deg(clip.rollAngle || 0) + "° · SNAP " + (snap ? snap.rail.label : "—"), layout.cx, layout.cy + 25);
+    }
+    ctx.restore();
+  }
+
+  function drawStrip(){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    const margin = Math.max(18, w*.05);
+    const y = h*.52;
+    const total = Math.max(1,totalTimelineDuration());
+    const trackW = w - margin*2;
+    ctx.save();
+    ctx.strokeStyle = "rgba(125,252,195,.24)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(margin, y - 62); ctx.lineTo(w-margin, y-62); ctx.stroke();
+    for(let s=0; s<=Math.ceil(total); s++){
+      const x = margin + (s/total)*trackW;
+      ctx.strokeStyle = s%5===0 ? "rgba(255,255,255,.45)" : "rgba(255,255,255,.16)";
+      ctx.beginPath(); ctx.moveTo(x,y-75); ctx.lineTo(x,y-50); ctx.stroke();
+      if(s%5===0){ ctx.fillStyle = colors.muted; ctx.font="10px ui-monospace, monospace"; ctx.textAlign="center"; ctx.fillText(fmtTime(s).slice(0,5),x,y-84); }
+    }
+    let x = margin;
+    state.order.forEach(id => {
+      const clip = state.clips[id]; if(!clip) return;
+      const asset = state.assets[clip.assetId];
+      const cw = Math.max(55, (safeDuration(clip.duration)/total)*trackW);
+      const selected = id === state.selectedClipId;
+      ctx.fillStyle = selected ? "rgba(125,252,195,.16)" : "rgba(255,255,255,.05)";
+      roundRect(ctx,x,y-34,cw,86,15); ctx.fill();
+      ctx.strokeStyle = selected ? colors.hot : "rgba(255,255,255,.16)";
+      ctx.lineWidth = selected ? 2 : 1;
+      roundRect(ctx,x,y-34,cw,86,15); ctx.stroke();
+      const slots = clamp(Math.floor(cw/70),1,8);
+      for(let i=0;i<slots;i++){
+        const tw = Math.min(64, (cw-16)/slots - 4);
+        const tx = x + 8 + i*((cw-16)/slots);
+        const ty = y - 20;
+        ctx.save(); roundRect(ctx,tx,ty,tw,42,9); ctx.clip();
+        if(asset.frames && asset.frames.length) drawImageCover(ctx, asset.frames[Math.floor(i/slots*asset.frames.length)%asset.frames.length], tx,ty,tw,42);
+        else drawMediaFallback(asset,clip,tx,ty,tw,42);
+        ctx.restore();
+      }
+      ctx.fillStyle = selected ? colors.hot : colors.fg;
+      ctx.font = "11px ui-monospace, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText((clip.locked ? "LOCK · " : "") + clip.label.slice(0,24), x+10, y+42);
+      ctx.fillStyle = colors.muted;
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.fillText(fmtTime(clip.duration), x+10, y+58);
+      x += cw;
+    });
+    ctx.restore();
+  }
+
+  function drawSide(){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    const clip = selectedClip();
+    const cx = w*.5, cy = h*.5;
+    const r = Math.max(80, Math.min(w,h)*.24);
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    roundRect(ctx,cx-r-120,cy-r-80,r*2+240,r*2+160,28); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.12)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = "rgba(125,252,195,.2)";
+    ctx.beginPath(); ctx.arc(cx,cy,r+38,0,Math.PI*2); ctx.stroke();
+    if(!clip){
+      ctx.fillStyle = colors.muted; ctx.font="14px ui-monospace, monospace"; ctx.textAlign="center"; ctx.fillText("NO SELECTED SECTION",cx,cy); ctx.restore(); return;
+    }
+    const asset = state.assets[clip.assetId];
+    const fakeArc = { startAngle: -Math.PI/2, extent: Math.PI*2, radius:r, cx, cy };
+    const rails = getSnapRailsForClip(clip, fakeArc);
+    rails.forEach((rail,i)=>{
+      const a = -Math.PI/2 + (rail.time/safeDuration(clip.duration))*Math.PI*2;
+      const len = i%5===0 ? 22 : 12;
+      ctx.strokeStyle = rail.kind === "annotation" ? colors.purple : "rgba(255,255,255,.3)";
+      ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*(r+38),cy+Math.sin(a)*(r+38)); ctx.lineTo(cx+Math.cos(a)*(r+38+len),cy+Math.sin(a)*(r+38+len)); ctx.stroke();
+    });
+    const angle = -Math.PI/2 + (clipLocalOffset(clip, fakeArc)/safeDuration(clip.duration))*Math.PI*2;
+    ctx.strokeStyle = colors.hot; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(angle)*r, cy+Math.sin(angle)*r); ctx.stroke();
+    ctx.fillStyle = colors.hot; ctx.beginPath(); ctx.arc(cx+Math.cos(angle)*r, cy+Math.sin(angle)*r, 9, 0, Math.PI*2); ctx.fill();
+    const tw = Math.min(220, r*1.55), th = tw*.56;
+    ctx.save(); roundRect(ctx,cx-tw/2,cy-th/2,tw,th,18); ctx.clip();
+    if(asset.frames && asset.frames.length){
+      const idx = Math.floor((clipLocalOffset(clip, fakeArc)/safeDuration(clip.duration))*asset.frames.length)%asset.frames.length;
+      drawImageCover(ctx, asset.frames[idx], cx-tw/2,cy-th/2,tw,th);
+    }else drawMediaFallback(asset,clip,cx-tw/2,cy-th/2,tw,th);
+    ctx.restore();
+    ctx.strokeStyle = colors.hot; ctx.lineWidth = 2; roundRect(ctx,cx-tw/2,cy-th/2,tw,th,18); ctx.stroke();
+    ctx.fillStyle = colors.fg; ctx.font="13px ui-monospace, monospace"; ctx.textAlign="center";
+    ctx.fillText("LOCAL BARREL ROLL · " + deg(clip.rollAngle||0) + "°", cx, cy+r+72);
+    ctx.fillStyle = colors.muted; ctx.font="11px ui-monospace, monospace";
+    ctx.fillText("external rails do not deform footage", cx, cy+r+91);
+    ctx.restore();
+  }
+
+  function drawFutureCanvas(){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    deriveFutures();
+    const futures = state.projectionFutures;
+    ctx.save();
+    ctx.fillStyle = colors.hot;
+    ctx.font = "15px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("PROJECTED FUTURES FROM CURRENT EDIT GRAPH", w/2, 54);
+    const cols = w > 760 ? 3 : 1;
+    const cardW = Math.min(260, (w - 70) / cols);
+    const cardH = 126;
+    const startX = (w - cols*cardW - (cols-1)*16)/2;
+    futures.forEach((f,i)=>{
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col*(cardW+16);
+      const y = 92 + row*(cardH+16);
+      ctx.fillStyle = "rgba(255,255,255,.045)"; roundRect(ctx,x,y,cardW,cardH,18); ctx.fill();
+      ctx.strokeStyle = f.confidence > .7 ? colors.hot : "rgba(255,255,255,.18)"; ctx.lineWidth = 1.5; roundRect(ctx,x,y,cardW,cardH,18); ctx.stroke();
+      ctx.fillStyle = colors.fg; ctx.font="13px ui-monospace, monospace"; ctx.textAlign="left"; ctx.fillText(f.label,x+14,y+25);
+      ctx.fillStyle = colors.muted; ctx.font="10px ui-monospace, monospace"; wrapText(ctx,f.detail,x+14,y+48,cardW-28,14,3);
+      ctx.fillStyle = colors.hot; ctx.font="10px ui-monospace, monospace"; ctx.fillText("CONF " + Math.round(f.confidence*100) + "%", x+14, y+cardH-17);
+    });
+    if(!futures.length){ ctx.fillStyle=colors.muted; ctx.fillText("Select or load a clip to produce futures",w/2,h/2); }
+    ctx.restore();
+  }
+
+  function deriveFutures(){
+    const clip = selectedClip();
+    if(!clip){ state.projectionFutures = []; return; }
+    const arc = getArcForClip(clip);
+    const offset = arc ? clipLocalOffset(clip, arc) : 0;
+    const snap = arc ? nearestSnap(clip, arc) : null;
+    const dur = safeDuration(clip.duration);
+    const futures = [
+      { id:"f_roll_fwd", label:"Roll +1s", action:"roll_forward", confidence:.78, detail:"Advance local barrel surface one second. Neighbor ghosts update before commit." },
+      { id:"f_roll_back", label:"Roll -1s", action:"roll_backward", confidence:.74, detail:"Reverse local barrel surface one second. Root tunnel remains locked." },
+      { id:"f_split", label:"Split here", action:"splice_here", confidence: offset>.25 && offset<dur-.25 ? .88 : .36, detail:"Cut selected section at " + fmtTime(offset) + ". Sediment mark becomes a splice rail." },
+      { id:"f_duplicate", label:"Duplicate after", action:"duplicate", confidence:.72, detail:"Clone selected clip after itself with same media reference and roll state." },
+      { id:"f_delete", label:"Remove section", action:"delete", confidence: state.order.length>1 ? .52 : .18, detail:"Delete selected section. Media asset remains in cache." }
+    ];
+    if(snap) futures.unshift({ id:"f_snap", label:"Snap " + snap.rail.label, action:"snap_next", confidence:.94, detail:"Set local roll to nearest external timing rail without stretching footage." });
+    else futures.unshift({ id:"f_next_rail", label:"Find next rail", action:"snap_next", confidence:.62, detail:"Move selected roll position to the next second or splice rail." });
+    state.projectionFutures = futures;
+  }
+
+  function performAction(action){
+    hideContextMenu();
+    const clip = selectedClip();
+    if(!clip && action !== "revealStrip"){ toast("Select a clip first"); return; }
+    if(action === "split") return splitClip();
+    if(action === "copy") return copyClip();
+    if(action === "duplicate") return duplicateClip();
+    if(action === "delete") return deleteClip();
+    if(action === "lock") return toggleLock();
+    if(action === "annotate") return annotateClip();
+    if(action === "project") { deriveFutures(); setView("future"); toast("Projected futures derived"); return; }
+    if(action === "revealStrip") { setView("strip"); return; }
+    if(action === "fit") { state.viewportZoom = 1.12; toast("Fit selected section"); draw(); return; }
+    if(action === "roll_forward") return rollBy(1);
+    if(action === "roll_backward") return rollBy(-1);
+    if(action === "snap_next") return snapToNextRail();
+    if(action === "splice_here") return splitClip();
+  }
+
+  function currentOffsetAndArc(){
+    const clip = selectedClip();
+    const arc = clip ? getArcForClip(clip) : null;
+    return { clip, arc, offset: clip && arc ? clipLocalOffset(clip, arc) : 0 };
+  }
+
+  function splitClip(){
+    const { clip, arc, offset } = currentOffsetAndArc();
+    if(!clip || clip.locked){ toast(clip && clip.locked ? "Locked section" : "No clip"); return; }
+    const dur = safeDuration(clip.duration);
+    const t = clamp(offset || dur/2, .25, dur-.25);
+    if(t <= .25 || t >= dur-.25){ toast("Split needs interior frame"); return; }
+    snapshot("split");
+    const newId = uid("clip");
+    const oldDur = clip.duration;
+    const rem = oldDur - t;
+    clip.duration = t;
+    clip.outPoint = clip.inPoint + t;
+    state.clips[newId] = {
+      ...JSON.parse(JSON.stringify(clip)),
+      id:newId,
+      startTime:clip.startTime + t,
+      duration:rem,
+      inPoint:clip.inPoint + t,
+      outPoint:clip.inPoint + t + rem,
+      label:clip.label + " / B",
+      rollAngle:0,
+      localFrameOffset:0,
+      selected:false,
+      locked:false
+    };
+    const idx = state.order.indexOf(clip.id);
+    state.order.splice(idx+1,0,newId);
+    state.spliceMarks.push({ id:uid("mark"), clipId:clip.id, time:t, kind:"cut", createdAt:Date.now() });
+    logSediment("cut", clip.id, "split at " + fmtTime(t));
+    selectClip(newId, false);
+    updateUI(); draw(); toast("Split at " + fmtTime(t));
+  }
+
+  function copyClip(){
+    const clip = selectedClip(); if(!clip) return;
+    state.clipboardClip = JSON.parse(JSON.stringify(clip));
+    try{ navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(state.clipboardClip, null, 2)); }catch(e){}
+    logSediment("copy", clip.id, "copied section");
+    updateUI(); draw(); toast("Copied section");
+  }
+
+  function duplicateClip(){
+    const clip = selectedClip(); if(!clip || clip.locked){ toast(clip && clip.locked ? "Locked section" : "No clip"); return; }
+    snapshot("duplicate");
+    const newId = uid("clip");
+    const dup = JSON.parse(JSON.stringify(clip));
+    dup.id = newId;
+    dup.label = clip.label + " copy";
+    dup.selected = false;
+    dup.locked = false;
+    dup.startTime = clip.startTime + clip.duration;
+    state.clips[newId] = dup;
+    const idx = state.order.indexOf(clip.id);
+    state.order.splice(idx+1,0,newId);
+    logSediment("duplicate", clip.id, "duplicated after");
+    selectClip(newId, false);
+    updateUI(); draw(); toast("Duplicated");
+  }
+
+  function deleteClip(){
+    const clip = selectedClip(); if(!clip || clip.locked){ toast(clip && clip.locked ? "Locked section" : "No clip"); return; }
+    snapshot("delete");
+    const idx = state.order.indexOf(clip.id);
+    state.order = state.order.filter(id=>id!==clip.id);
+    delete state.clips[clip.id];
+    state.spliceMarks = state.spliceMarks.filter(m=>m.clipId!==clip.id);
+    state.annotations = state.annotations.filter(m=>m.clipId!==clip.id);
+    const next = state.order[Math.min(idx, state.order.length-1)] || state.order[0];
+    state.selectedClipId = null;
+    if(next) selectClip(next, false);
+    deriveFutures(); updateUI(); draw(); toast("Deleted section");
+  }
+
+  function toggleLock(){
+    const clip = selectedClip(); if(!clip) return;
+    snapshot("lock toggle");
+    clip.locked = !clip.locked;
+    logSediment(clip.locked ? "lock" : "unlock", clip.id, clip.locked ? "locked" : "unlocked");
+    updateUI(); draw(); toast(clip.locked ? "Locked" : "Unlocked");
+  }
+
+  function annotateClip(){
+    const { clip, arc, offset } = currentOffsetAndArc(); if(!clip) return;
+    const label = prompt("Annotation label", "watch here");
+    if(label === null) return;
+    snapshot("annotate");
+    state.annotations.push({ id:uid("ann"), clipId:clip.id, time:offset, label:label.trim() || "note", createdAt:Date.now() });
+    logSediment("annotation", clip.id, (label.trim() || "note") + " @ " + fmtTime(offset));
+    updateUI(); draw(); toast("Annotation rail added");
+  }
+
+  function rollBy(seconds){
+    const { clip, arc } = currentOffsetAndArc(); if(!clip || !arc || clip.locked) return;
+    snapshot("roll");
+    clip.rollAngle = (clip.rollAngle || 0) + (seconds / safeDuration(clip.duration)) * arc.extent;
+    logSediment("roll", clip.id, (seconds>0?"+":"") + seconds + "s");
+    updateUI(); draw();
+  }
+
+  function snapToNextRail(){
+    const { clip, arc, offset } = currentOffsetAndArc(); if(!clip || !arc || clip.locked) return;
+    const rails = getSnapRailsForClip(clip, arc).filter(r => r.time > offset + .05);
+    const target = rails[0] || getSnapRailsForClip(clip, arc)[0];
+    if(!target) return;
+    snapshot("snap");
+    clip.rollAngle = (target.time / safeDuration(clip.duration)) * arc.extent;
+    logSediment("snap", clip.id, target.label);
+    updateUI(); draw(); toast("Snapped " + target.label);
+  }
+
+  function logSediment(kind, clipId, note){
+    state.spliceMarks.push({ id:uid("sed"), clipId, time:0, kind, note, createdAt:Date.now(), sediment:true });
+    if(state.spliceMarks.length > 80) state.spliceMarks.shift();
+  }
+
+  function updateUI(){
+    document.getElementById("clipCount").textContent = state.order.length + " clips";
+    document.getElementById("futureCount").textContent = state.projectionFutures.length;
+    const clip = selectedClip();
+    const asset = selectedAsset();
+    const arc = clip ? getArcForClip(clip) : null;
+    const offset = clip && arc ? clipLocalOffset(clip, arc) : 0;
+    const snap = clip && arc ? nearestSnap(clip, arc) : null;
+    document.getElementById("selRead").textContent = clip ? String(state.order.indexOf(clip.id)+1).padStart(2,"0") : "NONE";
+    document.getElementById("rollRead").textContent = clip ? deg(clip.rollAngle || 0) + "°" : "0°";
+    document.getElementById("snapRead").textContent = snap ? snap.rail.label : "—";
+    document.getElementById("ghostRead").textContent = state.ghostFrames ? state.ghostFrames.length : 0;
+    document.getElementById("assetState").textContent = asset ? asset.status.toUpperCase() : "EMPTY";
+    statusLine.textContent = clip ? (state.activeView.toUpperCase() + " · " + state.mode.toUpperCase() + " · " + fmtTime(offset)) : "BED/FLOW/SEDIMENT ACTIVE";
+
+    const list = document.getElementById("clipList");
+    list.innerHTML = "";
+    if(!state.order.length){ list.innerHTML = '<div class="empty">No clips loaded. Drop video files onto the stage.</div>'; }
+    state.order.forEach((id, idx) => {
+      const c = state.clips[id]; const a = state.assets[c.assetId];
+      const item = document.createElement("div");
+      item.className = "clipItem" + (id===state.selectedClipId ? " selected" : "");
+      item.dataset.clipId = id;
+      const img = document.createElement("img");
+      img.className = "thumb";
+      if(a.frames && a.frames[0]) img.src = a.frames[0].src;
+      else img.alt = a.status;
+      const meta = document.createElement("div"); meta.className = "clipMeta";
+      meta.innerHTML = '<div class="clipName">' + escapeHtml(String(idx+1).padStart(2,"0") + " · " + c.label) + '</div><div class="clipState">' + escapeHtml(a.status + " · " + fmtTime(c.duration)) + '</div>';
+      const pill = document.createElement("div"); pill.className = "pill " + (c.locked ? "locked" : (a.status === "failed" ? "bad" : "ok")); pill.textContent = c.locked ? "LOCK" : a.status.toUpperCase();
+      item.appendChild(img); item.appendChild(meta); item.appendChild(pill);
+      item.addEventListener("click",()=>{ selectClip(id); draw(); });
+      list.appendChild(item);
+    });
+
+    if(asset && asset.url){
+      previewVideo.style.display = "block";
+      previewVideo.src = asset.url;
+      previewEmpty.textContent = asset.error || (asset.name + " · " + asset.status);
+    }else{
+      previewVideo.removeAttribute("src"); previewVideo.style.display = "none"; previewEmpty.textContent = "Load a clip. It will appear here, in the strip, and on the barrel.";
+    }
+
+    const fl = document.getElementById("futureList");
+    fl.innerHTML = "";
+    deriveFutures();
+    if(!state.projectionFutures.length) fl.innerHTML = '<div class="empty">No projected futures yet.</div>';
+    state.projectionFutures.forEach(f => {
+      const el = document.createElement("div"); el.className = "futureItem";
+      el.innerHTML = '<div><strong>' + escapeHtml(f.label) + '</strong><small>' + escapeHtml(f.detail) + '</small></div><button class="hot" data-action="' + escapeHtml(f.action) + '">Do</button>';
+      fl.appendChild(el);
+    });
+
+    const log = document.getElementById("log");
+    const marks = state.spliceMarks.slice(-9).reverse();
+    log.innerHTML = marks.length ? marks.map(m => "<div>" + new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + " · " + escapeHtml((m.kind||"mark").toUpperCase()) + " · " + escapeHtml(m.note || fmtTime(m.time || 0)) + "</div>").join("") : '<div class="empty">No sediment yet.</div>';
+  }
+
+  function setView(view, redraw=true){
+    state.activeView = view;
+    document.querySelectorAll("#viewSeg button").forEach(b=>b.classList.toggle("active", b.dataset.view === view));
+    if(redraw){ updateUI(); draw(); }
+  }
+
+  function setMode(mode, redraw=true){
+    state.mode = mode;
+    document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("active", b.dataset.mode === mode));
+    if(redraw){ updateUI(); draw(); }
+  }
+
+  function hitTestTunnel(x,y){
+    const layout = computeArcs();
+    const dx = x - layout.cx, dy = y - layout.cy;
+    const dist = Math.hypot(dx,dy);
+    const angle = Math.atan2(dy,dx);
+    for(const arc of layout.arcs){
+      const band = arc.clipId === state.selectedClipId ? 74 : 64;
+      if(dist < arc.radius - band/2 || dist > arc.radius + band/2) continue;
+      const mid = (arc.startAngle + arc.endAngle)/2;
+      const da = Math.atan2(Math.sin(angle-mid), Math.cos(angle-mid));
+      if(Math.abs(da) <= arc.extent/2 + .08) return arc.clipId;
+    }
+    return null;
+  }
+
+  function hitTestStrip(x,y){
+    const w = canvas.clientWidth || stageWrap.clientWidth;
+    const h = canvas.clientHeight || stageWrap.clientHeight;
+    const margin = Math.max(18, w*.05);
+    const total = Math.max(1,totalTimelineDuration());
+    const trackW = w - margin*2;
+    const yy = h*.52;
+    if(y < yy - 45 || y > yy + 65) return null;
+    let pos = margin;
+    for(const id of state.order){
+      const clip = state.clips[id];
+      const cw = Math.max(55, (safeDuration(clip.duration)/total)*trackW);
+      if(x >= pos && x <= pos + cw) return id;
+      pos += cw;
+    }
+    return null;
+  }
+
+  function canvasPoint(e){
+    const r = canvas.getBoundingClientRect();
+    return { x:e.clientX - r.left, y:e.clientY - r.top };
+  }
+
+  function pointerDown(e){
+    hideContextMenu();
+    const p = canvasPoint(e); state.lastPointer = p;
+    let hit = null;
+    if(state.activeView === "tunnel" || state.activeView === "side") hit = hitTestTunnel(p.x,p.y);
+    if(state.activeView === "strip") hit = hitTestStrip(p.x,p.y);
+    if(hit) selectClip(hit, false);
+    const clip = selectedClip();
+    const arc = clip ? getArcForClip(clip) : null;
+    state.gesture = {
+      id:e.pointerId,
+      x0:p.x, y0:p.y, x:p.x, y:p.y,
+      hitClipId: hit,
+      startRoll: clip ? (clip.rollAngle || 0) : 0,
+      startViewport: state.viewportAngle,
+      moved:false,
+      startedAt:Date.now(),
+      snapBefore: state.lastSnapLabel
+    };
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    if(hit && state.mode === "roll" && clip && !clip.locked){ snapshot("roll gesture"); }
+    clearTimeout(state.longPressTimer);
+    state.longPressTimer = setTimeout(()=>{
+      if(state.gesture && !state.gesture.moved && selectedClip()) showContextMenu(e.clientX, e.clientY);
+    }, 560);
+    updateUI(); draw();
+  }
+
+  function pointerMove(e){
+    if(!state.gesture) return;
+    const p = canvasPoint(e); state.lastPointer = p;
+    const g = state.gesture;
+    const dx = p.x - g.x0;
+    const dy = p.y - g.y0;
+    if(Math.hypot(dx,dy) > 5){ g.moved = true; clearTimeout(state.longPressTimer); }
+    const clip = selectedClip();
+    if(state.mode === "viewport"){
+      state.viewportAngle = g.startViewport + dx / 180;
+      draw(); return;
+    }
+    if(clip && !clip.locked && state.mode === "roll"){
+      const arc = getArcForClip(clip);
+      const gain = arc ? arc.extent / Math.max(90, arc.extent * arc.radius * .48) : .008;
+      const weighted = dx * gain + dy * gain * .28;
+      clip.rollAngle = g.startRoll + weighted;
+      const snap = arc ? nearestSnap(clip, arc) : null;
+      if(snap){ state.lastSnapLabel = snap.rail.label; }
+      deriveFutures(); updateUI(); draw();
+    }
+  }
+
+  function pointerUp(e){
+    clearTimeout(state.longPressTimer);
+    const g = state.gesture;
+    if(!g) return;
+    const clip = selectedClip();
+    const arc = clip ? getArcForClip(clip) : null;
+    if(clip && arc && state.mode === "roll" && !clip.locked){
+      const snap = nearestSnap(clip, arc);
+      if(snap && snap.d < .16){
+        clip.rollAngle = (snap.rail.time / safeDuration(clip.duration)) * arc.extent;
+        logSediment("snap", clip.id, snap.rail.label);
+        toast("Snap " + snap.rail.label);
+      }else if(g.moved){
+        logSediment("roll", clip.id, deg(clip.rollAngle || 0) + "°");
+      }
+    }
+    if(!g.moved && g.hitClipId){ selectClip(g.hitClipId); }
+    state.gesture = null;
+    deriveFutures(); updateUI(); draw();
+  }
+
+  function showContextMenu(x,y){
+    const pad = 12;
+    contextMenu.style.display = "block";
+    const r = contextMenu.getBoundingClientRect();
+    contextMenu.style.left = clamp(x, pad, window.innerWidth - r.width - pad) + "px";
+    contextMenu.style.top = clamp(y, pad, window.innerHeight - r.height - pad) + "px";
+  }
+  function hideContextMenu(){ contextMenu.style.display = "none"; }
+
+  function roundRect(c,x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+
+  function drawImageCover(c,img,x,y,w,h){
+    const iw = img.naturalWidth || img.width || w;
+    const ih = img.naturalHeight || img.height || h;
+    const s = Math.max(w/iw, h/ih);
+    const nw = iw*s, nh = ih*s;
+    c.drawImage(img, x+(w-nw)/2, y+(h-nh)/2, nw, nh);
+  }
+
+  function wrapText(c, text, x, y, maxWidth, lineHeight, maxLines){
+    const words = String(text).split(/\s+/);
+    let line = "", lines = 0;
+    for(let n=0;n<words.length;n++){
+      const test = line + words[n] + " ";
+      if(c.measureText(test).width > maxWidth && n>0){
+        c.fillText(line, x, y); line = words[n] + " "; y += lineHeight; lines++;
+        if(lines >= maxLines-1){ c.fillText(line + "…", x, y); return; }
+      }else line = test;
+    }
+    c.fillText(line, x, y);
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>'"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[ch]));
+  }
+
+  uploadBtn.addEventListener("click",()=>fileInput.click());
+  fileInput.addEventListener("change", e => ingestFiles(e.target.files));
+  undoBtn.addEventListener("click", undo);
+  drawerBtn.addEventListener("click",()=>drawer.classList.toggle("closed"));
+  drawerTab.addEventListener("click",()=>drawer.classList.toggle("closed"));
+  closeDrawerBtn.addEventListener("click",()=>drawer.classList.add("closed"));
+  document.querySelectorAll("#viewSeg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+  document.body.addEventListener("click", e => {
+    const actionEl = e.target.closest("[data-action]");
+    if(actionEl) performAction(actionEl.dataset.action);
+    if(!e.target.closest("#contextMenu")) hideContextMenu();
+  });
+  contextMenu.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("pointerdown", pointerDown);
+  canvas.addEventListener("pointermove", pointerMove);
+  canvas.addEventListener("pointerup", pointerUp);
+  canvas.addEventListener("pointercancel", pointerUp);
+  canvas.addEventListener("contextmenu", e => { e.preventDefault(); const p=canvasPoint(e); const hit = state.activeView === "strip" ? hitTestStrip(p.x,p.y) : hitTestTunnel(p.x,p.y); if(hit) selectClip(hit,false); showContextMenu(e.clientX,e.clientY); updateUI(); draw(); });
+  stageWrap.addEventListener("dragover", e => { e.preventDefault(); dropHint.classList.remove("hidden"); });
+  stageWrap.addEventListener("drop", e => { e.preventDefault(); ingestFiles(e.dataTransfer.files); });
+  window.addEventListener("resize", resize);
+  window.addEventListener("keydown", e => {
+    if(e.key === "Delete" || e.key === "Backspace") performAction("delete");
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z"){ e.preventDefault(); undo(); }
+    if(e.key === "1") setView("tunnel");
+    if(e.key === "2") setView("strip");
+    if(e.key === "3") setView("side");
+    if(e.key === "4") setView("future");
+    if(e.key.toLowerCase() === "v") setMode("viewport");
+    if(e.key.toLowerCase() === "r") setMode("roll");
+  });
+
+  resize();
+  updateUI();
+  draw();
+})();
+</script>
+</body>
+</html>

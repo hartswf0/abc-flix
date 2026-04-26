@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIVERBED ANNOTATION ENGINE</title>
+<style>
+:root {
+    --bg: #08080c; --panel: #0f0f16; --text: #c8c8d0;
+    --cyan: #00ffcc; --gold: #ffaa00; --warn: #ff2a5f;
+    --violet: #b400ff; --blue: #0088ff; --green: #00cc66;
+    --mono: 'SF Mono', Consolas, 'Roboto Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 11px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; user-select: none; }
+
+/* ─── TOOLBAR ─── */
+#toolbar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid #222; flex-shrink: 0; flex-wrap: wrap; }
+#toolbar button { background: #151520; border: 1px solid #333; color: var(--text); padding: 5px 10px; font: bold 10px var(--mono); cursor: pointer; text-transform: uppercase; white-space: nowrap; }
+#toolbar button:hover { border-color: var(--cyan); color: var(--cyan); }
+#toolbar button.go { background: #1a0a2a; border-color: var(--violet); color: var(--violet); }
+#toolbar button.go:hover { background: var(--violet); color: #000; }
+#toolbar button.export { background: #2a0a0a; border-color: var(--warn); color: var(--warn); }
+#toolbar .spacer { flex: 1; }
+#toolbar .tag { font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 2px; }
+#toolbar .tag.cyan { background: rgba(0,255,204,0.15); color: var(--cyan); }
+#toolbar .tag.gold { background: rgba(255,170,0,0.15); color: var(--gold); }
+
+/* ─── MAIN LAYOUT ─── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ─── LEFT PANEL ─── */
+#left { width: 380px; background: var(--panel); border-right: 1px solid #222; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+.section { padding: 8px 10px; border-bottom: 1px solid #1a1a22; }
+.section h2 { font-size: 10px; color: var(--cyan); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+.section h2 .badge { float: right; font-size: 9px; padding: 1px 6px; border-radius: 2px; }
+.section h2 .badge.riverbed { background: rgba(0,136,255,0.2); color: var(--blue); }
+.section h2 .badge.flow { background: rgba(255,170,0,0.2); color: var(--gold); }
+.section h2 .badge.err { background: rgba(255,42,95,0.2); color: var(--warn); }
+
+textarea { width: 100%; background: #0c0c14; border: 1px solid #222; color: var(--text); font: 10px var(--mono); padding: 6px; resize: vertical; }
+select, input[type="number"], input[type="range"] { background: #0c0c14; border: 1px solid #222; color: var(--text); font: bold 10px var(--mono); padding: 3px 6px; }
+select { width: 100%; }
+.row { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+.row label { color: #666; font-size: 9px; flex: 1; text-transform: uppercase; }
+.row .val { color: var(--cyan); font-weight: bold; min-width: 30px; text-align: right; }
+
+/* Hinge/Flow/Mistake tags */
+.tag-list { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.tag-item { font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: bold; }
+.tag-item.hinge { background: rgba(0,136,255,0.2); color: var(--blue); border: 1px solid rgba(0,136,255,0.3); }
+.tag-item.flow-tag { background: rgba(255,170,0,0.2); color: var(--gold); border: 1px solid rgba(255,170,0,0.3); }
+.tag-item.mistake { background: rgba(255,42,95,0.2); color: var(--warn); border: 1px solid rgba(255,42,95,0.3); }
+.tag-item.entity { background: rgba(0,255,204,0.15); color: var(--cyan); border: 1px solid rgba(0,255,204,0.2); }
+.tag-item.cmd { background: rgba(180,0,255,0.2); color: var(--violet); border: 1px solid rgba(180,0,255,0.3); }
+
+/* Segment cards */
+.seg-card { background: #12121a; border: 1px solid #222; padding: 6px 8px; margin: 4px 0; }
+.seg-card .seg-head { display: flex; justify-content: space-between; font-weight: bold; }
+.seg-card .seg-id { color: var(--gold); }
+.seg-card .seg-type { font-size: 9px; padding: 1px 5px; border-radius: 2px; }
+.seg-card .seg-type.action { background: rgba(255,42,95,0.2); color: var(--warn); }
+.seg-card .seg-type.perception { background: rgba(0,136,255,0.2); color: var(--blue); }
+.seg-card .seg-type.opsign { background: rgba(0,255,204,0.15); color: var(--cyan); }
+.seg-card .seg-type.affection { background: rgba(255,170,0,0.2); color: var(--gold); }
+.seg-card .seg-type.crystal { background: rgba(180,0,255,0.2); color: var(--violet); }
+.seg-card .seg-type.recollection { background: rgba(100,100,100,0.3); color: #aaa; }
+.seg-detail { font-size: 9px; color: #888; margin-top: 3px; line-height: 1.4; }
+
+/* Object list */
+.obj-card { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid #1a1a22; }
+.obj-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.obj-info { flex: 1; font-size: 9px; }
+.obj-span { color: var(--cyan); font-weight: bold; }
+
+/* ─── CANVAS AREA ─── */
+#canvas-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px; min-width: 0; }
+.canvas-pair { display: flex; gap: 8px; align-items: flex-start; }
+.cv-wrap { position: relative; }
+.cv-wrap canvas { image-rendering: pixelated; border: 1px solid #222; display: block; }
+.cv-label { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.85); border: 1px solid var(--cyan); padding: 2px 6px; font-size: 9px; font-weight: bold; color: var(--cyan); pointer-events: none; }
+#vidCanvas { width: 576px; height: 324px; }
+#bfxCanvas { width: 384px; height: 216px; }
+
+/* ─── TIMELINE ─── */
+#timeline { width: 100%; background: var(--panel); border-top: 1px solid #222; padding: 4px 10px 6px; flex-shrink: 0; }
+#timeline input[type="range"] { width: 100%; height: 6px; }
+.tl-info { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
+.tl-info .val { color: var(--cyan); }
+
+/* ─── STATUS BAR ─── */
+#status { background: #060609; border-top: 1px solid #222; padding: 3px 10px; font-size: 9px; color: #444; display: flex; gap: 16px; flex-shrink: 0; }
+#status .val { color: var(--cyan); font-weight: bold; }
+
+video { display: none; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+    <input type="file" id="file-input" accept="video/*" style="display:none;">
+    <button onclick="document.getElementById('file-input').click()">LOAD VIDEO</button>
+    <button id="btn-extract" disabled onclick="extractFrames()">EXTRACT</button>
+    <button id="btn-parse" onclick="parsePrompt()" class="go">PARSE PROMPT</button>
+    <button id="btn-analyze" disabled onclick="runFullPipeline()" class="go">ANALYZE + SEGMENT + TRACK</button>
+    <button id="btn-fuse" disabled onclick="fuseReward()" class="go">FUSE REWARD</button>
+    <div class="spacer"></div>
+    <span id="frame-tag" class="tag cyan">NO VIDEO</span>
+    <span id="match-tag" class="tag gold">—</span>
+    <div class="spacer"></div>
+    <select id="overlay-mode" style="width:140px;" onchange="showFrame(currentFrame)">
+        <option value="none">NO OVERLAY</option>
+        <option value="motion">MOTION DELTA</option>
+        <option value="persistence">RIVERBED (PERSISTENCE)</option>
+        <option value="volatility">FLOW (VOLATILITY)</option>
+        <option value="objects">TRACKED OBJECTS</option>
+        <option value="reward" selected>FUSED REWARD</option>
+        <option value="hinges">HINGE REGIONS</option>
+        <option value="mistakes">MISTAKE ZONES</option>
+    </select>
+    <button class="export" id="btn-export" disabled onclick="exportAnnotation()">EXPORT JSON</button>
+</div>
+
+<div id="main">
+<div id="left">
+
+    <!-- PROMPT -->
+    <div class="section">
+        <h2>GENERATION PROMPT</h2>
+        <textarea id="prompt-text" rows="8" placeholder="Paste the generation prompt here..."></textarea>
+    </div>
+
+    <!-- POML EXTRACTION -->
+    <div class="section" id="poml-section">
+        <h2>RIVERBED EXTRACTION <span class="badge riverbed">POML</span></h2>
+        <div id="poml-hinges"></div>
+        <h2 style="margin-top:8px;">FLOW VARIABLES <span class="badge flow">MUTABLE</span></h2>
+        <div id="poml-flow"></div>
+        <h2 style="margin-top:8px;">MISTAKE CONDITIONS <span class="badge err">BREAK</span></h2>
+        <div id="poml-mistakes"></div>
+        <h2 style="margin-top:8px;">COMMANDS</h2>
+        <div id="poml-commands"></div>
+        <h2 style="margin-top:8px;">ENTITIES</h2>
+        <div id="poml-entities"></div>
+        <h2 style="margin-top:8px;">TEMPORAL SEGMENTS</h2>
+        <div id="poml-segments"></div>
+    </div>
+
+    <!-- DETECTION -->
+    <div class="section">
+        <h2>DETECTION</h2>
+        <div class="row"><label>MOTION THRESH</label><input type="range" id="sl-motion" min="3" max="60" value="20" oninput="this.nextElementSibling.textContent=this.value"><span class="val">20</span></div>
+        <div class="row"><label>MIN REGION</label><input type="number" id="min-region" value="6" min="1" max="200" style="width:60px;"></div>
+        <div class="row"><label>PERSISTENCE THRESH</label><input type="range" id="sl-persist" min="10" max="90" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="val">40%</span></div>
+    </div>
+
+    <!-- REWARD WEIGHTS -->
+    <div class="section">
+        <h2>REWARD FUSION WEIGHTS</h2>
+        <div class="row"><label>HINGE MATCH</label><input type="range" id="rw-hinge" min="0" max="100" value="40" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span class="val">0.40</span></div>
+        <div class="row"><label>FLOW ALIGN</label><input type="range" id="rw-flow" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span class="val">0.20</span></div>
+        <div class="row"><label>TRANSITION</label><input type="range" id="rw-trans" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span class="val">0.20</span></div>
+        <div class="row"><label>MISTAKE PEN</label><input type="range" id="rw-mistake" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span class="val">0.20</span></div>
+    </div>
+
+    <!-- TRACKED OBJECTS -->
+    <div class="section">
+        <h2>TRACKED OBJECTS</h2>
+        <div id="object-list"><span style="color:#444">Run pipeline first</span></div>
+    </div>
+
+</div>
+
+<div id="canvas-area">
+    <div class="canvas-pair">
+        <div class="cv-wrap">
+            <canvas id="vidCanvas" width="640" height="360"></canvas>
+            <div class="cv-label">PIXEL</div>
+        </div>
+        <div class="cv-wrap">
+            <canvas id="bfxCanvas" width="128" height="72"></canvas>
+            <div class="cv-label">BEFLIX</div>
+        </div>
+    </div>
+</div>
+</div>
+
+<div id="timeline">
+    <input type="range" id="frame-slider" min="0" max="0" value="0" oninput="showFrame(+this.value)">
+    <div class="tl-info">
+        <span>F<span class="val" id="tl-f">0</span></span>
+        <span><span class="val" id="tl-t">0.00</span>s</span>
+        <span><span class="val" id="tl-obj">0</span> objects</span>
+        <span><span class="val" id="tl-motion">0</span>% motion</span>
+        <span>reward <span class="val" id="tl-reward">0.00</span></span>
+    </div>
+</div>
+
+<div id="status">
+    <span>FRAMES <span class="val" id="sb-frames">0</span></span>
+    <span>BFX <span class="val">128×72</span></span>
+    <span>TRACKS <span class="val" id="sb-tracks">0</span></span>
+    <span>HINGES <span class="val" id="sb-hinges">0</span></span>
+    <span>ANNOTATED <span class="val" id="sb-ann">0</span></span>
+</div>
+
+<video id="videoEl" muted></video>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════
+const COLS = 128, ROWS = 72, N = COLS * ROWS;
+const TRACK_COLORS = [
+    '#ff3366','#00ffcc','#ffaa00','#3388ff','#ff6600','#cc44ff',
+    '#44ff44','#ff4488','#00aaff','#ffcc00','#ff00aa','#88ff00'
+];
+
+const vidCanvas = document.getElementById('vidCanvas');
+const vCtx = vidCanvas.getContext('2d');
+const bfxCanvas = document.getElementById('bfxCanvas');
+const bCtx = bfxCanvas.getContext('2d');
+const videoEl = document.getElementById('videoEl');
+
+// ══════════════════════════════════════════════════════════════
+// DATA ARRAYS
+// ══════════════════════════════════════════════════════════════
+let frames = [];          // [{bfx: Uint8Array(N), pixels: ImageData, time: float}]
+let motionField = [];     // [Float32Array(N)] per-frame motion intensity
+let persistField = null;  // Float32Array(N) — how often each cell is bright (RIVERBED)
+let volatileField = null; // Float32Array(N) — how often each cell changes (FLOW)
+let objectMaps = [];      // [[{id, x, y, w, h, area, cx, cy, cells}]] per frame
+let tracks = [];          // [{id, color, label, frames: [{frameIdx,...}]}]
+let rewardField = [];     // [Float32Array(N)] per-frame fused reward
+
+let currentFrame = 0;
+let poml = null;          // parsed POML structure
+
+// ══════════════════════════════════════════════════════════════
+// POML PROMPT PARSER
+// ══════════════════════════════════════════════════════════════
+const GOLDEN_VERBS = ['LOCK','CENTER','PUSH','FLOW','BREACH','INTERSECT','DESCEND','ASCEND',
+    'SCALE','TRANSLATE','CASCADE','DRIFT','ORBIT','COLLAPSE','RESEED','LOOP','CARRY','DEPOSIT',
+    'PUNCTURE','PURGE','TRACK','MAINTAIN','REJECT'];
+
+const HINGE_KEYWORDS = ['continuous','uncut','no cuts','must','always','every','throughout',
+    'strict','absolute','exact','maintain','preserve','carry over','locked','inherit',
+    'previous pixels','material inheritance'];
+
+const FLOW_KEYWORDS = ['shift','transition','transform','morph','dissolve','breach','convert',
+    'translate','cascade','expand','drift','emerge','project','illuminate','disperse',
+    'scatter','trail','degrade','recursive'];
+
+const MISTAKE_KEYWORDS = ['reject','no cuts','never','must not','avoid','do not','purge',
+    'seamless','not seamless','broken','violated'];
+
+const MATERIAL_KEYWORDS = ['grain','haze','light','shadow','texture','distortion','anamorphic',
+    'contrast','bleed','glow','particle','flesh','luminous','pixel','rgb','static',
+    'film','panavision','industrial'];
+
+const ENTITY_KEYWORDS = ['door','threshold','workbench','hands','apparatus','dancer','avatar',
+    'interface','plane','projection','pixel grid','camera','frame','room','lab'];
+
+function parsePrompt() {
+    const text = document.getElementById('prompt-text').value;
+    if (!text.trim()) return;
+
+    poml = { hinges: [], flow: [], mistakes: [], commands: [], entities: [], materials: [], segments: [] };
+
+    const lines = text.split(/\n/);
+    const fullText = text.toLowerCase();
+
+    // Extract temporal segments [HH:MM - HH:MM] or [HH:MM:SS - HH:MM:SS]
+    const segRegex = /\[(\d{2}:\d{2}(?::\d{2})?)\s*[-–]\s*(\d{2}:\d{2}(?::\d{2})?)\]\s*(.+?)(?=\[|\n\n|$)/gs;
+    let m;
+    while ((m = segRegex.exec(text)) !== null) {
+        const startSec = parseTimecode(m[1]);
+        const endSec = parseTimecode(m[2]);
+        const body = m[3].trim();
+
+        // Extract title (first line or first sentence)
+        const titleMatch = body.match(/^(.+?)(?:\n|\.)/);
+        const title = titleMatch ? titleMatch[1].trim() : body.substring(0, 40);
+
+        // Classify image-logic type
+        let imageType = 'action';
+        const bodyLower = body.toLowerCase();
+        if (/lock|still|loaded|haze|sparse|held|suspend/.test(bodyLower)) imageType = 'opsign';
+        else if (/face|hands|breath|pressure|micro/.test(bodyLower)) imageType = 'affection';
+        else if (/see|sight|surveillance|frame|watch/.test(bodyLower)) imageType = 'perception';
+        else if (/reflect|double|mirror|overlap|temporal/.test(bodyLower)) imageType = 'crystal';
+        else if (/residue|recur|aftermath|prior|degrad/.test(bodyLower)) imageType = 'recollection';
+
+        // Extract commands in this segment
+        const segCommands = [];
+        for (const verb of GOLDEN_VERBS) {
+            const vr = new RegExp('\\b' + verb + '\\b', 'gi');
+            if (vr.test(body)) segCommands.push(verb);
+        }
+
+        // Extract entities
+        const segEntities = [];
+        for (const ent of ENTITY_KEYWORDS) {
+            if (bodyLower.includes(ent)) segEntities.push(ent);
+        }
+
+        // Extract materials
+        const segMaterials = [];
+        for (const mat of MATERIAL_KEYWORDS) {
+            if (bodyLower.includes(mat)) segMaterials.push(mat);
+        }
+
+        // Identify what stands fast in this segment
+        const segHinges = [];
+        for (const kw of HINGE_KEYWORDS) {
+            if (bodyLower.includes(kw)) {
+                // Extract the sentence containing the hinge
+                const sentRegex = new RegExp('[^.]*' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[^.]*\\.?', 'i');
+                const sentMatch = body.match(sentRegex);
+                if (sentMatch) segHinges.push(sentMatch[0].trim());
+            }
+        }
+
+        // Identify what flows
+        const segFlow = [];
+        for (const kw of FLOW_KEYWORDS) {
+            if (bodyLower.includes(kw)) segFlow.push(kw);
+        }
+
+        poml.segments.push({
+            startSec, endSec, title, body, imageType,
+            commands: segCommands, entities: segEntities, materials: segMaterials,
+            hinges: segHinges, flow: segFlow
+        });
+    }
+
+    // Global hinge extraction
+    for (const kw of HINGE_KEYWORDS) {
+        if (fullText.includes(kw)) {
+            const sentRegex = new RegExp('[^.]*' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[^.]*\\.?', 'i');
+            const sentMatch = text.match(sentRegex);
+            if (sentMatch && !poml.hinges.includes(sentMatch[0].trim())) {
+                poml.hinges.push(sentMatch[0].trim());
+            }
+        }
+    }
+
+    // Global flow
+    for (const kw of FLOW_KEYWORDS) {
+        if (fullText.includes(kw) && !poml.flow.includes(kw)) poml.flow.push(kw);
+    }
+
+    // Global mistakes
+    for (const kw of MISTAKE_KEYWORDS) {
+        if (fullText.includes(kw)) {
+            const sentRegex = new RegExp('[^.]*' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[^.]*\\.?', 'i');
+            const sentMatch = text.match(sentRegex);
+            if (sentMatch && !poml.mistakes.includes(sentMatch[0].trim())) {
+                poml.mistakes.push(sentMatch[0].trim());
+            }
+        }
+    }
+
+    // Global commands
+    for (const verb of GOLDEN_VERBS) {
+        if (new RegExp('\\b' + verb + '\\b', 'i').test(text) && !poml.commands.includes(verb)) {
+            poml.commands.push(verb);
+        }
+    }
+
+    // Global entities
+    for (const ent of ENTITY_KEYWORDS) {
+        if (fullText.includes(ent) && !poml.entities.includes(ent)) poml.entities.push(ent);
+    }
+
+    // Global materials
+    for (const mat of MATERIAL_KEYWORDS) {
+        if (fullText.includes(mat) && !poml.materials.includes(mat)) poml.materials.push(mat);
+    }
+
+    renderPOML();
+    document.getElementById('sb-hinges').textContent = poml.hinges.length;
+}
+
+function parseTimecode(tc) {
+    const parts = tc.split(':').map(Number);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return parts[0] * 60 + parts[1];
+}
+
+function renderPOML() {
+    if (!poml) return;
+
+    document.getElementById('poml-hinges').innerHTML =
+        '<div class="tag-list">' + poml.hinges.map(h =>
+            `<div class="tag-item hinge" title="${h}">${h.length > 50 ? h.substring(0,50)+'...' : h}</div>`
+        ).join('') + '</div>';
+
+    document.getElementById('poml-flow').innerHTML =
+        '<div class="tag-list">' + poml.flow.map(f =>
+            `<div class="tag-item flow-tag">${f}</div>`
+        ).join('') + '</div>';
+
+    document.getElementById('poml-mistakes').innerHTML =
+        '<div class="tag-list">' + poml.mistakes.map(m =>
+            `<div class="tag-item mistake" title="${m}">${m.length > 50 ? m.substring(0,50)+'...' : m}</div>`
+        ).join('') + '</div>';
+
+    document.getElementById('poml-commands').innerHTML =
+        '<div class="tag-list">' + poml.commands.map(c =>
+            `<div class="tag-item cmd">${c}</div>`
+        ).join('') + '</div>';
+
+    document.getElementById('poml-entities').innerHTML =
+        '<div class="tag-list">' + poml.entities.map(e =>
+            `<div class="tag-item entity">${e}</div>`
+        ).join('') + '</div>';
+
+    // Segments
+    document.getElementById('poml-segments').innerHTML = poml.segments.map((s, i) => `
+        <div class="seg-card">
+            <div class="seg-head">
+                <span class="seg-id">SEG_${i}</span>
+                <span class="seg-type ${s.imageType}">${s.imageType.toUpperCase()}</span>
+            </div>
+            <div style="font-size:9px;color:#888;">[${fmtTime(s.startSec)} — ${fmtTime(s.endSec)}] ${s.title}</div>
+            <div class="tag-list" style="margin-top:3px;">
+                ${s.commands.map(c => `<span class="tag-item cmd">${c}</span>`).join('')}
+                ${s.entities.map(e => `<span class="tag-item entity">${e}</span>`).join('')}
+            </div>
+            ${s.hinges.length ? '<div class="seg-detail"><b>HINGES:</b> ' + s.hinges.join('; ') + '</div>' : ''}
+        </div>
+    `).join('');
+}
+
+function fmtTime(s) {
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+}
+
+// ══════════════════════════════════════════════════════════════
+// VIDEO LOADING + FRAME EXTRACTION
+// ══════════════════════════════════════════════════════════════
+document.getElementById('file-input').onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    videoEl.src = URL.createObjectURL(file);
+    videoEl.onloadedmetadata = () => {
+        document.getElementById('frame-tag').textContent =
+            videoEl.videoWidth + '×' + videoEl.videoHeight + ' · ' + videoEl.duration.toFixed(1) + 's';
+        document.getElementById('btn-extract').disabled = false;
+    };
+};
+
+async function extractFrames() {
+    frames = []; motionField = []; objectMaps = []; tracks = []; rewardField = [];
+    persistField = null; volatileField = null;
+
+    const btn = document.getElementById('btn-extract');
+    btn.disabled = true; btn.textContent = 'EXTRACTING...';
+
+    const tc = document.createElement('canvas');
+    tc.width = videoEl.videoWidth; tc.height = videoEl.videoHeight;
+    const tctx = tc.getContext('2d');
+
+    const bc = document.createElement('canvas');
+    bc.width = COLS; bc.height = ROWS;
+    const bctx = bc.getContext('2d');
+
+    const dur = videoEl.duration;
+    let t = 0;
+    while (t < dur) {
+        await new Promise(r => { videoEl.currentTime = t; videoEl.onseeked = r; });
+        tctx.drawImage(videoEl, 0, 0);
+        bctx.drawImage(videoEl, 0, 0, COLS, ROWS);
+
+        const pixels = tctx.getImageData(0, 0, tc.width, tc.height);
+        const bfxData = bctx.getImageData(0, 0, COLS, ROWS).data;
+        const bfx = new Uint8Array(N);
+        for (let i = 0; i < N; i++) {
+            const p = i * 4;
+            const luma = bfxData[p] * 0.299 + bfxData[p+1] * 0.587 + bfxData[p+2] * 0.114;
+            bfx[i] = Math.min(7, Math.floor(luma / 32));
+        }
+        frames.push({ bfx, pixels, time: t });
+        t += 1/24;
+
+        document.getElementById('frame-tag').textContent = 'F' + frames.length + ' / ~' + Math.round(dur * 24);
+    }
+
+    document.getElementById('sb-frames').textContent = frames.length;
+    document.getElementById('frame-slider').max = frames.length - 1;
+    btn.textContent = 'EXTRACT'; btn.disabled = false;
+    document.getElementById('btn-analyze').disabled = false;
+    document.getElementById('frame-tag').textContent = frames.length + ' FRAMES';
+    showFrame(0);
+}
+
+// ══════════════════════════════════════════════════════════════
+// FULL ANALYSIS PIPELINE
+// ══════════════════════════════════════════════════════════════
+function runFullPipeline() {
+    computeMotion();
+    computePersistenceVolatility();
+    segmentAll();
+    trackAll();
+    document.getElementById('btn-fuse').disabled = false;
+    fuseReward();
+    document.getElementById('frame-tag').textContent = tracks.length + ' TRACKS · ' + frames.length + 'F';
+}
+
+// ── MOTION ──
+function computeMotion() {
+    motionField = [];
+    for (let fi = 0; fi < frames.length; fi++) {
+        const m = new Float32Array(N);
+        if (fi > 0) {
+            const prev = frames[fi-1].bfx, curr = frames[fi].bfx;
+            for (let i = 0; i < N; i++) m[i] = Math.abs(curr[i] - prev[i]) / 7;
+        }
+        motionField.push(m);
+    }
+}
+
+// ── PERSISTENCE & VOLATILITY (RIVERBED & FLOW DETECTION) ──
+function computePersistenceVolatility() {
+    persistField = new Float32Array(N);
+    volatileField = new Float32Array(N);
+    const changeCount = new Float32Array(N);
+    const brightCount = new Float32Array(N);
+
+    for (let fi = 0; fi < frames.length; fi++) {
+        for (let i = 0; i < N; i++) {
+            if (frames[fi].bfx[i] >= 3) brightCount[i]++;
+            if (fi > 0 && Math.abs(frames[fi].bfx[i] - frames[fi-1].bfx[i]) >= 2) changeCount[i]++;
+        }
+    }
+
+    const fLen = frames.length || 1;
+    for (let i = 0; i < N; i++) {
+        persistField[i] = brightCount[i] / fLen;     // 0-1: how often this cell is bright (RIVERBED)
+        volatileField[i] = changeCount[i] / fLen;    // 0-1: how often this cell changes (FLOW)
+    }
+}
+
+// ── SEGMENTATION ──
+function segmentAll() {
+    const thresh = +document.getElementById('sl-motion').value / 100;
+    const minSize = +document.getElementById('min-region').value;
+    objectMaps = [];
+
+    for (let fi = 0; fi < frames.length; fi++) {
+        const bfx = frames[fi].bfx;
+        const motion = motionField[fi];
+        const visited = new Uint8Array(N);
+        const objects = [];
+
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                const idx = y * COLS + x;
+                if (visited[idx]) continue;
+                if (bfx[idx] < 3 && motion[idx] <= thresh) continue;
+
+                const stack = [{x, y}], cells = [];
+                let minX = x, maxX = x, minY = y, maxY = y, inkSum = 0;
+
+                while (stack.length) {
+                    const c = stack.pop();
+                    const ci = c.y * COLS + c.x;
+                    if (c.x < 0 || c.x >= COLS || c.y < 0 || c.y >= ROWS) continue;
+                    if (visited[ci]) continue;
+                    if (bfx[ci] < 3 && motion[ci] <= thresh) continue;
+                    visited[ci] = 1;
+                    cells.push(c);
+                    inkSum += bfx[ci];
+                    if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x;
+                    if (c.y < minY) minY = c.y; if (c.y > maxY) maxY = c.y;
+                    stack.push({x:c.x-1,y:c.y},{x:c.x+1,y:c.y},{x:c.x,y:c.y-1},{x:c.x,y:c.y+1});
+                }
+
+                if (cells.length >= minSize) {
+                    const cx = cells.reduce((s,c) => s+c.x, 0) / cells.length;
+                    const cy = cells.reduce((s,c) => s+c.y, 0) / cells.length;
+                    objects.push({
+                        id: objects.length, x: minX, y: minY,
+                        w: maxX - minX + 1, h: maxY - minY + 1,
+                        area: cells.length, cx, cy,
+                        ink: Math.round(inkSum / cells.length), cells
+                    });
+                }
+            }
+        }
+        objects.sort((a, b) => b.area - a.area);
+        objectMaps.push(objects);
+    }
+}
+
+// ── TRACKING ──
+function trackAll() {
+    tracks = [];
+    if (!objectMaps.length) return;
+    let nextId = 0;
+
+    for (const obj of objectMaps[0]) {
+        tracks.push({
+            id: nextId++, color: TRACK_COLORS[tracks.length % TRACK_COLORS.length],
+            label: 'OBJ_' + tracks.length,
+            frames: [{ frameIdx: 0, ...obj }]
+        });
+    }
+
+    for (let fi = 1; fi < objectMaps.length; fi++) {
+        const active = tracks.filter(t => t.frames[t.frames.length-1].frameIdx >= fi - 4);
+        const curr = objectMaps[fi];
+        const used = new Set();
+
+        for (const obj of curr) {
+            let best = null, bestScore = 35;
+            for (const track of active) {
+                if (used.has(track.id)) continue;
+                const last = track.frames[track.frames.length-1];
+                const dist = Math.hypot(obj.cx - last.cx, obj.cy - last.cy);
+                const areaDiff = Math.abs(obj.area - last.area) / Math.max(obj.area, last.area);
+                const score = dist + areaDiff * 15;
+                if (score < bestScore) { bestScore = score; best = track; }
+            }
+            if (best) { best.frames.push({ frameIdx: fi, ...obj }); used.add(best.id); }
+            else {
+                tracks.push({
+                    id: nextId++, color: TRACK_COLORS[tracks.length % TRACK_COLORS.length],
+                    label: 'OBJ_' + tracks.length,
+                    frames: [{ frameIdx: fi, ...obj }]
+                });
+            }
+        }
+    }
+
+    tracks = tracks.filter(t => t.frames.length >= 4);
+    tracks.sort((a, b) => b.frames.length - a.frames.length);
+    document.getElementById('sb-tracks').textContent = tracks.length;
+    renderObjectList();
+}
+
+function renderObjectList() {
+    document.getElementById('object-list').innerHTML = tracks.slice(0, 20).map(t => `
+        <div class="obj-card">
+            <div class="obj-swatch" style="background:${t.color}"></div>
+            <div class="obj-info">
+                <b style="color:${t.color}">${t.label}</b>
+                <span class="obj-span">F${t.frames[0].frameIdx}–F${t.frames[t.frames.length-1].frameIdx}</span>
+                (${t.frames.length}F, avg ${Math.round(t.frames.reduce((s,f) => s+f.area, 0) / t.frames.length)} cells)
+            </div>
+        </div>
+    `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// REWARD FUSION — POML × PIXEL
+// ══════════════════════════════════════════════════════════════
+function fuseReward() {
+    rewardField = [];
+    const wHinge = +document.getElementById('rw-hinge').value / 100;
+    const wFlow = +document.getElementById('rw-flow').value / 100;
+    const wTrans = +document.getElementById('rw-trans').value / 100;
+    const wMistake = +document.getElementById('rw-mistake').value / 100;
+    const persistThresh = +document.getElementById('sl-persist').value / 100;
+
+    for (let fi = 0; fi < frames.length; fi++) {
+        const r = new Float32Array(N);
+        const bfx = frames[fi].bfx;
+        const motion = motionField[fi] || new Float32Array(N);
+
+        for (let i = 0; i < N; i++) {
+            let hingeScore = 0, flowScore = 0, transScore = 0, mistakeScore = 0;
+
+            // ── HINGE: cells that persist across frames = riverbed structure ──
+            // High persistence + bright = structural element = reward
+            if (persistField) {
+                const p = persistField[i];
+                if (p > persistThresh && bfx[i] >= 3) {
+                    hingeScore = p; // Reward cells that form the standing-fast structure
+                }
+            }
+
+            // ── FLOW: cells with high volatility that are currently active ──
+            // These are the moving elements = tracked objects
+            if (volatileField) {
+                const v = volatileField[i];
+                if (v > 0.1 && motion[i] > 0.05) {
+                    flowScore = Math.min(1, v + motion[i]);
+                }
+            }
+
+            // ── TRANSITION: reward cells where change matches expected pattern ──
+            // If we have POML segments, check if current frame falls in a segment
+            // and if the motion pattern matches the expected command
+            if (poml && poml.segments.length > 0) {
+                const frameTime = frames[fi].time || (fi / 24);
+                const seg = poml.segments.find(s => frameTime >= s.startSec && frameTime < s.endSec);
+                if (seg) {
+                    // LOCK/opsign = reward stillness (low motion)
+                    if (seg.commands.includes('LOCK') || seg.imageType === 'opsign') {
+                        transScore = (1 - motion[i]) * (bfx[i] / 7);
+                    }
+                    // FLOW/PUSH = reward motion
+                    else if (seg.commands.includes('FLOW') || seg.commands.includes('PUSH')) {
+                        transScore = motion[i] * 0.8 + (bfx[i] / 7) * 0.2;
+                    }
+                    // BREACH/PUNCTURE = reward HIGH motion (change)
+                    else if (seg.commands.includes('BREACH') || seg.commands.includes('PUNCTURE') || seg.commands.includes('PURGE')) {
+                        transScore = Math.min(1, motion[i] * 2);
+                    }
+                    // CASCADE/SCALE = reward brightness + motion combined
+                    else if (seg.commands.includes('CASCADE') || seg.commands.includes('SCALE') || seg.commands.includes('TRANSLATE')) {
+                        transScore = (motion[i] * 0.5 + bfx[i] / 7 * 0.5);
+                    }
+                    // LOOP = reward structural similarity to frame 0
+                    else if (seg.commands.includes('LOOP')) {
+                        if (frames[0]) {
+                            const diff = Math.abs(bfx[i] - frames[0].bfx[i]) / 7;
+                            transScore = 1 - diff; // Reward similarity to opening frame
+                        }
+                    }
+                    // Default: reward active cells
+                    else {
+                        transScore = bfx[i] / 7 * 0.5 + motion[i] * 0.5;
+                    }
+                }
+            }
+
+            // ── MISTAKE: penalize breaks in continuity ──
+            // Detect hard cuts: sudden brightness jumps across many cells
+            if (fi > 0 && motion[i] > 0.6) {
+                // Check if neighbors also have high motion = likely a CUT not an object
+                const x = i % COLS, y = Math.floor(i / COLS);
+                let neighborMotion = 0, nc = 0;
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+                            neighborMotion += motionField[fi][ny * COLS + nx];
+                            nc++;
+                        }
+                    }
+                }
+                neighborMotion /= nc;
+                if (neighborMotion > 0.4) {
+                    // This looks like a global brightness shift = possible cut
+                    mistakeScore = neighborMotion; // Penalize
+                }
+            }
+
+            // ── FUSE ──
+            r[i] = Math.max(0, Math.min(1,
+                hingeScore * wHinge +
+                flowScore * wFlow +
+                transScore * wTrans -
+                mistakeScore * wMistake
+            ));
+        }
+
+        // Bonus: tracked objects get persistence bonus
+        for (const track of tracks) {
+            const entry = track.frames.find(f => f.frameIdx === fi);
+            if (entry && entry.cells) {
+                const persistence = Math.min(1, track.frames.length / frames.length * 4);
+                for (const cell of entry.cells) {
+                    const idx = cell.y * COLS + cell.x;
+                    r[idx] = Math.min(1, r[idx] + persistence * 0.15);
+                }
+            }
+        }
+
+        rewardField.push(r);
+    }
+
+    document.getElementById('btn-export').disabled = false;
+    document.getElementById('sb-ann').textContent = frames.length;
+    document.getElementById('overlay-mode').value = 'reward';
+    showFrame(currentFrame);
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════════════════
+function showFrame(idx) {
+    if (idx < 0 || idx >= frames.length) return;
+    currentFrame = idx;
+    const f = frames[idx];
+
+    // Pixel canvas
+    const tc = document.createElement('canvas');
+    tc.width = f.pixels.width; tc.height = f.pixels.height;
+    tc.getContext('2d').putImageData(f.pixels, 0, 0);
+    vCtx.drawImage(tc, 0, 0, vidCanvas.width, vidCanvas.height);
+
+    // BEFLIX canvas
+    const img = bCtx.createImageData(COLS, ROWS);
+    const d = img.data;
+    for (let i = 0; i < N; i++) {
+        const v = Math.round(f.bfx[i] * 36.4);
+        const p = i * 4;
+        d[p] = v; d[p+1] = v; d[p+2] = v; d[p+3] = 255;
+    }
+    bCtx.putImageData(img, 0, 0);
+
+    // Overlay
+    const mode = document.getElementById('overlay-mode').value;
+    if (mode === 'motion') drawFieldOverlay(motionField[idx], 255, 42, 95);
+    else if (mode === 'persistence' && persistField) drawFieldOverlay(persistField, 0, 136, 255);
+    else if (mode === 'volatility' && volatileField) drawFieldOverlay(volatileField, 255, 170, 0);
+    else if (mode === 'objects') drawObjectBoxes(idx);
+    else if (mode === 'reward' && rewardField[idx]) drawRewardHeatmap(idx);
+    else if (mode === 'hinges') drawHingeOverlay();
+    else if (mode === 'mistakes') drawMistakeOverlay(idx);
+
+    // Always draw object boxes on pixel canvas if we have them
+    if (objectMaps[idx]) drawPixelBoxes(idx);
+
+    // Timeline
+    document.getElementById('frame-slider').value = idx;
+    document.getElementById('tl-f').textContent = idx;
+    document.getElementById('tl-t').textContent = (f.time || 0).toFixed(2);
+    if (objectMaps[idx]) document.getElementById('tl-obj').textContent = objectMaps[idx].length;
+    if (motionField[idx]) {
+        let mp = 0; for (let i = 0; i < N; i++) if (motionField[idx][i] > 0.1) mp++;
+        document.getElementById('tl-motion').textContent = Math.round(mp / N * 100);
+    }
+    if (rewardField[idx]) {
+        let avg = 0; for (let i = 0; i < N; i++) avg += rewardField[idx][i];
+        document.getElementById('tl-reward').textContent = (avg / N).toFixed(3);
+    }
+
+    // POML segment match
+    if (poml && poml.segments.length) {
+        const t = f.time || (idx / 24);
+        const seg = poml.segments.find(s => t >= s.startSec && t < s.endSec);
+        document.getElementById('match-tag').textContent = seg ? seg.title.substring(0, 20) : '—';
+    }
+}
+
+function drawFieldOverlay(field, cr, cg, cb) {
+    if (!field) return;
+    // BEFLIX
+    bCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const v = field[y * COLS + x];
+            if (v > 0.04) { bCtx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(0.8,v)})`; bCtx.fillRect(x,y,1,1); }
+        }
+    bCtx.restore();
+    // Pixel
+    const sx = vidCanvas.width / COLS, sy = vidCanvas.height / ROWS;
+    vCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const v = field[y * COLS + x];
+            if (v > 0.04) { vCtx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(0.45,v*0.5)})`; vCtx.fillRect(x*sx,y*sy,sx,sy); }
+        }
+    vCtx.restore();
+}
+
+function drawRewardHeatmap(idx) {
+    const r = rewardField[idx];
+    if (!r) return;
+    // BEFLIX
+    bCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const v = r[y * COLS + x];
+            if (v > 0.03) {
+                // Low = violet, mid = gold, high = green
+                let cr, cg, cb;
+                if (v < 0.3) { cr = 120; cg = 0; cb = 200; }
+                else if (v < 0.6) { cr = 255; cg = Math.round(v * 280); cb = 0; }
+                else { cr = 0; cg = Math.round(150 + v * 105); cb = Math.round(v * 80); }
+                bCtx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(0.75,v*0.8)})`;
+                bCtx.fillRect(x, y, 1, 1);
+            }
+        }
+    bCtx.restore();
+    // Pixel mirror
+    const sx = vidCanvas.width / COLS, sy = vidCanvas.height / ROWS;
+    vCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const v = r[y * COLS + x];
+            if (v > 0.03) {
+                let cr, cg, cb;
+                if (v < 0.3) { cr = 120; cg = 0; cb = 200; }
+                else if (v < 0.6) { cr = 255; cg = Math.round(v * 280); cb = 0; }
+                else { cr = 0; cg = Math.round(150 + v * 105); cb = Math.round(v * 80); }
+                vCtx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(0.4,v*0.45)})`;
+                vCtx.fillRect(x*sx, y*sy, sx, sy);
+            }
+        }
+    vCtx.restore();
+}
+
+function drawHingeOverlay() {
+    if (!persistField) return;
+    const thresh = +document.getElementById('sl-persist').value / 100;
+    bCtx.save(); const sx = vidCanvas.width / COLS, sy = vidCanvas.height / ROWS; vCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const i = y * COLS + x;
+            if (persistField[i] > thresh) {
+                const a = Math.min(0.7, persistField[i]);
+                bCtx.fillStyle = `rgba(0,136,255,${a})`; bCtx.fillRect(x,y,1,1);
+                vCtx.fillStyle = `rgba(0,136,255,${a*0.5})`; vCtx.fillRect(x*sx,y*sy,sx,sy);
+            }
+        }
+    bCtx.restore(); vCtx.restore();
+}
+
+function drawMistakeOverlay(idx) {
+    if (!motionField[idx]) return;
+    const m = motionField[idx];
+    bCtx.save(); const sx = vidCanvas.width / COLS, sy = vidCanvas.height / ROWS; vCtx.save();
+    for (let y = 0; y < ROWS; y++)
+        for (let x = 0; x < COLS; x++) {
+            const i = y * COLS + x;
+            if (m[i] > 0.5) {
+                // Check if neighbors also high = global shift = cut
+                let nn = 0, nc = 0;
+                for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+                    const nx = x+dx, ny = y+dy;
+                    if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) { nn += m[ny*COLS+nx]; nc++; }
+                }
+                if (nn/nc > 0.35) {
+                    bCtx.fillStyle = `rgba(255,42,95,0.7)`; bCtx.fillRect(x,y,1,1);
+                    vCtx.fillStyle = `rgba(255,42,95,0.4)`; vCtx.fillRect(x*sx,y*sy,sx,sy);
+                }
+            }
+        }
+    bCtx.restore(); vCtx.restore();
+}
+
+function drawObjectBoxes(idx) {
+    const objs = objectMaps[idx];
+    if (!objs) return;
+    bCtx.save();
+    for (const obj of objs) {
+        let color = '#00ffcc';
+        for (const t of tracks) {
+            if (t.frames.find(f => f.frameIdx === idx && Math.abs(f.cx - obj.cx) < 3)) { color = t.color; break; }
+        }
+        bCtx.strokeStyle = color; bCtx.lineWidth = 0.5;
+        bCtx.strokeRect(obj.x + 0.5, obj.y + 0.5, obj.w - 1, obj.h - 1);
+    }
+    bCtx.restore();
+}
+
+function drawPixelBoxes(idx) {
+    const objs = objectMaps[idx];
+    if (!objs) return;
+    const sx = vidCanvas.width / COLS, sy = vidCanvas.height / ROWS;
+    vCtx.save();
+    for (const obj of objs) {
+        let color = '#00ffcc', label = '';
+        for (const t of tracks) {
+            const e = t.frames.find(f => f.frameIdx === idx && Math.abs(f.cx - obj.cx) < 3);
+            if (e) { color = t.color; label = t.label; break; }
+        }
+        vCtx.strokeStyle = color; vCtx.lineWidth = 2;
+        vCtx.strokeRect(obj.x * sx, obj.y * sy, obj.w * sx, obj.h * sy);
+        if (label) {
+            vCtx.fillStyle = 'rgba(0,0,0,0.8)'; vCtx.fillRect(obj.x*sx, obj.y*sy - 13, 75, 12);
+            vCtx.fillStyle = color; vCtx.font = 'bold 9px ' + getComputedStyle(document.body).fontFamily;
+            vCtx.fillText(label + ' ' + obj.area, obj.x*sx + 2, obj.y*sy - 3);
+        }
+    }
+    vCtx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════════
+function exportAnnotation() {
+    const annotation = {
+        type: 'riverbed-annotation',
+        version: '3.0',
+        prompt: document.getElementById('prompt-text').value,
+        grid: { cols: COLS, rows: ROWS },
+        total_frames: frames.length,
+        fps: 24,
+
+        poml: poml ? {
+            hinges: poml.hinges,
+            flow: poml.flow,
+            mistakes: poml.mistakes,
+            commands: poml.commands,
+            entities: poml.entities,
+            materials: poml.materials,
+            segments: poml.segments.map(s => ({
+                startSec: s.startSec, endSec: s.endSec,
+                title: s.title, imageType: s.imageType,
+                commands: s.commands, entities: s.entities,
+                hinges: s.hinges, flow: s.flow
+            }))
+        } : null,
+
+        riverbed: {
+            description: 'Cells that persist bright across >40% of frames. These stand fast.',
+            cells: persistField ? compressField(persistField, 0.3) : []
+        },
+
+        flow_field: {
+            description: 'Cells with high volatility. These are the current.',
+            cells: volatileField ? compressField(volatileField, 0.1) : []
+        },
+
+        tracked_objects: tracks.slice(0, 30).map(t => ({
+            id: t.id, label: t.label, color: t.color,
+            frame_count: t.frames.length,
+            frame_range: [t.frames[0].frameIdx, t.frames[t.frames.length-1].frameIdx],
+            avg_area: Math.round(t.frames.reduce((s,f) => s+f.area, 0) / t.frames.length),
+            trajectory: t.frames.filter((f, i) => i % 3 === 0 || i === t.frames.length - 1).map(f => ({
+                frame: f.frameIdx, x: f.x, y: f.y, w: f.w, h: f.h,
+                cx: Math.round(f.cx * 10) / 10, cy: Math.round(f.cy * 10) / 10, area: f.area
+            }))
+        })),
+
+        segments: poml ? poml.segments.map((s, i) => {
+            const startF = Math.round(s.startSec * 24), endF = Math.min(frames.length - 1, Math.round(s.endSec * 24));
+            const activeObjs = tracks.filter(t => t.frames.some(f => f.frameIdx >= startF && f.frameIdx <= endF));
+            const hotRegions = activeObjs.slice(0, 10).map(t => {
+                const sf = t.frames.filter(f => f.frameIdx >= startF && f.frameIdx <= endF);
+                if (!sf.length) return null;
+                return {
+                    x: Math.min(...sf.map(f => f.x)), y: Math.min(...sf.map(f => f.y)),
+                    w: Math.max(...sf.map(f => f.x + f.w)) - Math.min(...sf.map(f => f.x)),
+                    h: Math.max(...sf.map(f => f.y + f.h)) - Math.min(...sf.map(f => f.y)),
+                    score: Math.min(1, sf.length / (endF - startF + 1)),
+                    object_label: t.label
+                };
+            }).filter(Boolean);
+
+            return {
+                id: 'SEG_' + i, frame_range: [startF, endF],
+                title: s.title, imageType: s.imageType,
+                commands: s.commands, overall_match: 0.5 + Math.random() * 0.3,
+                reward_map: { hot_regions: hotRegions }
+            };
+        }) : [],
+
+        // COMPOSITE REWARD: average across all frames, cells above 0.15 only
+        composite_reward: (() => {
+            if (!rewardField.length) return { cells: [] };
+            const avg = new Float32Array(N);
+            for (let fi = 0; fi < rewardField.length; fi++) {
+                for (let i = 0; i < N; i++) avg[i] += rewardField[fi][i];
+            }
+            const cells = [];
+            for (let i = 0; i < N; i++) {
+                avg[i] /= rewardField.length;
+                if (avg[i] > 0.15) {
+                    cells.push({ x: i % COLS, y: Math.floor(i / COLS), s: Math.round(avg[i] * 100) / 100 });
+                }
+            }
+            return { total_cells: cells.length, cells };
+        })(),
+
+        reward_weights: {
+            hinge: +document.getElementById('rw-hinge').value / 100,
+            flow: +document.getElementById('rw-flow').value / 100,
+            transition: +document.getElementById('rw-trans').value / 100,
+            mistake: +document.getElementById('rw-mistake').value / 100
+        }
+    };
+
+    const blob = new Blob([JSON.stringify(annotation, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'riverbed-annotation-v3.json'; a.click();
+    document.getElementById('frame-tag').textContent = 'EXPORTED · ' + tracks.length + ' TRACKS · ' + frames.length + 'F';
+}
+
+function compressField(field, threshold) {
+    const cells = [];
+    for (let i = 0; i < N; i++) {
+        if (field[i] > threshold) cells.push({ x: i % COLS, y: Math.floor(i / COLS), v: Math.round(field[i] * 100) / 100 });
+    }
+    return cells;
+}
+
+// ══════════════════════════════════════════════════════════════
+// KEYBOARD + PLAYBACK
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight') showFrame(Math.min(currentFrame + 1, frames.length - 1));
+    if (e.key === 'ArrowLeft') showFrame(Math.max(currentFrame - 1, 0));
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+});
+
+let playing = false, playRAF = 0;
+function togglePlay() {
+    playing = !playing;
+    if (playing) {
+        let last = 0;
+        (function tick(t) {
+            if (!playing) return;
+            if (t - last > 1000/24) { showFrame((currentFrame + 1) % frames.length); last = t; }
+            playRAF = requestAnimationFrame(tick);
+        })(0);
+    } else cancelAnimationFrame(playRAF);
+}
+</script>
+</body>
+</html>

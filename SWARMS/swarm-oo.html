@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPERATIONAL KINEMATIC SWARM</title>
+    <style>
+        :root {
+            --bg: #030304;
+            --panel: #111115;
+            --text: #e0e0e5;
+            --cyan: #00ffcc;
+            --blue: #0088ff;
+            --warn: #ff2a5f;
+            --gold: #ffaa00;
+            --ghost: #444455;
+            --mono: 'SF Mono', Consolas, 'Roboto Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 11px;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 320px;
+            background: var(--panel);
+            border-right: 1px solid #333;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        #workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+
+        canvas {
+            background: #050507;
+            border: 1px solid #333;
+            image-rendering: pixelated;
+            width: 640px;
+            height: 480px;
+        }
+
+        #hud {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0,0,0,0.92);
+            border: 1px solid rgba(0,255,204,0.4);
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1.7;
+            pointer-events: none;
+            min-width: 200px;
+        }
+        #hud .label { color: #666; }
+        #hud .val { color: var(--cyan); float: right; }
+        #hud .val.err { color: var(--warn); }
+        #hud .val.gold { color: var(--gold); }
+        #hud .bar-track {
+            width: 100%; height: 3px; background: #222; margin-top: 4px;
+        }
+        #hud .bar-fill {
+            height: 100%; background: var(--cyan); transition: width 0.15s;
+        }
+
+        h1 {
+            font-size: 11px;
+            color: var(--cyan);
+            margin: 0 0 6px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ghost { color: var(--ghost); font-size: 9px; }
+
+        button {
+            background: #1a1a1a;
+            color: var(--text);
+            border: 1px solid #444;
+            padding: 9px 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-align: left;
+            transition: all 0.12s;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            background: #222;
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: #333;
+        }
+
+        button.active {
+            background: var(--cyan);
+            color: #000;
+        }
+
+        button.danger {
+            border-color: var(--warn);
+            color: var(--warn);
+        }
+
+        button.danger:hover:not(:disabled) {
+            background: var(--warn);
+            color: #000;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .slider-row label { flex: 1; color: #888; }
+        .slider-row input[type="range"] { flex: 2; }
+        .slider-row .val { color: var(--cyan); font-weight: bold; min-width: 40px; text-align: right; }
+
+        .metric {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--cyan);
+        }
+
+        .metric.err {
+            color: var(--warn);
+        }
+
+        #drop-zone {
+            border: 2px dashed #333;
+            padding: 8px;
+            text-align: center;
+            color: #555;
+            font-size: 9px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        #drop-zone:hover, #drop-zone.over {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sidebar">
+        <div class="control-group">
+            <h1>0. LOAD_MATERIAL</h1>
+            <div id="drop-zone">DROP IMAGE OR CLICK TO LOAD</div>
+            <input type="file" id="file-input" accept="image/*" style="display:none;">
+            <button id="btn-load">GENERATE_TEST_TENSORS</button>
+        </div>
+
+        <div class="control-group">
+            <h1>1. KINEMATIC_PRIOR</h1>
+            <div class="row"><span class="ghost">Extracts directional flow from frame delta</span></div>
+            <button id="btn-kinematics" disabled>CALCULATE_FLOW_VECTORS</button>
+        </div>
+
+        <div class="control-group">
+            <h1>2. STOCHASTIC_INJECTION</h1>
+            <div class="row"><span class="ghost">Seeds Mutators at (Source + Flow)</span></div>
+            <div class="slider-row">
+                <label>DENSITY</label>
+                <input type="range" id="sl-density" min="1" max="6" step="1" value="2">
+                <span class="val" id="lbl-density">2</span>
+            </div>
+            <button id="btn-project" disabled>INJECT_MUTATORS</button>
+        </div>
+
+        <div class="control-group">
+            <h1>3. RESIDUAL_MINIMIZATION</h1>
+            <div class="row"><span class="ghost">Executes stochastic descent loop</span></div>
+            <div class="slider-row">
+                <label>BATCH</label>
+                <input type="range" id="sl-batch" min="1" max="20" step="1" value="4">
+                <span class="val" id="lbl-batch">4</span>
+            </div>
+            <div class="slider-row">
+                <label>VARIANCE</label>
+                <input type="range" id="sl-eps" min="0.01" max="0.6" step="0.01" value="0.20">
+                <span class="val" id="lbl-eps">0.20</span>
+            </div>
+            <div class="slider-row">
+                <label>WGT_DELTA</label>
+                <input type="range" id="sl-alpha" min="0.01" max="0.5" step="0.01" value="0.15">
+                <span class="val" id="lbl-alpha">0.15</span>
+            </div>
+            <button id="btn-stochastic" disabled>EXECUTE_STOCHASTIC_DESCENT</button>
+        </div>
+
+        <div class="control-group">
+            <h1>4. ERROR_COMMIT</h1>
+            <div class="row"><span class="ghost">Burns irreducible error into delta array</span></div>
+            <button id="btn-commit" class="danger" disabled>COMMIT_DELTA_ARRAY</button>
+            <button id="btn-reinject" disabled>RE-INJECT_AND_REFINE</button>
+        </div>
+
+        <div class="control-group" style="margin-top: auto; border-top: 1px solid #333; padding-top: 10px;">
+            <h1>TELEMETRY</h1>
+            <div class="row"><span>SYS_STATE</span> <span id="tel-state" class="metric"
+                    style="font-size:11px;">AWAITING_INIT</span></div>
+            <div class="row"><span>MUTATORS</span> <span id="tel-mutators" class="metric">0</span></div>
+            <div class="row"><span>ITERATIONS</span> <span id="tel-iter" class="metric">0</span></div>
+            <div class="row"><span>MATCH</span> <span id="tel-match" class="metric">0%</span></div>
+            <div class="row"><span>MSE</span> <span id="tel-mse" class="metric err">1.0000</span></div>
+            <div class="row"><span>DELTA_CELLS</span> <span id="tel-delta" class="metric err">0</span></div>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <canvas id="gridCanvas" width="128" height="96"></canvas>
+        <div id="hud">
+            <div><span class="label">STATE</span> <span class="val" id="hud-state">IDLE</span></div>
+            <div><span class="label">MATCH</span> <span class="val gold" id="hud-match">0%</span></div>
+            <div><span class="label">MSE</span> <span class="val err" id="hud-mse">1.0000</span></div>
+            <div><span class="label">ITER</span> <span class="val" id="hud-iter">0</span></div>
+            <div><span class="label">MUTATORS</span> <span class="val" id="hud-mut">0</span></div>
+            <div class="bar-track"><div class="bar-fill" id="hud-bar" style="width:0%"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // ─── SYSTEM CONFIGURATION ───
+        const COLS = 128;
+        const ROWS = 96;
+        const N_STATES = COLS * ROWS;
+        const N_ACTIONS = 5;
+        const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0], [0, 0]]; // N, E, S, W, STAY
+
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ─── 1D ARRAYS ───
+        let SRC = new Float32Array(N_STATES);    // Source frame (T-1)
+        let TGT = new Float32Array(N_STATES);    // Target frame (T)
+        let FLOW_X = new Int8Array(N_STATES);    // Kinematic dx per cell
+        let FLOW_Y = new Int8Array(N_STATES);    // Kinematic dy per cell
+        let OCC = new Float32Array(N_STATES);    // Mutator occupancy density
+        let DELTA = new Float32Array(N_STATES);  // Irreducible error (committed)
+        let WGT = new Float32Array(N_STATES * N_ACTIONS); // Weight table
+
+        let mutators = [];
+        let is_running = false;
+        let iterations = 0;
+        let show_flow = false;
+        let matchPct = 0;
+        let mseVal = 1.0;
+        let deltaCount = 0;
+
+        const xy2i = (x, y) => y * COLS + x;
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+        // ─── SLIDER WIRING ───
+        ['density','batch','eps','alpha'].forEach(name => {
+            const sl = document.getElementById('sl-' + name);
+            const lbl = document.getElementById('lbl-' + name);
+            sl.addEventListener('input', () => { lbl.textContent = sl.value; });
+        });
+
+        // ─── TELEMETRY ───
+        function updateTelemetry(stateStr) {
+            if (stateStr) {
+                document.getElementById('tel-state').textContent = stateStr;
+                document.getElementById('hud-state').textContent = stateStr;
+            }
+
+            document.getElementById('tel-mutators').textContent = mutators.length;
+            document.getElementById('tel-iter').textContent = iterations;
+            document.getElementById('hud-mut').textContent = mutators.length;
+            document.getElementById('hud-iter').textContent = iterations;
+
+            let matched = 0, tgt_mass = 0, err_sum = 0;
+            for (let i = 0; i < N_STATES; i++) {
+                if (TGT[i] > 0) {
+                    tgt_mass++;
+                    let occ = Math.min(1.0, OCC[i]);
+                    if (occ > 0.3) matched++;
+                    let diff = TGT[i] - occ;
+                    err_sum += diff * diff;
+                }
+            }
+            matchPct = tgt_mass > 0 ? Math.round(matched / tgt_mass * 100) : 0;
+            mseVal = tgt_mass > 0 ? err_sum / tgt_mass : 0;
+
+            document.getElementById('tel-match').textContent = matchPct + '%';
+            document.getElementById('tel-mse').textContent = mseVal.toFixed(4);
+            document.getElementById('tel-delta').textContent = deltaCount;
+            document.getElementById('hud-match').textContent = matchPct + '%';
+            document.getElementById('hud-mse').textContent = mseVal.toFixed(4);
+            document.getElementById('hud-bar').style.width = matchPct + '%';
+        }
+
+        // ─── IMAGE LOADING ───
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('over'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('over');
+        dropZone.ondrop = e => {
+            e.preventDefault(); dropZone.classList.remove('over');
+            if (e.dataTransfer.files.length) loadImageFile(e.dataTransfer.files[0]);
+        };
+        fileInput.onchange = e => { if (e.target.files.length) loadImageFile(e.target.files[0]); };
+
+        let loadedImage = null;
+
+        function loadImageFile(file) {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImage = img;
+                    dropZone.textContent = file.name + ' (' + img.width + 'x' + img.height + ')';
+                    // Use loaded image: SRC = first half brightness, TGT = full brightness
+                    imageToTensors(img);
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function imageToTensors(img) {
+            const tc = document.createElement('canvas');
+            tc.width = COLS; tc.height = ROWS;
+            const tctx = tc.getContext('2d');
+            tctx.drawImage(img, 0, 0, COLS, ROWS);
+            const data = tctx.getImageData(0, 0, COLS, ROWS).data;
+
+            SRC.fill(0); TGT.fill(0); FLOW_X.fill(0); FLOW_Y.fill(0);
+            OCC.fill(0); DELTA.fill(0); WGT.fill(0);
+            mutators = []; iterations = 0; show_flow = false; deltaCount = 0;
+
+            for (let i = 0; i < N_STATES; i++) {
+                const idx = i * 4;
+                const luma = (data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114) / 255;
+                TGT[i] = luma > 0.15 ? luma : 0;
+                // Shift source left by ~8 cells as a synthetic prior
+                const sx = (i % COLS) - 8, sy = Math.floor(i / COLS);
+                if (sx >= 0 && sx < COLS) {
+                    const si = xy2i(sx, sy);
+                    SRC[si] = TGT[i] > 0.2 ? TGT[i] * 0.7 : 0;
+                }
+            }
+
+            document.getElementById('btn-kinematics').disabled = false;
+            document.getElementById('btn-project').disabled = true;
+            document.getElementById('btn-stochastic').disabled = true;
+            document.getElementById('btn-commit').disabled = true;
+            document.getElementById('btn-reinject').disabled = true;
+            updateTelemetry('IMAGE_LOADED');
+            render();
+        }
+
+        // ─── 0. TENSOR INITIALIZATION (TEST PATTERN) ───
+        document.getElementById('btn-load').onclick = () => {
+            SRC.fill(0); TGT.fill(0); FLOW_X.fill(0); FLOW_Y.fill(0);
+            OCC.fill(0); DELTA.fill(0); WGT.fill(0);
+            mutators = []; iterations = 0; show_flow = false; deltaCount = 0;
+
+            // Source: rectangle cluster
+            for (let y = 30; y < 55; y++) {
+                for (let x = 15; x < 40; x++) {
+                    if (Math.random() > 0.08) SRC[xy2i(x, y)] = 0.8 + Math.random() * 0.2;
+                }
+            }
+            // Small secondary source
+            for (let y = 60; y < 72; y++) {
+                for (let x = 80; x < 100; x++) {
+                    if (Math.random() > 0.12) SRC[xy2i(x, y)] = 0.6 + Math.random() * 0.3;
+                }
+            }
+
+            // Target: shifted, deformed
+            for (let y = 40; y < 65; y++) {
+                for (let x = 40; x < 68; x++) {
+                    if (Math.hypot(x - 54, y - 52) < 5) continue;
+                    if (Math.random() > 0.1) TGT[xy2i(x, y)] = 0.7 + Math.random() * 0.3;
+                }
+            }
+            // Secondary target: shifted down
+            for (let y = 70; y < 82; y++) {
+                for (let x = 72; x < 95; x++) {
+                    if (Math.random() > 0.1) TGT[xy2i(x, y)] = 0.5 + Math.random() * 0.4;
+                }
+            }
+
+            document.getElementById('btn-kinematics').disabled = false;
+            document.getElementById('btn-project').disabled = true;
+            document.getElementById('btn-stochastic').disabled = true;
+            document.getElementById('btn-commit').disabled = true;
+            document.getElementById('btn-reinject').disabled = true;
+            updateTelemetry('TENSORS_INITIALIZED');
+            render();
+        };
+
+        // ─── 1. KINEMATIC EXTRACTION (OPTIMIZED) ───
+        document.getElementById('btn-kinematics').onclick = () => {
+            FLOW_X.fill(0); FLOW_Y.fill(0);
+
+            // Build target centroid for fast lookup
+            let tgtCx = 0, tgtCy = 0, tgtN = 0;
+            for (let i = 0; i < N_STATES; i++) {
+                if (TGT[i] > 0) {
+                    tgtCx += i % COLS; tgtCy += Math.floor(i / COLS); tgtN++;
+                }
+            }
+            if (tgtN > 0) { tgtCx /= tgtN; tgtCy /= tgtN; }
+
+            // For each source cell: compute direction toward nearest occupied target region
+            // Using block-matching with 8x8 blocks for speed
+            const BLOCK = 4;
+            for (let by = 0; by < ROWS; by += BLOCK) {
+                for (let bx = 0; bx < COLS; bx += BLOCK) {
+                    // Check if block has source content
+                    let hasSrc = false;
+                    for (let dy = 0; dy < BLOCK && !hasSrc; dy++)
+                        for (let dx = 0; dx < BLOCK && !hasSrc; dx++) {
+                            const y = by + dy, x = bx + dx;
+                            if (y < ROWS && x < COLS && SRC[xy2i(x,y)] > 0) hasSrc = true;
+                        }
+                    if (!hasSrc) continue;
+
+                    // Radial search from block center
+                    let bcx = bx + BLOCK/2, bcy = by + BLOCK/2;
+                    let bestDx = 0, bestDy = 0, found = false;
+                    for (let r = 1; r < 35 && !found; r++) {
+                        for (let sdy = -r; sdy <= r && !found; sdy++) {
+                            for (let sdx = -r; sdx <= r; sdx++) {
+                                if (Math.abs(sdx) !== r && Math.abs(sdy) !== r) continue; // perimeter only
+                                const nx = Math.floor(bcx) + sdx, ny = Math.floor(bcy) + sdy;
+                                if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && TGT[xy2i(nx,ny)] > 0) {
+                                    bestDx = sdx; bestDy = sdy; found = true; break;
+                                }
+                            }
+                        }
+                    }
+                    // Apply to all cells in block
+                    for (let dy = 0; dy < BLOCK; dy++)
+                        for (let dx = 0; dx < BLOCK; dx++) {
+                            const y = by + dy, x = bx + dx;
+                            if (y < ROWS && x < COLS && SRC[xy2i(x,y)] > 0) {
+                                FLOW_X[xy2i(x,y)] = bestDx;
+                                FLOW_Y[xy2i(x,y)] = bestDy;
+                            }
+                        }
+                }
+            }
+
+            show_flow = true;
+            document.getElementById('btn-project').disabled = false;
+            updateTelemetry('KINEMATICS_EXTRACTED');
+            render();
+        };
+
+        // ─── 2. STOCHASTIC INJECTION ───
+        document.getElementById('btn-project').onclick = () => {
+            mutators = [];
+            OCC.fill(0); show_flow = false;
+            const density = +document.getElementById('sl-density').value;
+
+            for (let i = 0; i < N_STATES; i++) {
+                if (SRC[i] > 0) {
+                    let x = i % COLS, y = Math.floor(i / COLS);
+                    let projX = clamp(x + FLOW_X[i], 0, COLS - 1);
+                    let projY = clamp(y + FLOW_Y[i], 0, ROWS - 1);
+
+                    for (let m = 0; m < density; m++) {
+                        let noiseX = Math.floor(Math.random() * 5 - 2);
+                        let noiseY = Math.floor(Math.random() * 5 - 2);
+                        let mx = clamp(projX + noiseX, 0, COLS - 1);
+                        let my = clamp(projY + noiseY, 0, ROWS - 1);
+                        mutators.push({ x: mx, y: my });
+                        OCC[xy2i(mx, my)] += 1 / density;
+                    }
+                }
+            }
+
+            document.getElementById('btn-stochastic').disabled = false;
+            updateTelemetry('MUTATORS_INJECTED');
+            render();
+        };
+
+        // ─── 3. RESIDUAL MINIMIZATION ───
+        document.getElementById('btn-stochastic').onclick = (e) => {
+            is_running = !is_running;
+            if (is_running) {
+                e.target.textContent = 'HALT_STOCHASTIC_DESCENT';
+                e.target.classList.add('active');
+                document.getElementById('btn-commit').disabled = true;
+                document.getElementById('btn-reinject').disabled = true;
+                updateTelemetry('DESCENT_EXECUTING');
+                executeDescentTick();
+            } else {
+                e.target.textContent = 'EXECUTE_STOCHASTIC_DESCENT';
+                e.target.classList.remove('active');
+                document.getElementById('btn-commit').disabled = false;
+                document.getElementById('btn-reinject').disabled = false;
+                updateTelemetry('DESCENT_HALTED');
+            }
+        };
+
+        function getBestAction(s) {
+            let best_a = 4, max_q = -Infinity;
+            for (let a = 0; a < 5; a++) {
+                if (WGT[s * 5 + a] > max_q) { max_q = WGT[s * 5 + a]; best_a = a; }
+            }
+            return best_a;
+        }
+
+        function executeDescentTick() {
+            if (!is_running) return;
+
+            const EPSILON = +document.getElementById('sl-eps').value;
+            const ALPHA = +document.getElementById('sl-alpha').value;
+            const BATCH = +document.getElementById('sl-batch').value;
+
+            for (let b = 0; b < BATCH; b++) {
+                OCC.fill(0);
+
+                for (let m of mutators) {
+                    let s = xy2i(m.x, m.y);
+                    let a = Math.random() < EPSILON ? Math.floor(Math.random() * 5) : getBestAction(s);
+
+                    let nx = clamp(m.x + DIRS[a][0], 0, COLS - 1);
+                    let ny = clamp(m.y + DIRS[a][1], 0, ROWS - 1);
+                    let ns = xy2i(nx, ny);
+
+                    // Reward: target density × presence − crowding − existence tax
+                    let reward = (TGT[ns] * 2.0) - (OCC[ns] * 0.4) - 0.05;
+
+                    let old_q = WGT[s * 5 + a];
+                    let max_n_q = WGT[ns * 5 + getBestAction(ns)];
+                    WGT[s * 5 + a] = old_q + ALPHA * (reward + 0.92 * max_n_q - old_q);
+
+                    m.x = nx; m.y = ny;
+                    OCC[ns] += 0.5;
+                }
+
+                iterations++;
+            }
+
+            updateTelemetry();
+            render();
+
+            // Convergence detection: halt when MSE stops changing meaningfully
+            if (mseVal < 0.005 && iterations > 50) {
+                is_running = false;
+                document.getElementById('btn-stochastic').textContent = 'EXECUTE_STOCHASTIC_DESCENT';
+                document.getElementById('btn-stochastic').classList.remove('active');
+                document.getElementById('btn-commit').disabled = false;
+                document.getElementById('btn-reinject').disabled = false;
+                updateTelemetry('CONVERGED_MSE_' + mseVal.toFixed(4));
+            } else {
+                requestAnimationFrame(executeDescentTick);
+            }
+        }
+
+        // ─── 4. ERROR COMMIT ───
+        document.getElementById('btn-commit').onclick = () => {
+            deltaCount = 0;
+            for (let i = 0; i < N_STATES; i++) {
+                let diff = TGT[i] - Math.min(1.0, OCC[i]);
+                if (diff > 0.3) {
+                    DELTA[i] = Math.max(DELTA[i], diff);
+                    deltaCount++;
+                }
+            }
+            updateTelemetry('DELTA_COMMITTED_' + deltaCount + '_CELLS');
+            render();
+        };
+
+        // ─── 4b. RE-INJECT AND REFINE ───
+        document.getElementById('btn-reinject').onclick = () => {
+            // Use current occupancy as new source, keep original target
+            // This allows multi-pass refinement
+            SRC.fill(0);
+            for (let i = 0; i < N_STATES; i++) {
+                SRC[i] = Math.min(1.0, OCC[i]);
+            }
+            OCC.fill(0);
+            WGT.fill(0);
+            mutators = [];
+            iterations = 0;
+            show_flow = false;
+
+            document.getElementById('btn-kinematics').disabled = false;
+            document.getElementById('btn-project').disabled = true;
+            document.getElementById('btn-stochastic').disabled = true;
+            document.getElementById('btn-commit').disabled = true;
+            document.getElementById('btn-reinject').disabled = true;
+            updateTelemetry('RE-INITIALIZED_FROM_OCCUPANCY');
+            render();
+        };
+
+        // ─── RENDERING ───
+        function render() {
+            ctx.fillStyle = '#050507';
+            ctx.fillRect(0, 0, COLS, ROWS);
+
+            let img = ctx.createImageData(COLS, ROWS);
+            let d = img.data;
+
+            for (let i = 0; i < N_STATES; i++) {
+                let idx = i * 4;
+                let t = TGT[i];
+                let c = Math.min(1.0, OCC[i]);
+                let err = DELTA[i];
+                let s = SRC[i];
+
+                // Background
+                d[idx] = 12; d[idx + 1] = 12; d[idx + 2] = 16; d[idx + 3] = 255;
+
+                if (err > 0) {
+                    // COMMITTED ERROR → WARM RED
+                    let intensity = Math.min(255, Math.floor(err * 300));
+                    d[idx] = 255; d[idx + 1] = 42; d[idx + 2] = 95; d[idx + 3] = intensity;
+                }
+
+                if (c > 0 && t > 0) {
+                    // OVERLAP (match) → GREEN-CYAN
+                    let g = Math.min(255, Math.floor(c * 200));
+                    d[idx] = 0; d[idx + 1] = g; d[idx + 2] = Math.floor(g * 0.6); d[idx + 3] = 255;
+                } else if (c > 0) {
+                    // OCCUPANCY (no target) → DIM CYAN
+                    let intensity = Math.min(180, Math.floor(c * 180));
+                    d[idx] = 0; d[idx + 1] = intensity; d[idx + 2] = Math.floor(intensity * 0.8); d[idx + 3] = 200;
+                } else if (t > 0 && err === 0) {
+                    // TARGET (unmatched) → DIM WHITE
+                    let v = Math.floor(t * 80);
+                    d[idx] = v; d[idx + 1] = v; d[idx + 2] = v; d[idx + 3] = 255;
+                } else if (s > 0 && mutators.length === 0) {
+                    // SOURCE (pre-injection) → BLUE
+                    let v = Math.min(200, Math.floor(s * 200));
+                    d[idx] = 0; d[idx + 1] = Math.floor(v * 0.55); d[idx + 2] = v; d[idx + 3] = 200;
+                }
+            }
+
+            ctx.putImageData(img, 0, 0);
+
+            // FLOW VECTORS
+            if (show_flow) {
+                ctx.strokeStyle = 'rgba(0, 136, 255, 0.7)';
+                ctx.lineWidth = 0.4;
+                ctx.beginPath();
+                for (let i = 0; i < N_STATES; i += 2) { // sample every 2 for perf
+                    if (FLOW_X[i] !== 0 || FLOW_Y[i] !== 0) {
+                        let x = i % COLS, y = Math.floor(i / COLS);
+                        ctx.moveTo(x + 0.5, y + 0.5);
+                        ctx.lineTo(x + FLOW_X[i] * 0.5 + 0.5, y + FLOW_Y[i] * 0.5 + 0.5);
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+
+        render();
+    </script>
+</body>
+
+</html>

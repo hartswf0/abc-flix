@@ -1,0 +1,144 @@
+{
+  "type": "llm-prompt-annotation",
+  "version": "1.0",
+  "prompt": "The DWIG Recursive Loop: A 1970s Panavision Continuous-Take. You are to execute a continuous, uncut 2:1 visual flow driven by strict material inheritance and kinetic tension, simulating a 1970s Panavision 2.39:1 perspective moving through TSRB 316B.",
+  "source_video": "Seedance 20 - The DWIG Recursive Loop.mp4",
+  "grid": { "cols": 128, "rows": 96 },
+  "total_frames": 120,
+  "fps_estimate": 24,
+  "duration_seconds": 5.0,
+
+  "segments": [
+    {
+      "id": "S1_THRESHOLD",
+      "prompt_segment": "[00:00-00:08] The Threshold. LOCK the frame on the industrial door threshold of TSRB 316B. Loaded stillness, thick ambient haze, heavy film grain.",
+      "frame_range": [0, 19],
+      "overall_match": 0.72,
+      "verdicts": {
+        "stillness": { "score": 0.85, "note": "Frames 0-8 show stable geometric bright shapes against dark field. Good opsign of loaded stillness." },
+        "grain_haze": { "score": 0.65, "note": "The BEFLIX quantization absorbs grain texture. Haze present as diffused brightness in upper quadrant." },
+        "threshold_geometry": { "score": 0.70, "note": "Bright rectangular shapes in top rows suggest door/window geometry. Not clearly industrial." },
+        "anamorphic": { "score": 0.55, "note": "No visible anamorphic distortion in the quantized grid. Lost to the 128x96 bottleneck." }
+      },
+      "reward_map": {
+        "description": "High reward on the bright geometric threshold shapes in upper center. Low reward at edges where content is absent.",
+        "hot_regions": [
+          { "x": 30, "y": 10, "w": 68, "h": 35, "score": 0.82, "reason": "Threshold geometry — bright rectangular forms read as doorway" },
+          { "x": 10, "y": 50, "w": 108, "h": 40, "score": 0.40, "reason": "Dark lower field — expected depth but mostly empty" }
+        ]
+      }
+    },
+    {
+      "id": "S2_WORKBENCH",
+      "prompt_segment": "[00:08-00:18] The Workbench and Craft. FLOW forward past threshold to workbench. Close-tracking of hands on apparatus. Mechanical clicking, high-contrast shadows.",
+      "frame_range": [20, 43],
+      "overall_match": 0.58,
+      "verdicts": {
+        "camera_flow": { "score": 0.65, "note": "There is forward motion implied by the brightness shifting from top-center to wider spread. Motion vectors confirm drift." },
+        "hands_apparatus": { "score": 0.35, "note": "No clearly readable hand forms in BEFLIX quantization. The apparatus is suggested by fragmented bright clusters but not legible as craft manipulation." },
+        "contrast_shadows": { "score": 0.75, "note": "Strong black/white separation throughout. The quantization actually helps this — BEFLIX enforces dramatic contrast." },
+        "material_inheritance": { "score": 0.55, "note": "Grain and lighting tone carries from S1 but the spatial composition breaks — feels like a cut, not a flow." }
+      },
+      "reward_map": {
+        "description": "Moderate reward in active motion regions. Penalize frames where spatial continuity with S1 breaks.",
+        "hot_regions": [
+          { "x": 20, "y": 15, "w": 80, "h": 50, "score": 0.62, "reason": "Dynamic bright clusters — reads as apparatus in motion" },
+          { "x": 50, "y": 35, "w": 30, "h": 25, "score": 0.70, "reason": "Center of action — highest contrast and detail density" }
+        ],
+        "penalty_regions": [
+          { "x": 0, "y": 0, "w": 128, "h": 10, "score": -0.3, "reason": "Top band goes dark too quickly — material inheritance from threshold violated" }
+        ]
+      }
+    },
+    {
+      "id": "S3_TRANSFER_VELOCITY",
+      "prompt_segment": "[00:18-00:26] The Transfer and Velocity. Focus shifts from apparatus to projected dancer. Track dancer motion with matched velocity. Low-light, illuminated by apparatus.",
+      "frame_range": [44, 62],
+      "overall_match": 0.60,
+      "verdicts": {
+        "dancer_figure": { "score": 0.45, "note": "There are luminous moving shapes that could be a dancer figure. The BEFLIX grid resolves them as bright dispersed clusters, not a clear human form." },
+        "velocity_tracking": { "score": 0.70, "note": "Strong lateral motion visible in frame-to-frame delta. The bright shapes maintain directional coherence across 8+ frames." },
+        "low_light": { "score": 0.75, "note": "Background is appropriately dark. Light comes from within the moving forms, consistent with apparatus illumination." },
+        "kinetic_transfer": { "score": 0.50, "note": "The transition from apparatus to dancer is not clearly readable as a transfer. It feels like a dissolve, not a projection." }
+      },
+      "reward_map": {
+        "description": "Reward the luminous moving shapes. Strongly reward velocity coherence (flow alignment). Penalize static background regions that should have apparatus glow.",
+        "hot_regions": [
+          { "x": 25, "y": 20, "w": 70, "h": 45, "score": 0.68, "reason": "Dancer/luminous figure — moving bright mass with directional coherence" }
+        ],
+        "flow_bonus": {
+          "min_magnitude": 0.3,
+          "weight": 0.5,
+          "reason": "Matched velocity tracking — reward cells where flow vectors align with the dancer's lateral drift"
+        }
+      }
+    },
+    {
+      "id": "S4_BREACH_CONVERSION",
+      "prompt_segment": "[00:26-00:36] The Breach and Conversion. Dancer breaches transparent projection plane. Purge all human flesh, translate to luminous particle avatar. Light trails as exhaust.",
+      "frame_range": [63, 86],
+      "overall_match": 0.68,
+      "verdicts": {
+        "projection_breach": { "score": 0.55, "note": "There is a visible transition moment around frames 65-70 where the bright mass disperses. Could read as a breach." },
+        "flesh_to_particle": { "score": 0.72, "note": "The figure DOES dissolve from coherent mass to scattered bright particles. This is the strongest prompt match in the sequence." },
+        "light_trails": { "score": 0.80, "note": "Trailing bright marks visible behind the particle dispersal. Good light exhaust effect even at BEFLIX resolution." },
+        "interface_plane": { "score": 0.40, "note": "No clear vertical plane/membrane visible. The breach happens but the surface is absent." }
+      },
+      "reward_map": {
+        "description": "Highest reward segment. The particle dispersal and light trails are strong. Reward scattered bright cells, penalize any remaining coherent-mass forms (should be particles, not body).",
+        "hot_regions": [
+          { "x": 15, "y": 15, "w": 95, "h": 55, "score": 0.78, "reason": "Particle field — bright scattered points with trailing energy" },
+          { "x": 40, "y": 25, "w": 50, "h": 30, "score": 0.85, "reason": "Core dispersal zone — densest particle activity" }
+        ],
+        "delta_bonus": {
+          "weight": 0.6,
+          "reason": "High frame delta = active conversion. Reward cells with maximum frame-to-frame change."
+        }
+      }
+    },
+    {
+      "id": "S5_CASCADE_LOCKED_LOOP",
+      "prompt_segment": "[00:36-00:46] The Cascade and Locked Loop. Translate particle avatar into extreme macro of degrading RGB pixel grid. Carry over all prior elements. Recursively expand until geometry locks into the opening frame's door threshold.",
+      "frame_range": [87, 119],
+      "overall_match": 0.52,
+      "verdicts": {
+        "pixel_grid_macro": { "score": 0.55, "note": "The final frames show increasingly geometric rectangular patterns. Could read as a pixel grid at macro scale, especially given the BEFLIX quantization already IS a pixel grid." },
+        "recursive_return": { "score": 0.45, "note": "The final 6-8 frames show bright rectangular shapes in the upper quadrant that echo the opening threshold geometry. The loop is SUGGESTED but not mathematically locked." },
+        "material_carryover": { "score": 0.60, "note": "Light bleed and grain tone are maintained. The thick haze is less present in the final frames." },
+        "rgb_degradation": { "score": 0.35, "note": "No visible RGB channel separation in BEFLIX (it's monochrome 8-level). This prompt element cannot be evaluated at this resolution." }
+      },
+      "reward_map": {
+        "description": "Moderate reward. The geometric return is the key. Use STRUCTURAL SIMILARITY between final frames and opening frames as the reward signal.",
+        "hot_regions": [
+          { "x": 30, "y": 10, "w": 65, "h": 40, "score": 0.55, "reason": "Geometric forms echoing threshold — partial loop closure" },
+          { "x": 10, "y": 60, "w": 100, "h": 30, "score": 0.40, "reason": "Lower field — should show recursive expansion but reads as random grain" }
+        ],
+        "loop_closure_metric": {
+          "compare_frames": [0, 119],
+          "method": "structural_similarity",
+          "target_ssim": 0.6,
+          "actual_ssim_estimate": 0.35,
+          "reason": "The recursive loop should return to the exact composition of frame 0. Current estimate: 35% structural match. This is the weakest prompt fidelity."
+        }
+      }
+    }
+  ],
+
+  "global_verdicts": {
+    "continuous_take": { "score": 0.55, "note": "2-3 visible discontinuities where brightness distribution jumps. Not a clean continuous take — there are what read as cuts around frames 20, 44, 63." },
+    "1970s_panavision": { "score": 0.45, "note": "The aesthetic is present (grain, contrast, haze) but the BEFLIX quantization strips too much texture to read as film. The quantization IS an epistemic filter but it also kills the period texture." },
+    "material_inheritance": { "score": 0.50, "note": "Partial. Grain carries through. Lighting tone mostly carries. Spatial composition does NOT carry — objects appear and disappear without clear handoff." },
+    "overall_prompt_fidelity": 0.58
+  },
+
+  "reward_field_generation": {
+    "method": "Composite of per-segment hot_region scores mapped to 128x96 grid cells",
+    "signals": [
+      "annotation_score (this file)",
+      "flow_alignment (from kinematics)",
+      "delta_heat (from frame-to-frame change)",
+      "structural_similarity (frame 0 vs frame N for loop closure)"
+    ],
+    "formula": "reward = annotation_field[cell] * 0.5 + flow_bonus * 0.2 + delta_bonus * 0.2 + loop_similarity * 0.1"
+  }
+}

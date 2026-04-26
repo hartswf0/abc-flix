@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc Splice Operator — Mobile Video Build</title>
+    <style>
+        :root {
+            --bg: #000;
+            --panel: #050505;
+            --line: #252525;
+            --soft: #777;
+            --fg: #fff;
+            --cyan: #00e5ff;
+            --hot: #ff0055;
+            --warn: #ffd34d;
+            --good: #9cffb8
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none
+        }
+
+        #top {
+            position: fixed;
+            inset: 0 0 auto 0;
+            height: 52px;
+            z-index: 50;
+            background: linear-gradient(#090909, #020202);
+            border-bottom: 1px solid #2a2a2a;
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 9px
+        }
+
+        .brand {
+            min-width: 0;
+            line-height: 1.05
+        }
+
+        .brand b {
+            display: block;
+            color: var(--cyan);
+            font-size: 12px;
+            letter-spacing: .13em
+        }
+
+        .brand span {
+            display: block;
+            margin-top: 4px;
+            color: #777;
+            font-size: 8px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            flex-wrap: wrap
+        }
+
+        button {
+            height: 27px;
+            min-width: 29px;
+            padding: 0 7px;
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            font: 900 8px ui-monospace, SFMono-Regular, monospace;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        button:hover {
+            background: #fff;
+            color: #000;
+            border-color: #fff
+        }
+
+        button.on {
+            background: var(--cyan);
+            color: #000;
+            border-color: var(--cyan)
+        }
+
+        button.src.loaded {
+            color: var(--cyan);
+            border-color: var(--cyan)
+        }
+
+        button.src.on {
+            background: var(--warn);
+            color: #000;
+            border-color: var(--warn)
+        }
+
+        #foot {
+            position: fixed;
+            inset: auto 0 0 0;
+            height: 42px;
+            z-index: 50;
+            background: #030303;
+            border-top: 1px solid #2a2a2a;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr)
+        }
+
+        .stat {
+            border-right: 1px solid #242424;
+            padding: 5px 9px;
+            overflow: hidden
+        }
+
+        .stat:last-child {
+            border-right: 0
+        }
+
+        .stat label {
+            display: block;
+            color: #666;
+            font-size: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .stat output {
+            display: block;
+            margin-top: 2px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .cyan {
+            color: var(--cyan) !important
+        }
+
+        .hot {
+            color: var(--hot) !important
+        }
+
+        .warn {
+            color: var(--warn) !important
+        }
+
+        #toast {
+            position: fixed;
+            z-index: 90;
+            left: 50%;
+            bottom: 56px;
+            transform: translateX(-50%);
+            background: #fff;
+            color: #000;
+            border: 1px solid #fff;
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            opacity: 0;
+            pointer-events: none;
+            transition: .16s;
+            max-width: 94vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px)
+        }
+
+        canvas {
+            position: fixed;
+            left: 0;
+            top: 52px;
+            display: block;
+            background: #000;
+            cursor: crosshair
+        }
+
+        input[type=file] {
+            display: none
+        }
+
+        #pool {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            opacity: .001;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: -1
+        }
+
+        @media(max-width:860px) {
+            #top {
+                height: 66px;
+                grid-template-columns: 1fr;
+                align-items: start;
+                gap: 4px
+            }
+
+            .brand {
+                display: flex;
+                align-items: baseline;
+                gap: 8px
+            }
+
+            .brand b {
+                font-size: 10px
+            }
+
+            .brand span {
+                font-size: 7px;
+                margin-top: 0
+            }
+
+            #controls {
+                justify-content: space-between;
+                width: 100%;
+                gap: 3px
+            }
+
+            button {
+                height: 23px;
+                min-width: 25px;
+                padding: 0 5px;
+                font-size: 7px;
+                letter-spacing: .03em
+            }
+
+            .hideMob {
+                display: none !important
+            }
+
+            canvas {
+                top: 66px
+            }
+
+            #foot {
+                height: 50px;
+                grid-template-columns: repeat(3, 1fr)
+            }
+
+            .mobGone {
+                display: none
+            }
+
+            .stat {
+                padding: 5px 7px
+            }
+
+            .stat label {
+                font-size: 7px
+            }
+
+            .stat output {
+                font-size: 10px
+            }
+
+            #toast {
+                bottom: 64px
+            }
+        }
+
+        #manifestPanel {
+            position: fixed;
+            z-index: 120;
+            inset: 10px;
+            display: none;
+            background: rgba(0, 0, 0, .96);
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 30px rgba(0, 229, 255, .18);
+            color: #eee;
+            overflow: auto;
+            padding: 14px 16px 24px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace
+        }
+
+        #manifestPanel.open {
+            display: block
+        }
+
+        #manifestPanel header {
+            position: sticky;
+            top: 0;
+            background: #000;
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 0 0 10px;
+            margin-bottom: 10px
+        }
+
+        #manifestPanel h1 {
+            font-size: 14px;
+            color: var(--cyan);
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        #manifestPanel pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 10px;
+            line-height: 1.45;
+            color: #ddd;
+            max-width: 980px;
+            margin: 0 auto
+        }
+
+        #manifestPanel .close {
+            height: 28px;
+            border-color: var(--warn);
+            color: var(--warn)
+        }
+
+
+        /* MOBILE VIDEO-FIRST PATCH — restores usability while preserving ghost editing */
+        :root {
+            color-scheme: dark;
+        }
+
+        button {
+            touch-action: manipulation;
+            border-radius: 0;
+        }
+
+        #controls {
+            scrollbar-width: thin;
+            scrollbar-color: var(--cyan) #000;
+        }
+
+        #controls::-webkit-scrollbar,
+        #manifestPanel::-webkit-scrollbar {
+            width: 12px;
+            height: 10px;
+            background: #000;
+        }
+
+        #controls::-webkit-scrollbar-track,
+        #manifestPanel::-webkit-scrollbar-track {
+            background: #000;
+            border: 1px solid #2a2a2a;
+        }
+
+        #controls::-webkit-scrollbar-thumb,
+        #manifestPanel::-webkit-scrollbar-thumb {
+            background: var(--cyan);
+            border: 2px solid #000;
+            min-height: 44px;
+        }
+
+        #controls::-webkit-scrollbar-thumb:active,
+        #manifestPanel::-webkit-scrollbar-thumb:active {
+            background: #fff;
+        }
+
+        #manifestPanel {
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--cyan) #000;
+        }
+
+        #manifestClose {
+            min-width: 72px;
+            min-height: 40px;
+        }
+
+        #pool video {
+            width: 1px;
+            height: 1px;
+            display: block;
+        }
+
+        @supports(height:100dvh) {
+
+            html,
+            body {
+                height: 100dvh
+            }
+        }
+
+        @supports(height:100svh) {
+
+            html,
+            body {
+                min-height: 100svh
+            }
+        }
+
+        @media(max-width:860px) {
+
+            html,
+            body {
+                width: 100%;
+                min-height: 100svh;
+                min-height: 100dvh;
+                overflow: hidden;
+                overscroll-behavior: none;
+                -webkit-text-size-adjust: 100%;
+            }
+
+            #top {
+                height: 82px !important;
+                grid-template-columns: 1fr !important;
+                align-items: start !important;
+                gap: 5px !important;
+                padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px !important;
+                background: #000 !important;
+                border-bottom: 2px solid #1f1f1f !important;
+            }
+
+            .brand {
+                display: block !important;
+                min-height: 17px;
+                overflow: hidden;
+            }
+
+            .brand b {
+                font-size: 11px !important;
+                line-height: 13px !important;
+                letter-spacing: .08em !important;
+            }
+
+            .brand span {
+                display: block !important;
+                font-size: 7px !important;
+                line-height: 9px !important;
+                margin-top: 1px !important;
+                color: #aaa !important;
+            }
+
+            #controls {
+                justify-content: flex-start !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                width: 100% !important;
+                gap: 6px !important;
+                padding: 1px 2px 8px !important;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x;
+            }
+
+            button {
+                height: 38px !important;
+                min-width: 44px !important;
+                padding: 0 10px !important;
+                font-size: 9px !important;
+                letter-spacing: .04em !important;
+                border-color: #555 !important;
+                flex: 0 0 auto !important;
+            }
+
+            button.src {
+                min-width: 48px !important;
+                font-size: 12px !important;
+            }
+
+            button.src.loaded {
+                border-color: var(--cyan) !important;
+                box-shadow: inset 0 -3px 0 var(--cyan) !important;
+            }
+
+            button.src.on {
+                background: var(--warn) !important;
+                color: #000 !important;
+                border-color: var(--warn) !important;
+            }
+
+            .hideMob {
+                display: none !important;
+            }
+
+            canvas {
+                top: 82px !important;
+                left: 0 !important;
+                width: 100vw !important;
+                touch-action: none !important;
+            }
+
+            #foot {
+                height: 44px !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                background: #000 !important;
+                border-top: 2px solid #1f1f1f !important;
+            }
+
+            .stat {
+                padding: 5px 7px !important;
+            }
+
+            .stat label {
+                font-size: 7px !important;
+            }
+
+            .stat output {
+                font-size: 10px !important;
+            }
+
+            .mobGone {
+                display: none !important;
+            }
+
+            #toast {
+                bottom: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+                max-width: calc(100vw - 18px) !important;
+                white-space: normal !important;
+                text-align: center !important;
+                line-height: 1.35 !important;
+                font-size: 10px !important;
+            }
+
+            #manifestPanel {
+                inset: calc(8px + env(safe-area-inset-top, 0px)) 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px !important;
+                border-width: 2px !important;
+                padding: 12px 14px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #manifestPanel header {
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+
+            #manifestPanel h1 {
+                font-size: 13px !important;
+                line-height: 1.25 !important;
+            }
+
+            #manifestPanel pre {
+                font-size: 11px !important;
+                line-height: 1.6 !important;
+            }
+        }
+
+        @media(max-width:420px) {
+            button {
+                min-width: 42px !important;
+                height: 36px !important;
+                padding: 0 8px !important;
+                font-size: 8px !important;
+            }
+
+            button.src {
+                min-width: 45px !important;
+            }
+        }
+
+        @media(orientation:landscape) and (max-height:520px) {
+            #top {
+                height: 56px !important;
+                grid-template-columns: auto 1fr !important;
+                align-items: center !important;
+            }
+
+            .brand span {
+                display: none !important
+            }
+
+            #controls {
+                padding-bottom: 4px !important
+            }
+
+            button {
+                height: 34px !important
+            }
+
+            canvas {
+                top: 56px !important
+            }
+
+            #foot {
+                height: 34px !important
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="pool"></div>
+    <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.ogg" />
+    <input id="projectInput" type="file" accept="application/json,.json" />
+    <header id="top">
+        <div class="brand"><b>ARC SPLICE OPERATOR</b><span>mobile video build → visible preview · easy touch · styled
+                scroll</span></div>
+        <div id="controls"><button id="manifest">Ritual</button><button id="play">Play</button><button
+                id="source">Source</button><button class="src on" data-i="0">A</button><button class="src"
+                data-i="1">B</button><button class="src" data-i="2">C</button><button class="src"
+                data-i="3">D</button><button id="undo">Undo</button><button id="edl">EDL</button><button id="save"
+                class="hideMob">Save</button><button id="load" class="hideMob">Load</button><button
+                id="clear">Clear</button></div>
+    </header>
+    <canvas id="stage"></canvas>
+    <footer id="foot">
+        <div class="stat"><label>time</label><output id="time" class="cyan">00:00:00</output></div>
+        <div class="stat"><label>mode</label><output id="mode">edit</output></div>
+        <div class="stat"><label>source</label><output id="src" class="warn">A empty</output></div>
+        <div class="stat mobGone"><label>runtime</label><output id="run" class="hot">0.0s</output></div>
+        <div class="stat mobGone"><label>splices</label><output id="clips" class="cyan">0</output></div>
+    </footer>
+    <div id="toast"></div>
+    <div id="manifestPanel" aria-hidden="true">
+        <header>
+            <h1>Ghost Editing Heuristics</h1><button id="manifestClose" class="close">Close</button>
+        </header>
+        <pre># Heuristics for the Arc Splice / Ghost Editing Concepts
+
+These heuristics translate the uploaded **QQQQ Nexus Stepping Stone Collector** into design rules for the control surface: not as a normal browser video editor, but as a ritualized system of visible sources, lit slices, ghost media, magnetic rails, missing bodies, and EDL traces. 
+
+---
+
+# 1. Visible Source Ritual Heuristic
+
+**Rule:** A source should not merely load. It should awaken.
+
+The source lifecycle should feel like:
+
+&gt; dormant file → armed source → lit slices → dragged fragment → temporal apparition
+
+Design implications:
+
+* Use “armed,” “visible,” “lit,” and “ready” language instead of generic “uploaded.”
+* Make source activation visually dramatic.
+* Show source presence even before perfect decoding.
+* Treat each A/B/C/D source as a distinct character, not just a file slot.
+
+**Avoid:** bland upload states like `file selected` or `media imported`.
+
+**Test:** Can a user tell when a source has become active without reading a manual?
+
+---
+
+# 2. Ghost Media Heuristic
+
+**Rule:** Failed media should still have presence.
+
+The phrase **“decode failed — source still armed”** should become a core design principle, not an error edge case.
+
+If a video cannot decode, the system should still allow it to exist as:
+
+* placeholder
+* ghost source
+* absent reel
+* proxy waveform
+* missing-media memory
+* relinkable artifact
+
+**Design move:** A failed source gets a spectral visual treatment instead of disappearing.
+
+Example states:
+
+| State     | Meaning                               |
+| --------- | ------------------------------------- |
+| `ARMED`   | Source has been accepted              |
+| `VISIBLE` | Video can be previewed                |
+| `GHOST`   | Source exists but cannot fully appear |
+| `MISSING` | Source was known but is absent        |
+| `RELINK`  | Source needs a body again             |
+
+**Avoid:** treating decode failure as a dead end.
+
+**Test:** Can the user still compose with a broken or missing source?
+
+---
+
+# 3. Ritual Grid Heuristic
+
+**Rule:** The fixed 24-slice density is not a limitation until proven otherwise.
+
+The grid should feel like a constraint that creates thought.
+
+Do not rush to add infinite zoom, frame-level precision, or elastic timelines. The fixed grid gives the tool a recognizable tempo.
+
+**Design implications:**
+
+* Keep the default timeline visibly segmented.
+* Let each slot feel like a beat, cell, card, or altar position.
+* Make empty cells meaningful.
+* Allow precision only as a temporary magnification mode.
+
+**Avoid:** turning the rail into a conventional NLE timeline.
+
+**Test:** Does the grid make users think differently, or does it merely frustrate them?
+
+---
+
+# 4. Slice-as-Offering Heuristic
+
+**Rule:** A slice is not just a unit of footage. It is a chosen fragment.
+
+When the user drags a lit slice, the interface should frame that action as selection, extraction, and offering.
+
+The drag state should show:
+
+&gt; source · source time · destination time · layer · duration
+
+Example:
+
+&gt; `A:04s → rail 08s · layer 2`
+
+**Design implications:**
+
+* Hovering over a slice should make it feel available.
+* Dragging should make it feel extracted.
+* Dropping should make it feel consecrated into sequence time.
+
+**Avoid:** generic drag-and-drop behavior with no symbolic feedback.
+
+**Test:** Does placing a clip feel like making an editorial claim?
+
+---
+
+# 5. Magnetic Rail Heuristic
+
+**Rule:** The rail should behave like a force field, not a passive timeline.
+
+The user should feel that clips are caught by the rail.
+
+**Design implications:**
+
+* Show snap glow before drop.
+* Highlight valid landing cells.
+* Let invalid drops resist or repel.
+* Make overlap/layer priority visible.
+* Make the rail feel gravitational.
+
+**Avoid:** silent snapping that surprises the user.
+
+**Test:** Before releasing the pointer, can the user predict exactly where the slice will land?
+
+---
+
+# 6. Empty Time Heuristic
+
+**Rule:** Absence is an editable material.
+
+The timeline should not treat gaps as nothing. Gaps should read as deliberate empty sequence time.
+
+Possible labels:
+
+* `EMPTY TIME`
+* `BLACK`
+* `ABSENCE`
+* `UNSUMMONED`
+* `NO ACTIVE CLIP`
+
+**Design implications:**
+
+* The playhead crossing an empty region should show a monitor state.
+* EDL export may include gap events.
+* Empty slots should remain visually legible.
+* Silence/black should feel compositional, not accidental.
+
+**Avoid:** collapsing the sequence duration to only occupied clips.
+
+**Test:** Can the user intentionally design with what is missing?
+
+---
+
+# 7. EDL-as-Score Heuristic
+
+**Rule:** Export is not the final artwork. It is a performable trace.
+
+The JSON EDL should be treated like a score, spellbook, fossil, or set of temporal instructions.
+
+**Design implications:**
+
+* Preserve missing media references.
+* Export gaps if they matter.
+* Include ghost-source states.
+* Include source identity, not just file paths.
+* Make EDL readable by humans, not only machines.
+
+Possible EDL event language:
+
+```json
+{
+  &quot;event&quot;: 7,
+  &quot;source&quot;: &quot;B&quot;,
+  &quot;source_state&quot;: &quot;ghost&quot;,
+  &quot;source_in&quot;: &quot;00:00:04&quot;,
+  &quot;sequence_in&quot;: &quot;00:00:12&quot;,
+  &quot;duration&quot;: 1,
+  &quot;layer&quot;: 2,
+  &quot;meaning&quot;: &quot;placeholder still active&quot;
+}
+```
+
+**Avoid:** treating export only as technical workflow glue.
+
+**Test:** Could someone reconstruct, reinterpret, or perform the sequence from the EDL alone?
+
+---
+
+# 8. Relink-as-Interpretation Heuristic
+
+**Rule:** Relinking should not be framed only as repair. It can be reinterpretation.
+
+When a project loads without media, the absence should become part of the experience.
+
+**Design implications:**
+
+* Show missing sources as named ghosts.
+* Let users relink with different media.
+* Preserve the old source identity as memory.
+* Show which clips depend on each missing body.
+* Allow “perform without relinking” using proxies.
+
+**Avoid:** blocking the project until all media is restored.
+
+**Test:** Can the same EDL become a different edit when relinked to different source bodies?
+
+---
+
+# 9. No-Final-Render Heuristic
+
+**Rule:** Lack of final render can protect the system from becoming ordinary.
+
+This tool may be stronger as a live composition instrument, temporal sketchbook, or performance console.
+
+**Design implications:**
+
+* Prioritize playback, mutation, and exportable structure.
+* Treat the running interface as the artwork.
+* Let sequences be performed, not only finalized.
+* Avoid adding a render queue too early.
+
+**Avoid:** assuming every video tool must produce a flattened file.
+
+**Test:** Is the most meaningful output the rendered video, or the act/structure of splicing?
+
+---
+
+# 10. Console Mythology Heuristic
+
+**Rule:** The interface language should sustain the fiction of an instrument.
+
+The uploaded document identifies the surface as a “machine cult”: black field, neon commands, armed sources, warning states, live slices. Preserve that mythology.
+
+**Use language like:**
+
+* `ARM SOURCE`
+* `SOURCE VISIBLE`
+* `SPLICE PLACED`
+* `DROP ON RAIL`
+* `GHOST MEDIA`
+* `RELINK BODY`
+* `EDL EXPORTED`
+* `SEQUENCE INVOKED`
+
+**Avoid:**
+
+* `Upload complete`
+* `Add clip`
+* `Error loading file`
+* `Save successful`
+* `Preview unavailable`
+
+**Test:** Does the system sound like a distinctive instrument, or generic software?
+
+---
+
+# 11. Mode-as-Mood Heuristic
+
+**Rule:** Modes should feel like mental states, not just system states.
+
+The current mode set — edit, play, scrub, drag, roll, trim — can become a cognitive weather system.
+
+| Mode  | Mood             |
+| ----- | ---------------- |
+| Edit  | potential        |
+| Play  | invocation       |
+| Scrub | searching        |
+| Drag  | extraction       |
+| Roll  | memory shift     |
+| Trim  | wound adjustment |
+| Ghost | absent presence  |
+
+**Design implications:**
+
+* Each mode should have a visual atmosphere.
+* The playhead, rail, monitor, and source strips should respond to mode changes.
+* The footer mode label should be reinforced spatially.
+
+**Avoid:** relying only on a small text label in the HUD.
+
+**Test:** Can the user feel the mode change before reading it?
+
+---
+
+# 12. Cut-as-Wound Heuristic
+
+**Rule:** A cut should leave evidence.
+
+Do not make clips feel like clean rectangles only. They should carry the memory of extraction.
+
+**Design implications:**
+
+* Angled clip edges are good; keep them.
+* Trim handles should look like exposed scar tissue.
+* Used source slices should be marked.
+* Moving a clip should preserve its source wound: where it came from, what it took.
+
+**Avoid:** overly polished card components that erase the violence of cutting.
+
+**Test:** Can the user see that every clip was taken from somewhere?
+
+---
+
+# 13. Used/Unused Source Memory Heuristic
+
+**Rule:** The source strip should remember what the timeline has taken.
+
+Source slices should show:
+
+| Slice state | Meaning                     |
+| ----------- | --------------------------- |
+| untouched   | available                   |
+| hovered     | calling                     |
+| dragged     | being extracted             |
+| used        | already placed              |
+| active      | currently under playhead    |
+| ghost-used  | used, but source is missing |
+
+**Design implications:**
+
+* The source is not just input.
+* It becomes an archive of editorial attention.
+* The user can see both selection and omission.
+
+**Avoid:** source strips that reset visually after a drag.
+
+**Test:** Can the user ask, “What have I not used yet?” and answer visually?
+
+---
+
+# 14. Live Monitor as Surveillance Heuristic
+
+**Rule:** The monitor is not merely confirmation. It watches the edit become real.
+
+The monitor should label what kind of reality it is showing:
+
+* `SOURCE PREVIEW`
+* `SEQUENCE OUTPUT`
+* `EMPTY TIME`
+* `GHOST OUTPUT`
+* `PROXY APPARITION`
+* `FAILED BODY / ARMED SOURCE`
+
+**Design implications:**
+
+* Use monitor overlays for state clarity.
+* Let the monitor display proxies for missing media.
+* Do not leave ambiguous black screens.
+
+**Avoid:** unlabeled preview states.
+
+**Test:** Does the user always know whether they are seeing source, sequence, gap, or ghost?
+
+---
+
+# 15. Performance Console Heuristic
+
+**Rule:** The editor should be playable.
+
+The interface should support fast, embodied, repeatable gestures.
+
+**Design implications:**
+
+* Keyboard shortcuts should feel like instrument keys.
+* Number keys select sources.
+* Space invokes playback.
+* Dragging slices should be low-friction.
+* Rolling reels should alter source access rhythm.
+* EDL export should feel like capturing a performance trace.
+
+**Avoid:** heavy dialog flows and modal panels.
+
+**Test:** Can someone use the tool rhythmically, almost musically?
+
+---
+
+# 16. Archive of Absences Heuristic
+
+**Rule:** A saved project should remember both what appeared and what failed to appear.
+
+The project file should preserve:
+
+* loaded source names
+* missing source names
+* ghost status
+* failed decode states
+* relink history
+* sequence structure
+* empty gaps
+* source-roll offsets
+* placed slices
+
+**Design implications:**
+
+* Saving should not require perfect media.
+* Loading should show absences as meaningful.
+* Relinking should be visible as a historical act.
+
+**Avoid:** reducing project state to only currently valid media.
+
+**Test:** Does the project remain meaningful even when no original videos are available?
+
+---
+
+# 17. Montage Oracle Heuristic
+
+**Rule:** The system may suggest collisions, but it should not over-explain them.
+
+If generative or random functions are added, they should behave like an oracle, not an assistant.
+
+Possible actions:
+
+* suggest strange slice pairings
+* shuffle unused fragments
+* place ghost clips
+* generate a ritual grid pattern
+* propose a cut based on contrast
+
+**Design implications:**
+
+* Keep suggestions optional.
+* Let the user accept, mutate, or ignore.
+* Do not explain too much.
+* Preserve mystery.
+
+**Avoid:** productivity-style AI that says, “Here is the optimal edit.”
+
+**Test:** Does the suggestion provoke thought rather than automate judgment?
+
+---
+
+# 18. Negative-Space Feature Heuristic
+
+**Rule:** Every new feature must protect the weird core.
+
+Before adding anything, ask:
+
+&gt; Does this make the system more like a normal editor, or more like itself?
+
+If it makes the tool more generic, reject or constrain it.
+
+## Addition/subtraction examples
+
+| Proposed addition | Required subtraction                                        |
+| ----------------- | ----------------------------------------------------------- |
+| More sources      | Collapse inactive source visuals                            |
+| Render export     | Reduce EDL prominence or create separate ritual export mode |
+| Audio             | Remove another persistent visual layer                      |
+| Effects           | Limit them to ghost/proxy states only                       |
+| AI suggestions    | Remove generic editing commands                             |
+| Timeline zoom     | Hide it until repeated trim friction appears                |
+| Media bin         | Remove A/B/C/D ritual source model — probably not worth it  |
+
+**Test:** Does the addition increase clarity, or merely increase capability?
+
+---
+
+# 19. Anti-NLE Heuristic
+
+**Rule:** Never compete with professional video editors on their terms.
+
+This system should win by being stranger, faster, more tactile, and more conceptually alive.
+
+Do not optimize for:
+
+* complete post-production
+* media management
+* effects pipelines
+* precision color/audio work
+* delivery formats
+* client review workflows
+
+Optimize for:
+
+* source awakening
+* fragment extraction
+* rapid montage
+* visible omission
+* ghost composition
+* performable sequence logic
+* exportable temporal traces
+
+**Test:** Would this feature make the tool easier to compare to Premiere? If yes, be suspicious.
+
+---
+
+# 20. Master Heuristic
+
+&gt; Treat every limitation as a possible instrument.
+
+No audio becomes visual percussion.
+No render becomes live performance.
+Decode failure becomes ghost media.
+Fixed grid becomes ritual meter.
+Relinking becomes reinterpretation.
+JSON becomes a spellbook.
+One-second clips become seeds.
+The rail becomes an altar.
+
+The control surface should not ask:
+
+&gt; How do we make this a better video editor?
+
+It should ask:
+
+&gt; How do we make visible splicing feel inevitable, strange, and alive?
+</pre>
+    </div>
+    <script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),TAU=Math.PI*2,PI=Math.PI;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const wrap=(n,m)=>((n%m)+m)%m;
+const canvas=$('stage'),ctx=canvas.getContext('2d',{alpha:false,desynchronized:true}),pool=$('pool');
+let W=0,H=0,topH=52,botH=42,M=null,uid=1,last=0,toastTimer=0;
+const S={density:24,selected:0,loading:-1,preview:0,time:0,playing:false,drag:null,trim:null,scrub:false,roll:null,seq:[],undo:[]};
+const T=[
+{id:0,k:'A',h:188,s:100,l:52,loaded:false,ready:false,chunks:24,roll:0,vid:null,url:null,file:null,name:'A_SOURCE',hover:-1},
+{id:1,k:'B',h:318,s:100,l:56,loaded:false,ready:false,chunks:24,roll:0,vid:null,url:null,file:null,name:'B_SOURCE',hover:-1},
+{id:2,k:'C',h:50,s:100,l:58,loaded:false,ready:false,chunks:24,roll:0,vid:null,url:null,file:null,name:'C_SOURCE',hover:-1},
+{id:3,k:'D',h:0,s:0,l:86,loaded:false,ready:false,chunks:24,roll:0,vid:null,url:null,file:null,name:'D_SOURCE',hover:-1,ghost:false,missing:false}
+];
+T.forEach(t=>{if(t.ghost===undefined)t.ghost=false;if(t.missing===undefined)t.missing=false});
+function stateName(t){if(!t||!t.loaded)return'empty';if(t.missing)return'relink';if(t.ghost)return'ghost';if(t.ready)return'visible';return'armed'}
+function stateBadge(t){let s=stateName(t);return s==='empty'?'LOAD':s==='visible'?'VID':s==='ghost'?'GHO':s==='relink'?'LINK':'ARM'}
+function col(t,a=1,l=t.l){return`hsla(${t.h},${t.s}%,${l}%,${a})`}function ccol(c,a=1,l=50){return`hsla(${c.h},${c.s}%,${l}%,${a})`}function line(x1,y1,x2,y2,c='#222',w=1){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}function text(s,x,y,a='left',c='#fff',z=10,w='900'){ctx.fillStyle=c;ctx.textAlign=a;ctx.textBaseline='middle';ctx.font=`${w} ${z}px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;ctx.fillText(s,x,y)}function fmt(sec){sec=Math.max(0,sec);let f=Math.floor((sec%1)*24),s=Math.floor(sec)%60,m=Math.floor(sec/60);return`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(f).padStart(2,'0')}`}function toast(s){const e=$('toast');e.textContent=s;e.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('show'),1200)}function hit(r,x,y){return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h}
+function resize(){const mob=innerWidth<860,land=matchMedia('(orientation: landscape) and (max-height:520px)').matches;topH=mob?(land?56:82):52;botH=mob?(land?34:44):42;W=innerWidth;let vh=Math.floor((window.visualViewport&&visualViewport.height)||innerHeight);H=Math.max(mob?300:240,vh-topH-botH);let d=Math.max(1,devicePixelRatio||1);canvas.width=Math.floor(W*d);canvas.height=Math.floor(H*d);canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(d,0,0,d,0,0);M=metrics(mob)}
+function metrics(mob){let pad=mob?7:18,sourceH=mob?Math.max(112,Math.min(154,H*.25)):Math.max(166,Math.min(252,H*.38)),seqH=mob?Math.max(104,Math.min(138,H*.22)):Math.max(150,Math.min(205,H*.28)),monitorH=H-sourceH-seqH,reelX=mob?34:68,R=mob?Math.max(12,sourceH/18):Math.max(19,sourceH/14),stripX=reelX+R+(mob?14:34),endX=W-pad,stripW=Math.max(100,endX-stripX),slotW=stripW/S.density,trackH=sourceH/4,seqY=sourceH,seqX=stripX,seqW=stripW,rows=mob?3:4,railY=seqY+(mob?13:19),rowTop=seqY+(mob?43:60),rowH=(seqH-(mob?52:76))/rows,monitorY=sourceH+seqH;return{mob,pad,sourceH,seqH,monitorH,reelX,R,stripX,endX,stripW,slotW,trackH,seqY,seqX,seqW,rows,railY,rowTop,rowH,monitorY}}
+function updateButtons(){document.querySelectorAll('.src').forEach(b=>{let t=T[+b.dataset.i];b.classList.toggle('on',t.id===S.selected);b.classList.toggle('loaded',t.loaded)})}
+function setSrc(i){S.selected=clamp(i,0,3);S.preview=S.selected;updateButtons();hud()}
+function openSource(i=S.selected){S.loading=i;setSrc(i);$('videoInput').value='';$('videoInput').click();toast('CHOOSE SOURCE '+T[i].k)}
+function snap(){return JSON.stringify({seq:S.seq.map(c=>({...c})),time:S.time,selected:S.selected,preview:S.preview,tracks:T.map(t=>({id:t.id,loaded:t.loaded,ready:t.ready,chunks:t.chunks,roll:t.roll,file:t.file,name:t.name,ghost:t.ghost,missing:t.missing}))})}function push(){S.undo.push(snap());if(S.undo.length>50)S.undo.shift()}function restore(s){try{let p=JSON.parse(s);S.seq=(p.seq||[]).map(c=>({...c,id:c.id||uid++}));S.time=p.time||0;S.selected=p.selected||0;S.preview=p.preview||0;(p.tracks||[]).forEach(a=>{let t=T[a.id];if(!t)return;t.loaded=!!a.loaded;t.ready=!!a.ready&&!!t.vid;t.chunks=a.chunks||24;t.roll=a.roll||0;t.file=a.file||null;t.name=a.name||t.name;t.ghost=!!a.ghost;t.missing=!!a.missing});toast('UNDO');hud()}catch(e){}}function undo(){let s=S.undo.pop();if(s)restore(s);else toast('NOTHING TO UNDO')}
+function drawReel(t){let m=M,cx=m.reelX,cy=t.cy,R=m.R;ctx.lineWidth=2;ctx.strokeStyle=col(t,1,58);ctx.beginPath();ctx.arc(cx,cy,R,0,TAU);ctx.stroke();ctx.strokeStyle=col(t,.32,58);ctx.beginPath();ctx.arc(cx,cy,R*.62,0,TAU);ctx.stroke();ctx.fillStyle='#000';ctx.beginPath();ctx.arc(cx,cy,R*.22,0,TAU);ctx.fill();ctx.strokeStyle='#666';ctx.stroke();for(let i=0;i<16;i++){let a=-PI/2+i*TAU/16+t.roll*TAU/Math.max(1,t.chunks),maj=i%4===0;line(cx+R*(maj?.58:.74)*Math.cos(a),cy+R*(maj?.58:.74)*Math.sin(a),cx+R*.98*Math.cos(a),cy+R*.98*Math.sin(a),col(t,maj?.75:.4,58),maj?1.5:1)}let mx=cx+R*.85;ctx.fillStyle=col(t,.14,58);ctx.fillRect(mx,cy-R*.22,Math.max(8,m.stripX-mx),R*.44);ctx.strokeStyle=col(t,.7,58);ctx.strokeRect(mx,cy-R*.22,Math.max(8,m.stripX-mx),R*.44)}
+function slicePath(t,i){let m=M,x=m.stripX+i*m.slotW,y=t.cy,w=m.slotW,h=Math.max(15,m.R*.9),cut=Math.min(6,w*.25),p=new Path2D();p.moveTo(x+cut,y-h/2);p.lineTo(x+w-cut,y-h/2);p.lineTo(x+w,y);p.lineTo(x+w-cut,y+h/2);p.lineTo(x+cut,y+h/2);p.lineTo(x,y);p.closePath();return p}function sourceIndex(t,i){return wrap(Math.round(t.roll)+i,Math.max(1,t.chunks))}
+function drawSources(){let m=M;ctx.fillStyle='#020202';ctx.fillRect(0,0,W,m.sourceH);line(0,m.sourceH,W,m.sourceH,'#282828',1.5);T.forEach((t,i)=>{t.cy=i*m.trackH+m.trackH/2;let cy=t.cy;t.load={x:5,y:cy-(m.mob?18:20),w:m.mob?35:50,h:m.mob?36:40};drawReel(t);ctx.fillStyle=t.loaded?col(t,.96,54):'#080808';ctx.strokeStyle=t.loaded?col(t,1,66):(i===S.selected?'#fff':'#444');ctx.lineWidth=i===S.selected?2:1;ctx.fillRect(t.load.x,t.load.y,t.load.w,t.load.h);ctx.strokeRect(t.load.x,t.load.y,t.load.w,t.load.h);text(stateBadge(t),t.load.x+t.load.w/2,cy,'center',t.loaded?'#000':'#aaa',m.mob?8:9);let title=t.loaded?(t.file||t.name):`SOURCE ${t.k} — TAP LOAD`;text(title,m.stripX,cy-(m.mob?19:23),'left',t.loaded?col(t,1,66):'#777',m.mob?8:10);text('ROLL '+Math.round(t.roll),m.endX,cy-(m.mob?19:23),'right','#777',m.mob?7:9);let fh=m.R*1.42,fy=cy-fh/2;if(t.loaded){ctx.save();ctx.beginPath();ctx.rect(m.stripX,fy,m.stripW,fh);ctx.clip();ctx.fillStyle=col(t,.24,38);ctx.fillRect(m.stripX,fy,m.stripW,fh);if(t.vid&&t.vid.readyState>=2){ctx.globalAlpha=.42;try{ctx.drawImage(t.vid,m.stripX,fy,m.stripW,fh)}catch(e){}ctx.globalAlpha=1;ctx.fillStyle='rgba(0,0,0,.36)';ctx.fillRect(m.stripX,fy,m.stripW,fh);text('VIDEO LIVE',m.stripX+8,cy,'left',col(t,1,70),m.mob?8:10)}else{text(stateName(t)==='ghost'?'GHOST SOURCE — STILL ARMED':stateName(t)==='relink'?'RELINK SOURCE — BODY ABSENT':'SOURCE ARMED — AWAITING VISIBILITY',m.stripX+8,cy,'left',col(t,1,70),m.mob?7:9)}ctx.restore()}for(let si=0;si<S.density;si++){let p=slicePath(t,si),hov=t.hover===si;ctx.fillStyle=t.loaded?col(t,hov?.82:.34,hov?63:t.l):'rgba(255,255,255,.035)';ctx.strokeStyle=t.loaded?col(t,hov?1:.7,hov?68:t.l):'#1a1a1a';ctx.lineWidth=hov?2:1;ctx.fill(p);ctx.stroke(p);if(t.loaded&&(hov||m.slotW>20))text(String(sourceIndex(t,si)).padStart(2,'0'),m.stripX+si*m.slotW+m.slotW/2,cy,'center',hov?'#000':'#111',m.mob?7:8)}})}
+function clipRect(c,slot=c.slot,layer=c.layer,dur=c.dur){let m=M,h=Math.min(36,Math.max(25,m.rowH*.78));return{x:m.seqX+slot*m.slotW,y:m.rowTop+layer*m.rowH-h/2,w:dur*m.slotW,h}}function clipPath(c,slot=c.slot,layer=c.layer,dur=c.dur){let r=clipRect(c,slot,layer,dur),cut=Math.min(13,Math.max(5,M.slotW*.32)),p=new Path2D();p.moveTo(r.x+cut,r.y);p.lineTo(r.x+r.w,r.y);p.lineTo(r.x+r.w-cut,r.y+r.h);p.lineTo(r.x,r.y+r.h);p.closePath();return p}function drawClip(c,ghost=false){let p=clipPath(c),r=clipRect(c);ctx.fillStyle=ccol(c,ghost?.42:.9,ghost?64:46);ctx.fill(p);ctx.strokeStyle=ghost?'#00e5ff':'#000';ctx.lineWidth=ghost?2:1;ctx.stroke(p);if(r.w>32)text(`${T[c.track].k}:${c.src}s`,r.x+r.w/2,r.y+r.h/2,'center','#000',M.mob?8:10);ctx.fillStyle='rgba(255,255,255,.28)';ctx.fillRect(r.x-2,r.y+4,4,r.h-8);ctx.fillRect(r.x+r.w-2,r.y+4,4,r.h-8)}
+function drawTimeline(){let m=M;ctx.fillStyle='#050505';ctx.fillRect(0,m.seqY,W,m.seqH);line(0,m.seqY,W,m.seqY,'#282828',1.5);line(0,m.seqY+m.seqH,W,m.seqY+m.seqH,'#282828',1.5);line(m.seqX,m.railY,m.seqX+m.seqW,m.railY,'#444',1.4);for(let i=0;i<=S.density;i++){let x=m.seqX+i*m.slotW,maj=i%4===0,mid=i%2===0,len=maj?22:mid?14:8;line(x,m.railY-len/2,x,m.railY+len/2,maj?'#999':'#444',maj?1.4:1);if(maj&&!m.mob)text(i+'s',x,m.railY+25,'center','#777',9)}for(let r=0;r<m.rows;r++){let y=m.rowTop+r*m.rowH;line(m.seqX,y,m.seqX+m.seqW,y,'#171717',1);text(String(r+1),m.seqX-12,y,'right','#555',m.mob?8:9)}if(!S.seq.length)text('pull a lit source slice onto the magnetic rail',m.seqX+m.seqW/2,m.rowTop+m.rowH,'center','#555',m.mob?8:11);S.seq.forEach(c=>drawClip(c));if(S.drag){let d=S.drag,slot=clamp(Math.round((d.x-d.off-m.seqX)/m.slotW),0,S.density-d.clip.dur),layer=clamp(Math.floor((d.y-(m.rowTop-m.rowH*.5))/m.rowH),0,m.rows-1),valid=d.y>=m.seqY&&d.y<=m.seqY+m.seqH&&d.x>=m.seqX-24&&d.x<=m.seqX+m.seqW+24,r=clipRect(d.clip,slot,layer,d.clip.dur);if(valid){ctx.fillStyle='rgba(0,229,255,.10)';ctx.fillRect(r.x-4,r.y-4,r.w+8,r.h+8);ctx.strokeStyle='rgba(0,229,255,.85)';ctx.lineWidth=2;ctx.strokeRect(r.x-4,r.y-4,r.w+8,r.h+8)}ctx.setLineDash([5,5]);drawClip({...d.clip,slot,layer},true);ctx.setLineDash([]);let msg=`${T[d.clip.track].k}:${String(d.clip.src).padStart(2,'0')}s → rail ${String(slot).padStart(2,'0')}s · layer ${layer+1} · ${d.clip.dur}s`;ctx.fillStyle='rgba(0,0,0,.82)';ctx.fillRect(m.seqX,m.seqY+8,Math.min(m.seqW,ctx.measureText(msg).width+26),22);text(msg,m.seqX+12,m.seqY+19,'left',valid?'#00e5ff':'#ff0055',m.mob?8:10)}}
+function active(){let t=S.time;return S.seq.filter(c=>t>=c.slot&&t<c.slot+c.dur).sort((a,b)=>b.layer-a.layer||b.id-a.id)}function sync(c){let t=T[c.track];if(!t.vid||t.vid.readyState<1)return;let loc=c.src+(S.time-c.slot),dur=t.vid.duration||t.chunks||S.density,target=clamp(loc%dur,0,Math.max(0,dur-.04));if(Math.abs(t.vid.currentTime-target)>.08)try{t.vid.currentTime=target}catch(e){}if(S.playing&&t.vid.paused)t.vid.play().catch(()=>{});if(!S.playing&&!t.vid.paused)t.vid.pause()}function proxy(c,x,y,w,h){ctx.fillStyle=ccol(c,.22,38);ctx.fillRect(x,y,w,h);ctx.strokeStyle=ccol(c,.9,62);ctx.lineWidth=2;let loc=S.time-c.slot+c.src;for(let k=0;k<6;k++){ctx.beginPath();for(let xx=0;xx<=w;xx+=8){let yy=y+h/2+Math.sin(xx*.035+loc*3+k)*(h*.26)*(1-k*.08);if(xx===0)ctx.moveTo(x+xx,yy);else ctx.lineTo(x+xx,yy)}ctx.stroke()}}
+function drawMonitor(){let m=M,y0=m.monitorY;ctx.fillStyle='#000';ctx.fillRect(0,y0,W,m.monitorH);line(0,y0,W,y0,'#272727',1.5);let vh=Math.max(50,m.monitorH-(m.mob?14:24)),vw=vh*16/9,maxW=Math.min(m.seqW,W-m.pad*2);if(vw>maxW){vw=maxW;vh=vw*9/16}let vx=(W-vw)/2,vy=y0+Math.max(7,(m.monitorH-vh)/2);ctx.fillStyle='#050505';ctx.fillRect(vx,vy,vw,vh);ctx.strokeStyle='#303030';ctx.strokeRect(vx,vy,vw,vh);let clips=active(),prev=T[S.preview]&&T[S.preview].loaded?T[S.preview]:T.find(t=>t.loaded);ctx.save();ctx.beginPath();ctx.rect(vx,vy,vw,vh);ctx.clip();if(clips.length){clips.forEach((c,i)=>{let t=T[c.track];ctx.globalAlpha=i?0.45:1;sync(c);if(t.vid&&t.vid.readyState>=2){try{ctx.drawImage(t.vid,vx,vy,vw,vh)}catch(e){proxy(c,vx,vy,vw,vh)}}else proxy(c,vx,vy,vw,vh);ctx.globalAlpha=1})}else if(prev){ctx.fillStyle=col(prev,.22,36);ctx.fillRect(vx,vy,vw,vh);if(prev.vid&&prev.vid.readyState>=2){try{ctx.drawImage(prev.vid,vx,vy,vw,vh)}catch(e){}ctx.fillStyle='rgba(0,0,0,.24)';ctx.fillRect(vx,vy,vw,vh);text('SOURCE VISIBLE — DRAG A LIT SLICE TO THE RAIL',vx+vw/2,vy+vh/2,'center','#fff',m.mob?8:12)}else{text(stateName(prev)==='ghost'?'GHOST SOURCE ARMED':stateName(prev)==='relink'?'SOURCE NEEDS RELINK':'SOURCE ARMED',vx+vw/2,vy+vh/2-10,'center','#fff',m.mob?12:18);text(prev.file||prev.name,vx+vw/2,vy+vh/2+12,'center',col(prev,1,70),m.mob?8:11)}}else{let cols=['#d8d8d8','#d6d600','#00cfd6','#00ce50','#cc00cc','#d00022','#0022cc'];cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(vx+i*vw/cols.length,vy,vw/cols.length,vh*.72)});ctx.fillStyle='#080808';ctx.fillRect(vx,vy+vh*.72,vw,vh*.28);text('TAP SOURCE OR A LOAD PAD',vx+vw/2,vy+vh/2,'center','#000',m.mob?10:15)}ctx.restore();ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(vx,vy,vw,24);let label=clips[0]?`${T[clips[0].track].k} SRC ${clips[0].src}s`:(prev?`${prev.k} SOURCE PREVIEW`:'RENDER BUFFER');text(label,vx+8,vy+12,'left',clips[0]?ccol(clips[0],1,62):'#777',m.mob?8:10);ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(vx+vw/2-52,vy+vh-27,104,22);text(fmt(S.time),vx+vw/2,vy+vh-16,'center',S.playing?'#00e5ff':'#fff',m.mob?11:13)}
+function draw(){if(!M)return;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);for(let x=0;x<W;x+=(M.mob?32:40))line(x,0,x,H,'#090909');for(let y=0;y<H;y+=(M.mob?32:40))line(0,y,W,y,'#090909');drawSources();drawTimeline();let x=M.seqX+clamp(S.time,0,S.density)/S.density*M.seqW;line(x,0,x,M.monitorY,'#ff0055',1.8);ctx.fillStyle='#ff0055';ctx.beginPath();ctx.moveTo(x-6,M.seqY);ctx.lineTo(x+6,M.seqY);ctx.lineTo(x,M.seqY+9);ctx.fill();drawMonitor()}
+function runtime(){return S.seq.reduce((m,c)=>Math.max(m,c.slot+c.dur),0)}function hud(){let t=T[S.selected];$('time').textContent=fmt(S.time);$('mode').textContent=S.scrub?'scrub':S.roll?'roll':S.drag?'drag':S.trim?'trim':S.playing?'play':'edit';$('src').textContent=`${t.k} ${stateName(t)}`;$('run').textContent=runtime().toFixed(1)+'s';$('clips').textContent=String(S.seq.length);$('play').textContent=S.playing?'Pause':'Play';$('play').classList.toggle('on',S.playing);updateButtons()}
+function ptr(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}function hitSource(x,y){for(let t of T){if(hit(t.load,x,y))return{type:'load',t};if(Math.hypot(x-M.reelX,y-t.cy)<=M.R*1.3)return{type:'roll',t};if(t.loaded&&Math.abs(y-t.cy)<M.R*1.12&&x>=M.stripX&&x<=M.endX){let si=clamp(Math.floor((x-M.stripX)/M.slotW),0,S.density-1);if(ctx.isPointInPath(slicePath(t,si),x,y))return{type:'slice',t,si,src:sourceIndex(t,si)}}}return null}function hitClip(x,y){for(let i=S.seq.length-1;i>=0;i--){let c=S.seq[i],r=clipRect(c);if(hit({x:r.x-10,y:r.y,w:20,h:r.h},x,y))return{type:'trimL',c,i};if(hit({x:r.x+r.w-10,y:r.y,w:20,h:r.h},x,y))return{type:'trimR',c,i};if(ctx.isPointInPath(clipPath(c),x,y))return{type:'clip',c,i}}return null}
+canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerdown',e=>{let p=ptr(e),m=M;if(p.y>=m.seqY&&p.y<=m.seqY+36&&p.x>=m.seqX&&p.x<=m.seqX+m.seqW){S.scrub=true;S.playing=false;S.time=clamp((p.x-m.seqX)/m.seqW*S.density,0,S.density-.001);canvas.setPointerCapture(e.pointerId);hud();return}let ch=p.y>m.seqY+36&&p.y<m.seqY+m.seqH?hitClip(p.x,p.y):null;if(ch){push();if(ch.type==='clip'){S.seq.splice(ch.i,1);S.drag={clip:ch.c,x:p.x,y:p.y,off:p.x-(m.seqX+ch.c.slot*m.slotW)}}else S.trim={kind:ch.type,c:ch.c,x:p.x,slot:ch.c.slot,src:ch.c.src,dur:ch.c.dur};canvas.setPointerCapture(e.pointerId);hud();return}let sh=p.y<m.sourceH?hitSource(p.x,p.y):null;if(sh){setSrc(sh.t.id);if(sh.type==='load'){openSource(sh.t.id);return}if(sh.type==='roll'){S.roll={t:sh.t,x:p.x,roll:sh.t.roll};canvas.setPointerCapture(e.pointerId);hud();return}if(sh.type==='slice'){push();S.drag={clip:{id:uid++,track:sh.t.id,h:sh.t.h,s:sh.t.s,src:sh.src,slot:0,layer:0,dur:1},x:p.x,y:p.y,off:m.slotW*.5};canvas.setPointerCapture(e.pointerId);hud();return}}if(p.y>m.monitorY){S.playing=!S.playing;hud()}});canvas.addEventListener('pointermove',e=>{let p=ptr(e),m=M;if(S.scrub){S.time=clamp((p.x-m.seqX)/m.seqW*S.density,0,S.density-.001);hud();return}if(S.roll){S.roll.t.roll=S.roll.roll+(p.x-S.roll.x)/Math.max(8,m.slotW);hud();return}if(S.trim){let q=S.trim,c=q.c,dx=Math.round((p.x-q.x)/m.slotW);if(q.kind==='trimR')c.dur=clamp(q.dur+dx,1,S.density-c.slot);else{let d=clamp(dx,-Math.min(q.slot,q.src),q.dur-1);c.slot=q.slot+d;c.src=q.src+d;c.dur=q.dur-d}hud();return}if(S.drag){S.drag.x=p.x;S.drag.y=p.y;hud();return}canvas.style.cursor='crosshair';T.forEach(t=>t.hover=-1);let sh=p.y<m.sourceH?hitSource(p.x,p.y):null;if(sh){canvas.style.cursor=sh.type==='slice'?'grab':sh.type==='roll'?'ew-resize':'pointer';if(sh.type==='slice')sh.t.hover=sh.si}let ch=p.y>m.seqY+36&&p.y<m.seqY+m.seqH?hitClip(p.x,p.y):null;if(ch)canvas.style.cursor=ch.type==='clip'?'grab':'ew-resize'});function finishDrag(){if(!S.drag)return;let d=S.drag,m=M;if(d.y>=m.seqY&&d.y<=m.seqY+m.seqH&&d.x>=m.seqX-24&&d.x<=m.seqX+m.seqW+24){d.clip.slot=clamp(Math.round((d.x-d.off-m.seqX)/m.slotW),0,S.density-d.clip.dur);d.clip.layer=clamp(Math.floor((d.y-(m.rowTop-m.rowH*.5))/m.rowH),0,m.rows-1);S.seq.push(d.clip);S.preview=d.clip.track;toast('SPLICE PLACED')}else toast('DROP ON RAIL');S.drag=null}canvas.addEventListener('pointerup',e=>{S.scrub=false;S.roll=null;S.trim=null;finishDrag();try{canvas.releasePointerCapture(e.pointerId)}catch(err){}hud()});canvas.addEventListener('pointercancel',()=>{S.scrub=false;S.roll=null;S.trim=null;S.drag=null;hud()});
+$('videoInput').addEventListener('change',e=>{let file=e.target.files&&e.target.files[0];if(!file||S.loading<0){toast('NO FILE SELECTED');return}let t=T[S.loading];push();t.loaded=true;t.ready=false;t.ghost=false;t.missing=false;t.file=file.name;t.name=file.name.replace(/\.[^.]+$/,'').slice(0,16).toUpperCase();t.chunks=S.density;t.roll=0;S.preview=t.id;setSrc(t.id);toast('SOURCE '+t.k+' ARMED');let v=t.vid;if(!v){v=document.createElement('video');v.muted=true;v.defaultMuted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.loop=true;v.preload='auto';v.controls=false;pool.appendChild(v);t.vid=v}if(t.url)URL.revokeObjectURL(t.url);t.url=URL.createObjectURL(file);v.onloadedmetadata=()=>{let dur=isFinite(v.duration)?Math.max(1,Math.floor(v.duration)):S.density;t.chunks=clamp(dur,1,S.density);t.ready=true;t.ghost=false;t.missing=false;try{v.currentTime=Math.min(.08,Math.max(0,(v.duration||1)-.05))}catch(err){};v.play().then(()=>{if(!S.playing)v.pause()}).catch(()=>{});toast('SOURCE '+t.k+' READY');hud()};v.onloadeddata=()=>{t.ready=true;t.ghost=false;t.missing=false;try{if(v.readyState>=2&&v.paused&&S.playing)v.play().catch(()=>{})}catch(err){}toast('VIDEO '+t.k+' VISIBLE');hud()};v.oncanplay=()=>{t.ready=true;t.ghost=false;t.missing=false;hud()};v.onerror=()=>{t.ready=false;t.ghost=true;t.missing=false;toast('DECODE FAILED — SOURCE STILL ARMED');hud()};v.src=t.url;v.load();S.loading=-1;e.target.value='';hud()});document.querySelectorAll('.src').forEach(b=>b.addEventListener('click',()=>{let i=+b.dataset.i;setSrc(i);if(!T[i].loaded)openSource(i);else toast('SOURCE '+T[i].k+' SELECTED')}));$('manifest').addEventListener('click',()=>{$('manifestPanel').classList.add('open');$('manifestPanel').setAttribute('aria-hidden','false')});$('manifestClose').addEventListener('click',()=>{$('manifestPanel').classList.remove('open');$('manifestPanel').setAttribute('aria-hidden','true')});$('source').addEventListener('click',()=>openSource(S.selected));$('play').addEventListener('click',()=>{S.playing=!S.playing;hud()});$('undo').addEventListener('click',undo);$('clear').addEventListener('click',()=>{if(S.seq.length){push();S.seq=[];S.time=0;toast('CLEARED');hud()}});function download(data,name){let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}$('edl').addEventListener('click',()=>{let edl=S.seq.slice().sort((a,b)=>a.slot-b.slot||a.layer-b.layer).map((c,i)=>({event:i+1,track:T[c.track].k,source_file:T[c.track].file,source_state:stateName(T[c.track]),source_in:fmt(c.src),source_out:fmt(c.src+c.dur),sequence_in:fmt(c.slot),sequence_out:fmt(c.slot+c.dur),layer:c.layer,duration_sec:c.dur}));download(edl,'arc_splice_edl_'+Date.now()+'.json');toast('EDL EXPORTED')});$('save').addEventListener('click',()=>{download({version:4,time:S.time,seq:S.seq,tracks:T.map(t=>({id:t.id,k:t.k,file:t.file,name:t.name,loaded:t.loaded,chunks:t.chunks,roll:t.roll,ghost:t.ghost,missing:t.missing}))},'arc_splice_project_'+Date.now()+'.json');toast('PROJECT SAVED')});$('load').addEventListener('click',()=>$('projectInput').click());$('projectInput').addEventListener('change',e=>{let f=e.target.files&&e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let p=JSON.parse(r.result);push();S.seq=(p.seq||[]).map(c=>({...c,id:c.id||uid++}));(p.tracks||[]).forEach(a=>{let t=T[a.id];if(!t)return;t.loaded=!!a.loaded;t.file=a.file||null;t.name=a.name||t.name;t.chunks=a.chunks||24;t.roll=a.roll||0;t.ghost=!!a.ghost;t.missing=!!a.loaded;t.ready=false});S.time=p.time||0;toast('PROJECT LOADED — RELINK VIDEOS');hud()}catch(err){toast('PROJECT LOAD FAILED')}};r.readAsText(f);e.target.value=''});window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();S.playing=!S.playing;hud()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}if(['1','2','3','4'].includes(e.key))setSrc(+e.key-1);if(e.key.toLowerCase()==='e')$('edl').click();if(e.key.toLowerCase()==='r')$('manifest').click()});window.addEventListener('resize',resize);if(window.visualViewport)visualViewport.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,80));function frame(ts){let dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;if(S.playing&&!S.drag&&!S.trim&&!S.scrub&&!S.roll){let rt=runtime()||S.density;S.time+=dt;if(S.time>=rt)S.time=0}draw();hud();requestAnimationFrame(frame)}resize();setSrc(0);hud();requestAnimationFrame(frame);
+})();
+    </script>
+</body>
+
+</html>

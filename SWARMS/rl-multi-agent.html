@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NSDS RL · Multi-Agent Patch Pipeline</title>
+<style>
+:root{--bg:#efeee8;--ink:#080808;--mut:#6c6a62;--paper:#fffdf3;--line:#080808;--red:#d71920;--blue:#0057c2;--gold:#d5a900;--green:#14824c;--bar:46px;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;border-radius:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none}
+button,input,select{font:inherit}input[type="file"]{display:none}
+button,.fileBtn{border:2px solid var(--line);background:var(--paper);color:var(--ink);font-weight:900;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;min-height:38px;padding:0 10px;box-shadow:2px 2px 0 var(--line);display:flex;align-items:center;justify-content:center;font-size:11px}
+button:active,.fileBtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--line)}
+button.on{background:var(--ink);color:var(--paper)}button.primary{background:var(--red);color:white}
+.blue{background:var(--blue)!important;color:white!important}.gold{background:var(--gold)!important;color:var(--ink)!important}.green{background:var(--green)!important;color:white!important}
+
+#app{height:100dvh;display:grid;grid-template-rows:var(--bar) minmax(0,1fr) auto;background:var(--bg)}
+header{height:var(--bar);display:grid;grid-template-columns:1fr auto;align-items:center;background:var(--ink);color:white;border-bottom:3px solid var(--line);overflow:hidden}
+.title{font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{height:100%;display:flex;align-items:center;border-left:1px solid #333}
+.stat{height:100%;display:flex;align-items:center;gap:5px;padding:0 10px;border-right:1px solid #333;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.stat b{color:var(--gold);font-variant-numeric:tabular-nums}
+
+main{min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 320px;overflow:hidden}
+#stage{position:relative;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px;background:linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px),linear-gradient(0deg,rgba(0,0,0,.045) 1px,transparent 1px),#dedbd1;background-size:24px 24px;overflow:hidden}
+#canvasWrap{position:relative;background:var(--paper);border:3px solid var(--line);box-shadow:8px 8px 0 rgba(0,0,0,.18);max-width:100%;max-height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none;image-rendering:pixelated}
+#hud{position:absolute;left:10px;top:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none;gap:8px}
+.hudBox{background:rgba(255,253,243,.88);border:2px solid var(--line);padding:7px 9px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.hudBox b{color:var(--red)}
+
+#side{border-left:3px solid var(--line);background:var(--paper);min-width:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.panel{border:2px solid var(--line);background:var(--paper)}
+.panel h2{margin:0;padding:8px 9px;background:var(--ink);color:white;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.body{padding:9px;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+label{display:grid;gap:4px;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+input[type="range"]{width:100%;accent-color:var(--ink)}
+select{width:100%;background:var(--paper);border:2px solid var(--line);min-height:36px;font-weight:900;text-transform:uppercase;padding:0 8px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;line-height:1.35;white-space:pre-wrap;color:#111;background:#f4f2e8;border:2px solid var(--line);padding:8px;min-height:50px;max-height:180px;overflow:auto}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;font-weight:900;text-transform:uppercase;color:var(--mut)}
+.chip{display:flex;align-items:center;gap:6px}
+.dot{width:13px;height:13px;border:2px solid var(--line);display:inline-block}
+.dtarget{background:var(--blue)}.dagent{background:var(--red)}.dpatch{background:var(--green)}.dbound{background:var(--gold)}
+video{display:none}
+footer{display:none}
+
+@media(max-width:860px){
+:root{--bar:42px}
+header{grid-template-columns:1fr}.stats{display:none}.title{font-size:11px;padding-left:10px}
+main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+#stage{padding:8px 8px 6px}
+#side{border-left:0;border-top:3px solid var(--line);max-height:43dvh;padding:8px;display:grid;grid-template-columns:1fr;gap:8px}
+.panel{display:none}.panel.hot{display:block}
+button,.fileBtn{min-height:36px;font-size:10px;padding:0 8px}
+.mono{min-height:40px;font-size:9px}
+.hudBox{font-size:9px;padding:5px 7px}
+footer{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:3px solid var(--line);padding-bottom:var(--safe);background:var(--paper)}
+footer button{border:0;border-right:2px solid var(--line);box-shadow:none;min-height:46px;background:var(--paper)}
+footer button.on{background:var(--ink);color:white}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="title">NSDS RL · Multi-Agent Patch Pipeline · one Q-table per macroblock</div>
+  <div class="stats">
+    <div class="stat">TICK <b id="st_frame">0</b></div>
+    <div class="stat">PATCHES <b id="st_patches">0</b></div>
+    <div class="stat">AVG R <b id="st_reward">0.00</b></div>
+    <div class="stat">MATCH <b id="st_match">0%</b></div>
+    <div class="stat">BEST <b id="st_best">--</b></div>
+    <div class="stat">WORST <b id="st_worst">--</b></div>
+  </div>
+</header>
+<main>
+  <section id="stage">
+    <div id="canvasWrap"><canvas id="c"></canvas></div>
+    <div id="hud">
+      <div class="hudBox">target: <b id="hudTarget">demo field</b></div>
+      <div class="hudBox">agents: <b id="hudAgents">multi-patch</b></div>
+    </div>
+  </section>
+  <aside id="side">
+    <section class="panel hot" data-tab="run">
+      <h2>Run</h2>
+      <div class="body">
+        <label class="fileBtn blue">Load Video<input id="videoFile" type="file" accept="video/*"></label>
+        <div class="row"><button id="btnTrain" class="primary">Train</button><button id="btnStep">Step</button></div>
+        <div class="row"><button id="btnPlay">Video Play</button><button id="btnReset">Reset All</button></div>
+        <label>Train speed <input id="speed" type="range" min="1" max="500" value="120"></label>
+        <div class="mono" id="readout"></div>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="video">
+      <h2>Video / Target</h2>
+      <div class="body">
+        <label>Scrub <input id="scrub" type="range" min="0" max="1" step="0.001" value="0"></label>
+        <label>Brightness threshold <input id="threshold" type="range" min="0" max="1" step="0.01" value="0.22"></label>
+        <label>Contrast <input id="contrast" type="range" min="0.3" max="3" step="0.1" value="1.4"></label>
+        <label>View <select id="viewMode">
+          <option value="composite">Target + Agents</option>
+          <option value="target">Target Only</option>
+          <option value="agents">Agents Only</option>
+          <option value="error">Error Residue</option>
+          <option value="policy">Policy Arrows</option>
+          <option value="reward">Patch Reward Map</option>
+          <option value="patches">Patch Boundaries</option>
+        </select></label>
+        <div class="legend">
+          <span class="chip"><i class="dot dtarget"></i>Target</span>
+          <span class="chip"><i class="dot dagent"></i>Agent</span>
+          <span class="chip"><i class="dot dpatch"></i>Patch</span>
+          <span class="chip"><i class="dot dbound"></i>Boundary</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="learn">
+      <h2>Multi-Agent RL</h2>
+      <div class="body">
+        <label>Agents per patch <input id="agentsPerPatch" type="range" min="1" max="12" step="1" value="4"></label>
+        <label>Patch grid <select id="patchGrid">
+          <option value="8x6">8x6 (48 patches)</option>
+          <option value="6x4">6x4 (24 patches)</option>
+          <option value="4x3">4x3 (12 patches)</option>
+          <option value="16x9" selected>16x9 (144 patches)</option>
+        </select></label>
+        <label>Alpha / learning rate <input id="alpha" type="range" min="0.01" max="1" step="0.01" value="0.25"></label>
+        <label>Gamma / discount <input id="gamma" type="range" min="0" max="0.99" step="0.01" value="0.88"></label>
+        <label>Epsilon / exploration <input id="epsilon" type="range" min="0" max="1" step="0.01" value="0.18"></label>
+        <label>Q fade / temporal adapt <input id="qfade" type="range" min="0.980" max="1.000" step="0.001" value="0.995"></label>
+        <label>Neighbor coupling <input id="coupling" type="range" min="0" max="1" step="0.01" value="0.15"></label>
+      </div>
+    </section>
+
+    <section class="panel" data-tab="io">
+      <h2>State / Export</h2>
+      <div class="body">
+        <div class="row"><button id="btnResetQ">Reset All Q</button><button id="btnScatter">Scatter</button></div>
+        <button id="btnExport" class="gold">Export Multi-Policy JSON</button>
+        <div class="mono">Architecture: Multi-Agent RL
+
+Each macroblock patch owns an independent Q-table.
+State = local (x,y) within patch.
+Actions = {up, right, down, left, stay}.
+Reward = target density at next cell
+       + gradient climb bonus
+       - crowding penalty
+       - step cost.
+
+Patches share boundary gradients with
+neighbors to encourage cross-patch
+coherence without a central controller.
+
+This is decentralized swarm learning.</div>
+      </div>
+    </section>
+  </aside>
+</main>
+<footer>
+  <button class="tab on" data-tab="run">Run</button>
+  <button class="tab" data-tab="video">Video</button>
+  <button class="tab" data-tab="learn">Learn</button>
+  <button class="tab" data-tab="io">State</button>
+</footer>
+</div>
+
+<video id="vid" muted loop playsinline></video>
+<canvas id="sample" style="display:none"></canvas>
+
+<script>
+(() => {
+  // ── GRID ──
+  // ── GRID (NSDS-128 COMPLIANT: 128x96, B_SZ=5) ──
+  const G_COLS = 128, G_ROWS = 96, B_SZ = 5;
+  const N = G_COLS * G_ROWS;
+  const A = 5; // actions: up right down left stay
+  const dirs = [[0,-1],[1,0],[0,1],[-1,0],[0,0]];
+
+  const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+  const sample = document.getElementById('sample');
+  sample.width = G_COLS; sample.height = G_ROWS;
+  const sctx = sample.getContext('2d', { willReadFrequently: true });
+  const vid = document.getElementById('vid');
+  const el = id => document.getElementById(id);
+
+  // ── PATCH SYSTEM ──
+  let patchCols = 16, patchRows = 9;
+  let patchW, patchH, patchCount;
+  let patches = []; // each: { Q, agents, reward, match }
+
+  function parsePatchGrid() {
+    const v = el('patchGrid').value;
+    const [c, r] = v.split('x').map(Number);
+    patchCols = c; patchRows = r;
+    patchW = Math.floor(G_COLS / patchCols);
+    patchH = Math.floor(G_ROWS / patchRows);
+    patchCount = patchCols * patchRows;
+  }
+
+  function initPatches() {
+    parsePatchGrid();
+    const localN = patchW * patchH;
+    patches = [];
+    for (let p = 0; p < patchCount; p++) {
+      const agentCount = +el('agentsPerPatch').value;
+      const agents = [];
+      for (let i = 0; i < agentCount; i++) {
+        agents.push({
+          lx: Math.floor(Math.random() * patchW),
+          ly: Math.floor(Math.random() * patchH)
+        });
+      }
+      patches.push({
+        Q: new Float32Array(localN * A),
+        agents,
+        reward: 0,
+        totalReward: 0,
+        match: 0,
+        loss: 0
+      });
+    }
+  }
+
+  function patchGlobalXY(patchIdx, lx, ly) {
+    const pc = patchIdx % patchCols;
+    const pr = Math.floor(patchIdx / patchCols);
+    return { gx: pc * patchW + lx, gy: pr * patchH + ly };
+  }
+
+  function globalToPatch(gx, gy) {
+    const pc = Math.floor(gx / patchW);
+    const pr = Math.floor(gy / patchH);
+    const pIdx = pr * patchCols + pc;
+    const lx = gx - pc * patchW;
+    const ly = gy - pr * patchH;
+    return { pIdx, lx, ly };
+  }
+
+  function localIdx(lx, ly) { return ly * patchW + lx; }
+
+  // ── TARGET FIELD ──
+  let target = new Float32Array(N);
+  let occ = new Float32Array(N);
+  let errField = new Float32Array(N);
+  let videoLoaded = false, videoPlaying = false;
+  let running = false, frame = 0, demoT = 0, raf = 0, lastTick = 0;
+
+  function xy(x, y) { return y * G_COLS + x; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function params() {
+    return {
+      speed: +el('speed').value, alpha: +el('alpha').value, gamma: +el('gamma').value,
+      epsilon: +el('epsilon').value, qfade: +el('qfade').value, coupling: +el('coupling').value,
+      threshold: +el('threshold').value, contrast: +el('contrast').value,
+      agentsPerPatch: +el('agentsPerPatch').value
+    };
+  }
+
+  function updateTarget() {
+    const p = params();
+    if (videoLoaded && vid.readyState >= 2) {
+      sctx.drawImage(vid, 0, 0, G_COLS, G_ROWS);
+      const data = sctx.getImageData(0, 0, G_COLS, G_ROWS).data;
+      for (let i = 0; i < N; i++) {
+        const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+        let v = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
+        v = Math.pow(clamp((v - p.threshold) / Math.max(0.001, 1-p.threshold), 0, 1), p.contrast);
+        target[i] = v;
+      }
+      el('hudTarget').textContent = 'video frame';
+      if (vid.duration) el('scrub').value = String(vid.currentTime / vid.duration);
+    } else {
+      demoT += 0.03;
+      for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+        const cx = G_COLS * (.5 + .28 * Math.sin(demoT * .7));
+        const cy = G_ROWS * (.5 + .22 * Math.cos(demoT * .55));
+        const dx = x - cx, dy = y - cy;
+        const eye = Math.exp(-(dx*dx + dy*dy) / (G_COLS * 1.5));
+        const wave = .5 + .5 * Math.sin(x * .42 + y * .31 + demoT * 2.8);
+        const ring = .5 + .5 * Math.sin(Math.sqrt(dx*dx + dy*dy) * .85 - demoT * 3.5);
+        target[xy(x,y)] = Math.pow(clamp(eye * .8 + wave * ring * .3 - .15, 0, 1), 1.1);
+      }
+      el('hudTarget').textContent = 'demo field';
+    }
+  }
+
+  // ── OCCUPANCY ──
+  function computeOcc() {
+    occ.fill(0);
+    for (const patch of patches) {
+      const pIdx = patches.indexOf(patch);
+      for (const agent of patch.agents) {
+        const { gx, gy } = patchGlobalXY(pIdx, agent.lx, agent.ly);
+        if (gx >= 0 && gx < G_COLS && gy >= 0 && gy < G_ROWS) occ[xy(gx, gy)]++;
+      }
+    }
+    const totalAgents = patches.reduce((s, p) => s + p.agents.length, 0);
+    const norm = Math.max(1, Math.ceil(totalAgents / 100));
+    for (let i = 0; i < N; i++) occ[i] = clamp(occ[i] / norm, 0, 1);
+  }
+
+  function computeError() {
+    let hit = 0, mass = 0;
+    for (let i = 0; i < N; i++) {
+      errField[i] = Math.abs(target[i] - occ[i]);
+      hit += Math.min(target[i], occ[i]);
+      mass += target[i];
+    }
+    return mass > 0 ? clamp(hit / mass, 0, 1) : 0;
+  }
+
+  // ── PER-PATCH Q-LEARNING ──
+  function maxQ(patch, lx, ly) {
+    const o = localIdx(lx, ly) * A;
+    return Math.max(patch.Q[o], patch.Q[o+1], patch.Q[o+2], patch.Q[o+3], patch.Q[o+4]);
+  }
+
+  function bestA(patch, lx, ly) {
+    const o = localIdx(lx, ly) * A;
+    let b = 0, v = patch.Q[o];
+    for (let a = 1; a < A; a++) if (patch.Q[o + a] > v) { v = patch.Q[o + a]; b = a; }
+    return b;
+  }
+
+  function chooseA(patch, lx, ly, eps) {
+    return Math.random() < eps ? Math.floor(Math.random() * A) : bestA(patch, lx, ly);
+  }
+
+  function moveLocal(lx, ly, a) {
+    return {
+      lx: clamp(lx + dirs[a][0], 0, patchW - 1),
+      ly: clamp(ly + dirs[a][1], 0, patchH - 1)
+    };
+  }
+
+  function trainPatch(pIdx, p) {
+    const pr = params();
+    const pc = pIdx % patchCols;
+    const prr = Math.floor(pIdx / patchCols);
+
+    // Fade Q
+    for (let k = 0; k < p.Q.length; k++) p.Q[k] *= pr.qfade;
+
+    let patchReward = 0;
+    let localHit = 0, localMass = 0;
+
+    for (let ai = 0; ai < p.agents.length; ai++) {
+      const agent = p.agents[ai];
+      const a = chooseA(p, agent.lx, agent.ly, pr.epsilon);
+      const next = moveLocal(agent.lx, agent.ly, a);
+
+      // Global positions
+      const gCur = patchGlobalXY(pIdx, agent.lx, agent.ly);
+      const gNext = patchGlobalXY(pIdx, next.lx, next.ly);
+      const idxCur = xy(gCur.gx, gCur.gy);
+      const idxNext = xy(gNext.gx, gNext.gy);
+
+      // Reward
+      const tNext = target[idxNext];
+      const tCur = target[idxCur];
+      const crowd = occ[idxNext] * 0.25;
+      const climb = (tNext - tCur) * 0.5;
+      const r = tNext * 1.2 + climb - crowd - 0.006;
+
+      // Boundary gradient coupling
+      let boundaryBonus = 0;
+      if (pr.coupling > 0) {
+        // Check if agent is near patch edge and neighbor patch has high target
+        if (next.lx === 0 && pc > 0) {
+          const nIdx = xy(gNext.gx - 1, gNext.gy);
+          if (nIdx >= 0 && nIdx < N) boundaryBonus += target[nIdx] * pr.coupling * 0.3;
+        }
+        if (next.lx === patchW - 1 && pc < patchCols - 1) {
+          const nIdx = xy(gNext.gx + 1, gNext.gy);
+          if (nIdx >= 0 && nIdx < N) boundaryBonus += target[nIdx] * pr.coupling * 0.3;
+        }
+        if (next.ly === 0 && prr > 0) {
+          const nIdx = xy(gNext.gx, gNext.gy - 1);
+          if (nIdx >= 0 && nIdx < N) boundaryBonus += target[nIdx] * pr.coupling * 0.3;
+        }
+        if (next.ly === patchH - 1 && prr < patchRows - 1) {
+          const nIdx = xy(gNext.gx, gNext.gy + 1);
+          if (nIdx >= 0 && nIdx < N) boundaryBonus += target[nIdx] * pr.coupling * 0.3;
+        }
+      }
+
+      const totalR = r + boundaryBonus;
+
+      // TD update
+      const qIdx = localIdx(agent.lx, agent.ly) * A + a;
+      const old = p.Q[qIdx];
+      const td = totalR + pr.gamma * maxQ(p, next.lx, next.ly) - old;
+      p.Q[qIdx] = old + pr.alpha * td;
+
+      agent.lx = next.lx;
+      agent.ly = next.ly;
+      patchReward += totalR;
+      p.loss = Math.abs(td);
+
+      // Local match
+      localHit += Math.min(tNext, occ[idxNext] > 0 ? 1 : 0);
+      localMass += tNext;
+    }
+
+    p.reward = patchReward / Math.max(1, p.agents.length);
+    p.totalReward += patchReward;
+    p.match = localMass > 0 ? clamp(localHit / localMass, 0, 1) : 0;
+  }
+
+  function trainAll() {
+    computeOcc();
+    for (let i = 0; i < patches.length; i++) trainPatch(i, patches[i]);
+    computeOcc();
+    frame++;
+  }
+
+  // ── RENDERING ──
+  function resize() {
+    const stage = el('stage').getBoundingClientRect();
+    const maxW = stage.width - 24, maxH = stage.height - 24, aspect = G_COLS / G_ROWS;
+    let w = maxW, h = w / aspect;
+    if (h > maxH) { h = maxH; w = h * aspect; }
+    w = Math.max(260, Math.floor(w)); h = Math.floor(w / aspect);
+    canvas.width = Math.floor(w * devicePixelRatio);
+    canvas.height = Math.floor(h * devicePixelRatio);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    el('canvasWrap').style.width = w + 'px'; el('canvasWrap').style.height = h + 'px';
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    draw();
+  }
+
+  function draw() {
+    const W = parseFloat(canvas.style.width) || 640;
+    const H = parseFloat(canvas.style.height) || 360;
+    const cw = W / G_COLS, ch = H / G_ROWS;
+    const mode = el('viewMode').value;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#fffdf3'; ctx.fillRect(0, 0, W, H);
+
+    // Target layer
+    if (mode !== 'agents' && mode !== 'policy') {
+      for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+        const s = xy(x, y), t = target[s];
+        if (mode === 'error') {
+          const e = errField[s];
+          ctx.fillStyle = `rgba(${Math.floor(215*e)},${Math.floor(169*(1-e))},0,${0.1+e*.7})`;
+        } else if (mode === 'reward') {
+          // color by patch reward
+          const pi = globalToPatch(x, y);
+          if (pi.pIdx < patches.length) {
+            const pr = patches[pi.pIdx].reward;
+            const v = clamp((pr + 0.5) / 1.5, 0, 1);
+            ctx.fillStyle = `rgba(${Math.floor(215*(1-v))},${Math.floor(180*v)},${Math.floor(80*v)},${0.15+v*.5})`;
+          } else ctx.fillStyle = 'transparent';
+        } else {
+          ctx.fillStyle = `rgba(0,87,194,${0.03+t*.55})`;
+        }
+        ctx.fillRect(x*cw, y*ch, cw, ch);
+      }
+    }
+
+    // Agent layer
+    if (mode !== 'target' && mode !== 'reward') {
+      for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+        const o = occ[xy(x, y)];
+        if (o > 0) {
+          ctx.fillStyle = `rgba(215,25,32,${0.15+o*.7})`;
+          ctx.fillRect(x*cw+cw*.1, y*ch+ch*.1, cw*.8, ch*.8);
+        }
+      }
+    }
+
+    // Policy arrows
+    if (mode === 'policy') {
+      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1.2;
+      for (let pi = 0; pi < patches.length; pi++) {
+        const pc = pi % patchCols, pr = Math.floor(pi / patchCols);
+        const p = patches[pi];
+        for (let ly = 0; ly < patchH; ly += 2) for (let lx = 0; lx < patchW; lx += 2) {
+          const a = bestA(p, lx, ly);
+          if (a === 4) continue;
+          const mq = maxQ(p, lx, ly);
+          if (Math.abs(mq) < 0.01) continue;
+          const gx = pc * patchW + lx, gy = pr * patchH + ly;
+          const cx = gx*cw + cw/2, cy = gy*ch + ch/2;
+          const len = Math.min(cw, ch) * .6;
+          ctx.save(); ctx.translate(cx, cy);
+          ctx.rotate([-Math.PI/2, 0, Math.PI/2, Math.PI][a]);
+          ctx.beginPath(); ctx.moveTo(-len*.4, 0); ctx.lineTo(len*.4, 0); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(len*.4, 0); ctx.lineTo(len*.15, -len*.18); ctx.lineTo(len*.15, len*.18); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Patch boundaries
+    if (mode === 'patches' || mode === 'reward' || mode === 'composite') {
+      ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+      for (let pc = 1; pc < patchCols; pc++) {
+        const x = pc * patchW * cw;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let pr = 1; pr < patchRows; pr++) {
+        const y = pr * patchH * ch;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Patch reward labels
+      if (mode === 'patches' || mode === 'reward') {
+        ctx.font = `bold ${Math.max(8, Math.floor(patchW * cw * .22))}px monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (let pi = 0; pi < patches.length; pi++) {
+          const pc = pi % patchCols, pr = Math.floor(pi / patchCols);
+          const cx = (pc + .5) * patchW * cw, cy = (pr + .5) * patchH * ch;
+          const r = patches[pi].reward;
+          ctx.fillStyle = r > 0 ? 'rgba(20,130,76,.8)' : 'rgba(215,25,32,.6)';
+          ctx.fillText(r.toFixed(2), cx, cy);
+        }
+      }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 0.5;
+    const gStep = Math.max(1, Math.floor(8 / Math.max(cw, 1)));
+    for (let x = 0; x <= G_COLS; x += Math.max(4, gStep)) { ctx.beginPath(); ctx.moveTo(x*cw, 0); ctx.lineTo(x*cw, H); ctx.stroke(); }
+    for (let y = 0; y <= G_ROWS; y += Math.max(3, gStep)) { ctx.beginPath(); ctx.moveTo(0, y*ch); ctx.lineTo(W, y*ch); ctx.stroke(); }
+  }
+
+  function updateReadout() {
+    const p = params();
+    let avgR = 0, bestR = -Infinity, worstR = Infinity, bestIdx = 0, worstIdx = 0;
+    for (let i = 0; i < patches.length; i++) {
+      avgR += patches[i].reward;
+      if (patches[i].reward > bestR) { bestR = patches[i].reward; bestIdx = i; }
+      if (patches[i].reward < worstR) { worstR = patches[i].reward; worstIdx = i; }
+    }
+    avgR /= Math.max(1, patches.length);
+    const globalMatch = computeError();
+
+    el('st_frame').textContent = frame;
+    el('st_patches').textContent = patches.length;
+    el('st_reward').textContent = avgR.toFixed(2);
+    el('st_match').textContent = Math.round(globalMatch * 100) + '%';
+    el('st_best').textContent = `P${bestIdx}:${bestR.toFixed(2)}`;
+    el('st_worst').textContent = `P${worstIdx}:${worstR.toFixed(2)}`;
+    el('hudAgents').textContent = `${patches.length} patches x ${p.agentsPerPatch}`;
+
+    const totalAgents = patches.reduce((s, p) => s + p.agents.length, 0);
+    el('readout').textContent =
+`grid: ${G_COLS}x${G_ROWS}  patches: ${patchCols}x${patchRows}
+patch size: ${patchW}x${patchH}  agents: ${totalAgents}
+Q tables: ${patches.length} independent
+video: ${videoLoaded ? 'loaded' : 'demo'}
+match: ${Math.round(globalMatch*100)}%
+avg reward: ${avgR.toFixed(3)}
+alpha ${p.alpha.toFixed(2)}  gamma ${p.gamma.toFixed(2)}
+epsilon ${p.epsilon.toFixed(2)}  coupling ${p.coupling.toFixed(2)}`;
+  }
+
+  // ── MAIN LOOP ──
+  function tick(t) {
+    updateTarget();
+    if (running) {
+      const interval = 1000 / params().speed;
+      if (t - lastTick > interval) {
+        const passes = params().speed > 300 ? 3 : params().speed > 150 ? 2 : 1;
+        for (let i = 0; i < passes; i++) trainAll();
+        lastTick = t;
+      }
+    } else {
+      computeOcc();
+      computeError();
+    }
+    draw(); updateReadout();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function setRunning(v) {
+    running = v;
+    el('btnTrain').textContent = v ? 'Pause' : 'Train';
+    el('btnTrain').classList.toggle('on', v);
+    el('btnTrain').classList.toggle('primary', !v);
+  }
+
+  // ── EVENTS ──
+  el('videoFile').onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    vid.src = URL.createObjectURL(f); vid.load(); videoLoaded = true;
+    el('hudTarget').textContent = f.name.replace(/\.[^.]+$/, '').slice(0, 28);
+    vid.onloadeddata = () => { vid.currentTime = 0; updateTarget(); draw(); updateReadout(); };
+  };
+  el('btnPlay').onclick = async () => {
+    if (!videoLoaded) return;
+    try { if (videoPlaying) { vid.pause(); videoPlaying = false; el('btnPlay').textContent = 'Video Play'; }
+    else { await vid.play(); videoPlaying = true; el('btnPlay').textContent = 'Video Pause'; } }
+    catch(e) { el('readout').textContent = 'browser blocked autoplay'; }
+  };
+  el('scrub').oninput = () => { if (videoLoaded && vid.duration) { vid.currentTime = +el('scrub').value * vid.duration; updateTarget(); draw(); } };
+  el('btnTrain').onclick = () => setRunning(!running);
+  el('btnStep').onclick = () => { updateTarget(); trainAll(); draw(); updateReadout(); };
+  el('btnReset').onclick = () => { frame = 0; initPatches(); computeOcc(); draw(); updateReadout(); };
+  el('btnScatter').onclick = () => {
+    for (const p of patches) {
+      p.agents = [];
+      const n = +el('agentsPerPatch').value;
+      for (let i = 0; i < n; i++) p.agents.push({ lx: Math.floor(Math.random()*patchW), ly: Math.floor(Math.random()*patchH) });
+    }
+    computeOcc(); draw(); updateReadout();
+  };
+  el('btnResetQ').onclick = () => { for (const p of patches) { p.Q.fill(0); p.totalReward = 0; p.reward = 0; } frame = 0; draw(); updateReadout(); };
+  el('btnExport').onclick = () => {
+    const data = {
+      type: 'multi-agent-rl', grid: { cols: G_COLS, rows: G_ROWS },
+      patches: { cols: patchCols, rows: patchRows, patchW, patchH },
+      frame, actions: ['up','right','down','left','stay'],
+      policies: patches.map((p, i) => ({ id: i, reward: p.reward, match: p.match, Q: [...p.Q] }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'multi-agent-policy.json'; a.click(); URL.revokeObjectURL(a.href);
+  };
+  el('patchGrid').onchange = () => { initPatches(); computeOcc(); draw(); updateReadout(); };
+  el('agentsPerPatch').oninput = () => { initPatches(); computeOcc(); draw(); updateReadout(); };
+  ['threshold','contrast','viewMode','alpha','gamma','epsilon','qfade','speed','coupling'].forEach(id =>
+    el(id).addEventListener('input', () => { updateTarget(); computeOcc(); computeError(); draw(); updateReadout(); }));
+
+  document.querySelectorAll('.tab').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hot', p.dataset.tab === btn.dataset.tab));
+  });
+
+  window.addEventListener('resize', resize);
+  initPatches(); resize(); raf = requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

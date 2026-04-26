@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>ICARO — Slice Trial Mode</title>
+<style>
+:root{
+  --bg:#f3f1ea;
+  --paper:#fffdf6;
+  --ink:#070707;
+  --muted:#74706a;
+  --line:#101010;
+  --red:#e60000;
+  --blue:#0033cc;
+  --gold:#d3a900;
+  --green:#0a8f35;
+  --ghost:rgba(0,0,0,.72);
+  --shadow:4px 4px 0 #000;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;border-radius:0!important;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none;-webkit-user-select:none}
+button,input,select{font:inherit}
+#app{height:100dvh;width:100vw;display:grid;grid-template-rows:auto 1fr auto;background:var(--bg)}
+#topbar{height:54px;display:flex;align-items:center;gap:8px;padding:7px 8px;background:#000;color:#fff;border-bottom:3px solid #000;overflow-x:auto;scrollbar-width:none}
+#topbar::-webkit-scrollbar{display:none}
+.brand{font-weight:950;letter-spacing:.08em;font-size:12px;white-space:nowrap;margin-right:2px;text-transform:uppercase}
+.verb{height:38px;min-width:82px;border:2px solid #fff;background:#111;color:#fff;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;box-shadow:2px 2px 0 #555;cursor:pointer;padding:0 8px;white-space:nowrap}
+.verb.primary{background:var(--red);border-color:#fff;color:#fff}
+.verb.active{background:#fff;color:#000;border-color:#fff}
+.verb:active{transform:translate(2px,2px);box-shadow:none}
+#stage{position:relative;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 300px;gap:0;background:#dfddd5}
+#canvasZone{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:14px}
+#canvasWrap{position:relative;background:#fff;border:3px solid #000;box-shadow:var(--shadow);width:min(calc(100vw - 340px),calc((100dvh - 176px)*1.333));max-width:100%;aspect-ratio:4/3;touch-action:none}
+canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#gridCanvas{pointer-events:none;opacity:.16}
+#beliefCanvas,#scarCanvas,#swarmCanvas{pointer-events:none;display:none}
+#beliefCanvas.on,#scarCanvas.on,#swarmCanvas.on{display:block}
+#selectCanvas{cursor:crosshair}
+#cornerHud{position:absolute;left:14px;top:14px;z-index:12;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 28px)}
+.pill{background:rgba(0,0,0,.83);color:#fff;border:2px solid #fff;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;padding:7px 8px;line-height:1;cursor:pointer;white-space:nowrap}
+.pill.on{background:#fff;color:#000;border-color:#000}
+#scoreHud{position:absolute;right:14px;bottom:14px;z-index:12;background:rgba(0,0,0,.86);color:#fff;border:2px solid #fff;padding:10px;width:232px;display:grid;gap:7px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}.hval{font-size:18px;letter-spacing:0;color:#fff;font-variant-numeric:tabular-nums}.hval.red{color:#ff4d4d}.hval.green{color:#60ff7a}.bar{height:9px;border:1px solid #777;background:#222;overflow:hidden}.fill{height:100%;background:#fff;width:0%;transition:width .15s}
+#side{border-left:3px solid #000;background:var(--paper);display:grid;grid-template-rows:auto 1fr auto;min-width:0;overflow:hidden}
+#sideHead{padding:12px;border-bottom:3px solid #000;background:#fff}.sideTitle{font-size:13px;font-weight:950;text-transform:uppercase;letter-spacing:.1em}.sideSub{margin-top:4px;font-size:11px;color:var(--muted);font-weight:800;line-height:1.25}.panel{overflow:auto;padding:10px;display:grid;gap:9px;align-content:start}.card{border:3px solid #000;background:#fff;box-shadow:3px 3px 0 #000;padding:10px;display:grid;gap:8px}.cardTitle{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;gap:8px}.tiny{font-size:10px;color:var(--muted);font-weight:850;line-height:1.35}.bigRead{font-size:24px;font-weight:950;letter-spacing:-.04em}.btnRow{display:flex;gap:7px}.smallBtn{height:36px;flex:1;border:2px solid #000;background:#fff;color:#000;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;box-shadow:2px 2px 0 #000;cursor:pointer}.smallBtn.dark{background:#000;color:#fff}.smallBtn.red{background:var(--red);color:#fff}.smallBtn:active{transform:translate(2px,2px);box-shadow:none}.toggleGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.rangeLabel{display:flex;justify-content:space-between;font-size:10px;font-weight:950;text-transform:uppercase;color:#555;letter-spacing:.07em}input[type=range]{width:100%;height:28px;-webkit-appearance:none;appearance:none;background:#fff;border:2px solid #000}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;background:#000;border:0}select{height:36px;border:2px solid #000;background:#fff;font-size:11px;font-weight:950;text-transform:uppercase;padding:0 8px;width:100%}#patchList{display:grid;gap:7px}.patchItem{border:2px solid #000;padding:8px;background:#f7f4ea;display:grid;gap:4px;cursor:pointer}.patchItem.on{background:#000;color:#fff}.patchTop{display:flex;justify-content:space-between;font-size:10px;font-weight:950;text-transform:uppercase}.patchBio{font-size:10px;line-height:1.25;color:inherit;opacity:.8}.stateBadge{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:20px;border:2px solid #000;background:#fff;color:#000;font-size:9px;font-weight:950;text-transform:uppercase}.patchItem.on .stateBadge{border-color:#fff}.log{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#080808;color:#e8e8e8;border:2px solid #000;min-height:110px;max-height:180px;overflow:auto;padding:8px;font-size:10px;line-height:1.35;white-space:pre-wrap}.fileInput{display:none}
+#timeline{height:96px;padding-bottom:var(--safe-b);border-top:3px solid #000;background:#fff;display:grid;grid-template-columns:auto 1fr auto;gap:0;align-items:stretch}.tlControl{width:56px;border:0;border-right:3px solid #000;background:#000;color:#fff;font-size:20px;font-weight:950;cursor:pointer}.tlControl:last-child{border-right:0;border-left:3px solid #000}.strip{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:9px;scrollbar-width:none}.strip::-webkit-scrollbar{display:none}.sliceThumb{position:relative;flex:0 0 84px;height:64px;border:3px solid #000;background:#1a1a1a;box-shadow:3px 3px 0 #000;cursor:pointer;overflow:hidden}.sliceThumb.on{outline:4px solid var(--red);outline-offset:-7px}.sliceThumb canvas{width:100%;height:100%;opacity:.88}.sliceNum{position:absolute;left:4px;top:3px;background:#fff;color:#000;border:1px solid #000;font-size:9px;font-weight:950;padding:1px 4px;z-index:3}.sliceState{position:absolute;right:0;bottom:0;background:#000;color:#fff;font-size:8px;font-weight:950;padding:3px 4px;z-index:3;text-transform:uppercase}.modal{position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:18px}.modal.on{display:flex}.modalBox{background:#fff;border:3px solid #000;box-shadow:8px 8px 0 #000;width:min(760px,100%);max-height:88dvh;display:grid;grid-template-rows:auto 1fr auto}.modalHead{background:#000;color:#fff;font-size:14px;font-weight:950;text-transform:uppercase;letter-spacing:.1em;padding:12px 14px;display:flex;justify-content:space-between}.modalBody{overflow:auto;padding:14px;display:grid;gap:12px}.modalFoot{border-top:3px solid #000;display:flex;gap:8px;padding:10px;background:#f5f2ea}textarea{width:100%;height:310px;border:2px solid #000;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;padding:10px;resize:none;user-select:text;-webkit-user-select:text}
+.toast{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:120;background:#fff;color:#000;border:3px solid #000;box-shadow:var(--shadow);padding:10px 14px;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.1em;opacity:0;pointer-events:none;transition:opacity .14s}.toast.on{opacity:1}
+@media(max-width:860px){#app{grid-template-rows:auto 1fr auto}#topbar{height:50px}.verb{min-width:74px;height:34px;font-size:9px}.brand{display:none}#stage{grid-template-columns:1fr;grid-template-rows:1fr 244px}#canvasZone{padding:8px;align-items:center}#canvasWrap{width:calc(100vw - 18px)}#side{border-left:0;border-top:3px solid #000}#sideHead{padding:8px 10px}.sideTitle{font-size:11px}.sideSub{font-size:10px}.panel{padding:8px;grid-template-columns:1fr 1fr;overflow:auto}.card{padding:8px;box-shadow:none}.hideMobile{display:none!important}#scoreHud{right:8px;bottom:8px;width:170px;padding:7px;gap:5px}.hval{font-size:15px}.pill{font-size:9px;padding:6px}#cornerHud{left:8px;top:8px}.sliceThumb{flex-basis:72px;height:54px}#timeline{height:84px}.tlControl{width:48px}.log{max-height:120px}.toggleGrid{grid-template-columns:1fr}.bigRead{font-size:20px}}
+@media(max-width:520px){#stage{grid-template-rows:minmax(220px,1fr) 282px}.panel{grid-template-columns:1fr 1fr}.card.wide{grid-column:1/-1}#scoreHud{position:absolute;left:8px;right:8px;bottom:8px;width:auto;grid-template-columns:1fr 1fr}.bar{grid-column:1/-1}.hideTiny{display:none!important}.verb{min-width:68px;padding:0 6px}.topSpacer{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">ICARO · SLICE TRIAL</div>
+    <button class="verb primary" id="loadBtn">LOAD</button>
+    <button class="verb" id="woundBtn">WOUND</button>
+    <button class="verb" id="listenBtn">LISTEN</button>
+    <button class="verb" id="dreamBtn">DREAM</button>
+    <button class="verb" id="swarmBtn">SWARM</button>
+    <button class="verb" id="burnBtn">BURN</button>
+    <button class="verb" id="fossilBtn">FOSSILIZE</button>
+    <input class="fileInput" id="fileInput" type="file" accept="image/*" multiple />
+  </header>
+
+  <main id="stage">
+    <section id="canvasZone">
+      <div id="cornerHud">
+        <button class="pill on" id="beliefTog">BELIEF</button>
+        <button class="pill on" id="scarTog">SCAR</button>
+        <button class="pill on" id="swarmTog">SWARM</button>
+        <button class="pill" id="trialBtn">RUN TRIAL</button>
+      </div>
+      <div id="canvasWrap">
+        <canvas id="baseCanvas" width="128" height="96"></canvas>
+        <canvas id="beliefCanvas" width="128" height="96" class="on"></canvas>
+        <canvas id="scarCanvas" width="128" height="96" class="on"></canvas>
+        <canvas id="swarmCanvas" width="128" height="96" class="on"></canvas>
+        <canvas id="gridCanvas" width="128" height="96"></canvas>
+        <canvas id="selectCanvas" width="128" height="96"></canvas>
+      </div>
+      <div id="scoreHud">
+        <div class="hrow"><span>Truth Contact</span><span class="hval green" id="matchRead">--%</span></div>
+        <div class="bar"><div class="fill" id="matchFill"></div></div>
+        <div class="hrow"><span>Scar Depth</span><span class="hval red" id="mseRead">--</span></div>
+        <div class="hrow"><span>Patch</span><span class="hval" id="patchRead">--</span></div>
+      </div>
+    </section>
+
+    <aside id="side">
+      <div id="sideHead">
+        <div class="sideTitle" id="modeTitle">RAW SLICE</div>
+        <div class="sideSub" id="modeSub">Load frames, then wound the current slice against the next slice.</div>
+      </div>
+      <div class="panel">
+        <div class="card wide">
+          <div class="cardTitle"><span>Slice Trial</span><span id="sliceState" class="stateBadge">RAW</span></div>
+          <div class="tiny">Current slice is always judged against the next slice. Prediction is testimony. Scar is evidence.</div>
+          <div class="btnRow">
+            <button class="smallBtn dark" id="sampleBtn">FILM LEADER</button>
+            <button class="smallBtn" id="stepTrialBtn">ONE PASS</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle"><span>Witnesses</span></div>
+          <div class="tiny">Delta, flow, patches, prediction, scar, and policy correction.</div>
+          <div class="bigRead" id="witnessRead">0</div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle"><span>Field Law</span></div>
+          <select id="fieldMode">
+            <option value="flow">Motion Rumor</option>
+            <option value="predator">Predator Eye</option>
+            <option value="gravity">Gravity Basin</option>
+            <option value="panic">Panic Scatter</option>
+            <option value="orbit">Ritual Orbit</option>
+            <option value="breath">Breath Pulse</option>
+          </select>
+          <div class="tiny" id="fieldExplain">Trust the inferred flow first. Swarm corrects the residue.</div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle"><span>Swarm</span><span id="swarmStatus">IDLE</span></div>
+          <div>
+            <div class="rangeLabel"><span>Agents</span><span id="agentVal">160</span></div>
+            <input type="range" id="agentsRange" min="24" max="420" value="160" step="4" />
+          </div>
+          <div>
+            <div class="rangeLabel"><span>Correction</span><span id="forceVal">0.58</span></div>
+            <input type="range" id="forceRange" min="0.05" max="1" value="0.58" step="0.01" />
+          </div>
+          <div>
+            <div class="rangeLabel"><span>Rumor Trust</span><span id="trustVal">0.72</span></div>
+            <input type="range" id="trustRange" min="0" max="1" value="0.72" step="0.01" />
+          </div>
+        </div>
+
+        <div class="card wide">
+          <div class="cardTitle"><span>Patch Creatures</span><span id="patchCount">0</span></div>
+          <div id="patchList"></div>
+        </div>
+
+        <div class="card wide hideMobile">
+          <div class="cardTitle"><span>Autopsy Log</span></div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+      <div style="padding:8px;border-top:3px solid #000;background:#fff;display:flex;gap:7px">
+        <button class="smallBtn" id="clearBtn">RESET</button>
+        <button class="smallBtn dark" id="helpBtn">HELP</button>
+      </div>
+    </aside>
+  </main>
+
+  <footer id="timeline">
+    <button class="tlControl" id="prevBtn">◄</button>
+    <div class="strip" id="strip"></div>
+    <button class="tlControl" id="nextBtn">►</button>
+  </footer>
+</div>
+
+<div class="modal" id="exportModal">
+  <div class="modalBox">
+    <div class="modalHead"><span>FOSSILIZE AUTOPSY</span><button class="pill" id="closeExport">×</button></div>
+    <div class="modalBody">
+      <div class="tiny">This is the slice trial tensor: pixel body, delta body, flow body, patch bodies, scar body, policy body.</div>
+      <textarea id="exportText" spellcheck="false"></textarea>
+    </div>
+    <div class="modalFoot">
+      <button class="smallBtn dark" id="copyExport">COPY JSON</button>
+      <button class="smallBtn" id="downloadExport">DOWNLOAD JSON</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="helpModal">
+  <div class="modalBox">
+    <div class="modalHead"><span>SLICE TRIAL MANUAL</span><button class="pill" id="closeHelp">×</button></div>
+    <div class="modalBody">
+      <div class="card">
+        <div class="cardTitle">The Rule</div>
+        <div class="tiny">A frame is not an image. It is a compressed state of forces. This mode compares one slice to the next, guesses the missing law, marks the wound, and lets a swarm correct only the failed patch.</div>
+      </div>
+      <div class="card">
+        <div class="cardTitle">The Seven Verbs</div>
+        <div class="tiny"><b>LOAD</b> imports matter. <b>WOUND</b> compares current to next. <b>LISTEN</b> infers flow and patches. <b>DREAM</b> predicts the next slice. <b>SWARM</b> corrects failed patches. <b>BURN</b> commits belief into matter. <b>FOSSILIZE</b> exports the autopsy.</div>
+      </div>
+      <div class="card">
+        <div class="cardTitle">Best Loop</div>
+        <div class="tiny">LOAD → WOUND → LISTEN → DREAM → SWARM → BURN → FOSSILIZE. Do not train the whole frame first. Select or use the worst failed patch.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">READY</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const W = 128;
+  const H = 96;
+  const N = W * H;
+  const COLORS = [
+    [0,0,0], [38,38,38], [92,92,92], [140,140,140],
+    [194,194,194], [255,255,255], [0,51,204], [230,0,0]
+  ];
+
+  const $ = id => document.getElementById(id);
+  const canv = {
+    base: $("baseCanvas"), belief: $("beliefCanvas"), scar: $("scarCanvas"), swarm: $("swarmCanvas"), grid: $("gridCanvas"), select: $("selectCanvas")
+  };
+  const ctx = Object.fromEntries(Object.entries(canv).map(([k,c]) => [k, c.getContext("2d", { willReadFrequently:true })]));
+
+  const state = {
+    slices: [],
+    current: 0,
+    selectedPatchId: null,
+    drag: null,
+    overlays: { belief:true, scar:true, swarm:true },
+    swarmTimer: null,
+    swarmAgents: [],
+    lastExport: null,
+    fieldMode: "flow",
+    running: false
+  };
+
+  function makeGrid(fill = 0){
+    const a = new Uint8Array(N);
+    a.fill(fill);
+    return a;
+  }
+
+  function makeSlice(index, grid, stateName = "RAW"){
+    return {
+      id: "SLICE_" + String(index + 1).padStart(3,"0"),
+      index,
+      visible: grid,
+      source: grid.slice(),
+      hand: makeGrid(0),
+      script: makeGrid(0),
+      delta: null,
+      flow: null,
+      patches: [],
+      prediction: null,
+      scar: null,
+      policy: null,
+      tensor: null,
+      state: stateName,
+      match: null,
+      mse: null
+    };
+  }
+
+  function toast(msg){
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove("on"), 1050);
+  }
+
+  function log(msg){
+    const line = `[${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}] ${msg}\n`;
+    $("log").textContent = line + $("log").textContent;
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function idx(x,y){ return y * W + x; }
+  function xOf(i){ return i % W; }
+  function yOf(i){ return Math.floor(i / W); }
+
+  function setPixel(ctx2, x, y, val, alpha = 1){
+    const c = COLORS[clamp(val,0,7)];
+    ctx2.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+    ctx2.fillRect(x,y,1,1);
+  }
+
+  function drawGridToCanvas(grid, targetCtx, alpha = 1){
+    const img = targetCtx.createImageData(W,H);
+    for(let i=0;i<N;i++){
+      const c = COLORS[grid[i]] || COLORS[0];
+      const j = i*4;
+      img.data[j] = c[0]; img.data[j+1] = c[1]; img.data[j+2] = c[2]; img.data[j+3] = Math.round(255*alpha);
+    }
+    targetCtx.clearRect(0,0,W,H);
+    targetCtx.putImageData(img,0,0);
+  }
+
+  function drawGridLines(){
+    ctx.grid.clearRect(0,0,W,H);
+    ctx.grid.strokeStyle = "#000";
+    ctx.grid.lineWidth = .25;
+    for(let x=0;x<W;x+=8){ctx.grid.beginPath();ctx.grid.moveTo(x,0);ctx.grid.lineTo(x,H);ctx.grid.stroke();}
+    for(let y=0;y<H;y+=8){ctx.grid.beginPath();ctx.grid.moveTo(0,y);ctx.grid.lineTo(W,y);ctx.grid.stroke();}
+  }
+
+  function render(){
+    const s = currentSlice();
+    if(!s){ clearAllCanvas(); return; }
+    drawGridToCanvas(s.visible, ctx.base);
+    drawBelief(s);
+    drawScar(s);
+    drawSwarm(s);
+    drawSelection(s);
+    updateHud(s);
+    updateTimeline();
+    updatePatchList();
+  }
+
+  function clearAllCanvas(){ Object.values(ctx).forEach(c => c.clearRect(0,0,W,H)); }
+
+  function currentSlice(){ return state.slices[state.current]; }
+  function nextSlice(){ return state.slices[state.current + 1] || null; }
+
+  function drawBelief(s){
+    ctx.belief.clearRect(0,0,W,H);
+    if(!state.overlays.belief || !s.prediction) return;
+    const img = ctx.belief.createImageData(W,H);
+    for(let i=0;i<N;i++){
+      const val = s.prediction[i];
+      if(val === 0) continue;
+      const j=i*4;
+      img.data[j]=0; img.data[j+1]=51; img.data[j+2]=204; img.data[j+3]=86;
+    }
+    ctx.belief.putImageData(img,0,0);
+  }
+
+  function drawScar(s){
+    ctx.scar.clearRect(0,0,W,H);
+    if(!state.overlays.scar || !s.scar) return;
+    const img = ctx.scar.createImageData(W,H);
+    for(let i=0;i<N;i++){
+      const e = s.scar.cells[i];
+      if(e <= 0) continue;
+      const j=i*4;
+      img.data[j]=230; img.data[j+1]=0; img.data[j+2]=0; img.data[j+3]=clamp(70 + e*22, 70, 230);
+    }
+    ctx.scar.putImageData(img,0,0);
+  }
+
+  function drawSwarm(s){
+    ctx.swarm.clearRect(0,0,W,H);
+    if(!state.overlays.swarm) return;
+    if(s.flow){
+      ctx.swarm.save();
+      ctx.swarm.strokeStyle = "rgba(255,255,255,.85)";
+      ctx.swarm.lineWidth = .7;
+      for(const v of s.flow.vectors){
+        if(Math.abs(v.dx)+Math.abs(v.dy) < .6) continue;
+        ctx.swarm.beginPath();
+        ctx.swarm.moveTo(v.x, v.y);
+        ctx.swarm.lineTo(v.x + v.dx*2.8, v.y + v.dy*2.8);
+        ctx.swarm.stroke();
+      }
+      ctx.swarm.restore();
+    }
+    if(state.swarmAgents.length){
+      ctx.swarm.fillStyle = "rgba(255,255,255,.92)";
+      ctx.swarm.strokeStyle = "rgba(0,0,0,.8)";
+      for(const a of state.swarmAgents){
+        ctx.swarm.fillRect(a.x-.5,a.y-.5,1,1);
+        if(a.vx || a.vy){
+          ctx.swarm.beginPath(); ctx.swarm.moveTo(a.x,a.y); ctx.swarm.lineTo(a.x-a.vx*2,a.y-a.vy*2); ctx.swarm.stroke();
+        }
+      }
+    }
+  }
+
+  function drawSelection(s){
+    ctx.select.clearRect(0,0,W,H);
+    const patch = selectedPatch(s);
+    if(patch){
+      drawPatchOutline(patch, "#fff", 2.2);
+      drawPatchOutline(patch, "#000", .8);
+    }
+    if(state.drag){
+      const {x0,y0,x1,y1} = state.drag;
+      ctx.select.strokeStyle = "#fff"; ctx.select.lineWidth = 2;
+      ctx.select.strokeRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));
+      ctx.select.strokeStyle = "#000"; ctx.select.lineWidth = .75;
+      ctx.select.strokeRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0),Math.abs(y1-y0));
+    }
+  }
+
+  function drawPatchOutline(p, color, width){
+    ctx.select.strokeStyle = color;
+    ctx.select.lineWidth = width;
+    ctx.select.strokeRect(p.bounds.x, p.bounds.y, p.bounds.w, p.bounds.h);
+    ctx.select.beginPath();
+    ctx.select.arc(p.centroid.x, p.centroid.y, 1.5, 0, Math.PI*2);
+    ctx.select.stroke();
+  }
+
+  function selectedPatch(s){
+    if(!s || !s.patches) return null;
+    return s.patches.find(p => p.id === state.selectedPatchId) || s.patches[0] || null;
+  }
+
+  function updateHud(s){
+    $("modeTitle").textContent = s.state === "RAW" ? "RAW SLICE" : `${s.state} SLICE`;
+    const n = nextSlice();
+    $("modeSub").textContent = n ? `${s.id} is judged against ${n.id}.` : "Last slice has no target. Step back to run a trial.";
+    $("sliceState").textContent = s.state;
+    $("matchRead").textContent = s.match == null ? "--%" : `${Math.round(s.match*100)}%`;
+    $("mseRead").textContent = s.mse == null ? "--" : s.mse.toFixed(3);
+    $("matchFill").style.width = `${s.match ? s.match*100 : 0}%`;
+    $("patchRead").textContent = selectedPatch(s)?.id?.replace("PATCH_", "") || "--";
+    const witnesses = [s.delta,s.flow,s.prediction,s.scar,s.policy,s.tensor].filter(Boolean).length + (s.patches?.length ? 1 : 0);
+    $("witnessRead").textContent = witnesses;
+    $("patchCount").textContent = s.patches?.length || 0;
+  }
+
+  function updateTimeline(){
+    const strip = $("strip");
+    strip.innerHTML = "";
+    state.slices.forEach((s, i) => {
+      const d = document.createElement("button");
+      d.className = "sliceThumb" + (i === state.current ? " on" : "");
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      drawGridToCanvas(s.visible, c.getContext("2d"));
+      const num = document.createElement("div"); num.className="sliceNum"; num.textContent=String(i+1).padStart(2,"0");
+      const st = document.createElement("div"); st.className="sliceState"; st.textContent=s.state;
+      d.append(c,num,st);
+      d.onclick = () => { state.current = i; state.selectedPatchId = null; stopSwarm(); render(); };
+      strip.appendChild(d);
+    });
+  }
+
+  function updatePatchList(){
+    const s = currentSlice();
+    const list = $("patchList");
+    list.innerHTML = "";
+    if(!s || !s.patches || !s.patches.length){
+      list.innerHTML = `<div class="tiny">No patch creatures yet. Press WOUND, LISTEN, then DREAM.</div>`;
+      return;
+    }
+    for(const p of s.patches.slice(0,12)){
+      const item = document.createElement("div");
+      item.className = "patchItem" + (p.id === state.selectedPatchId ? " on" : "");
+      item.innerHTML = `
+        <div class="patchTop"><span>${p.id}</span><span class="stateBadge">${p.state}</span></div>
+        <div class="patchBio">${p.bio}</div>
+        <div class="patchBio">scar ${p.scarDensity.toFixed(2)} · flow ${p.flowTrust.toFixed(2)} · match ${Math.round((p.targetMatch||0)*100)}%</div>`;
+      item.onclick = () => { state.selectedPatchId = p.id; render(); };
+      list.appendChild(item);
+    }
+  }
+
+  function generateFilmLeader(){
+    const frames = [];
+    for(let t=0;t<14;t++){
+      const g = makeGrid(0);
+      const cx = 18 + t*5;
+      const cy = 34 + Math.round(Math.sin(t*.65)*9);
+      rect(g, cx, cy, 18, 14, 5);
+      rect(g, 90 - t*3, 20 + t*2, 12, 28, t > 8 ? 7 : 6);
+      line(g, 8, 82, 120, 82 - t*2, 4);
+      if(t>4) circle(g, 36 + t*3, 66, 5 + (t%3), 7);
+      if(t>7) rect(g, 10, 12, t*4, 4, 3);
+      frames.push(makeSlice(t, g));
+    }
+    state.slices = frames;
+    state.current = 0;
+    state.selectedPatchId = null;
+    stopSwarm();
+    log("Loaded film leader: synthetic motion evidence.");
+    toast("FILM LEADER LOADED");
+    render();
+  }
+
+  function rect(g,x,y,w,h,val){
+    x=Math.round(x); y=Math.round(y); w=Math.round(w); h=Math.round(h);
+    for(let yy=Math.max(0,y); yy<Math.min(H,y+h); yy++) for(let xx=Math.max(0,x); xx<Math.min(W,x+w); xx++) g[idx(xx,yy)] = val;
+  }
+  function circle(g,cx,cy,r,val){
+    cx=Math.round(cx); cy=Math.round(cy); r=Math.round(r);
+    for(let y=cy-r;y<=cy+r;y++) for(let x=cx-r;x<=cx+r;x++) if(x>=0&&x<W&&y>=0&&y<H&&((x-cx)**2+(y-cy)**2)<=r*r) g[idx(x,y)] = val;
+  }
+  function line(g,x0,y0,x1,y1,val){
+    x0=Math.round(x0); y0=Math.round(y0); x1=Math.round(x1); y1=Math.round(y1);
+    const dx=Math.abs(x1-x0), sx=x0<x1?1:-1;
+    const dy=-Math.abs(y1-y0), sy=y0<y1?1:-1;
+    let err=dx+dy;
+    while(true){ if(x0>=0&&x0<W&&y0>=0&&y0<H) g[idx(x0,y0)]=val; if(x0===x1&&y0===y1) break; const e2=2*err; if(e2>=dy){err+=dy;x0+=sx;} if(e2<=dx){err+=dx;y0+=sy;} }
+  }
+
+  async function loadImages(files){
+    const imgs = [...files].slice(0,36);
+    const loaded = [];
+    for(const file of imgs){
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res,rej)=>{const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url;});
+      const off = document.createElement("canvas"); off.width=W; off.height=H;
+      const oc = off.getContext("2d");
+      oc.fillStyle="#000"; oc.fillRect(0,0,W,H);
+      const scale = Math.max(W/img.width, H/img.height);
+      const dw = img.width*scale, dh=img.height*scale;
+      oc.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
+      const data = oc.getImageData(0,0,W,H).data;
+      const g = makeGrid(0);
+      for(let i=0;i<N;i++){
+        const j=i*4; const lum=(data[j]*.299+data[j+1]*.587+data[j+2]*.114)/255;
+        const red = data[j] > 150 && data[j+1] < 90 && data[j+2] < 90;
+        const blue = data[j+2] > 130 && data[j] < 120;
+        g[i] = red ? 7 : blue ? 6 : clamp(Math.round(lum*5),0,5);
+      }
+      loaded.push(g);
+      URL.revokeObjectURL(url);
+    }
+    state.slices = loaded.map((g,i)=>makeSlice(i,g));
+    state.current = 0;
+    state.selectedPatchId = null;
+    stopSwarm();
+    log(`Loaded ${loaded.length} image slices.`);
+    toast(`${loaded.length} SLICES LOADED`);
+    render();
+  }
+
+  function computeDelta(a,b){
+    const cells = new Uint8Array(N);
+    let hot=0, sum=0;
+    for(let i=0;i<N;i++){
+      const d = Math.abs(a[i]-b[i]);
+      cells[i]=d;
+      if(d>0){hot++; sum+=d;}
+    }
+    return { cells, hotCells:hot, mean: hot ? sum/hot : 0 };
+  }
+
+  function computeWound(){
+    const a = currentSlice(), b = nextSlice();
+    if(!a || !b){ toast("NO NEXT SLICE"); return; }
+    a.delta = computeDelta(a.visible,b.visible);
+    a.state = "WOUNDED";
+    log(`${a.id}: wound opened against ${b.id}. Hot cells: ${a.delta.hotCells}.`);
+    toast("WOUND OPENED");
+    render();
+  }
+
+  function inferFlow(aGrid,bGrid,delta){
+    const vectors = [];
+    const block = 8;
+    const search = 5;
+    for(let y=0;y<H;y+=block){
+      for(let x=0;x<W;x+=block){
+        let activity = 0;
+        for(let yy=y; yy<Math.min(H,y+block); yy++) for(let xx=x; xx<Math.min(W,x+block); xx++) activity += delta.cells[idx(xx,yy)];
+        if(activity < 8) continue;
+        let best = {score:Infinity, dx:0, dy:0};
+        for(let dy=-search; dy<=search; dy++){
+          for(let dx=-search; dx<=search; dx++){
+            let score=0, count=0;
+            for(let yy=y; yy<Math.min(H,y+block); yy+=2){
+              for(let xx=x; xx<Math.min(W,x+block); xx+=2){
+                const x2=xx+dx, y2=yy+dy;
+                if(x2<0||x2>=W||y2<0||y2>=H) continue;
+                score += Math.abs(aGrid[idx(xx,yy)] - bGrid[idx(x2,y2)]);
+                count++;
+              }
+            }
+            if(count && score/count < best.score) best = {score:score/count, dx, dy};
+          }
+        }
+        vectors.push({x:x+block/2,y:y+block/2,dx:best.dx,dy:best.dy,confidence:1/(1+best.score),activity});
+      }
+    }
+    return { vectors, count:vectors.length };
+  }
+
+  function listen(){
+    const a = currentSlice(), b = nextSlice();
+    if(!a || !b){ toast("NO NEXT SLICE"); return; }
+    if(!a.delta) a.delta = computeDelta(a.visible,b.visible);
+    a.flow = inferFlow(a.visible,b.visible,a.delta);
+    a.patches = segmentPatches(a.delta,a.flow,a.visible,b.visible);
+    state.selectedPatchId = a.patches[0]?.id || null;
+    a.state = "LISTENED";
+    log(`${a.id}: listened. Flow rumors: ${a.flow.count}. Patch creatures: ${a.patches.length}.`);
+    toast("MOTION RUMORS FOUND");
+    render();
+  }
+
+  function segmentPatches(delta, flow, aGrid, bGrid){
+    const visited = new Uint8Array(N);
+    const patches = [];
+    let idn=1;
+    for(let i=0;i<N;i++){
+      if(visited[i] || delta.cells[i]===0) continue;
+      const q=[i]; visited[i]=1;
+      let minX=W,maxX=0,minY=H,maxY=0,sumX=0,sumY=0,count=0,scar=0;
+      const inkHist = Array(8).fill(0);
+      while(q.length){
+        const cur=q.pop(); const x=xOf(cur), y=yOf(cur);
+        minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+        sumX+=x; sumY+=y; count++; scar+=delta.cells[cur]; inkHist[bGrid[cur]]++;
+        const neigh=[cur-1,cur+1,cur-W,cur+W];
+        for(const ni of neigh){
+          if(ni<0||ni>=N||visited[ni]||delta.cells[ni]===0) continue;
+          const nx=xOf(ni), ny=yOf(ni);
+          if(Math.abs(nx-x)+Math.abs(ny-y) !== 1) continue;
+          visited[ni]=1; q.push(ni);
+        }
+      }
+      if(count < 5) continue;
+      const centroid = {x:sumX/count,y:sumY/count};
+      const bounds = {x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
+      const localFlow = averageFlow(flow,bounds);
+      const edgeSignature = edgeSig(bGrid,bounds);
+      const stateName = count > 180 ? "splitting" : bounds.w < 5 || bounds.h < 5 ? "thinning" : "born";
+      const p = {
+        id:"PATCH_" + String(idn++).padStart(2,"0"), bounds, centroid, area:count,
+        inkHistogram:inkHist, edgeSignature, velocity:{x:localFlow.dx,y:localFlow.dy}, acceleration:{x:0,y:0},
+        scarDensity:scar/(count*7), flowTrust:localFlow.confidence, targetMatch:0, mse:1,
+        memory:[], state:stateName, cells:count,
+        bio: makeBio(count,bounds,localFlow,scar/(count*7),stateName)
+      };
+      patches.push(p);
+    }
+    patches.sort((a,b)=>b.scarDensity*b.area - a.scarDensity*a.area);
+    return patches.slice(0,24);
+  }
+
+  function averageFlow(flow,bounds){
+    if(!flow || !flow.vectors.length) return {dx:0,dy:0,confidence:0};
+    let sx=0,sy=0,sc=0,n=0;
+    for(const v of flow.vectors){
+      if(v.x>=bounds.x-8 && v.x<=bounds.x+bounds.w+8 && v.y>=bounds.y-8 && v.y<=bounds.y+bounds.h+8){
+        sx+=v.dx*v.confidence; sy+=v.dy*v.confidence; sc+=v.confidence; n++;
+      }
+    }
+    return n ? {dx:sx/(sc||1),dy:sy/(sc||1),confidence:sc/n} : {dx:0,dy:0,confidence:0};
+  }
+
+  function edgeSig(g,b){
+    let edges=0,total=0;
+    for(let y=b.y+1;y<Math.min(H-1,b.y+b.h-1);y++){
+      for(let x=b.x+1;x<Math.min(W-1,b.x+b.w-1);x++){
+        const v=g[idx(x,y)];
+        const e=Math.abs(v-g[idx(x+1,y)])+Math.abs(v-g[idx(x,y+1)]);
+        if(e>0) edges++;
+        total++;
+      }
+    }
+    return [total?edges/total:0];
+  }
+
+  function makeBio(area,b,f,scar,stateName){
+    const dir = Math.abs(f.dx)+Math.abs(f.dy)<.35 ? "barely admits motion" : `follows ${f.dx>=0?"east":"west"}/${f.dy>=0?"south":"north"} rumor`;
+    const wound = scar>.55 ? "deep scar" : scar>.25 ? "medium scar" : "thin scar";
+    return `${stateName}; ${wound}; ${dir}; ${area} cells inside ${b.w}×${b.h} skin.`;
+  }
+
+  function predictNext(){
+    const a = currentSlice(), b = nextSlice();
+    if(!a || !b){ toast("NO NEXT SLICE"); return; }
+    if(!a.delta) a.delta = computeDelta(a.visible,b.visible);
+    if(!a.flow) a.flow = inferFlow(a.visible,b.visible,a.delta);
+    if(!a.patches.length) a.patches = segmentPatches(a.delta,a.flow,a.visible,b.visible);
+    const pred = a.visible.slice();
+    const trust = +$("trustRange").value;
+    for(const p of a.patches){
+      movePatch(a.visible,pred,p, p.velocity.x*trust, p.velocity.y*trust);
+    }
+    applyFieldLaw(pred, a.patches, state.fieldMode);
+    a.prediction = pred;
+    a.scar = comparePrediction(pred,b.visible);
+    scoreSlice(a,b.visible);
+    assignScarToPatches(a);
+    a.state = "PREDICTED";
+    log(`${a.id}: dreamed next slice. Truth contact ${Math.round(a.match*100)}%. Scar depth ${a.mse.toFixed(3)}.`);
+    toast("DREAMED NEXT SLICE");
+    render();
+  }
+
+  function movePatch(src,dst,p,dx,dy){
+    const b=p.bounds;
+    const moved=[];
+    for(let y=b.y;y<b.y+b.h;y++){
+      for(let x=b.x;x<b.x+b.w;x++){
+        const ii=idx(x,y);
+        if(src[ii]===0) continue;
+        const nx=clamp(Math.round(x+dx),0,W-1), ny=clamp(Math.round(y+dy),0,H-1);
+        moved.push([idx(nx,ny),src[ii]]);
+        dst[ii]=0;
+      }
+    }
+    for(const [ii,v] of moved) dst[ii]=Math.max(dst[ii],v);
+  }
+
+  function applyFieldLaw(g,patches,mode){
+    if(!patches.length) return;
+    const cx = W/2, cy = H/2;
+    if(mode === "flow") return;
+    const out = g.slice();
+    for(const p of patches){
+      let fx=0,fy=0;
+      if(mode === "predator") { fx = (p.centroid.x-cx)*.045; fy=(p.centroid.y-cy)*.045; }
+      if(mode === "gravity") { fx = 0; fy=.9; }
+      if(mode === "panic") { fx = (Math.random()-.5)*2.4; fy=(Math.random()-.5)*2.4; }
+      if(mode === "orbit") { const vx=p.centroid.x-cx, vy=p.centroid.y-cy; fx=-vy*.025; fy=vx*.025; }
+      if(mode === "breath") { fx = (p.centroid.x-cx)*-.025; fy=(p.centroid.y-cy)*-.025; }
+      movePatch(g,out,p,fx,fy);
+    }
+    g.set(out);
+  }
+
+  function comparePrediction(pred,target){
+    const cells = new Float32Array(N);
+    let hot=0,sum=0,max=0;
+    for(let i=0;i<N;i++){
+      const e = Math.abs(pred[i]-target[i])/7;
+      cells[i]=e;
+      if(e>0){hot++; sum+=e; max=Math.max(max,e);}
+    }
+    return {cells, hotCells:hot, meanError:sum/N, maxError:max, patches:[]};
+  }
+
+  function scoreSlice(s,target){
+    if(!s.prediction){s.match=null;s.mse=null;return;}
+    let mse=0;
+    for(let i=0;i<N;i++){
+      const d=(s.prediction[i]-target[i])/7;
+      mse += d*d;
+    }
+    mse/=N;
+    s.mse=mse;
+    s.match=clamp(1 - Math.sqrt(mse), 0, 1);
+  }
+
+  function assignScarToPatches(s){
+    if(!s.scar || !s.patches) return;
+    for(const p of s.patches){
+      let scar=0,count=0,match=0;
+      const b=p.bounds;
+      for(let y=b.y;y<b.y+b.h;y++) for(let x=b.x;x<b.x+b.w;x++){
+        const e=s.scar.cells[idx(x,y)]; scar+=e; count++;
+        if(e===0) match++;
+      }
+      p.scarDensity = count ? scar/count : 0;
+      p.targetMatch = count ? match/count : 0;
+      p.mse = p.scarDensity;
+      if(p.targetMatch>.9) p.state="stable";
+      else if(p.scarDensity>.45) p.state="wounded";
+      p.bio = makeBio(p.area,p.bounds,p.velocity,p.scarDensity,p.state);
+    }
+    s.patches.sort((a,b)=>b.scarDensity-b.scarDensity || b.area-a.area);
+  }
+
+  function runOneTrial(){
+    computeWound();
+    listen();
+    predictNext();
+  }
+
+  function runFullTrial(){
+    runOneTrial();
+    setTimeout(() => startSwarm(), 50);
+  }
+
+  function startSwarm(){
+    const s = currentSlice(), target = nextSlice();
+    if(!s || !target){toast("NO TARGET SLICE");return;}
+    if(!s.prediction) predictNext();
+    if(!s.patches.length){toast("NO PATCHES");return;}
+    const p = selectedPatch(s);
+    if(!p){toast("NO PATCH");return;}
+    stopSwarm(false);
+    seedAgents(p);
+    state.running = true;
+    $("swarmStatus").textContent = "RUN";
+    let steps = 0;
+    state.swarmTimer = setInterval(() => {
+      steps++;
+      swarmStep(s,target.visible,p,steps);
+      s.scar = comparePrediction(s.prediction,target.visible);
+      scoreSlice(s,target.visible);
+      assignScarToPatches(s);
+      s.policy = { patchId:p.id, field:state.fieldMode, steps, agents:state.swarmAgents.length, match:s.match, mse:s.mse, correction:+$("forceRange").value, rumorTrust:+$("trustRange").value };
+      s.state = "TRAINED";
+      if(steps % 3 === 0) render();
+      if(steps > 90 || p.targetMatch > .94){
+        stopSwarm(false);
+        render();
+        log(`${s.id}: swarm rested after ${steps} steps. ${p.id} match ${Math.round(p.targetMatch*100)}%.`);
+        toast("SWARM SETTLED");
+      }
+    }, 32);
+    log(`${s.id}: swarm released into ${p.id}.`);
+    toast("SWARM THE WOUND");
+  }
+
+  function stopSwarm(clear=true){
+    if(state.swarmTimer) clearInterval(state.swarmTimer);
+    state.swarmTimer = null;
+    state.running = false;
+    $("swarmStatus").textContent = "IDLE";
+    if(clear) state.swarmAgents = [];
+  }
+
+  function seedAgents(p){
+    const n = +$("agentsRange").value;
+    state.swarmAgents = [];
+    for(let i=0;i<n;i++){
+      state.swarmAgents.push({
+        x: p.bounds.x + Math.random()*p.bounds.w,
+        y: p.bounds.y + Math.random()*p.bounds.h,
+        vx:p.velocity.x*.15, vy:p.velocity.y*.15,
+        memory:0
+      });
+    }
+  }
+
+  function swarmStep(s,target,p,steps){
+    const force = +$("forceRange").value;
+    const pred = s.prediction;
+    const b=p.bounds;
+    const nextPred = pred.slice();
+    for(const a of state.swarmAgents){
+      const x=clamp(Math.round(a.x),0,W-1), y=clamp(Math.round(a.y),0,H-1);
+      const ii=idx(x,y);
+      const targetVal = target[ii];
+      const curVal = pred[ii];
+      const error = targetVal - curVal;
+      let vx = p.velocity.x * .08 * +$("trustRange").value;
+      let vy = p.velocity.y * .08 * +$("trustRange").value;
+      const field = fieldVector(a.x,a.y,p,state.fieldMode,steps);
+      vx += field.x * force;
+      vy += field.y * force;
+      const grad = localErrorGradient(pred,target,x,y);
+      vx += grad.x * force * .9;
+      vy += grad.y * force * .9;
+      a.vx = a.vx*.72 + vx*.28;
+      a.vy = a.vy*.72 + vy*.28;
+      a.x = clamp(a.x + a.vx + (Math.random()-.5)*.25, b.x, b.x+b.w-1);
+      a.y = clamp(a.y + a.vy + (Math.random()-.5)*.25, b.y, b.y+b.h-1);
+      const ni = idx(Math.round(a.x),Math.round(a.y));
+      if(Math.abs(error) > 0){
+        const step = error > 0 ? 1 : -1;
+        nextPred[ii] = clamp(nextPred[ii] + step,0,7);
+      }
+      if(target[ni] > nextPred[ni] && Math.random()<.55) nextPred[ni]++;
+      if(target[ni] < nextPred[ni] && Math.random()<.45) nextPred[ni]--;
+    }
+    // Edge snap: directly correct a sparse subset inside the wounded patch so training visibly converges.
+    for(let k=0;k<Math.max(16, state.swarmAgents.length/5);k++){
+      const x=Math.floor(b.x+Math.random()*b.w), y=Math.floor(b.y+Math.random()*b.h), ii=idx(x,y);
+      if(Math.random() < force) nextPred[ii] += Math.sign(target[ii]-nextPred[ii]);
+      nextPred[ii]=clamp(nextPred[ii],0,7);
+    }
+    s.prediction = nextPred;
+  }
+
+  function fieldVector(x,y,p,mode,step){
+    const cx=p.centroid.x, cy=p.centroid.y;
+    const dx=x-cx, dy=y-cy;
+    if(mode === "predator") return {x:dx*.012,y:dy*.012};
+    if(mode === "gravity") return {x:0,y:.05};
+    if(mode === "panic") return {x:(Math.random()-.5)*.18,y:(Math.random()-.5)*.18};
+    if(mode === "orbit") return {x:-dy*.006,y:dx*.006};
+    if(mode === "breath") return {x:Math.sin(step*.12)*dx*.006,y:Math.sin(step*.12)*dy*.006};
+    return {x:0,y:0};
+  }
+
+  function localErrorGradient(pred,target,x,y){
+    const here = Math.abs(target[idx(x,y)]-pred[idx(x,y)]);
+    let best={x:0,y:0,e:here};
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      const nx=x+dx, ny=y+dy; if(nx<0||nx>=W||ny<0||ny>=H) continue;
+      const e=Math.abs(target[idx(nx,ny)]-pred[idx(nx,ny)]);
+      if(e>best.e) best={x:dx,y:dy,e};
+    }
+    return {x:best.x*.08,y:best.y*.08};
+  }
+
+  function burn(){
+    const s = currentSlice();
+    if(!s || !s.prediction){ toast("NO BELIEF TO BURN"); return; }
+    s.visible = s.prediction.slice();
+    s.hand = s.prediction.slice();
+    s.state = "BURNED";
+    s.scar = nextSlice() ? comparePrediction(s.visible,nextSlice().visible) : s.scar;
+    if(nextSlice()) scoreSlice({...s,prediction:s.visible}, nextSlice().visible);
+    log(`${s.id}: belief made material.`);
+    toast("BELIEF BURNED");
+    stopSwarm();
+    render();
+  }
+
+  function fossilize(){
+    const s = currentSlice();
+    if(!s){toast("NO SLICE");return;}
+    const payload = exportTensor(s);
+    state.lastExport = payload;
+    $("exportText").value = JSON.stringify(payload,null,2);
+    $("exportModal").classList.add("on");
+    s.tensor = payload;
+    s.state = s.state === "RAW" ? "EXPORTED" : s.state;
+    log(`${s.id}: tensor autopsy fossilized.`);
+    render();
+  }
+
+  function exportTensor(s){
+    const compressGrid = g => g ? Array.from(g) : null;
+    const compressFloat = f => f ? Array.from(f).map(v=>+v.toFixed(3)) : null;
+    return {
+      engine:"ICARO Slice Trial Mode",
+      slice:s.id,
+      index:s.index,
+      state:s.state,
+      judgedAgainst: nextSlice()?.id || null,
+      truthContact:s.match,
+      scarDepth:s.mse,
+      pixelBody: compressGrid(s.visible),
+      predictionBody: compressGrid(s.prediction),
+      deltaBody: s.delta ? {hotCells:s.delta.hotCells, mean:s.delta.mean, cells:Array.from(s.delta.cells)} : null,
+      flowBody: s.flow ? {count:s.flow.count, vectors:s.flow.vectors.map(v=>({x:+v.x.toFixed(1),y:+v.y.toFixed(1),dx:+v.dx.toFixed(2),dy:+v.dy.toFixed(2),confidence:+v.confidence.toFixed(3)}))} : null,
+      scarBody: s.scar ? {hotCells:s.scar.hotCells, meanError:+s.scar.meanError.toFixed(5), maxError:+s.scar.maxError.toFixed(3), cells:compressFloat(s.scar.cells)} : null,
+      patchBodies: (s.patches||[]).map(p=>({id:p.id,bounds:p.bounds,centroid:{x:+p.centroid.x.toFixed(2),y:+p.centroid.y.toFixed(2)},area:p.area,velocity:{x:+p.velocity.x.toFixed(2),y:+p.velocity.y.toFixed(2)},scarDensity:+p.scarDensity.toFixed(3),flowTrust:+p.flowTrust.toFixed(3),targetMatch:+p.targetMatch.toFixed(3),state:p.state,bio:p.bio})),
+      policyBody:s.policy,
+      doctrine:{frame:"slice", prediction:"belief", error:"scar", patch:"creature", swarm:"correction ritual", export:"autopsy"}
+    };
+  }
+
+  function clearAll(){
+    stopSwarm();
+    state.slices=[]; state.current=0; state.selectedPatchId=null; state.lastExport=null;
+    clearAllCanvas(); updateTimeline(); updatePatchList();
+    $("matchRead").textContent="--%"; $("mseRead").textContent="--"; $("patchRead").textContent="--"; $("witnessRead").textContent="0";
+    log("Reset chamber."); toast("RESET");
+  }
+
+  function pointerToGrid(ev){
+    const r = canv.select.getBoundingClientRect();
+    const p = ev.touches ? ev.touches[0] : ev;
+    return {x:clamp(Math.floor((p.clientX-r.left)/r.width*W),0,W-1), y:clamp(Math.floor((p.clientY-r.top)/r.height*H),0,H-1)};
+  }
+
+  function selectPatchAt(x,y){
+    const s=currentSlice(); if(!s || !s.patches) return false;
+    const found=s.patches.find(p=>x>=p.bounds.x&&x<p.bounds.x+p.bounds.w&&y>=p.bounds.y&&y<p.bounds.y+p.bounds.h);
+    if(found){state.selectedPatchId=found.id; render(); return true;}
+    return false;
+  }
+
+  function createManualPatch(x0,y0,x1,y1){
+    const s=currentSlice(); if(!s) return;
+    const b={x:Math.min(x0,x1),y:Math.min(y0,y1),w:Math.abs(x1-x0)+1,h:Math.abs(y1-y0)+1};
+    if(b.w<3||b.h<3) return;
+    const flow = s.flow || {vectors:[]};
+    const lf=averageFlow(flow,b);
+    const p={id:"PATCH_"+String((s.patches?.length||0)+1).padStart(2,"0"),bounds:b,centroid:{x:b.x+b.w/2,y:b.y+b.h/2},area:b.w*b.h,inkHistogram:Array(8).fill(0),edgeSignature:[0],velocity:{x:lf.dx,y:lf.dy},acceleration:{x:0,y:0},scarDensity:1,flowTrust:lf.confidence,targetMatch:0,mse:1,memory:[],state:"marked",cells:b.w*b.h,bio:`marked by operator; selected skin ${b.w}×${b.h}; waiting for swarm.`};
+    s.patches = [p, ...(s.patches||[])];
+    state.selectedPatchId=p.id;
+    log(`${s.id}: operator marked ${p.id}.`);
+    render();
+  }
+
+  function bindEvents(){
+    $("sampleBtn").onclick = generateFilmLeader;
+    $("loadBtn").onclick = () => $("fileInput").click();
+    $("fileInput").onchange = e => loadImages(e.target.files);
+    $("woundBtn").onclick = computeWound;
+    $("listenBtn").onclick = listen;
+    $("dreamBtn").onclick = predictNext;
+    $("swarmBtn").onclick = startSwarm;
+    $("burnBtn").onclick = burn;
+    $("fossilBtn").onclick = fossilize;
+    $("trialBtn").onclick = runFullTrial;
+    $("stepTrialBtn").onclick = runOneTrial;
+    $("clearBtn").onclick = clearAll;
+    $("helpBtn").onclick = () => $("helpModal").classList.add("on");
+    $("closeHelp").onclick = () => $("helpModal").classList.remove("on");
+    $("closeExport").onclick = () => $("exportModal").classList.remove("on");
+    $("copyExport").onclick = async () => { await navigator.clipboard.writeText($("exportText").value); toast("COPIED"); };
+    $("downloadExport").onclick = () => downloadText("icaro-slice-autopsy.json", $("exportText").value);
+    $("prevBtn").onclick = () => { state.current=clamp(state.current-1,0,Math.max(0,state.slices.length-1)); state.selectedPatchId=null; stopSwarm(); render(); };
+    $("nextBtn").onclick = () => { state.current=clamp(state.current+1,0,Math.max(0,state.slices.length-1)); state.selectedPatchId=null; stopSwarm(); render(); };
+    for(const [id,key] of [["beliefTog","belief"],["scarTog","scar"],["swarmTog","swarm"]]){
+      $(id).onclick = () => { state.overlays[key]=!state.overlays[key]; $(id).classList.toggle("on",state.overlays[key]); canv[key].classList.toggle("on",state.overlays[key]); render(); };
+    }
+    const updateRange = () => { $("agentVal").textContent=$("agentsRange").value; $("forceVal").textContent=(+$("forceRange").value).toFixed(2); $("trustVal").textContent=(+$("trustRange").value).toFixed(2); };
+    ["agentsRange","forceRange","trustRange"].forEach(id=>$(id).oninput=updateRange);
+    $("fieldMode").onchange = e => {
+      state.fieldMode = e.target.value;
+      const text = {
+        flow:"Trust the inferred flow first. Swarm corrects the residue.",
+        predator:"Pixels flee an unseen eye; useful for dispersal and rupture.",
+        gravity:"Ink falls toward a basin; useful for downward settling.",
+        panic:"Agents scatter from high scar; useful when blobs explode.",
+        orbit:"Patches circle an attractor; useful for rotational drift.",
+        breath:"Patch expands and contracts around its own center."
+      };
+      $("fieldExplain").textContent = text[state.fieldMode];
+      toast("FIELD LAW CHANGED");
+    };
+    canv.select.addEventListener("pointerdown", ev => {
+      const p=pointerToGrid(ev);
+      if(selectPatchAt(p.x,p.y)) return;
+      state.drag={x0:p.x,y0:p.y,x1:p.x,y1:p.y};
+      canv.select.setPointerCapture?.(ev.pointerId);
+      render();
+    });
+    canv.select.addEventListener("pointermove", ev => {
+      if(!state.drag) return;
+      const p=pointerToGrid(ev); state.drag.x1=p.x; state.drag.y1=p.y; render();
+    });
+    canv.select.addEventListener("pointerup", ev => {
+      if(!state.drag) return;
+      const d=state.drag; state.drag=null;
+      createManualPatch(d.x0,d.y0,d.x1,d.y1);
+    });
+    document.addEventListener("keydown", ev => {
+      if(ev.key==="ArrowLeft") $("prevBtn").click();
+      if(ev.key==="ArrowRight") $("nextBtn").click();
+      if(ev.key.toLowerCase()==="w") computeWound();
+      if(ev.key.toLowerCase()==="l") listen();
+      if(ev.key.toLowerCase()==="d") predictNext();
+      if(ev.key.toLowerCase()==="s") startSwarm();
+      if(ev.key.toLowerCase()==="b") burn();
+    });
+  }
+
+  function downloadText(filename,text){
+    const blob = new Blob([text],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),500);
+  }
+
+  function init(){
+    bindEvents();
+    drawGridLines();
+    generateFilmLeader();
+    log("Slice Trial Mode initialized. Every frame is evidence.");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

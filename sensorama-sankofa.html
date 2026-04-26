@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Universal Transformation Forge</title>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pressure: '#B23A2E',
+                        precedent: '#E3A21A',
+                        function: '#0E6B66',
+                        form: '#111111',
+                        parchment: '#F5F1E6',
+                        darkParchment: '#E5E0D8',
+                        ink: '#111111'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+                        mono: ['"Space Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace']
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Playfair+Display:wght@700;900&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet" />
+    <style>
+        html,
+        body {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100dvh;
+            margin: 0;
+            overflow: hidden;
+            background: #18181b;
+            color: #111;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+
+        .scrollable {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @media print {
+            @page {
+                margin: 0.22in;
+            }
+
+            html,
+            body {
+                position: static !important;
+                overflow: visible !important;
+                height: auto !important;
+                width: auto !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                touch-action: auto !important;
+            }
+
+            #wrapper {
+                display: none !important;
+            }
+
+            #print-container {
+                display: block !important;
+                width: 100%;
+            }
+
+            .print-page {
+                height: 10.55in;
+                width: 100%;
+                margin: 0 auto;
+                page-break-after: always;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(4, 1fr);
+                gap: 0;
+            }
+
+            .print-cut-zone {
+                border: 1px dashed #bbb;
+                padding: 0.18in;
+                display: flex;
+                box-sizing: border-box;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .print-card {
+                border: 2.5px solid #111;
+                border-radius: 10px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                background: #fff !important;
+                width: 100%;
+                height: 100%;
+                box-sizing: border-box;
+            }
+
+            .print-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .print-suit {
+                font: 700 9px 'Space Mono', monospace;
+                text-transform: uppercase;
+                letter-spacing: .08em;
+            }
+
+            .print-id {
+                font: 700 9px 'Space Mono', monospace;
+                opacity: .48;
+            }
+
+            .print-title {
+                font: 900 17px/1.05 'Playfair Display', Georgia, serif;
+                text-transform: uppercase;
+                text-align: center;
+                margin: auto 0 8px;
+            }
+
+            .print-role {
+                font: 700 9px 'Space Mono', monospace;
+                text-align: center;
+                opacity: .5;
+                text-transform: uppercase;
+                margin-bottom: 8px;
+            }
+
+            .print-desc {
+                font: 500 10px/1.25 Inter, sans-serif;
+                text-align: center;
+                border-top: 1px solid #ccc;
+                padding-top: 7px;
+                color: #333;
+            }
+        }
+
+        @media screen {
+            #print-container {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="font-sans">
+    <div id="wrapper"
+        class="fixed inset-0 w-full h-[100dvh] bg-[#18181b] flex justify-center items-center sm:p-6 md:p-10 overflow-hidden pointer-events-none z-0">
+        <div id="app-container"
+            class="pointer-events-auto w-full h-full sm:max-h-[96vh] sm:max-w-[520px] lg:max-w-[820px] sm:rounded-[2.5rem] overflow-hidden flex flex-col relative shadow-[0_24px_70px_rgba(0,0,0,0.82)] border-0 sm:border-[8px] border-zinc-800 bg-parchment bg-noise text-ink min-h-0">
+            <div id="app-root" class="flex-1 overflow-hidden relative flex flex-col min-h-0"></div>
+            <div id="nav-root" class="shrink-0 z-40 bg-white relative"></div>
+            <div id="modal-root"></div>
+        </div>
+    </div>
+    <div id="print-container"></div>
+    <script>
+        const STORAGE_KEY = 'universal_transformation_forge_v1';
+
+        const DATABASE = {
+            pressures: [{
+                id: 'p1',
+                title: 'Frictionless Sterility',
+                desc: 'Modern media is weightless, lacking the physical resistance needed to anchor memory.'
+            }, {
+                id: 'p2',
+                title: 'Context Rot',
+                desc: 'The degradation of meaning as input length increases, leading to middle neglect.'
+            }, {
+                id: 'p3',
+                title: 'Algorithmic Asymmetry',
+                desc: 'The power gap between the tracking platform and the individual precarious worker.'
+            }, {
+                id: 'p4',
+                title: 'Optical Supremacy',
+                desc: 'The false belief that convincing the eye is the only requirement for immersion.'
+            }, {
+                id: 'p5',
+                title: 'Ahistorical Vacuum',
+                desc: 'Virtual environments present as blank slates detached from cultural lineages.'
+            }, {
+                id: 'p6',
+                title: 'Persona Drift',
+                desc: 'The loss of identity or consistency in multi-turn AI interactions.'
+            }, {
+                id: 'p7',
+                title: 'Sensory Reductivism',
+                desc: 'Spatial computing ignores scent, wind, vibration, and atmospheric density.'
+            }, {
+                id: 'p8',
+                title: 'Status Anxiety',
+                desc: 'The compulsion for quantified validation overriding moral inhibition.'
+            }, {
+                id: 'p9',
+                title: 'Smooth-Glass Amnesia',
+                desc: 'Touch interfaces provide no tactile feedback, causing a loss of mechanical memory.'
+            }, {
+                id: 'p10',
+                title: 'The Gilded Cage',
+                desc: 'Proprietary ecosystems lock users into predatory data extraction cycles.'
+            }, {
+                id: 'p11',
+                title: 'Planned Ephemerality',
+                desc: 'Virtual worlds vanish when servers power down, leaving no material ruin.'
+            }, {
+                id: 'p12',
+                title: 'Museum Object Sterility',
+                desc: 'Historical artifacts become untouchable images stripped of their use-weight.'
+            }, {
+                id: 'p13',
+                title: 'Indirect Prompt Injection',
+                desc: 'Agents obey hidden commands embedded inside external data.'
+            }, {
+                id: 'p14',
+                title: 'The Sterile Sandbox',
+                desc: 'Infinite digital possibility creates paralysis through lack of constraints.'
+            }, {
+                id: 'p15',
+                title: 'Social Media Brain Rot',
+                desc: 'The subject fragments through endless, high-speed sensory sludge.'
+            }, {
+                id: 'p16',
+                title: 'Neoliberal Hustle Culture',
+                desc: 'Peers become competitors inside a compulsory attention economy.'
+            }, {
+                id: 'p17',
+                title: 'Cloud-Based Erasure',
+                desc: 'Remote servers destroy the local source code of experience.'
+            }, {
+                id: 'p18',
+                title: 'Acoustic Disembodiment',
+                desc: 'Ear-speakers replace moving physical columns of air through space.'
+            }, {
+                id: 'p19',
+                title: 'The Disembodied Avatar',
+                desc: 'Digital presence is divorced from gravity and somatic consequence.'
+            }, {
+                id: 'p20',
+                title: 'Spatial Ghosting',
+                desc: 'Digital overlays ignore the heavy material reality of the room.'
+            }, {
+                id: 'p21',
+                title: 'Techno-Optimist Blindness',
+                desc: 'Technology is mistaken for a neutral engine of inevitable progress.'
+            }, {
+                id: 'p22',
+                title: 'Semantic Drift',
+                desc: 'Original meaning decays as data is repeatedly reprocessed.'
+            }, {
+                id: 'p23',
+                title: 'The Information War',
+                desc: 'Shared truth collapses into competing tribal narratives and myths.'
+            }, {
+                id: 'p24',
+                title: 'Ecological Obfuscation',
+                desc: 'Computation hides its energy cost and material extraction.'
+            }, {
+                id: 'p25',
+                title: 'The Black Box Trap',
+                desc: 'The program controls the user instead of serving as tool.'
+            }, {
+                id: 'p26',
+                title: 'The Memory Eraser',
+                desc: 'Historical context is deleted to make branding frictionless.'
+            }, {
+                id: 'p27',
+                title: 'The Infinite Regress',
+                desc: 'Reaction consumes reaction until no original remains.'
+            }, {
+                id: 'p28',
+                title: 'The Sterile Archive',
+                desc: 'Data is stored without cultural sediment for interpretation.'
+            }, {
+                id: 'p29',
+                title: 'The Hyper-Individualist Feed',
+                desc: 'Algorithms isolate users by reinforcing existing biases.'
+            }, {
+                id: 'p30',
+                title: 'The Death of the Local',
+                desc: 'Global platforms erase site-specific practices and architectural logic.'
+            }, {
+                id: 'p31',
+                title: 'Quantified Self-Alienation',
+                desc: 'Human health becomes a volatile stream of biometrics.'
+            }, {
+                id: 'p32',
+                title: 'The Algorithmic Ouroboros',
+                desc: 'Models train on their own outputs until collapse begins.'
+            }, {
+                id: 'p33',
+                title: 'Bureaucratic Cruelty',
+                desc: 'Administrative systems create violence to justify their own existence.'
+            }, {
+                id: 'p34',
+                title: 'The Loss of Micro-Cinema',
+                desc: 'Collective viewing rooms dissolve into isolated streaming.'
+            }, {
+                id: 'p35',
+                title: 'Technological Misfire',
+                desc: 'A ritual or speech act fails because felicity conditions are unmet.'
+            }, {
+                id: 'p36',
+                title: 'The Gale of Calculation',
+                desc: 'Machine speed propels us blindly away from deep history.'
+            }],
+            precedents: [{
+                id: 'pr1',
+                title: 'The Luddite Letter',
+                desc: 'Anonymous communication networks signed by General Ludd obscured identity.'
+            }, {
+                id: 'pr2',
+                title: 'The Jacquard Card',
+                desc: 'Punched cards separated software from the loom’s hardware.'
+            }, {
+                id: 'pr3',
+                title: 'Penelope’s Loom',
+                desc: 'A mythic site of endurance and recursive time-unraveling.'
+            }, {
+                id: 'pr4',
+                title: 'The Link Trainer',
+                desc: 'Analog flight simulators used heavy pneumatics and physical instrumentation.'
+            }, {
+                id: 'pr5',
+                title: 'Mayan Textile Blocks',
+                desc: 'Sand-cast concrete became theatrical structure and surface language.'
+            }, {
+                id: 'pr6',
+                title: 'The Sensorama',
+                desc: 'Morton Heilig’s multi-sensory theater mixed wind, scent, vibration, and film.'
+            }, {
+                id: 'pr7',
+                title: 'The Sword of Damocles',
+                desc: 'The first AR/VR headset hung from a heavy mechanical boom.'
+            }, {
+                id: 'pr8',
+                title: 'Victorian Panoramas',
+                desc: 'Massive cylindrical paintings required viewers to physically rotate.'
+            }, {
+                id: 'pr9',
+                title: 'Theater Organs',
+                desc: 'Architectural immersion moved massive air through mechanical blowers.'
+            }, {
+                id: 'pr10',
+                title: 'The Camera Obscura',
+                desc: 'A room manipulated raw site-specific light without electricity.'
+            }, {
+                id: 'pr11',
+                title: 'The Victorian Scandal',
+                desc: 'Archetypal rumors enforced social bonds through reputation pressure.'
+            }, {
+                id: 'pr12',
+                title: 'Samizdat Networks',
+                desc: 'Underground self-published media circulated outside state control.'
+            }, {
+                id: 'pr13',
+                title: 'The Great Panorama',
+                desc: 'The whole of history became a single immersive scene.'
+            }, {
+                id: 'pr14',
+                title: '15-Perf 70mm IMAX',
+                desc: 'A brutalist projection system moved immense physical film mass.'
+            }, {
+                id: 'pr15',
+                title: 'Clockwork Automata',
+                desc: 'Programmable memory was hard-coded into brass cams and gears.'
+            }, {
+                id: 'pr16',
+                title: 'The Sensory Diving Bell',
+                desc: 'A heavy helm sealed users from the external environment.'
+            }, {
+                id: 'pr17',
+                title: 'Trompe l’Oeil',
+                desc: 'Forced perspective was built into room carpentry.'
+            }, {
+                id: 'pr18',
+                title: 'The Drawing Board',
+                desc: 'Point-paper grids translated analog patterns into computable notation.'
+            }, {
+                id: 'pr19',
+                title: 'The Gullah Narrative',
+                desc: 'Oral traditions preserved geocultural sediment for coastal identity.'
+            }, {
+                id: 'pr20',
+                title: 'The Village Well',
+                desc: 'Gossip and reputation tracking gathered around shared water infrastructure.'
+            }, {
+                id: 'pr21',
+                title: 'The Apprentice Bench',
+                desc: 'Knowledge moved through gesture, master-silence, correction, and repetition.'
+            }, {
+                id: 'pr22',
+                title: 'The Link Pager',
+                desc: 'Rugged banal hardware enabled shadow communication.'
+            }, {
+                id: 'pr23',
+                title: 'The Fluxus Event Score',
+                desc: 'Simple mandatory instructions blurred art and life.'
+            }, {
+                id: 'pr24',
+                title: 'The Immutable Mobile',
+                desc: 'Maps and graphs transported facts without apparent distortion.'
+            }, {
+                id: 'pr25',
+                title: 'The Black Box Camera',
+                desc: 'The apparatus dictated the possible images a user could take.'
+            }, {
+                id: 'pr26',
+                title: 'The Clandestine Pamphlet',
+                desc: 'Illicit text coordinated resistance in occupied territory.'
+            }, {
+                id: 'pr27',
+                title: 'The Sand-Cast Brick',
+                desc: 'Building units carried earth texture into architecture.'
+            }, {
+                id: 'pr28',
+                title: 'The Memory Palace',
+                desc: 'Architecture organized knowledge through spatial triggers.'
+            }, {
+                id: 'pr29',
+                title: 'The Carrier Pigeon',
+                desc: 'Biology became a long-distance data transmission network.'
+            }, {
+                id: 'pr30',
+                title: 'The Trial by Combat',
+                desc: 'Arguments entered ritualized conflict with physical stakes.'
+            }, {
+                id: 'pr31',
+                title: 'The Stereoscope',
+                desc: 'Binocular disparity became a device for nineteenth-century 3D.'
+            }, {
+                id: 'pr32',
+                title: 'The Ship’s Log',
+                desc: 'Movement and environmental observation became chronological trace.'
+            }, {
+                id: 'pr33',
+                title: 'The Medieval Guild',
+                desc: 'Skilled labor secrets were protected through closed social structure.'
+            }, {
+                id: 'pr34',
+                title: 'The Oracle',
+                desc: 'A ritual interface queried probabilistic or mythic futures.'
+            }, {
+                id: 'pr35',
+                title: 'The Hand-Crank Loom',
+                desc: 'Human muscle directly translated into mechanical pattern.'
+            }, {
+                id: 'pr36',
+                title: 'The Ancient Geoglyph',
+                desc: 'Media became legible only from an elevated position.'
+            }],
+            functions: [{
+                id: 'f1',
+                title: 'Somatic Anchoring',
+                desc: 'Forcing the body to bear the physical weight of digital interaction.'
+            }, {
+                id: 'f2',
+                title: 'Collective Anonymity',
+                desc: 'Using a shared avatar to shield vulnerability from tracking.'
+            }, {
+                id: 'f3',
+                title: 'Multisensory Imposition',
+                desc: 'Engaging scent, wind, and heat to break eye-supremacy.'
+            }, {
+                id: 'f4',
+                title: 'Temporal Recursion',
+                desc: 'Hardcoding past aesthetics into modern navigation mechanics.'
+            }, {
+                id: 'f5',
+                title: 'High-Friction Access',
+                desc: 'Requiring intentional physical effort to alter or retrieve media.'
+            }, {
+                id: 'f6',
+                title: 'Instructional Lamination',
+                desc: 'Tiering privileges so system rules override external inputs.'
+            }, {
+                id: 'f7',
+                title: 'Archaeological Bootstrapping',
+                desc: 'Training models on geocultural sediment rather than abstract data.'
+            }, {
+                id: 'f8',
+                title: 'Brutalist Legibility',
+                desc: 'Exposing the raw mechanics of immersion rather than hiding them.'
+            }, {
+                id: 'f9',
+                title: 'Acoustic Displacement',
+                desc: 'Pushing air against the body to simulate spatial presence.'
+            }, {
+                id: 'f10',
+                title: 'Operative Ekphrasis',
+                desc: 'Making descriptions function as active computational protocols.'
+            }, {
+                id: 'f11',
+                title: 'Site-Specific Permanence',
+                desc: 'Media that only functions inside one geographic structure.'
+            }, {
+                id: 'f12',
+                title: 'Ritualized Conflict',
+                desc: 'Translating online debate into physically constrained arenas.'
+            }, {
+                id: 'f13',
+                title: 'Kinetic Resistance',
+                desc: 'Controls fight back against the user to demand focus.'
+            }, {
+                id: 'f14',
+                title: 'Analog Persistence',
+                desc: 'Ensuring a system leaves physical traces after power-down.'
+            }, {
+                id: 'f15',
+                title: 'Social Coordination',
+                desc: 'Mapping commitments and promises rather than just data flow.'
+            }, {
+                id: 'f16',
+                title: 'Tactile Knowing',
+                desc: 'Understanding history by weighing, rotating, and repairing objects.'
+            }, {
+                id: 'f17',
+                title: 'Status Reversal',
+                desc: 'Humiliating the powerful through parody or role-reassignment.'
+            }, {
+                id: 'f18',
+                title: 'Algorithmic Opacity',
+                desc: 'Protecting the human right to remain untracked and unanalyzed.'
+            }, {
+                id: 'f19',
+                title: 'Atmospheric Density',
+                desc: 'Simulating the weight of air and humidity in virtual space.'
+            }, {
+                id: 'f20',
+                title: 'Mutual Accountability',
+                desc: 'Users verify each other’s actions through ritual.'
+            }, {
+                id: 'f21',
+                title: 'Skill Transfer',
+                desc: 'Knowledge moves through haptic pressure and master-rhythm.'
+            }, {
+                id: 'f22',
+                title: 'Contextual Grounding',
+                desc: 'Anchoring an agent identity to an environmental trace.'
+            }, {
+                id: 'f23',
+                title: 'Adversarial Design',
+                desc: 'Artifacts stand in material opposition to hegemony.'
+            }, {
+                id: 'f24',
+                title: 'Semantic Retrieval',
+                desc: 'Finding the needle through vector-space maps.'
+            }, {
+                id: 'f25',
+                title: 'Institutional Fact-Making',
+                desc: 'Utterances enact real-world states through status functions.'
+            }, {
+                id: 'f26',
+                title: 'Breakdown Management',
+                desc: 'Repairing social or technical fabric when tools fail.'
+            }, {
+                id: 'f27',
+                title: 'The Mythic Naturalizer',
+                desc: 'Making cultural choices appear as inevitable facts of nature.'
+            }, {
+                id: 'f28',
+                title: 'Technical Programming',
+                desc: 'The apparatus dictates user behavior and perception.'
+            }, {
+                id: 'f29',
+                title: 'Immutable Inscription',
+                desc: 'Reality stabilizes when turned into durable mobile files.'
+            }, {
+                id: 'f30',
+                title: 'Situated Response',
+                desc: 'Ad-hoc navigation responds to real-time environmental drift.'
+            }, {
+                id: 'f31',
+                title: 'Memory Paging',
+                desc: 'Data moves autonomously in and out of active context.'
+            }, {
+                id: 'f32',
+                title: 'Induction Circuitry',
+                desc: 'Models learn patterns from visual sequences.'
+            }, {
+                id: 'f33',
+                title: 'Credential Verification',
+                desc: 'Trust becomes hard-coded into physical exchange hardware.'
+            }, {
+                id: 'f34',
+                title: 'Gossip Routing',
+                desc: 'Social reputation transmits virally through a network.'
+            }, {
+                id: 'f35',
+                title: 'Resource Redistribution',
+                desc: 'Averaging metrics protects the most vulnerable workers.'
+            }, {
+                id: 'f36',
+                title: 'Catastrophe Weaving',
+                desc: 'Wreckage piles into a continuous historical narrative.'
+            }],
+            forms: [{
+                id: 'fo1',
+                title: 'The Ludd Protocol Node',
+                desc: 'A ruggedized pager that spoofs worker metrics to enforce solidarity.'
+            }, {
+                id: 'fo2',
+                title: 'The Textile-Block Array',
+                desc: 'Concrete interface blocks trigger spatial historical overlays.'
+            }, {
+                id: 'fo3',
+                title: 'The Heilig Kiosk 2.0',
+                desc: 'A street arcade cabinet with wind and scent injectors.'
+            }, {
+                id: 'fo4',
+                title: 'The Mechanical VR Helm',
+                desc: 'A ceiling-suspended diving bell provides neck-haptic feedback.'
+            }, {
+                id: 'fo5',
+                title: 'The Haptic Relic Bench',
+                desc: 'A conservation table where objects reveal history through care.'
+            }, {
+                id: 'fo6',
+                title: 'The Somatic Projection Cave',
+                desc: 'A concrete room vibrating at the resonant frequencies of the past.'
+            }, {
+                id: 'fo7',
+                title: 'The Olfactory Cyber-Rig',
+                desc: 'A scent-organ driven by chemical vials and biometrics.'
+            }, {
+                id: 'fo8',
+                title: 'The Kinesthetic Viewing Stocks',
+                desc: 'A standing apparatus locks the user into an optimal angle.'
+            }, {
+                id: 'fo9',
+                title: 'The Pneumatic Data Loom',
+                desc: 'A sequencer weaves data via high-velocity air pressure.'
+            }, {
+                id: 'fo10',
+                title: 'The Site-Specific Stereoscope',
+                desc: 'A heavy iron viewing station bolted to local bedrock.'
+            }, {
+                id: 'fo11',
+                title: 'The Operative Ekphrasis Console',
+                desc: 'A typewriter uses heavy keystrokes to render 3D geometry.'
+            }, {
+                id: 'fo12',
+                title: 'The Coastal Loom Assemblage',
+                desc: 'Tides and wind modulate AI weaving.'
+            }, {
+                id: 'fo13',
+                title: 'The Founders Pillars',
+                desc: 'AR turns corporate columns into contested memorials.'
+            }, {
+                id: 'fo14',
+                title: 'The In Search of Us Project',
+                desc: 'A community installation for collective memory and social justice.'
+            }, {
+                id: 'fo15',
+                title: 'The Fluxus Meltdown Deck',
+                desc: 'High-risk cards force social contract violations.'
+            }, {
+                id: 'fo16',
+                title: 'The Brain Rot Token',
+                desc: 'A physical currency represents lost attention and meme saturation.'
+            }, {
+                id: 'fo17',
+                title: 'The Subway Surfers Manifesto',
+                desc: 'Theory plays over high-speed mobile gameplay.'
+            }, {
+                id: 'fo18',
+                title: 'The Goon Cave Ritual',
+                desc: 'A multiplayer setup sacrifices phones for attention recovery.'
+            }, {
+                id: 'fo19',
+                title: 'The Skibidi Dopamine Drip',
+                desc: 'An IV administers stimulus whenever a meme appears.'
+            }, {
+                id: 'fo20',
+                title: 'The Touch Grass Challenge',
+                desc: 'A game requires retrieving a physical natural object.'
+            }, {
+                id: 'fo21',
+                title: 'The Woke HR Seminar',
+                desc: 'Bureaucratic roleplay absorbs radical ideas into slide decks.'
+            }, {
+                id: 'fo22',
+                title: 'The Wojak Mask',
+                desc: 'AR reduces opponents to memetic archetypes.'
+            }, {
+                id: 'fo23',
+                title: 'The Tone Police Badge',
+                desc: 'A wearable sensor negates high-emotion arguments.'
+            }, {
+                id: 'fo24',
+                title: 'The Memory Paging OS',
+                desc: 'Software tier-sorts an agent’s historical data.'
+            }, {
+                id: 'fo25',
+                title: 'The Instruction Hierarchy ISE',
+                desc: 'A privilege system separates system rules from data.'
+            }, {
+                id: 'fo26',
+                title: 'The Lamination Filter',
+                desc: 'A UI layers instructions over potentially malicious inputs.'
+            }, {
+                id: 'fo27',
+                title: 'The Slit-Scan Deep-Time Viewer',
+                desc: 'An interface captures geological duration in machine cycles.'
+            }, {
+                id: 'fo28',
+                title: 'The Algorithmic Ouroboros Loop',
+                desc: 'A world collapses as it feeds on its own history.'
+            }, {
+                id: 'fo29',
+                title: 'The Reputation Ledger',
+                desc: 'A public blockchain record of gossip and trust scores.'
+            }, {
+                id: 'fo30',
+                title: 'The Sand-Cast Interface Block',
+                desc: 'A concrete controller enables site-specific urban navigation.'
+            }, {
+                id: 'fo31',
+                title: 'The Acoustic Displacement Column',
+                desc: 'A freestanding obelisk transmits data through wind pulses.'
+            }, {
+                id: 'fo32',
+                title: 'The Ritualized Conflict Arena',
+                desc: 'A VR room makes users carry the weight of words.'
+            }, {
+                id: 'fo33',
+                title: 'The Analog Spatial Engine',
+                desc: 'A room governed by punch cards and mechanical gears.'
+            }, {
+                id: 'fo34',
+                title: 'The 70mm Living Room',
+                desc: 'High-mass film loops embed into load-bearing walls.'
+            }, {
+                id: 'fo35',
+                title: 'The Sensory Diving Bell Mask',
+                desc: 'Cast iron restricts vision to enforce haptic focus.'
+            }, {
+                id: 'fo36',
+                title: 'The I-Pad Baby Tantrum Room',
+                desc: 'An installation rewards the pre-linguistic scream of the consumer.'
+            }],
+            tags: ['BRUTALISM', 'HEILIG', 'SOWDEN', 'SANKOFA', 'LUDDITE', 'AI', 'VR/AR', 'HAPTICS', 'ARCHITECTURE', 'RITUAL', 'MEMORY']
+        };
+
+        const SUITS = {
+            pressure: {
+                db: 'pressures',
+                label: 'Pressure',
+                role: 'Force',
+                icon: 'zap',
+                color: '#B23A2E',
+                front: '#B23A2E'
+            },
+            precedent: {
+                db: 'precedents',
+                label: 'Precedent',
+                role: 'Root',
+                icon: 'history',
+                color: '#E3A21A',
+                front: '#E3A21A'
+            },
+            func: {
+                db: 'functions',
+                label: 'Function',
+                role: 'Mechanism',
+                icon: 'target',
+                color: '#0E6B66',
+                front: '#0E6B66'
+            },
+            form: {
+                db: 'forms',
+                label: 'Form',
+                role: 'Body',
+                icon: 'box',
+                color: '#111111',
+                front: '#111111'
+            }
+        };
+
+        const sampleCombos = [{
+            title: 'The Luddite Labor Shield',
+            cards: 'p3 + pr1 + f35 + fo1',
+            concept: 'A ruggedized shadow-infrastructure pager carried by warehouse workers that averages individual productivity metrics into one General Ludd data point.'
+        }, {
+            title: 'The Haptic History Bench',
+            cards: 'p12 + pr21 + f16 + fo5',
+            concept: 'A conservation table where artifacts reveal hidden historical layers only when the user matches archived ancestral gestures.'
+        }, {
+            title: 'The Sensorama Urban Kiosk',
+            cards: 'p7 + pr6 + f3 + fo3',
+            concept: 'A street arcade cabinet for vanishing neighborhood histories, injecting scent, wind, and structural vibration into memory.'
+        }, {
+            title: 'The Architectural Truth Arena',
+            cards: 'p23 + pr30 + f12 + fo32',
+            concept: 'A chamber where debaters must physically lift the weight of claims; falsehoods collapse the platform.'
+        }, {
+            title: 'The Coastal Tidal Loom',
+            cards: 'p24 + pr3 + f7 + fo12',
+            concept: 'An AI loom modulated by tides and wind, making environmental computation cost tangible through woven glitches.'
+        }, {
+            title: 'The Sovereign Context Filter',
+            cards: 'p13 + pr24 + f6 + fo25',
+            concept: 'A privilege system that laminates trusted instructions over external data so agents cannot be hijacked by hidden commands.'
+        }];
+
+        const app = {
+            view: 'onboarding',
+            saved: JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'),
+            fast: false,
+            wildcard: false,
+            flipped: [false, false, false, false],
+            currentDeck: {},
+            currentConcept: null,
+            modal: null,
+            previewPrompt: null,
+            search: '',
+            tab: 'ALL',
+
+            init() {
+                this.currentDeck = this.generateDeck();
+                this.render();
+            },
+
+            esc(value) {
+                return String(value ?? '').replace(/[&<>"]/g, ch => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;'
+                }[ch]));
+            },
+
+            randomItem(arr) {
+                return arr[Math.floor(Math.random() * arr.length)];
+            },
+            getTags(count = 4) {
+                return [...DATABASE.tags].sort(() => Math.random() - 0.5).slice(0, count);
+            },
+            generateDeck() {
+                return {
+                    pressure: this.randomItem(DATABASE.pressures),
+                    precedent: this.randomItem(DATABASE.precedents),
+                    func: this.randomItem(DATABASE.functions),
+                    form: this.randomItem(DATABASE.forms)
+                };
+            },
+            navigate(view) {
+                this.view = view;
+                this.modal = null;
+                this.previewPrompt = null;
+                this.render();
+            },
+            startRandom() {
+                this.wildcard = false;
+                this.currentDeck = this.generateDeck();
+                this.flipped = this.fast ? [true, true, true, true] : [false, false, false, false];
+                this.navigate('play');
+            },
+            startWildcard() {
+                this.wildcard = true;
+                this.navigate('play');
+            },
+            toggleFast() {
+                this.fast = !this.fast;
+                if (!this.wildcard && this.view === 'play')
+                    this.flipped = this.fast ? [true, true, true, true] : this.flipped;
+                this.render();
+            },
+            handleCardClick(index, cat) {
+                if (!this.flipped[index]) {
+                    this.flipped[index] = true;
+                    this.render();
+                    return;
+                }
+                this.currentDeck[cat] = this.randomItem(DATABASE[SUITS[cat].db]);
+                this.flipped[index] = true;
+                this.render();
+            },
+            rerollAll() {
+                if (this.wildcard) {
+                    ['pressure', 'precedent', 'func', 'form'].forEach(cat => {
+                        const t = document.getElementById(`wc-${cat}-title`);
+                        const d = document.getElementById(`wc-${cat}-desc`);
+                        if (t)
+                            t.value = '';
+                        if (d)
+                            d.value = '';
+                    }
+                    );
+                    return;
+                }
+                this.currentDeck = this.generateDeck();
+                this.flipped = this.fast ? [true, true, true, true] : [false, false, false, false];
+                this.render();
+            },
+            readWildcard() {
+                const read = (cat) => ({
+                    id: 'wild',
+                    title: document.getElementById(`wc-${cat}-title`)?.value.trim() || `Custom ${SUITS[cat].label}`,
+                    desc: document.getElementById(`wc-${cat}-desc`)?.value.trim() || `User-defined ${SUITS[cat].role.toLowerCase()} for the forge matrix.`
+                });
+                return {
+                    pressure: read('pressure'),
+                    precedent: read('precedent'),
+                    func: read('func'),
+                    form: read('form')
+                };
+            },
+            synthesize() {
+                const c = this.wildcard ? this.readWildcard() : this.currentDeck;
+                const title = this.makeTitle(c);
+                const concept = this.makeConcept(c);
+                this.currentConcept = {
+                    id: Date.now().toString(),
+                    title,
+                    concept,
+                    date: new Date().toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }),
+                    rating: 0,
+                    notes: '',
+                    tags: this.getTags(),
+                    cards: c
+                };
+                this.saveConcept(this.currentConcept);
+                this.navigate('result');
+            },
+            makeTitle(c) {
+                const formWord = c.form.title.replace(/^The\s+/i, '').split(/\s+/)[0];
+                const precedentWord = c.precedent.title.replace(/^The\s+/i, '').split(/\s+/)[0];
+                const functionWord = c.func.title.split(/\s+/)[0];
+                const patterns = [`The ${formWord} ${precedentWord} Forge`, `${functionWord} ${formWord} Protocol`, `The ${precedentWord} ${formWord} Engine`, `${formWord} Against ${c.pressure.title.split(/\s+/)[0]}`];
+                return patterns[Math.floor(Math.random() * patterns.length)];
+            },
+            makeConcept(c) {
+                return `Use ${c.form.title} to address ${c.pressure.title} through the logic of ${c.precedent.title}, activating ${c.func.title}. The artifact becomes a buildable transformation protocol: ${c.form.desc}`;
+            },
+            saveConcept(concept = this.currentConcept) {
+                if (!concept)
+                    return;
+                const exists = this.saved.some(item => item.id === concept.id);
+                this.saved = exists ? this.saved.map(item => item.id === concept.id ? concept : item) : [concept, ...this.saved];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(this.saved));
+            },
+            updateNotes(value) {
+                if (!this.currentConcept)
+                    return;
+                this.currentConcept.notes = value;
+                this.saveConcept(this.currentConcept);
+            },
+            rate(id, rating) {
+                this.saved = this.saved.map(item => item.id === id ? {
+                    ...item,
+                    rating
+                } : item);
+                if (this.currentConcept?.id === id)
+                    this.currentConcept.rating = rating;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(this.saved));
+                this.render();
+            },
+            deleteConcept(id) {
+                if (!confirm('Delete this forged concept?'))
+                    return;
+                this.saved = this.saved.filter(item => item.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(this.saved));
+                this.navigate('archive');
+            },
+            copyText(text, button) {
+                const fallback = () => {
+                    const area = document.createElement('textarea');
+                    area.value = text;
+                    area.style.position = 'fixed';
+                    area.style.top = '-1000px';
+                    document.body.appendChild(area);
+                    area.focus();
+                    area.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(area);
+                }
+                    ;
+                const confirmCopy = () => {
+                    if (!button)
+                        return;
+                    const old = button.innerHTML;
+                    button.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-2"></i>Copied';
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        button.innerHTML = old;
+                        lucide.createIcons();
+                    }
+                        , 1400);
+                }
+                    ;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(confirmCopy).catch(() => {
+                        fallback();
+                        confirmCopy();
+                    }
+                    );
+                } else {
+                    fallback();
+                    confirmCopy();
+                }
+            },
+            exportJSON() {
+                const payload = JSON.stringify({
+                    database: DATABASE,
+                    saved_concepts: this.saved
+                }, null, 2);
+                this.copyText(payload, event.currentTarget);
+            },
+            openPrompt(kind) {
+                this.previewPrompt = {
+                    title: this.promptTitle(kind),
+                    text: this.promptText(kind)
+                };
+                this.render();
+            },
+            promptTitle(kind) {
+                return {
+                    brief: 'Forge Brief Prompt',
+                    artifact: 'Artifact Build Spec',
+                    prototype: 'Single-File Prototype Prompt',
+                    foraging: 'Expansion Foraging Prompt'
+                }[kind] || 'Prompt';
+            },
+            promptHeader() {
+                const c = this.currentConcept.cards;
+                const notes = this.currentConcept.notes ? `\n[STUDIO NOTES]\n${this.currentConcept.notes}\n` : '';
+                return `[UNIVERSAL TRANSFORMATION FORGE]\n` + `Speculative Title: ${this.currentConcept.title}\n` + `Pressure / Force: ${c.pressure.title} — ${c.pressure.desc}\n` + `Precedent / Root: ${c.precedent.title} — ${c.precedent.desc}\n` + `Function / Mechanism: ${c.func.title} — ${c.func.desc}\n` + `Form / Body: ${c.form.title} — ${c.form.desc}\n` + notes + `----------------------------------------\n\n`;
+            },
+            promptText(kind) {
+                if (!this.currentConcept)
+                    return '';
+                const c = this.currentConcept.cards;
+                const header = this.promptHeader();
+                if (kind === 'brief') {
+                    return header + `Prompt Operator: TRANSFORMATION FORGE STRATEGIST\n\nWrite a rigorous concept brief for this speculative artifact. Use this formula: Use [FORM] to address [PRESSURE] through the logic of [PRECEDENT], in order to activate [FUNCTION].\n\nOutput sections:\n1. One-sentence thesis\n2. The pressure diagnosis\n3. The recovered precedent and why it matters\n4. The mechanism of transformation\n5. The artifact as an operational system\n6. Risks, misfires, and limits\n7. A sharper final title and tagline\n\nMake it grounded, high-friction, material, and buildable. Avoid startup-speak.`;
+                }
+                if (kind === 'artifact') {
+                    return header + `Prompt Operator: DIEGETIC PROTOTYPE FABRICATOR\n\nBuild an artifact specification for ${c.form.title}. Treat it as a real object, kiosk, protocol, bench, room, or shadow infrastructure.\n\nOutput sections:\n1. Form factor and physical materials\n2. Inputs, outputs, sensors, actuators, and data types\n3. User interaction loop, step by step\n4. Ritual of use\n5. Evidence marks: wear, residue, logs, scars, or traces\n6. Failure conditions and safety constraints\n7. Minimum viable prototype using cheap materials or single-file code\n8. Exhibition label under 80 words.`;
+                }
+                if (kind === 'prototype') {
+                    return header + `Prompt Operator: SINGLE-FILE HTML/CSS/JS BUILDER\n\nCreate a complete single-file prototype for the artifact. The file must run locally in a browser with no build step.\n\nRequirements:\n- Use HTML, CSS, and vanilla JavaScript only unless a CDN is explicitly necessary.\n- Make the interface feel like ${c.form.title}.\n- Encode the four cards visibly as Pressure, Precedent, Function, and Form.\n- Include real interaction, not just a static mockup.\n- Include sample data, state changes, logs, and an export button.\n- Use a material visual language: friction, weight, residue, paper, metal, concrete, haptics, or atmosphere.\n- Return only the full code.`;
+                }
+                return header + `Prompt Operator: ARCHAEOLOGICAL FORAGER\n\nSearch for this theme through the Four-Card Forge. Excavate additional Pressures, Precedents, Functions, and Forms. Avoid generic innovation language. Look for high-friction historical nodes where code, muscle, ritual, labor, architecture, and material resistance meet.\n\nReturn:\n1. 12 new Pressure cards\n2. 12 new Precedent cards\n3. 12 new Function cards\n4. 12 new Form cards\n5. 6 sample combinations\n6. 10 research leads\n\nKeep every card specific and buildable.`;
+            },
+            printDeck() {
+                const print = document.getElementById('print-container');
+                const order = ['pressure', 'precedent', 'func', 'form'];
+                const card = (cat, item) => {
+                    const s = SUITS[cat];
+                    return `<div class="print-cut-zone"><div class="print-card" style="border-color:${s.color}"><div class="print-card-header"><div class="print-suit" style="color:${s.color}">${s.label} / ${s.role}</div><div class="print-id">${item.id.toUpperCase()}</div></div><div class="print-role">Universal Transformation Forge</div><div class="print-title">${this.esc(item.title)}</div><div class="print-desc">${this.esc(item.desc)}</div></div></div>`;
+                }
+                    ;
+                const rules = `<div class="print-cut-zone"><div class="print-card" style="border-color:#111"><div class="print-card-header"><div class="print-suit">Forge Rules</div><div class="print-id">UTF</div></div><div class="print-title">Four-Card Transformation</div><div class="print-desc" style="text-align:left">1. Draw one card from each deck.<br><br>2. Formula: Use <b>FORM</b> to address <b>PRESSURE</b> through <b>PRECEDENT</b>, activating <b>FUNCTION</b>.<br><br>3. Build the artifact as a protocol, kiosk, bench, room, interface, or shadow infrastructure.<br><br>4. Redraw to intensify the system.</div></div></div>`;
+                let cards = [rules];
+                order.forEach(cat => DATABASE[SUITS[cat].db].forEach(item => cards.push(card(cat, item))));
+                while (cards.length % 8 !== 0)
+                    cards.push(`<div class="print-cut-zone"><div class="print-card" style="border-color:#aaa;border-style:dashed"><div class="print-card-header"><div class="print-suit" style="color:#888">Wildcard</div><div class="print-id">WRITE</div></div><div class="print-title" style="color:#bbb">Custom Card</div><div class="print-desc">Pressure / Precedent / Function / Form</div></div></div>`);
+                print.innerHTML = '';
+                for (let i = 0; i < cards.length; i += 8)
+                    print.innerHTML += `<div class="print-page">${cards.slice(i, i + 8).join('')}</div>`;
+                window.print();
+            },
+
+            logo(cls = 'w-16 h-16', color = '#111') {
+                return `<svg viewBox="0 0 120 120" class="${cls}" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="12" width="96" height="96" rx="18" fill="${color}"/><path d="M28 74C45 36 75 36 92 74" stroke="#F5F1E6" stroke-width="8" stroke-linecap="round"/><path d="M34 78H86" stroke="#E3A21A" stroke-width="8" stroke-linecap="round"/><circle cx="60" cy="55" r="12" fill="#B23A2E"/><path d="M60 24V42M60 78V96M24 60H42M78 60H96" stroke="#F5F1E6" stroke-width="5" stroke-linecap="round"/></svg>`;
+            },
+
+            navHTML() {
+                if (this.view === 'onboarding')
+                    return '';
+                const active = (view) => this.view === view ? 'text-[#B23A2E]' : 'text-black/45 hover:text-black';
+                return `<div class="h-16 flex items-center justify-around bg-white border-t-[3px] border-black relative z-40">
+          <button onclick="app.startRandom()" class="flex flex-col items-center p-2 w-20 transition-colors ${this.view === 'play' && !this.wildcard ? 'text-[#E3A21A]' : 'text-black/45 hover:text-black'}"><i data-lucide="shuffle" class="w-5 h-5"></i><span class="text-[8px] font-black font-mono uppercase tracking-widest mt-1">Random</span></button>
+          <button onclick="app.startWildcard()" class="w-12 h-12 rounded-full -mt-6 border-4 border-white flex items-center justify-center shadow-sm ${this.wildcard && this.view === 'play' ? 'bg-[#0E6B66]' : 'bg-black'}">${this.logo('w-7 h-7', '#F5F1E6')}</button>
+          <button onclick="app.navigate('archive')" class="flex flex-col items-center p-2 w-20 transition-colors ${this.view === 'archive' || this.view === 'detail' ? 'text-[#B23A2E]' : 'text-black/45 hover:text-black'}"><i data-lucide="archive" class="w-5 h-5"></i><span class="text-[8px] font-black font-mono uppercase tracking-widest mt-1">Archive</span></button>
+        </div>`;
+            },
+
+            onboardingHTML() {
+                return `<div class="h-full bg-[#F5F1E6] scrollable no-scrollbar p-6 pb-10 flex flex-col justify-between">
+          <div>
+            <div class="pt-8 flex justify-center mb-5">${this.logo('w-24 h-24')}</div>
+            <div class="text-center mb-7">
+              <div class="text-[10px] font-black uppercase tracking-[0.28em] font-mono opacity-60 mb-3">Sankofa Design Lab</div>
+              <h1 class="text-5xl sm:text-6xl font-black uppercase tracking-tighter leading-[0.84] font-serif">Universal<br/>Transformation<br/>Forge</h1>
+              <p class="mt-5 max-w-md mx-auto text-sm font-bold leading-relaxed text-[#B23A2E] font-mono uppercase">Any concept becomes a pressure, a root, a mechanism, and a body.</p>
+            </div>
+            <div class="border-[3px] border-black bg-white rounded-2xl p-5 shadow-[5px_5px_0_#111] mb-5">
+              <p class="text-sm font-bold leading-relaxed mb-3">Draw four cards. Force history to touch the present. Build the artifact.</p>
+              <p class="text-xs leading-relaxed opacity-75">This forge turns media archaeology, design fiction, AI systems, looms, scandals, VR helmets, brutalist rooms, and shadow infrastructures into operational transformation protocols.</p>
+              <div class="grid grid-cols-4 gap-2 mt-5 text-center">
+                ${Object.entries(SUITS).map(([k, s]) => `<div class="border-2 border-black rounded-xl p-2"><i data-lucide="${s.icon}" class="w-4 h-4 mx-auto mb-1" style="color:${s.color}"></i><div class="text-[8px] font-black uppercase font-mono">${s.label}</div><div class="text-[8px] opacity-50 font-mono">36</div></div>`).join('')}
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <button onclick="app.startRandom()" class="py-4 border-[3px] border-black bg-black text-[#F5F1E6] rounded-xl font-black uppercase font-mono shadow-[0_5px_0_#E3A21A] active:translate-y-[2px] active:shadow-none">Random Forge</button>
+              <button onclick="app.startWildcard()" class="py-4 border-[3px] border-black bg-[#E3A21A] text-black rounded-xl font-black uppercase font-mono shadow-[0_5px_0_#111] active:translate-y-[2px] active:shadow-none">Own Theme</button>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-center gap-2">
+            <button onclick="app.printDeck()" class="px-4 py-2 border-2 border-black rounded-full text-[10px] font-black uppercase font-mono bg-white"><i data-lucide="printer" class="inline w-3 h-3 mr-1"></i>Print Deck</button>
+            <button onclick="app.exportJSON()" class="px-4 py-2 border-2 border-black rounded-full text-[10px] font-black uppercase font-mono bg-white"><i data-lucide="database" class="inline w-3 h-3 mr-1"></i>Copy JSON</button>
+          </div>
+        </div>`;
+            },
+
+            playHTML() {
+                return `<div class="h-full flex flex-col bg-[#F5F1E6] overflow-hidden">
+          <div class="shrink-0 p-3 bg-white border-b-[3px] border-black flex items-center justify-between">
+            <button onclick="app.navigate('onboarding')" class="font-mono text-[10px] uppercase font-black flex items-center"><i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i>Forge</button>
+            <div class="font-mono text-[10px] uppercase font-black tracking-widest px-2 py-1 bg-black text-white rounded">${this.wildcard ? 'Wildcard Matrix' : 'Random Matrix'}</div>
+            <button onclick="app.toggleFast()" class="font-mono text-[10px] uppercase font-black flex items-center ${this.fast ? 'text-[#E3A21A]' : 'opacity-45'}"><i data-lucide="zap" class="w-4 h-4 mr-1 ${this.fast ? 'fill-current' : ''}"></i>Fast</button>
+          </div>
+          <div class="flex-1 min-h-0 p-3 flex flex-col">
+            <div class="text-center text-[10px] font-black uppercase tracking-[0.25em] font-mono opacity-55 mb-3">${this.wildcard ? 'Define the four forces' : 'Tap to reveal · tap revealed card to reroll'}</div>
+            <div class="flex-1 min-h-0 ${this.wildcard ? 'scrollable no-scrollbar' : 'grid grid-cols-2 gap-3'}">
+              ${this.wildcard ? this.wildcardHTML() : this.cardsHTML()}
+            </div>
+            <div class="shrink-0 pt-3 grid grid-cols-1 gap-2">
+              <button onclick="app.synthesize()" class="w-full py-4 border-[3px] border-black rounded-xl bg-white font-black uppercase font-mono tracking-widest shadow-[0_5px_0_#111] active:translate-y-[2px] active:shadow-none flex justify-center items-center">Synthesize <i data-lucide="chevron-right" class="w-5 h-5 ml-2"></i></button>
+              <button onclick="app.rerollAll()" class="w-full py-3 border-2 border-dashed border-black/35 rounded-xl font-black uppercase font-mono text-xs opacity-70 flex justify-center items-center"><i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>${this.wildcard ? 'Clear Inputs' : 'Reroll Matrix'}</button>
+            </div>
+          </div>
+        </div>`;
+            },
+
+            cardsHTML() {
+                return ['pressure', 'precedent', 'func', 'form'].map((cat, i) => this.cardHTML(cat, i)).join('');
+            },
+            cardHTML(cat, index) {
+                const s = SUITS[cat];
+                const item = this.currentDeck[cat];
+                const flipped = this.flipped[index];
+                return `<div class="relative w-full h-full min-h-[180px] cursor-pointer perspective-1000 group" onclick="app.handleCardClick(${index}, '${cat}')">
+          <div class="absolute inset-0 transition-transform duration-500 transform-style-3d ${flipped ? 'rotate-y-180' : ''}">
+            <div class="absolute inset-0 backface-hidden rounded-2xl border-[3px] border-black p-3 flex flex-col justify-between shadow-sm" style="background:${s.front}">
+              <div class="flex justify-between items-start text-[#F5F1E6]"><i data-lucide="${s.icon}" class="w-6 h-6"></i><span class="text-[9px] font-black uppercase font-mono opacity-75">${s.role}</span></div>
+              <div class="text-center">
+                <div class="text-[10px] font-black uppercase tracking-[0.22em] font-mono text-[#F5F1E6] opacity-75">${s.label}</div>
+                <div class="text-3xl font-black font-serif text-[#F5F1E6] leading-none mt-2">?</div>
+              </div>
+              <div class="text-[9px] font-black uppercase font-mono text-[#F5F1E6] opacity-75">Decode</div>
+            </div>
+            <div class="absolute inset-0 backface-hidden rotate-y-180 rounded-2xl border-[3px] border-black p-3 flex flex-col justify-between bg-white shadow-md overflow-hidden">
+              <div class="absolute -right-5 -top-5 opacity-[0.05]"><i data-lucide="${s.icon}" class="w-24 h-24"></i></div>
+              <div class="flex justify-between items-start relative z-10"><div class="flex items-center gap-1.5"><i data-lucide="${s.icon}" class="w-4 h-4" style="color:${s.color}"></i><span class="text-[8px] font-black uppercase tracking-widest font-mono" style="color:${s.color}">${s.label}</span></div><span class="text-[8px] font-black font-mono opacity-35">${item.id.toUpperCase()}</span></div>
+              <div class="relative z-10 text-center px-1">
+                <h3 class="font-serif font-black uppercase text-[17px] leading-[0.95] line-clamp-3">${this.esc(item.title)}</h3>
+                <div class="text-[9px] mt-2 uppercase font-mono font-bold opacity-45">${s.role}</div>
+              </div>
+              <div class="relative z-10 border-t-2 border-black/10 pt-2"><p class="text-[10px] leading-tight text-center opacity-70 line-clamp-3">${this.esc(item.desc)}</p><div class="text-[8px] font-black uppercase font-mono opacity-35 mt-2 text-center">Tap to redraw</div></div>
+            </div>
+          </div>
+        </div>`;
+            },
+            wildcardHTML() {
+                return `<div class="space-y-3 pb-2">
+          ${['pressure', 'precedent', 'func', 'form'].map(cat => {
+                    const s = SUITS[cat];
+                    return `<div class="bg-white rounded-2xl border-[3px] border-black p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-2"><label class="text-[10px] font-black uppercase tracking-widest font-mono" style="color:${s.color}">${s.label} / ${s.role}</label><i data-lucide="${s.icon}" class="w-4 h-4" style="color:${s.color}"></i></div>
+              <input id="wc-${cat}-title" class="w-full border-2 border-black rounded-lg p-2 text-sm font-bold mb-2 focus:outline-none focus:border-[#0E6B66]" placeholder="${s.label} title" />
+              <textarea id="wc-${cat}-desc" class="w-full border-2 border-black rounded-lg p-2 text-xs h-16 resize-none focus:outline-none focus:border-[#0E6B66]" placeholder="One grounded sentence describing this ${s.role.toLowerCase()}."></textarea>
+            </div>`;
+                }
+                ).join('')}
+        </div>`;
+            },
+
+            resultHTML() {
+                const p = this.currentConcept;
+                if (!p)
+                    return '';
+                return `<div class="h-full flex flex-col bg-[#F5F1E6] overflow-hidden">
+          <div class="shrink-0 p-4 bg-white border-b-[3px] border-black flex justify-between items-center">
+            <button onclick="app.navigate('play')" class="text-[10px] font-black uppercase font-mono flex items-center"><i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i>Back</button>
+            <button onclick="app.navigate('detail')" class="text-[10px] font-black uppercase font-mono flex items-center">Workspace<i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i></button>
+          </div>
+          <div class="flex-1 scrollable no-scrollbar p-5 pb-8">
+            <div class="text-center mb-6">
+              <div class="text-[10px] font-black uppercase tracking-[0.28em] font-mono opacity-50 mb-4">Operational Artifact</div>
+              <h1 class="text-4xl sm:text-5xl font-black uppercase leading-[0.88] font-serif">${this.esc(p.title)}</h1>
+              <div class="flex justify-center gap-2 flex-wrap mt-4">${p.tags.map(t => `<span class="text-[9px] font-black uppercase font-mono bg-white border-2 border-black rounded-full px-2 py-1">${t}</span>`).join('')}</div>
+            </div>
+            <div class="border-[3px] border-black bg-white rounded-2xl p-5 shadow-[5px_5px_0_#111] mb-5">
+              <div class="text-[10px] font-black uppercase tracking-widest font-mono text-[#B23A2E] mb-3">Synthesis Formula</div>
+              <p class="text-lg leading-snug font-serif font-bold">${this.esc(p.concept)}</p>
+            </div>
+            ${this.matrixHTML(p.cards)}
+            <button onclick="app.navigate('detail')" class="mt-5 w-full py-4 border-[3px] border-black bg-black text-[#F5F1E6] rounded-xl font-black uppercase font-mono shadow-[0_5px_0_#E3A21A] active:translate-y-[2px] active:shadow-none">Open Build Workspace</button>
+          </div>
+        </div>`;
+            },
+            matrixHTML(cards) {
+                return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${['pressure', 'precedent', 'func', 'form'].map(cat => {
+                    const s = SUITS[cat]
+                        , item = cards[cat];
+                    return `<div class="border-[3px] border-black bg-white rounded-2xl p-3"><div class="flex justify-between items-center mb-2"><div class="text-[9px] font-black uppercase tracking-widest font-mono" style="color:${s.color}">${s.label} / ${s.role}</div><div class="text-[8px] font-black font-mono opacity-35">${item.id?.toUpperCase() || 'WILD'}</div></div><h3 class="font-serif uppercase font-black text-lg leading-none mb-2">${this.esc(item.title)}</h3><p class="text-[11px] leading-tight opacity-70">${this.esc(item.desc)}</p></div>`;
+                }
+                ).join('')}
+        </div>`;
+            },
+
+            starsHTML(rating, id) {
+                return [1, 2, 3, 4, 5].map(n => `<button onclick="app.rate('${id}', ${n})" class="p-0.5"><svg class="w-5 h-5 ${n <= rating ? 'fill-[#E3A21A] text-[#E3A21A]' : 'fill-transparent text-black/25'}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>`).join('');
+            },
+            detailHTML() {
+                const p = this.currentConcept;
+                if (!p)
+                    return '';
+                return `<div class="h-full flex flex-col bg-[#E5E0D8] overflow-hidden">
+          <div class="shrink-0 p-3 bg-[#F5F1E6] border-b-[3px] border-black flex justify-between items-center">
+            <button onclick="app.navigate('archive')" class="text-[10px] font-black uppercase font-mono flex items-center"><i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i>Archive</button>
+            <button onclick="app.deleteConcept('${p.id}')" class="opacity-55 hover:opacity-100 hover:text-[#B23A2E]"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+          <div class="flex-1 scrollable no-scrollbar p-4 pb-8">
+            <h1 class="font-serif font-black uppercase text-4xl leading-[0.88] mb-3">${this.esc(p.title)}</h1>
+            <div class="flex items-center gap-3 mb-4"><div class="flex">${this.starsHTML(p.rating, p.id)}</div><span class="text-[10px] font-mono uppercase opacity-50">Viability</span></div>
+            <div class="border-l-[5px] border-[#0E6B66] pl-4 mb-5"><p class="font-serif text-sm font-bold leading-relaxed">${this.esc(p.concept)}</p></div>
+            ${this.matrixHTML(p.cards)}
+            <div class="mt-5">
+              <div class="text-[10px] font-black uppercase tracking-widest font-mono opacity-55 mb-2">Studio Scratchpad</div>
+              <textarea oninput="app.updateNotes(this.value)" class="w-full h-32 border-[3px] border-black rounded-2xl p-3 font-mono text-xs resize-none focus:outline-none focus:border-[#E3A21A] bg-white shadow-[3px_3px_0_#111]" placeholder="Add build notes, site, materials, course lens, prototype constraints...">${this.esc(p.notes || '')}</textarea>
+            </div>
+            <div class="mt-5">
+              <div class="text-[10px] font-black uppercase tracking-widest font-mono opacity-55 mb-3">Deliverable Forge</div>
+              <div class="grid grid-cols-2 gap-2">
+                ${[['brief', 'file-text', 'Forge Brief', 'Theory + concept'], ['artifact', 'box', 'Artifact Spec', 'Build document'], ['prototype', 'code', 'HTML Prototype', 'Single-file app'], ['foraging', 'search', 'Extension Pack', 'More cards']].map(([kind, icon, title, sub]) => `<button onclick="app.openPrompt('${kind}')" class="text-left bg-white border-[2px] border-black rounded-xl p-3 hover:bg-black hover:text-white transition-colors"><i data-lucide="${icon}" class="w-4 h-4 mb-2"></i><div class="text-[10px] font-black uppercase font-mono">${title}</div><div class="text-[8px] font-mono opacity-55 mt-1">${sub}</div></button>`).join('')}
+              </div>
+            </div>
+          </div>
+          ${this.promptModalHTML()}
+        </div>`;
+            },
+
+            promptModalHTML() {
+                if (!this.previewPrompt)
+                    return '';
+                return `<div class="absolute inset-0 z-[80] bg-black/75 backdrop-blur-sm flex flex-col animate-[fadeIn_0.18s_ease-out]">
+          <div class="flex-1" onclick="app.previewPrompt=null;app.render()"></div>
+          <div class="h-[86%] bg-[#F5F1E6] border-t-[4px] border-black rounded-t-3xl overflow-hidden flex flex-col">
+            <div class="shrink-0 p-4 bg-white border-b-[3px] border-black flex justify-between items-center"><h3 class="text-sm font-black uppercase font-mono flex items-center"><i data-lucide="terminal" class="w-4 h-4 mr-2"></i>${this.esc(this.previewPrompt.title)}</h3><button onclick="app.previewPrompt=null;app.render()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+            <div class="flex-1 p-4 min-h-0"><textarea id="prompt-text" class="w-full h-full bg-white border-2 border-dashed border-gray-400 rounded-xl p-4 text-xs leading-relaxed font-mono resize-none focus:outline-none focus:border-[#0E6B66]">${this.esc(this.previewPrompt.text)}</textarea></div>
+            <div class="shrink-0 p-4 bg-white border-t-[3px] border-black"><button onclick="app.copyText(document.getElementById('prompt-text').value, this)" class="w-full py-4 border-[3px] border-black rounded-xl bg-[#E3A21A] font-black uppercase font-mono flex justify-center items-center shadow-[0_4px_0_#111] active:translate-y-[2px] active:shadow-none"><i data-lucide="copy" class="w-4 h-4 mr-2"></i>Copy Prompt</button></div>
+          </div>
+        </div>`;
+            },
+
+            archiveHTML() {
+                const filtered = this.filteredSaved();
+                const avg = this.saved.length ? (this.saved.reduce((a, b) => a + (b.rating || 0), 0) / this.saved.length).toFixed(1) : '0.0';
+                return `<div class="h-full flex flex-col bg-[#F5F1E6] overflow-hidden">
+          <div class="shrink-0 bg-white border-b-[3px] border-black p-4">
+            <div class="flex justify-between items-start mb-4"><div><h1 class="text-4xl font-serif uppercase font-black leading-none text-[#B23A2E]">Archive</h1><div class="text-[10px] font-black uppercase font-mono opacity-55 mt-1">Saved transformation protocols</div></div><button onclick="app.printDeck()" class="border-2 border-black rounded-full p-2"><i data-lucide="printer" class="w-4 h-4"></i></button></div>
+            <div class="grid grid-cols-2 gap-2 mb-3"><div class="border-2 border-black rounded-xl p-2 text-center bg-[#F5F1E6]"><div class="text-[8px] font-black uppercase font-mono opacity-55">Logs</div><div class="font-serif font-black text-2xl">${this.saved.length}</div></div><div class="border-2 border-black rounded-xl p-2 text-center bg-[#F5F1E6]"><div class="text-[8px] font-black uppercase font-mono opacity-55">Avg</div><div class="font-serif font-black text-2xl">${avg}</div></div></div>
+            <div class="relative"><i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 opacity-40"></i><input oninput="app.search=this.value;app.render()" value="${this.esc(this.search)}" placeholder="Filter concepts..." class="w-full border-2 border-black rounded-xl py-2 pl-9 pr-3 font-mono text-xs focus:outline-none" /></div>
+          </div>
+          <div class="flex-1 scrollable no-scrollbar p-4 space-y-3 pb-8">
+            ${filtered.length ? filtered.map(item => this.archiveItemHTML(item)).join('') : '<div class="border-2 border-dashed border-black/30 rounded-2xl p-10 text-center font-mono font-black uppercase opacity-35">Empty stratum</div>'}
+          </div>
+        </div>`;
+            },
+            filteredSaved() {
+                const q = this.search.trim().toLowerCase();
+                if (!q)
+                    return this.saved;
+                return this.saved.filter(item => [item.title, item.concept, item.cards?.pressure?.title, item.cards?.precedent?.title, item.cards?.func?.title, item.cards?.form?.title].join(' ').toLowerCase().includes(q));
+            },
+            archiveItemHTML(item) {
+                return `<button onclick="app.currentConcept=app.saved.find(x=>x.id==='${item.id}');app.navigate('detail')" class="w-full text-left bg-white border-[3px] border-black rounded-2xl p-3 hover:bg-[#E5E0D8] active:scale-[0.99] transition-all">
+          <div class="flex justify-between gap-3"><div class="min-w-0"><h3 class="font-serif font-black uppercase text-lg leading-none truncate">${this.esc(item.title)}</h3><div class="text-[10px] font-mono opacity-55 mt-1 truncate">${this.esc(item.cards.form.title)} · ${this.esc(item.cards.pressure.title)}</div></div><div class="text-right shrink-0"><div class="text-[9px] font-mono opacity-45">${item.date}</div><div class="text-[10px] font-mono font-black text-[#E3A21A]">${'★'.repeat(item.rating || 0)}${'☆'.repeat(5 - (item.rating || 0))}</div></div></div>
+        </button>`;
+            },
+
+            render() {
+                const root = document.getElementById('app-root');
+                const nav = document.getElementById('nav-root');
+                if (this.view === 'onboarding')
+                    root.innerHTML = this.onboardingHTML();
+                if (this.view === 'play')
+                    root.innerHTML = this.playHTML();
+                if (this.view === 'result')
+                    root.innerHTML = this.resultHTML();
+                if (this.view === 'archive')
+                    root.innerHTML = this.archiveHTML();
+                if (this.view === 'detail')
+                    root.innerHTML = this.detailHTML();
+                nav.innerHTML = this.navHTML();
+                lucide.createIcons();
+            }
+        };
+
+        window.app = app;
+        window.addEventListener('load', () => app.init());
+    </script>
+</body>
+
+</html>

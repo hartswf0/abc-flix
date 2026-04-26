@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc-Tunnel Operator — Stable Tool Build</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #05060a;
+            --fg: #f8fafc;
+            --muted: #64748b;
+            --hot: #9CFFB8;
+            --red: #d83a1a;
+            --c0: #6ee7b7;
+            --c1: #a78bfa;
+            --c2: #fb7185;
+            --c3: #fbbf24
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        body:before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            background: radial-gradient(circle at 50% 48%, rgba(156, 255, 184, .06), transparent 36%), radial-gradient(circle at 50% 55%, rgba(216, 58, 26, .08), transparent 62%)
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            background: #05060a;
+            z-index: 1;
+            cursor: crosshair
+        }
+
+        #top {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px 0;
+            background: linear-gradient(to bottom, rgba(5, 6, 10, .95), rgba(5, 6, 10, .28), transparent);
+            pointer-events: none
+        }
+
+        #brand {
+            color: var(--red);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .17em;
+            font-size: 11px;
+            white-space: nowrap
+        }
+
+        #mode {
+            height: 34px;
+            min-width: 104px;
+            border: 1px solid rgba(156, 255, 184, .52);
+            background: rgba(5, 6, 10, .68);
+            display: grid;
+            place-items: center;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+            font-size: 12px;
+            box-shadow: 0 0 22px rgba(156, 255, 184, .08)
+        }
+
+        #buttons {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto
+        }
+
+        .round {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, .30);
+            background: rgba(5, 6, 10, .72);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            backdrop-filter: blur(8px)
+        }
+
+        .round.on,
+        .round:hover {
+            border-color: var(--hot);
+            color: var(--hot);
+            background: rgba(156, 255, 184, .12);
+            box-shadow: 0 0 18px rgba(156, 255, 184, .2)
+        }
+
+        .round svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            stroke: currentColor
+        }
+
+        #bottom {
+            position: fixed;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            z-index: 42;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 10px;
+            pointer-events: none
+        }
+
+        #tracks {
+            display: flex;
+            gap: 7px;
+            padding: 7px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 999px;
+            background: rgba(5, 6, 10, .62);
+            pointer-events: auto;
+            backdrop-filter: blur(10px)
+        }
+
+        .track {
+            width: auto;
+            height: 34px;
+            border-radius: 999px;
+            padding: 0 11px;
+            border: 1px solid rgba(255, 255, 255, .18);
+            background: rgba(255, 255, 255, .045);
+            color: #fff;
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: .10em;
+            text-transform: uppercase;
+            cursor: pointer
+        }
+
+        .track.active {
+            color: #05060a;
+            background: var(--track);
+            border-color: #fff;
+            box-shadow: 0 0 18px var(--glow)
+        }
+
+        #readout {
+            height: 42px;
+            min-width: 190px;
+            max-width: 48vw;
+            padding: 0 14px;
+            border: 1px solid rgba(156, 255, 184, .42);
+            background: rgba(5, 6, 10, .7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            backdrop-filter: blur(10px)
+        }
+
+        #store {
+            position: fixed;
+            right: 10px;
+            bottom: 64px;
+            z-index: 43;
+            width: 210px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            border-radius: 14px;
+            padding: 9px;
+            background: rgba(5, 6, 10, .70);
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, .35)
+        }
+
+        #storeHead {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--hot);
+            font-size: 10px;
+            letter-spacing: .16em;
+            text-transform: uppercase
+        }
+
+        .slot {
+            height: 28px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-left: 5px solid var(--slot);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .04);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-top: 6px
+        }
+
+        .slot.active,
+        .slot:hover {
+            background: rgba(156, 255, 184, .11);
+            border-color: rgba(156, 255, 184, .6)
+        }
+
+        .empty {
+            height: 28px;
+            border: 1px dashed rgba(255, 255, 255, .18);
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: rgba(255, 255, 255, .45);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .1em
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 80;
+            display: none;
+            min-width: 206px;
+            max-width: 280px;
+            padding: 7px;
+            border: 1px solid rgba(156, 255, 184, .46);
+            border-radius: 13px;
+            background: rgba(3, 4, 6, .96);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, .6)
+        }
+
+        #menu.show {
+            display: block
+        }
+
+        .mTitle {
+            color: var(--hot);
+            font-size: 11px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            padding: 8px 9px;
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .mItem {
+            height: 34px;
+            border-radius: 8px;
+            padding: 0 9px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            font-size: 12px
+        }
+
+        .mItem:hover {
+            background: rgba(156, 255, 184, .14);
+            color: var(--hot)
+        }
+
+        .mItem.danger:hover {
+            background: rgba(216, 58, 26, .17);
+            color: #ff937d
+        }
+
+        .mItem.disabled {
+            opacity: .3;
+            pointer-events: none
+        }
+
+        .key {
+            font-size: 10px;
+            opacity: .55
+        }
+
+        .sep {
+            height: 1px;
+            background: rgba(255, 255, 255, .11);
+            margin: 5px 3px
+        }
+
+        #help {
+            position: fixed;
+            left: 14px;
+            top: 72px;
+            z-index: 60;
+            max-width: 310px;
+            border: 1px solid rgba(156, 255, 184, .35);
+            border-radius: 16px;
+            background: rgba(5, 6, 10, .78);
+            backdrop-filter: blur(14px);
+            padding: 14px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, .42);
+            pointer-events: auto
+        }
+
+        #help.hide {
+            display: none
+        }
+
+        .hTitle {
+            color: var(--hot);
+            font-size: 12px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            margin-bottom: 10px
+        }
+
+        .hRow {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            color: #fff;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin: 7px 0
+        }
+
+        .hRow b {
+            color: var(--hot);
+            white-space: nowrap
+        }
+
+        #runHelp {
+            height: 32px;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            margin-top: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+            font-size: 11px;
+            background: rgba(255, 255, 255, .04)
+        }
+
+        #runHelp:hover {
+            color: var(--hot);
+            border-color: var(--hot)
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 72px;
+            transform: translateX(-50%) translateY(10px);
+            opacity: 0;
+            z-index: 90;
+            pointer-events: none;
+            border: 1px solid rgba(156, 255, 184, .46);
+            background: rgba(5, 6, 10, .88);
+            backdrop-filter: blur(12px);
+            border-radius: 999px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            transition: .16s opacity, .16s transform
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        #center {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            z-index: 34;
+            width: 34px;
+            height: 34px;
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: .08s
+        }
+
+        #center:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--hot);
+            box-shadow: 0 0 12px var(--hot);
+            transform: translate(-50%, -50%)
+        }
+
+        #center.pulse {
+            transform: translate(-50%, -50%) scale(1.28);
+            border-color: #fff;
+            box-shadow: 0 0 24px rgba(156, 255, 184, .48)
+        }
+
+        @media(max-width:760px) {
+            #brand {
+                font-size: 9px;
+                letter-spacing: .1em;
+                max-width: 36vw;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            #mode {
+                min-width: 76px;
+                height: 30px;
+                font-size: 10px
+            }
+
+            .round {
+                width: 38px;
+                height: 38px
+            }
+
+            #tracks {
+                gap: 5px;
+                padding: 6px;
+                max-width: calc(100vw - 108px);
+                overflow: hidden
+            }
+
+            .track {
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                border-radius: 50%;
+                font-size: 0
+            }
+
+            .track:after {
+                content: attr(data-short);
+                font-size: 12px
+            }
+
+            #readout {
+                min-width: 92px;
+                height: 42px;
+                max-width: 34vw;
+                font-size: 10px;
+                padding: 0 8px
+            }
+
+            #store {
+                left: 8px;
+                right: auto;
+                bottom: 58px;
+                width: 154px;
+                padding: 7px
+            }
+
+            .slot {
+                height: 24px;
+                font-size: 9px
+            }
+
+            .empty {
+                height: 24px
+            }
+
+            #help {
+                left: 10px;
+                right: 10px;
+                top: 62px;
+                max-width: none
+            }
+
+            .hRow {
+                font-size: 10px
+            }
+
+            .mItem {
+                height: 36px;
+                font-size: 11px
+            }
+
+            #menu {
+                max-width: calc(100vw - 18px)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="stage"></canvas>
+    <div id="center"></div>
+    <header id="top">
+        <div id="brand">Arc-Tunnel Operator</div>
+        <div id="mode">Tube</div>
+        <div id="buttons"><button class="round" id="viewBtn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M3 12h18M12 3v18"></path>
+                </svg></button><button class="round" id="playBtn"><svg viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"></path>
+                </svg></button></div>
+    </header>
+    <section id="help">
+        <div class="hTitle">Working Controls</div>
+        <div class="hRow"><b>View</b><span>button toggles bench</span></div>
+        <div class="hRow"><b>Empty drag</b><span>scrub time</span></div>
+        <div class="hRow"><b>Bench clip drag</b><span>move/switch channel</span></div>
+        <div class="hRow"><b>S/E handles</b><span>trim snapped</span></div>
+        <div class="hRow"><b>Roll dial</b><span>move cohort tracks</span></div>
+        <div class="hRow"><b>Right click</b><span>add/export/tools</span></div>
+        <div class="hRow"><b>Long press</b><span>mobile tools</span></div>
+        <div id="runHelp">Run</div>
+    </section>
+    <div id="menu"></div>
+    <section id="store">
+        <div id="storeHead"><span>Store</span><span id="storeCount">0</span></div>
+        <div id="storeSlots"></div>
+    </section>
+    <div id="toast"></div>
+    <footer id="bottom">
+        <div id="tracks"></div>
+        <div id="readout">READY</div>
+    </footer>
+    <script>
+        (function () {
+            'use strict';
+            const canvas = document.getElementById('stage');
+            const ctx = canvas.getContext('2d');
+            const center = document.getElementById('center');
+            const modeEl = document.getElementById('mode');
+            const readout = document.getElementById('readout');
+            const tracksEl = document.getElementById('tracks');
+            const menuEl = document.getElementById('menu');
+            const storeSlots = document.getElementById('storeSlots');
+            const storeCount = document.getElementById('storeCount');
+            const toastEl = document.getElementById('toast');
+            const help = document.getElementById('help');
+            const viewBtn = document.getElementById('viewBtn');
+            const playBtn = document.getElementById('playBtn');
+            const COLORS = ['#6ee7b7', '#a78bfa', '#fb7185', '#fbbf24'];
+            const GLOW = ['rgba(110,231,183,.38)', 'rgba(167,139,250,.38)', 'rgba(251,113,133,.38)', 'rgba(251,191,36,.38)'];
+            const NAMES = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERRED'];
+            const SHORT = ['P', 'L', 'B', 'F'];
+            const SNAP = 60, FAR = 5600, R = 242, FOV = 760, SAVE_KEY = 'arcTunnelStable:v1';
+            let DPR = 1, nextId = 1, rendered = [], toastTimer = 0, longTimer = 0;
+            const clips = []; const store = [];
+            const state = { W: 0, H: 0, CX: 0, CY: 0, view: 0, mix: 0, targetMix: 0, scale: .46, cameraZ: 360, cameraRoll: 0, targetRoll: 0, speed: 0, playing: false, active: 2, selected: null, hover: null, drag: null, scrub: null, roll: null, cohort: [], section: null, snapPreview: null, clipboard: null, storeIndex: 0, contextOpen: false };
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function lerp(a, b, t) { return a + (b - a) * t }
+            function snap(v) { return Math.round(v / SNAP) * SNAP }
+            function norm(t) { return ((Math.round(t) % 4) + 4) % 4 }
+            function uid() { return 'SC-' + String(nextId++).padStart(3, '0') }
+            function pulse() { center.classList.add('pulse'); setTimeout(() => center.classList.remove('pulse'), 120) }
+            function vibe(p) { try { if (navigator.vibrate) navigator.vibrate(p) } catch (e) { } }
+            function toast(t) { clearTimeout(toastTimer); toastEl.textContent = t; toastEl.classList.add('show'); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1150) }
+            function read(t, c) { readout.textContent = t; readout.style.borderColor = c || 'rgba(156,255,184,.42)'; readout.style.color = c || '#fff' }
+            function mkClip(start, dur, track) { return { id: uid(), start: snap(start), dur: Math.max(SNAP, snap(dur)), track: norm(track), seed: Math.random() } }
+            function seed() { clips.length = 0; for (let t = 0; t < 4; t++) { let z = -1200; while (z < 14000) { let d = snap(240 + Math.random() * 700); clips.push(mkClip(z, d, t)); z += d + (Math.random() > .82 ? SNAP : 0) } } }
+            function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ nextId, cameraZ: state.cameraZ, clips, store })) } catch (e) { } }
+            function load() { try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return false; let d = JSON.parse(raw); if (!d || !Array.isArray(d.clips) || !d.clips.length) return false; clips.length = 0; d.clips.forEach(c => { if (Number.isFinite(+c.start) && Number.isFinite(+c.dur)) clips.push({ id: String(c.id || uid()), start: +c.start, dur: Math.max(SNAP, +c.dur), track: norm(+c.track || 0), seed: +c.seed || Math.random() }) }); store.length = 0; (d.store || []).forEach(s => store.push(s)); nextId = Math.max(+d.nextId || nextId, nextId); if (Number.isFinite(+d.cameraZ)) state.cameraZ = +d.cameraZ; return clips.length > 0 } catch (e) { return false } }
+            function autosave() { clearTimeout(state.autoSave); state.autoSave = setTimeout(save, 350) }
+            function resize() { DPR = Math.min(2, devicePixelRatio || 1); state.W = innerWidth; state.H = innerHeight; state.CX = state.W / 2; state.CY = state.H / 2; state.scale = state.W < 760 ? .34 : .46; canvas.width = Math.floor(state.W * DPR); canvas.height = Math.floor(state.H * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0) }
+            function ensure() { let max = -Infinity; clips.forEach(c => max = Math.max(max, c.start + c.dur)); if (max < state.cameraZ + 8500) { for (let t = 0; t < 4; t++) { let z = max - 800; while (z < max + 6000) { let d = snap(240 + Math.random() * 700); clips.push(mkClip(z, d, t)); z += d + (Math.random() > .86 ? SNAP : 0) } } autosave() } }
+            function timeX(z) { return state.CX + (z - state.cameraZ) * state.scale }
+            function pointTime(x) { return snap(state.cameraZ + (x - state.CX) / state.scale) }
+            function laneY(t) { let top = state.W < 760 ? 116 : 116, bot = state.W < 760 ? state.H - 86 : state.H - 108; return top + (t + .5) * ((bot - top) / 4) }
+            function laneH() { let top = state.W < 760 ? 116 : 116, bot = state.W < 760 ? state.H - 86 : state.H - 108; return clamp((bot - top) / 4 * .58, 34, 82) }
+            function pointTrack(y) { let best = state.active, bd = 1e9; for (let t = 0; t < 4; t++) { let d = Math.abs(y - laneY(t)); if (d < bd) { bd = d; best = t } } return best }
+            function visualTrack(c) { return state.roll && state.cohort.includes(c) ? norm(c.track + state.roll.steps) : c.track }
+            function angleFor(t) { return t * Math.PI / 2 - Math.PI / 2 + state.cameraRoll }
+            function project(x, y, z) { let dz = z - state.cameraZ + 940; if (dz < 40) return null; let s = FOV / dz; return { x: state.CX + x * s, y: state.CY + y * s, s, depth: dz } }
+            function overlaps(a0, a1, b0, b1) { return a0 < b1 && b0 < a1 }
+            function buildCohort(c) { let a = c.start, b = c.start + c.dur; state.section = { start: a, end: b }; return clips.filter(k => overlaps(a, b, k.start, k.start + k.dur)) }
+            function drawBg() { ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, state.W, state.H); ctx.save(); ctx.globalAlpha = .075; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; let g = state.W < 760 ? 44 : 58; for (let x = state.CX % g; x < state.W; x += g) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, state.H); ctx.stroke() } for (let y = state.CY % g; y < state.H; y += g) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(state.W, y); ctx.stroke() } ctx.restore() }
+            function drawNeedle() { ctx.save(); ctx.globalAlpha = .65; ctx.strokeStyle = 'rgba(255,255,255,.26)'; ctx.beginPath(); ctx.moveTo(state.CX, 62); ctx.lineTo(state.CX, state.H - 58); ctx.stroke(); ctx.restore() }
+            function drawTubeRings() { ctx.save(); for (let z = snap(state.cameraZ - 600); z < state.cameraZ + FAR; z += SNAP * 2) { let p = project(0, 0, z); if (!p || p.s < .05) continue; ctx.globalAlpha = clamp(1 - p.depth / 5200, .025, .16) * (1 - state.mix * .8); ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, R * p.s, 0, Math.PI * 2); ctx.stroke() } ctx.restore() }
+            function tubeGeom(c) { let t = visualTrack(c), a0 = angleFor(t) - Math.PI / 4 + .045, a1 = angleFor(t) + Math.PI / 4 - .045, z0 = c.start, z1 = c.start + c.dur, pts = [], depth = 1e9; let raw = []; for (let i = 0; i <= 5; i++) { let a = lerp(a0, a1, i / 5); raw.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, z: z0 }) } for (let i = 5; i >= 0; i--) { let a = lerp(a0, a1, i / 5); raw.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, z: z1 }) } for (let p of raw) { let q = project(p.x, p.y, p.z); if (!q) return null; pts.push(q); depth = Math.min(depth, q.depth) } let ma = (a0 + a1) / 2, mz = (z0 + z1) / 2, mid = project(Math.cos(ma) * R, Math.sin(ma) * R, mz); return { pts, depth, mid, t } }
+            function drawTube(c, g) { let col = COLORS[g.t], sel = state.selected === c, hov = state.hover && state.hover.clip === c, coh = state.cohort.includes(c), act = g.t === state.active; let p = new Path2D(); p.moveTo(g.pts[0].x, g.pts[0].y); for (let i = 1; i < g.pts.length; i++)p.lineTo(g.pts[i].x, g.pts[i].y); p.closePath(); let da = clamp(1 - g.depth / 6000, .08, 1) * (1 - state.mix * .7); ctx.save(); ctx.globalAlpha = da * (act || sel || hov || coh ? 1 : .34) * .86; ctx.fillStyle = col; ctx.fill(p); ctx.globalAlpha = da * (sel || hov || coh ? 1 : .62); ctx.strokeStyle = coh ? '#fff' : col; ctx.lineWidth = sel || coh ? 2.5 : 1.15; ctx.stroke(p); if (coh) { ctx.globalAlpha = da * .25; ctx.fillStyle = '#fff'; ctx.fill(p) } if (g.mid && (sel || hov || coh || g.depth < 1800)) { ctx.globalAlpha = da; ctx.fillStyle = '#fff'; ctx.font = '800 ' + clamp(16 * g.mid.s, 8, 24) + 'px Share Tech Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(c.id, g.mid.x, g.mid.y) } ctx.restore(); rendered.push({ type: 'tube', clip: c, pts: g.pts }) }
+            function roundRect(x, y, w, h, r) { r = Math.min(r, Math.abs(w) / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath() }
+            function drawHandle(x, y, col, label, on) { ctx.save(); ctx.globalAlpha = state.mix; ctx.beginPath(); ctx.arc(x, y, on ? 17 : 13, 0, Math.PI * 2); ctx.fillStyle = on ? '#fff' : col; ctx.fill(); ctx.lineWidth = 2.4; ctx.strokeStyle = '#05060a'; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, on ? 25 : 20, 0, Math.PI * 2); ctx.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.38)'; ctx.lineWidth = on ? 2 : 1; ctx.stroke(); ctx.fillStyle = '#05060a'; ctx.font = '800 9px Share Tech Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y + .5); ctx.restore() }
+            function drawRollDial(x, y, col, on, c) { ctx.save(); ctx.globalAlpha = state.mix; ctx.beginPath(); ctx.arc(x, y, on ? 24 : 20, 0, Math.PI * 2); ctx.fillStyle = on ? 'rgba(156,255,184,.25)' : 'rgba(5,6,10,.88)'; ctx.fill(); ctx.strokeStyle = on ? '#fff' : col; ctx.lineWidth = on ? 2.5 : 1.5; ctx.stroke(); for (let i = 0; i < 4; i++) { let a = -Math.PI / 2 + i * Math.PI / 2; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 8, y + Math.sin(a) * 8); ctx.lineTo(x + Math.cos(a) * 27, y + Math.sin(a) * 27); ctx.strokeStyle = i === 0 ? '#fff' : 'rgba(255,255,255,.42)'; ctx.lineWidth = i === 0 ? 2 : 1; ctx.stroke() } ctx.restore(); rendered.push({ type: 'roll', clip: c, x, y, r: 30 }) }
+            function drawBench(c) { let t = visualTrack(c), col = COLORS[t], x0 = timeX(c.start), x1 = timeX(c.start + c.dur), w = x1 - x0; if (x1 < -80 || x0 > state.W + 80) return; let y = laneY(t), h = laneH(), top = y - h / 2, sel = state.selected === c, hov = state.hover && state.hover.clip === c, coh = state.cohort.includes(c); ctx.save(); ctx.globalAlpha = state.mix; roundRect(x0, top, Math.max(4, w), h, 8); ctx.fillStyle = col; ctx.globalAlpha = state.mix * (coh ? 1 : .84); ctx.fill(); ctx.globalAlpha = state.mix * (sel || hov || coh ? 1 : .68); ctx.strokeStyle = coh ? '#fff' : (sel ? '#fff' : col); ctx.lineWidth = sel || coh ? 2.5 : 1.1; ctx.stroke(); if (w > 70 || sel || hov || coh) { ctx.globalAlpha = state.mix; ctx.fillStyle = '#fff'; ctx.font = '800 12px Share Tech Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(c.id, clamp((x0 + x1) / 2, 35, state.W - 35), y) } if (sel || hov || (state.drag && state.drag.clip === c)) { let m = state.hover && state.hover.clip === c ? state.hover.mode : null; drawHandle(x0, y, col, 'S', m === 'start' || state.drag && state.drag.mode === 'start'); drawHandle(x1, y, col, 'E', m === 'end' || state.drag && state.drag.mode === 'end'); drawRollDial((x0 + x1) / 2, top - 31, col, m === 'roll' || state.drag && state.drag.mode === 'roll', c) } rendered.push({ type: 'bench', clip: c, x0, x1, y, top, h }); ctx.restore() }
+            function drawRails() { if (state.mix < .04) return; let a = state.mix, top = state.W < 760 ? 92 : 86, bot = state.W < 760 ? state.H - 66 : state.H - 80; ctx.save(); for (let z = snap(state.cameraZ - state.W / state.scale); z < state.cameraZ + state.W / state.scale; z += SNAP) { let x = timeX(z); if (x < -50 || x > state.W + 50) continue; let major = Math.round(z / SNAP) % 4 === 0; ctx.globalAlpha = a * (major ? .42 : .15); ctx.strokeStyle = major ? '#d7ffe4' : '#fff'; ctx.lineWidth = major ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + (major ? 32 : 15)); ctx.moveTo(x, bot); ctx.lineTo(x, bot - (major ? 32 : 15)); ctx.stroke() } ctx.globalAlpha = a * .95; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.moveTo(state.CX, top - 8); ctx.lineTo(state.CX, bot + 8); ctx.stroke(); if (state.section) { let x0 = timeX(state.section.start), x1 = timeX(state.section.end); ctx.globalAlpha = a * .16; ctx.fillStyle = '#9CFFB8'; ctx.fillRect(Math.min(x0, x1), top + 38, Math.abs(x1 - x0), bot - top - 76); ctx.globalAlpha = a * .78; ctx.strokeStyle = '#9CFFB8'; ctx.setLineDash([7, 8]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, top + 34); ctx.lineTo(x0, bot - 34); ctx.moveTo(x1, top + 34); ctx.lineTo(x1, bot - 34); ctx.stroke(); ctx.setLineDash([]) } if (state.snapPreview !== null) { let x = timeX(state.snapPreview); ctx.globalAlpha = a; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x, top - 5); ctx.lineTo(x, top + 48); ctx.moveTo(x, bot + 5); ctx.lineTo(x, bot - 48); ctx.stroke() } for (let t = 0; t < 4; t++) { let y = laneY(t), h = laneH(); ctx.globalAlpha = a * .16; ctx.strokeStyle = COLORS[t]; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(state.W - 18, y); ctx.stroke(); if (state.W > 760) { ctx.globalAlpha = a * .86; ctx.fillStyle = COLORS[t]; ctx.font = '800 11px Share Tech Mono,monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(NAMES[t], 22, y - h * .58) } } ctx.restore() }
+            function hitPoly(pt, pts) { let hit = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { let xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y; if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || .0001) + xi)) hit = !hit } return hit }
+            function hit(x, y) { for (let i = rendered.length - 1; i >= 0; i--) { let r = rendered[i]; if (r.type === 'roll' && Math.hypot(x - r.x, y - r.y) < r.r) return { clip: r.clip, mode: 'roll' }; if (r.type === 'bench') { if (Math.hypot(x - r.x0, y - r.y) < 28) return { clip: r.clip, mode: 'start' }; if (Math.hypot(x - r.x1, y - r.y) < 28) return { clip: r.clip, mode: 'end' }; if (x >= r.x0 && x <= r.x1 && y >= r.top && y <= r.top + r.h) return { clip: r.clip, mode: 'body' } } if (r.type === 'tube' && hitPoly({ x, y }, r.pts)) return { clip: r.clip, mode: 'body' } } return null }
+            function updateStore() { storeCount.textContent = store.length; storeSlots.innerHTML = ''; if (!store.length) { let e = document.createElement('div'); e.className = 'empty'; e.textContent = 'empty'; storeSlots.appendChild(e); return } store.slice(0, 8).forEach((s, i) => { let d = document.createElement('div'); d.className = 'slot' + (i === state.storeIndex ? ' active' : ''); d.style.setProperty('--slot', COLORS[norm(s.track)]); d.innerHTML = '<span>' + String(s.sourceId || 'CLIP').slice(0, 9) + '</span><span>' + Math.round(s.dur / SNAP) + 'u</span>'; d.addEventListener('pointerdown', ev => { ev.stopPropagation(); state.storeIndex = i; updateStore(); toast('STORE ARMED') }); storeSlots.appendChild(d) }) }
+            function selectTrack(t) { state.active = norm(t); let trg = (2 - state.active) * Math.PI / 2; while (trg > state.targetRoll + Math.PI) trg -= Math.PI * 2; while (trg < state.targetRoll - Math.PI) trg += Math.PI * 2; state.targetRoll = trg; pulse(); vibe(8) }
+            function payload(c) { return { sourceId: c.id, dur: c.dur, track: c.track, seed: c.seed } }
+            function paste(p, start, track) { if (!p) return; let c = mkClip(start, p.dur || SNAP * 5, track); c.seed = p.seed || Math.random(); clips.push(c); state.selected = c; toast('PASTED ' + c.id); pulse(); vibe(8); autosave(); return c }
+            function copy(c) { state.clipboard = payload(c); toast('COPIED ' + c.id); pulse() }
+            function duplicate(c) { copy(c); paste(payload(c), c.start + SNAP, norm(c.track + 1)); toast('DUPLICATED') }
+            function del(c) { let i = clips.indexOf(c); if (i >= 0) { clips.splice(i, 1); if (state.selected === c) state.selected = null; if (state.hover && state.hover.clip === c) state.hover = null; state.cohort = state.cohort.filter(x => x !== c); toast('DELETED'); pulse(); vibe([12, 18, 12]); autosave() } }
+            function storeClip(c, lift) { store.unshift(payload(c)); store.splice(8); state.storeIndex = 0; updateStore(); toast((lift ? 'LIFTED ' : 'STORED ') + c.id); if (lift) del(c); else { pulse(); vibe(8); autosave() } }
+            function addClip(start, track) { let c = mkClip(start, SNAP * 5, track); clips.push(c); state.selected = c; toast('NEW ' + c.id); pulse(); vibe(8); autosave(); return c }
+            function snapClip(c, mode) { let end = c.start + c.dur; if (mode === 'start') { c.start = snap(c.start); c.dur = Math.max(SNAP, end - c.start) } else if (mode === 'end') { c.dur = Math.max(SNAP, snap(end) - c.start) } else if (mode === 'both') { c.start = snap(c.start); c.dur = Math.max(SNAP, snap(c.dur)) } else if (mode === 'needle') { c.start = snap(state.cameraZ) } state.selected = c; state.snapPreview = mode === 'start' || mode === 'needle' ? c.start : c.start + c.dur; toast('SNAPPED'); pulse(); autosave() }
+            function exportJSON(payload, name) { let blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 500) }
+            function pack(list) { return { format: 'arc-tunnel-clips-v1', exportedAt: new Date().toISOString(), snap: SNAP, channels: NAMES, cameraZ: state.cameraZ, clips: list.map(c => ({ id: c.id, start: c.start, dur: c.dur, track: c.track, channel: NAMES[norm(c.track)], seed: c.seed })), store } }
+            function exportClips(mode, c) { let list = clips, s = 'all'; if (mode === 'selected' && c) { list = [c]; s = c.id } if (mode === 'visible') { list = clips.filter(k => k.start + k.dur > state.cameraZ - 1000 && k.start < state.cameraZ + FAR); s = 'visible' } exportJSON(pack(list), 'arc-tunnel-' + s + '.json'); toast('EXPORTED ' + list.length) }
+            function importClips() { let input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json,.json'; input.onchange = () => { let f = input.files && input.files[0]; if (!f) return; let r = new FileReader(); r.onload = () => { try { let data = JSON.parse(String(r.result || '')); let arr = Array.isArray(data) ? data : (Array.isArray(data.clips) ? data.clips : []); if (!arr.length) { toast('NO CLIPS'); return } let min = Math.min(...arr.map(c => +c.start || 0)), base = snap(state.cameraZ); arr.forEach(c => clips.push({ id: uid(), start: snap(base + ((+c.start || 0) - min)), dur: Math.max(SNAP, snap(+c.dur || SNAP * 5)), track: norm(+c.track || 0), seed: +c.seed || Math.random() })); toast('IMPORTED ' + arr.length); pulse(); autosave() } catch (e) { toast('IMPORT FAILED') } }; r.readAsText(f) }; input.click() }
+            function mi(label, fn, key, cls, disabled) { let d = document.createElement('div'); d.className = 'mItem ' + (cls || '') + (disabled ? ' disabled' : ''); d.innerHTML = '<span>' + label + '</span><span class="key">' + (key || '') + '</span>'; d.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (disabled) return; hideMenu(); fn && fn() }); return d }
+            function sep() { let s = document.createElement('div'); s.className = 'sep'; return s }
+            function hideMenu() { menuEl.classList.remove('show') }
+            function showMenu(x, y) { let h = hit(x, y), t = pointTrack(y), tm = pointTime(x); menuEl.innerHTML = ''; let title = document.createElement('div'); title.className = 'mTitle'; title.textContent = h ? h.clip.id + ' · ' + h.mode : 'Needle · ' + NAMES[t]; menuEl.appendChild(title); if (h) { let c = h.clip; menuEl.appendChild(mi('Copy', () => copy(c), 'Ctrl C')); menuEl.appendChild(mi('Duplicate', () => duplicate(c), 'Ctrl D')); menuEl.appendChild(mi('Export Selected', () => exportClips('selected', c), 'E')); menuEl.appendChild(mi('Store Copy', () => storeClip(c, false), 'S')); menuEl.appendChild(mi('Lift To Store', () => storeClip(c, true), 'Shift S')); menuEl.appendChild(sep()); menuEl.appendChild(mi('Snap Start', () => snapClip(c, 'start'), '[')); menuEl.appendChild(mi('Snap End', () => snapClip(c, 'end'), ']')); menuEl.appendChild(mi('Snap Both', () => snapClip(c, 'both'))); menuEl.appendChild(mi('Start To Needle', () => snapClip(c, 'needle'), 'N')); menuEl.appendChild(sep()); NAMES.forEach((n, i) => menuEl.appendChild(mi('Move ' + SHORT[i] + ' · ' + n, () => { c.track = i; state.selected = c; toast(n); autosave() }, '', '', c.track === i))); menuEl.appendChild(sep()); menuEl.appendChild(mi('Delete', () => del(c), 'Del', 'danger')) } else { let stored = store[state.storeIndex]; menuEl.appendChild(mi('New Clip Here', () => addClip(tm, t), '+')); menuEl.appendChild(mi('Paste Copy Here', () => paste(state.clipboard, tm, t), 'Ctrl V', '', !state.clipboard)); menuEl.appendChild(mi('Paste Store Here', () => paste(stored, tm, t), 'Store', '', !stored)); menuEl.appendChild(sep()); menuEl.appendChild(mi('Export All Clips', () => exportClips('all'), 'Shift E')); menuEl.appendChild(mi('Export Visible', () => exportClips('visible'))); menuEl.appendChild(mi('Import Clips JSON', () => importClips(), 'I')); menuEl.appendChild(sep()); menuEl.appendChild(mi('Save State', () => { save(); toast('SAVED') })); menuEl.appendChild(mi('Reset Demo', () => { localStorage.removeItem(SAVE_KEY); seed(); toast('RESET'); autosave() })) } menuEl.classList.add('show'); let mw = menuEl.offsetWidth || 220, mh = menuEl.offsetHeight || 300; menuEl.style.left = clamp(x, 8, state.W - mw - 8) + 'px'; menuEl.style.top = clamp(y, 8, state.H - mh - 8) + 'px' }
+            function armLong(x, y) { clearTimeout(longTimer); state.contextOpen = false; longTimer = setTimeout(() => { state.contextOpen = true; state.drag = null; state.scrub = null; state.roll = null; showMenu(x, y); vibe(16) }, 560) }
+            function clearLong() { clearTimeout(longTimer); longTimer = 0 }
+            function down(e) { if (e.target.closest('#menu') || e.target.closest('#store') || e.target.closest('#help') || e.target.closest('button')) return; hideMenu(); e.preventDefault(); canvas.setPointerCapture(e.pointerId); armLong(e.clientX, e.clientY); state.drag = null; state.scrub = null; state.roll = null; state.snapPreview = null; let h = hit(e.clientX, e.clientY); if (h) { let c = h.clip; state.selected = c; if (h.mode === 'roll') { state.cohort = buildCohort(c); state.roll = { clip: c, x: e.clientX, y: e.clientY, steps: 0 }; return } state.cohort = []; state.section = null; state.drag = { clip: c, mode: h.mode, x: e.clientX, y: e.clientY, start: c.start, dur: c.dur, track: c.track }; return } state.cohort = []; state.section = null; state.scrub = { x: e.clientX, y: e.clientY, z: state.cameraZ } }
+            function move(e) { if (longTimer && Math.hypot(e.clientX - (state.drag ? state.drag.x : state.scrub ? state.scrub.x : e.clientX), e.clientY - (state.drag ? state.drag.y : state.scrub ? state.scrub.y : e.clientY)) > 9) clearLong(); if (state.contextOpen) return; if (state.roll) { let dx = e.clientX - state.roll.x, dy = e.clientY - state.roll.y; state.roll.steps = clamp(Math.round((dx - dy * .35) / 82), -3, 3); return } if (state.drag) { clearLong(); let d = state.drag, c = d.clip, dx = e.clientX - d.x, dy = e.clientY - d.y; if (d.mode === 'start') { let ns = snap(d.start + dx / state.scale), end = d.start + d.dur; c.start = Math.min(ns, end - SNAP); c.dur = end - c.start; state.snapPreview = c.start } else if (d.mode === 'end') { let ne = snap(d.start + d.dur + dx / state.scale); c.dur = Math.max(SNAP, ne - d.start); state.snapPreview = c.start + c.dur } else { c.start = snap(d.start + dx / state.scale); if (state.mix > .55) c.track = pointTrack(e.clientY); else if (Math.abs(dy) > 38) c.track = norm(d.track + (dy > 0 ? 1 : -1)) } autosave(); return } if (state.scrub) { clearLong(); let dx = e.clientX - state.scrub.x, dy = e.clientY - state.scrub.y; let delta = state.mix > .45 ? -dx / state.scale : dy * 4.2; state.cameraZ = state.scrub.z + delta; state.speed = state.mix > .45 ? -dx * .06 : dy * .1; return } let h = hit(e.clientX, e.clientY); state.hover = h; canvas.style.cursor = h ? (h.mode === 'body' ? 'grab' : h.mode === 'roll' ? 'alias' : 'ew-resize') : 'crosshair' }
+            function up(e) { clearLong(); try { canvas.releasePointerCapture(e.pointerId) } catch (err) { } if (state.contextOpen) { state.contextOpen = false; return } if (state.roll) { if (state.roll.steps) { state.cohort.forEach(c => c.track = norm(c.track + state.roll.steps)); autosave() } pulse(); vibe([8, 18, 8]) } else if (state.drag) { pulse(); vibe(8) } state.drag = null; state.scrub = null; state.roll = null; state.snapPreview = null }
+            function toggleView() { state.view = state.view ? 0 : 1; state.targetMix = state.view ? 1 : 0; modeEl.textContent = state.view ? 'Bench' : 'Tube'; pulse(); vibe(8) }
+            function togglePlay() { state.playing = !state.playing; playBtn.classList.toggle('on', state.playing); playBtn.innerHTML = state.playing ? '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>'; pulse() }
+            function key(e) { let mod = e.ctrlKey || e.metaKey; if (e.key === ' ') { e.preventDefault(); togglePlay() } if (e.key.toLowerCase() === 'v' && !mod) toggleView(); if (e.key === 'ArrowRight' || e.key === 'ArrowDown') selectTrack(state.active + 1); if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') selectTrack(state.active - 1); if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected) del(state.selected); if (mod && e.key.toLowerCase() === 'c' && state.selected) { e.preventDefault(); copy(state.selected) } if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); paste(state.clipboard, state.cameraZ, state.active) } if (mod && e.key.toLowerCase() === 'd' && state.selected) { e.preventDefault(); duplicate(state.selected) } if (e.key.toLowerCase() === 's' && state.selected) storeClip(state.selected, e.shiftKey); if (e.key === '[' && state.selected) snapClip(state.selected, 'start'); if (e.key === ']' && state.selected) snapClip(state.selected, 'end'); if (e.key.toLowerCase() === 'n' && state.selected) snapClip(state.selected, 'needle'); if (e.key.toLowerCase() === 'e' && state.selected && !e.shiftKey) exportClips('selected', state.selected); if (e.key.toLowerCase() === 'e' && e.shiftKey) exportClips('all'); if (e.key.toLowerCase() === 'i') importClips() }
+            function draw() { state.mix = lerp(state.mix, state.targetMix, .13); state.cameraRoll = lerp(state.cameraRoll, state.targetRoll, .13); if (state.playing && !state.drag && !state.scrub && !state.roll) state.speed = lerp(state.speed, 9, .035); else if (!state.scrub) state.speed *= .9; state.cameraZ += state.speed; ensure(); drawBg(); drawNeedle(); drawTubeRings(); drawRails(); rendered = []; let vis = clips.filter(c => c.start + c.dur > state.cameraZ - 1100 && c.start < state.cameraZ + FAR); let tubes = []; vis.forEach(c => { let g = tubeGeom(c); if (g) tubes.push({ c, g }) }); tubes.sort((a, b) => b.g.depth - a.g.depth); tubes.forEach(o => drawTube(o.c, o.g)); clips.filter(c => timeX(c.start + c.dur) > -100 && timeX(c.start) < state.W + 100).sort((a, b) => visualTrack(a) - visualTrack(b) || a.start - b.start).forEach(drawBench); state.active = (Math.round(2 - state.cameraRoll / (Math.PI / 2)) % 4 + 4) % 4;[...tracksEl.children].forEach((b, i) => b.classList.toggle('active', i === state.active)); let live = clips.find(c => visualTrack(c) === state.active && c.start <= state.cameraZ && c.start + c.dur > state.cameraZ); if (state.roll) read('ROLL ' + (state.roll.steps > 0 ? '+' : '') + state.roll.steps + ' / ' + state.cohort.length, '#fff'); else if (state.drag) read((state.drag.mode === 'body' ? 'MOVE ' : 'TRIM ') + state.drag.clip.id, COLORS[visualTrack(state.drag.clip)]); else if (state.hover) read(state.hover.mode === 'body' ? state.hover.clip.id : state.hover.mode.toUpperCase(), COLORS[visualTrack(state.hover.clip)]); else if (state.selected) read(NAMES[visualTrack(state.selected)] + ' · ' + state.selected.id, COLORS[visualTrack(state.selected)]); else if (live) read(NAMES[state.active] + ' · ' + live.id, COLORS[state.active]); else read(NAMES[state.active], COLORS[state.active]); requestAnimationFrame(draw) }
+            NAMES.forEach((n, i) => { let b = document.createElement('button'); b.className = 'track'; b.textContent = n; b.dataset.short = SHORT[i]; b.style.setProperty('--track', COLORS[i]); b.style.setProperty('--glow', GLOW[i]); b.addEventListener('pointerdown', e => { e.stopPropagation(); selectTrack(i) }); tracksEl.appendChild(b) });
+            window.addEventListener('resize', resize); window.addEventListener('keydown', key); window.addEventListener('wheel', e => { state.cameraZ += e.deltaY * 1.2; state.speed = e.deltaY * .04 }, { passive: true }); document.addEventListener('pointerdown', e => { if (!e.target.closest('#menu')) hideMenu() }); canvas.addEventListener('contextmenu', e => { e.preventDefault(); showMenu(e.clientX, e.clientY); return false }); canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); viewBtn.addEventListener('click', toggleView); playBtn.addEventListener('click', togglePlay); document.getElementById('runHelp').addEventListener('pointerdown', () => { help.classList.add('hide'); try { localStorage.setItem('arcTunnelHelp', '1') } catch (e) { } });
+            resize(); if (!load()) seed(); updateStore(); if (localStorage.getItem('arcTunnelHelp') === '1') help.classList.add('hide'); selectTrack(2); requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

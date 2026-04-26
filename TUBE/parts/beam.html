@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Arc Tunnel Light Operation Instrument</title>
+    <style>
+        :root {
+            --white: #ffffff;
+            --black: #000000;
+            --top: 52px;
+            --store: 72px;
+            --panelW: 410px;
+            --laneH: 64px;
+            --hit: 34px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--white);
+            color: var(--black);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+            color: var(--black);
+            background: var(--white);
+            border: 2px solid var(--black);
+            border-radius: 0;
+            box-shadow: none;
+            outline: none;
+        }
+
+        button {
+            min-height: var(--hit);
+            padding: 6px 9px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+        }
+
+        button:active,
+        button.active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        button:disabled {
+            opacity: 1;
+            text-decoration: line-through;
+            background: var(--white);
+            color: var(--black);
+        }
+
+        input,
+        select {
+            height: 30px;
+            padding: 3px 5px;
+            min-width: 0;
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            background: var(--white);
+            display: grid;
+            grid-template-rows: var(--top) 1fr var(--store);
+        }
+
+        #topbar {
+            height: var(--top);
+            border-bottom: 3px solid var(--black);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: var(--white);
+            z-index: 30;
+        }
+
+        #topbar .title {
+            font-weight: 900;
+            white-space: nowrap;
+            border: 2px solid var(--black);
+            height: var(--hit);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            background: var(--black);
+            color: var(--white);
+        }
+
+        #topbar .spacer {
+            flex: 1;
+            min-width: 10px;
+        }
+
+        #fileInput {
+            position: absolute;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        #work {
+            position: relative;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr var(--panelW);
+            background: var(--white);
+        }
+
+        #viewport {
+            position: relative;
+            overflow: hidden;
+            background: var(--white);
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        #viewport.scrubbing {
+            cursor: ew-resize;
+        }
+
+        #viewport.dragging {
+            cursor: grabbing;
+        }
+
+        #tube {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 38%;
+            border-bottom: 5px solid var(--black);
+            background: var(--white);
+            overflow: hidden;
+        }
+
+        #viewport.tubeModeOn #tube {
+            height: 62%;
+        }
+
+        #tube::before {
+            content: "";
+            position: absolute;
+            left: 4%;
+            right: 4%;
+            top: 12%;
+            bottom: 10%;
+            border: 5px solid var(--black);
+            border-radius: 50% / 44%;
+            background:
+                radial-gradient(ellipse at center, var(--white) 0 20%, transparent 21%),
+                repeating-radial-gradient(ellipse at center, transparent 0 10%, var(--black) 10% 12%, transparent 12% 20%);
+            pointer-events: none;
+        }
+
+        #tube::after {
+            content: "TUBE · CHANNEL ROLL / INTERVAL DEPTH";
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            font-weight: 900;
+            background: var(--black);
+            color: var(--white);
+            border: 2px solid var(--black);
+            padding: 4px 6px;
+            z-index: 7;
+        }
+
+        #viewport.tubeModeOn #tube::after {
+            content: "TUBE MODE · BARREL EXPANDED · CLIPS TRACK AGAINST BASE NEEDLE";
+        }
+
+        .tubeAxis {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            border-top: 4px solid var(--black);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .tubeMouth {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: min(42vw, 360px);
+            height: 68%;
+            transform: translate(-50%, -50%);
+            border: 6px solid var(--black);
+            border-radius: 50%;
+            background: var(--white);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .tubeMouth::before {
+            content: "";
+            position: absolute;
+            inset: 15%;
+            border: 4px solid var(--black);
+            border-radius: 50%;
+            background: var(--white);
+        }
+
+        .tubeMouth::after {
+            content: "BASE SEAM";
+            position: absolute;
+            left: 50%;
+            bottom: -23px;
+            transform: translateX(-50%);
+            background: var(--white);
+            border: 2px solid var(--black);
+            padding: 2px 4px;
+            font-size: 10px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .tubeRib {
+            position: absolute;
+            top: 12%;
+            bottom: 10%;
+            border: 3px solid var(--black);
+            border-radius: 50% / 44%;
+            transform: translateX(-50%);
+            z-index: 1;
+            pointer-events: none;
+            background: transparent;
+        }
+
+        .tubeBand {
+            position: absolute;
+            height: 28px;
+            border: 3px solid var(--black);
+            background: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            font-weight: 900;
+            z-index: 6;
+        }
+
+        .tubeBand.active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .tubeBand:nth-of-type(1) {
+            left: 8px;
+            top: 46px;
+        }
+
+        .tubeBand:nth-of-type(2) {
+            right: 8px;
+            top: 46px;
+        }
+
+        .tubeBand:nth-of-type(3) {
+            left: 8px;
+            bottom: 18px;
+        }
+
+        .tubeBand:nth-of-type(4) {
+            right: 8px;
+            bottom: 18px;
+        }
+
+        .tubeClip {
+            position: absolute;
+            height: 22px;
+            border: 3px solid var(--black);
+            background: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 900;
+            overflow: hidden;
+            z-index: 8;
+            box-shadow: 6px 6px 0 var(--black);
+        }
+
+        .tubeClip.selected {
+            background: var(--black);
+            color: var(--white);
+            box-shadow: 6px 6px 0 var(--white), 9px 9px 0 var(--black);
+        }
+
+        .tubeClip .markMini {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 13px;
+            border-right: 2px solid var(--black);
+        }
+
+        #bench {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 62%;
+            background: var(--white);
+            overflow: hidden;
+        }
+
+        #viewport.tubeModeOn #bench {
+            height: 38%;
+        }
+
+        .lane {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: var(--laneH);
+            border-bottom: 3px solid var(--black);
+            background: var(--white);
+        }
+
+        .lane.activeLane {
+            box-shadow: inset 0 0 0 4px var(--black);
+        }
+
+        .laneLabel {
+            position: absolute;
+            left: 6px;
+            top: 6px;
+            z-index: 3;
+            height: 24px;
+            min-width: 30px;
+            border: 2px solid var(--black);
+            background: var(--white);
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .lane.activeLane .laneLabel {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        #baseNeedle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            border-left: 4px solid var(--black);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        #baseNeedle::before {
+            content: "BASE NEEDLE";
+            position: absolute;
+            left: 5px;
+            bottom: calc(var(--store) + 8px);
+            background: var(--black);
+            color: var(--white);
+            font-weight: 900;
+            font-size: 11px;
+            padding: 3px 5px;
+            white-space: nowrap;
+        }
+
+        #groundSeam {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-top: 4px solid var(--black);
+            z-index: 18;
+            pointer-events: none;
+        }
+
+        .snapTick {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-left: 2px solid var(--black);
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        .snapTick.major {
+            border-left-width: 3px;
+        }
+
+        .snapTick span {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            background: var(--white);
+            border: 2px solid var(--black);
+            font-size: 10px;
+            padding: 1px 3px;
+            font-weight: 900;
+        }
+
+        .clip {
+            position: absolute;
+            height: 42px;
+            min-width: 24px;
+            border: 3px solid var(--black);
+            background: var(--white);
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 13px 1fr 14px;
+            align-items: stretch;
+            cursor: grab;
+        }
+
+        .clip.selected {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .clip.hovered {
+            outline: 4px solid var(--black);
+            outline-offset: 3px;
+        }
+
+        .clip.dragging {
+            cursor: grabbing;
+            z-index: 22;
+        }
+
+        .clipLabel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 900;
+            font-size: 11px;
+            line-height: 1.05;
+            overflow: hidden;
+            padding: 0 3px;
+            white-space: nowrap;
+        }
+
+        .clip.selected input,
+        .clip.selected button {
+            border-color: var(--white);
+        }
+
+        .clipHandle {
+            width: 14px;
+            border: 0;
+            background: var(--black);
+            color: var(--white);
+            font-size: 10px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: ew-resize;
+        }
+
+        .clipHandle.start {
+            border-right: 2px solid var(--black);
+        }
+
+        .clipHandle.end {
+            border-left: 2px solid var(--black);
+        }
+
+        .clip.selected .clipHandle {
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .rollDial {
+            position: absolute;
+            right: -17px;
+            top: -17px;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--black);
+            background: var(--white);
+            border-radius: 50%;
+            z-index: 23;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: ns-resize;
+        }
+
+        .clip.selected .rollDial {
+            background: var(--black);
+            color: var(--white);
+            border-color: var(--black);
+        }
+
+        .mark {
+            background: var(--black);
+            border-right: 3px solid var(--black);
+        }
+
+        .mark.ch1,
+        .markMini.ch1,
+        .storeMark.ch1,
+        .lineMark.ch1 {
+            background: repeating-linear-gradient(to bottom, var(--black) 0 3px, var(--white) 3px 6px);
+        }
+
+        .mark.ch2,
+        .markMini.ch2,
+        .storeMark.ch2,
+        .lineMark.ch2 {
+            background: repeating-linear-gradient(45deg, var(--black) 0 3px, var(--white) 3px 7px);
+        }
+
+        .mark.ch3,
+        .markMini.ch3,
+        .storeMark.ch3,
+        .lineMark.ch3 {
+            background: radial-gradient(circle, var(--black) 0 2px, transparent 2px) 0 0/8px 8px, var(--white);
+        }
+
+        .clip.selected .mark {
+            border-right-color: var(--white);
+        }
+
+        #logicPanel {
+            position: relative;
+            border-left: 3px solid var(--black);
+            background: var(--white);
+            min-width: 0;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 42px 1fr;
+            z-index: 25;
+        }
+
+        #panelHeader {
+            height: 42px;
+            border-bottom: 3px solid var(--black);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            background: var(--white);
+            font-weight: 900;
+        }
+
+        #panelHeader button {
+            height: 30px;
+            min-height: 30px;
+            padding: 2px 7px;
+        }
+
+        #panelBody {
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 6px;
+        }
+
+        .section {
+            border: 3px solid var(--black);
+            margin-bottom: 8px;
+            background: var(--white);
+        }
+
+        .section h2 {
+            font-size: 13px;
+            background: var(--black);
+            color: var(--white);
+            padding: 5px 7px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+
+        .line {
+            display: grid;
+            gap: 4px;
+            align-items: center;
+            border-top: 2px solid var(--black);
+            padding: 5px;
+            background: var(--white);
+        }
+
+        .line:first-of-type {
+            border-top: 0;
+        }
+
+        .line.selected {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .line.selected input,
+        .line.selected select,
+        .line.selected button {
+            background: var(--white);
+            color: var(--black);
+            border-color: var(--white);
+        }
+
+        .clipLine {
+            grid-template-columns: 14px 58px 1fr 1fr 78px;
+        }
+
+        .clipLine .fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+        }
+
+        .clipLine .ops {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+        }
+
+        .clipLine button {
+            min-height: 28px;
+            height: 28px;
+            padding: 2px 4px;
+            font-size: 11px;
+        }
+
+        .smallLabel {
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            display: block;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .lineId {
+            font-weight: 900;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .lineMark,
+        .storeMark {
+            width: 14px;
+            align-self: stretch;
+            border: 2px solid var(--black);
+            background: var(--black);
+        }
+
+        .line.selected .lineMark {
+            border-color: var(--white);
+        }
+
+        .channelLine {
+            grid-template-columns: 18px 1fr 48px 58px;
+        }
+
+        .snapLine {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .storeLine {
+            grid-template-columns: 14px 1fr 1fr 1fr;
+        }
+
+        #storeRack {
+            height: var(--store);
+            border-top: 3px solid var(--black);
+            background: var(--white);
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+            padding: 6px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            z-index: 28;
+        }
+
+        .storeCard {
+            min-width: 150px;
+            border: 3px solid var(--black);
+            background: var(--white);
+            display: grid;
+            grid-template-columns: 14px 1fr;
+            cursor: pointer;
+        }
+
+        .storeCard.armed {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .storeCard.empty {
+            border-style: dashed;
+        }
+
+        .storeCard .storeText {
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1.2;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .storeCard.armed button {
+            background: var(--white);
+            color: var(--black);
+            border-color: var(--white);
+        }
+
+        #readout {
+            position: absolute;
+            left: 8px;
+            bottom: calc(var(--store) + 8px);
+            max-width: min(620px, calc(100% - var(--panelW) - 24px));
+            z-index: 40;
+            background: var(--white);
+            border: 3px solid var(--black);
+            padding: 6px 8px;
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1.25;
+            pointer-events: none;
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 80;
+            background: var(--white);
+            border: 3px solid var(--black);
+            display: none;
+            min-width: 205px;
+            max-width: min(320px, calc(100vw - 12px));
+        }
+
+        #menu.open {
+            display: block;
+        }
+
+        #menu .menuTitle {
+            background: var(--black);
+            color: var(--white);
+            font-weight: 900;
+            padding: 6px 8px;
+            text-transform: uppercase;
+        }
+
+        #menu button {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-top: 2px solid var(--black);
+            text-align: left;
+            min-height: 36px;
+        }
+
+        #menu button:hover,
+        #menu button:active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 820px) {
+            :root {
+                --top: 52px;
+                --store: 68px;
+                --panelW: 100vw;
+                --laneH: 58px;
+                --hit: 34px;
+            }
+
+            #app {
+                grid-template-rows: var(--top) 1fr var(--store);
+            }
+
+            #work {
+                display: block;
+            }
+
+            #viewport {
+                position: absolute;
+                inset: 0;
+                background: var(--white);
+            }
+
+            #tube {
+                height: 36%;
+            }
+
+            #bench {
+                height: 64%;
+            }
+
+            #viewport.tubeModeOn #tube {
+                height: 58%;
+            }
+
+            #viewport.tubeModeOn #bench {
+                height: 42%;
+            }
+
+            .tubeMouth {
+                width: min(72vw, 300px);
+                height: 58%;
+            }
+
+            .tubeBand {
+                font-size: 11px;
+                height: 26px;
+                padding: 0 5px;
+            }
+
+            .tubeClip {
+                height: 20px;
+                font-size: 10px;
+                box-shadow: 4px 4px 0 var(--black);
+            }
+
+            #logicPanel {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: var(--store);
+                height: min(72vh, 620px);
+                border-left: 0;
+                border-top: 4px solid var(--black);
+                transform: translateY(calc(100% - 42px));
+                transition: transform .12s linear;
+            }
+
+            #logicPanel.open {
+                transform: translateY(0);
+            }
+
+            #panelHeader {
+                cursor: pointer;
+            }
+
+            #readout {
+                left: 6px;
+                right: 6px;
+                bottom: calc(var(--store) + 47px);
+                max-width: none;
+                font-size: 11px;
+            }
+
+            .clipLine {
+                grid-template-columns: 14px 54px 1fr;
+            }
+
+            .clipLine .ops {
+                grid-column: 1 / -1;
+                grid-template-columns: repeat(6, 1fr);
+            }
+
+            .clipLine .fields {
+                grid-column: 3 / -1;
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+
+            #topbar .title {
+                display: none;
+            }
+
+            #topbar button {
+                padding: 5px 7px;
+                min-width: max-content;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .clipLine .fields {
+                grid-template-columns: 1fr;
+            }
+
+            .clipLine .ops {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .snapLine {
+                grid-template-columns: 1fr;
+            }
+
+            .channelLine {
+                grid-template-columns: 18px 1fr 42px;
+            }
+
+            .channelLine button:last-child {
+                grid-column: 1 / -1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="topbar">
+            <div class="title">ARC TUNNEL / LIGHT OPERATION</div>
+            <button id="modeBtn" title="Switch tube/bench mode">BENCH</button>
+            <button id="panelBtn" title="Open text control surface">PANEL</button>
+            <button id="newAtNeedleBtn" title="Create clip at base needle">NEW</button>
+            <button id="copyBtn" title="Copy selected clip">COPY</button>
+            <button id="pasteBtn" title="Paste copy at needle">PASTE</button>
+            <button id="storeBtn" title="Store selected clip">STORE</button>
+            <button id="liftBtn" title="Lift selected clip to store">LIFT</button>
+            <button id="importBtn" title="Import clips JSON">IMPORT</button>
+            <button id="exportSelBtn" title="Export selected clip">EXP SEL</button>
+            <button id="exportVisibleBtn" title="Export visible clips">EXP VIEW</button>
+            <button id="exportAllBtn" title="Export all state">EXP ALL</button>
+            <button id="saveBtn" title="Save state locally">SAVE</button>
+            <button id="resetBtn" title="Reset demo">RESET</button>
+            <div class="spacer"></div>
+            <button id="zoomOutBtn" title="Reduce scale">-</button>
+            <button id="zoomInBtn" title="Increase scale">+</button>
+            <input id="fileInput" type="file" accept="application/json,.json" />
+        </div>
+
+        <div id="work">
+            <main id="viewport" aria-label="viewport operation surface">
+                <section id="tube" aria-label="tube channel roll surface"></section>
+                <section id="bench" aria-label="bench clip edit surface"></section>
+                <div id="baseNeedle"></div>
+                <div id="groundSeam"></div>
+                <div id="readout">idle · drag empty field to scrub · right click / long press for verbs</div>
+            </main>
+
+            <aside id="logicPanel" aria-label="logic panel text control surface">
+                <div id="panelHeader"><button id="panelCloseBtn">PANEL</button><span id="panelStatus">0 CLIPS · NEEDLE
+                        0</span></div>
+                <div id="panelBody"></div>
+            </aside>
+        </div>
+
+        <div id="storeRack" aria-label="store dock"></div>
+    </div>
+
+    <div id="menu" role="menu"></div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const SNAP = 60;
+            const DEFAULT_DUR = SNAP * 5;
+            const MIN_DUR = SNAP;
+            const LS_KEY = 'arcTunnelLightOperationV1';
+
+            const channels = [
+                { id: 'possible', name: 'POSSIBLE', short: 'P', mark: 'solid' },
+                { id: 'plausible', name: 'PLAUSIBLE', short: 'L', mark: 'horizontal' },
+                { id: 'probable', name: 'PROBABLE', short: 'B', mark: 'diagonal' },
+                { id: 'preferred', name: 'PREFERRED', short: 'F', mark: 'dots' }
+            ];
+
+            const state = {
+                clips: [],
+                cameraZ: 0,
+                activeChannel: 0,
+                tubeMode: false,
+                benchMode: true,
+                scale: 0.32,
+                selectedId: null,
+                hoverId: null,
+                soloChannel: null,
+                clipboardPayload: null,
+                storeSlots: [],
+                armedStoreSlot: null,
+                localSave: false,
+                importBuffer: null,
+                exportBlob: null,
+                operation: { type: 'idle' }
+            };
+
+            let idCounter = 1;
+            let lastPointer = { x: 0, y: 0, time: 0, channel: 0 };
+            let longPressTimer = null;
+            let pointerMoved = false;
+
+            const el = {
+                viewport: document.getElementById('viewport'),
+                tube: document.getElementById('tube'),
+                bench: document.getElementById('bench'),
+                baseNeedle: document.getElementById('baseNeedle'),
+                readout: document.getElementById('readout'),
+                logicPanel: document.getElementById('logicPanel'),
+                panelHeader: document.getElementById('panelHeader'),
+                panelBody: document.getElementById('panelBody'),
+                panelStatus: document.getElementById('panelStatus'),
+                storeRack: document.getElementById('storeRack'),
+                menu: document.getElementById('menu'),
+                fileInput: document.getElementById('fileInput'),
+                modeBtn: document.getElementById('modeBtn'),
+                panelBtn: document.getElementById('panelBtn'),
+                panelCloseBtn: document.getElementById('panelCloseBtn'),
+                newAtNeedleBtn: document.getElementById('newAtNeedleBtn'),
+                copyBtn: document.getElementById('copyBtn'),
+                pasteBtn: document.getElementById('pasteBtn'),
+                storeBtn: document.getElementById('storeBtn'),
+                liftBtn: document.getElementById('liftBtn'),
+                importBtn: document.getElementById('importBtn'),
+                exportSelBtn: document.getElementById('exportSelBtn'),
+                exportVisibleBtn: document.getElementById('exportVisibleBtn'),
+                exportAllBtn: document.getElementById('exportAllBtn'),
+                saveBtn: document.getElementById('saveBtn'),
+                resetBtn: document.getElementById('resetBtn'),
+                zoomOutBtn: document.getElementById('zoomOutBtn'),
+                zoomInBtn: document.getElementById('zoomInBtn')
+            };
+
+            function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+            function snap(v) { return Math.round(v / SNAP) * SNAP; }
+            function uid() { return 'SC-' + String(idCounter++).padStart(3, '0'); }
+            function selectedClip() { return state.clips.find(c => c.id === state.selectedId) || null; }
+            function baseX() { return Math.round(el.viewport.clientWidth * 0.5); }
+            function baseNeedleTime() { return snap(state.cameraZ); }
+            function timeToX(t) { return baseX() + (t - baseNeedleTime()) * state.scale; }
+            function xToTime(x) { return snap(baseNeedleTime() + (x - baseX()) / state.scale); }
+            function visibleWindow() {
+                const w = el.viewport.clientWidth || 1;
+                return { start: xToTime(0) - SNAP, end: xToTime(w) + SNAP };
+            }
+            function benchRect() { return el.bench.getBoundingClientRect(); }
+            function laneHeight() { return Math.max(42, el.bench.clientHeight / channels.length); }
+            function laneTop(ch) { return ch * laneHeight(); }
+            function channelFromViewportY(y) {
+                const r = benchRect();
+                return clamp(Math.floor((y - r.top) / laneHeight()), 0, channels.length - 1);
+            }
+            function timeFromViewportX(x) {
+                const r = el.viewport.getBoundingClientRect();
+                return xToTime(x - r.left);
+            }
+            function setReadout(text) { el.readout.textContent = text; }
+            function esc(str) { return String(str).replace(/[&<>"]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s])); }
+
+            function normalizeClip(raw, opts = {}) {
+                const id = opts.keepId && raw.id ? String(raw.id) : uid();
+                return {
+                    id,
+                    start: snap(Number(raw.start) || 0),
+                    duration: Math.max(MIN_DUR, snap(Number(raw.duration) || DEFAULT_DUR)),
+                    channel: clamp(Math.round(Number(raw.channel) || 0), 0, channels.length - 1),
+                    seed: raw.seed || Math.random().toString(36).slice(2, 8),
+                    selected: false,
+                    stored: Boolean(raw.stored),
+                    exportable: raw.exportable !== false
+                };
+            }
+
+            function addClipAt(time, channel) {
+                const clip = normalizeClip({ start: time, duration: DEFAULT_DUR, channel });
+                state.clips.push(clip);
+                selectClip(clip.id, false);
+                setReadout(`new_clip_here · ${clip.id} start ${clip.start} duration ${clip.duration} channel ${channels[clip.channel].name}`);
+                render();
+                return clip;
+            }
+
+            function selectClip(id, doRender = true) {
+                state.selectedId = id;
+                state.clips.forEach(c => c.selected = c.id === id);
+                if (doRender) render();
+            }
+
+            function selectChannel(ch) {
+                state.activeChannel = clamp(ch, 0, channels.length - 1);
+                state.soloChannel = null;
+                setReadout(`channel_binding · active channel ${channels[state.activeChannel].name}`);
+                render();
+            }
+
+            function setSolo(ch) {
+                state.soloChannel = state.soloChannel === ch ? null : ch;
+                setReadout(state.soloChannel == null ? 'solo cleared · all channels visible' : `solo channel · ${channels[ch].name}`);
+                render();
+            }
+
+            function copySelected() {
+                const c = selectedClip();
+                if (!c) { setReadout('copy rejected · no selected clip'); return; }
+                state.clipboardPayload = { ...c, selected: false, stored: false };
+                setReadout(`copy · ${c.id} payload armed`);
+                render();
+            }
+
+            function duplicateSelected() {
+                const c = selectedClip();
+                if (!c) { setReadout('duplicate rejected · no selected clip'); return; }
+                const dup = normalizeClip({ ...c, start: c.start + SNAP, channel: c.channel });
+                state.clips.push(dup);
+                selectClip(dup.id, false);
+                setReadout(`duplicate · ${c.id} -> ${dup.id}`);
+                render();
+            }
+
+            function pasteCopyAt(time, channel) {
+                if (!state.clipboardPayload) { setReadout('paste_copy_here rejected · clipboard empty'); return; }
+                const clip = normalizeClip({ ...state.clipboardPayload, start: time, channel });
+                state.clips.push(clip);
+                selectClip(clip.id, false);
+                setReadout(`paste_copy_here · ${clip.id} at ${clip.start} ${channels[clip.channel].name}`);
+                render();
+            }
+
+            function storeClip(lift = false) {
+                const c = selectedClip();
+                if (!c) { setReadout(lift ? 'lift_to_store rejected · no selected clip' : 'store_copy rejected · no selected clip'); return; }
+                const slot = {
+                    slot: state.storeSlots.length,
+                    sourceId: c.id,
+                    duration: c.duration,
+                    channel: c.channel,
+                    seed: c.seed,
+                    payload: { ...c, selected: false, stored: true }
+                };
+                state.storeSlots.push(slot);
+                state.armedStoreSlot = slot.slot;
+                c.stored = true;
+                if (lift) {
+                    state.clips = state.clips.filter(x => x.id !== c.id);
+                    state.selectedId = state.clips[0]?.id || null;
+                    state.clips.forEach(x => x.selected = x.id === state.selectedId);
+                    setReadout(`lift_to_store · ${c.id} removed from bench · slot ${slot.slot} armed`);
+                } else {
+                    setReadout(`store_copy · ${c.id} copied to slot ${slot.slot} and armed`);
+                }
+                render();
+            }
+
+            function armStoreSlot(slot) {
+                const found = state.storeSlots.find(s => s.slot === slot);
+                if (!found) { setReadout(`arm_store rejected · slot ${slot} empty`); return; }
+                state.armedStoreSlot = slot;
+                setReadout(`store_line_arms_payload · slot ${slot} source ${found.sourceId}`);
+                render();
+            }
+
+            function pasteStoreAt(time, channel) {
+                const slot = state.storeSlots.find(s => s.slot === state.armedStoreSlot);
+                if (!slot) { setReadout('paste_store_here rejected · no armed store payload'); return; }
+                const clip = normalizeClip({ ...slot.payload, start: time, channel });
+                state.clips.push(clip);
+                selectClip(clip.id, false);
+                setReadout(`paste_store_here · slot ${slot.slot} -> ${clip.id} at ${clip.start}`);
+                render();
+            }
+
+            function clearStore(slot) {
+                state.storeSlots = state.storeSlots.filter(s => s.slot !== slot).map((s, i) => ({ ...s, slot: i }));
+                if (state.armedStoreSlot === slot) state.armedStoreSlot = null;
+                setReadout(`clear_store · slot ${slot}`);
+                render();
+            }
+
+            function deleteClip(id = state.selectedId) {
+                const c = state.clips.find(x => x.id === id);
+                if (!c) { setReadout('delete rejected · no selected clip'); return; }
+                state.clips = state.clips.filter(x => x.id !== id);
+                state.selectedId = state.clips[0]?.id || null;
+                state.clips.forEach(x => x.selected = x.id === state.selectedId);
+                setReadout(`delete · ${id}`);
+                render();
+            }
+
+            function moveSelectedToChannel(ch) {
+                const c = selectedClip();
+                if (!c) { setReadout('move_to_channel rejected · no selected clip'); return; }
+                c.channel = clamp(ch, 0, 3);
+                state.activeChannel = c.channel;
+                setReadout(`move_to_${channels[ch].id} · ${c.id}`);
+                render();
+            }
+
+            function snapSelected(mode) {
+                const c = selectedClip();
+                if (!c) { setReadout('snap rejected · no selected clip'); return; }
+                const needle = baseNeedleTime();
+                const end = c.start + c.duration;
+                if (mode === 'start') {
+                    c.start = snap(c.start);
+                    c.duration = Math.max(MIN_DUR, end - c.start);
+                }
+                if (mode === 'end') {
+                    c.duration = Math.max(MIN_DUR, snap(end) - c.start);
+                }
+                if (mode === 'both') {
+                    const newStart = snap(c.start);
+                    const newEnd = Math.max(newStart + MIN_DUR, snap(end));
+                    c.start = newStart;
+                    c.duration = newEnd - newStart;
+                }
+                if (mode === 'needle') c.start = needle;
+                setReadout(`snap_${mode} · ${c.id} start ${c.start} duration ${c.duration}`);
+                render();
+            }
+
+            function snapSelectedStartToTick(tick) {
+                const c = selectedClip();
+                if (!c) { state.cameraZ = tick; setReadout(`snap_line_moves_needle · needle ${tick}`); render(); return; }
+                c.start = snap(tick);
+                state.cameraZ = c.start;
+                setReadout(`snap_selected_to_tick · ${c.id} start ${c.start}`);
+                render();
+            }
+
+            function overlaps(a, b) { return a.start < b.start + b.duration && b.start < a.start + a.duration; }
+            function rollCohort(selected, delta) {
+                const cohort = state.clips.filter(c => overlaps(c, selected));
+                cohort.forEach(c => {
+                    const original = state.operation.originalChannels?.[c.id];
+                    c.channel = clamp((original == null ? c.channel : original) + delta, 0, channels.length - 1);
+                });
+                return cohort.length;
+            }
+
+            function exportPayload(kind) {
+                const now = new Date().toISOString();
+                let clips = [];
+                if (kind === 'selected') {
+                    const c = selectedClip();
+                    if (!c) { setReadout('export_selected rejected · no selected clip'); return; }
+                    clips = [c];
+                } else if (kind === 'visible') {
+                    const win = visibleWindow();
+                    clips = state.clips.filter(c => c.start < win.end && c.start + c.duration > win.start);
+                } else {
+                    clips = state.clips.slice();
+                }
+
+                const payload = {
+                    format: 'arc-tunnel-clips-v1',
+                    exportedAt: now,
+                    snap: SNAP,
+                    channels,
+                    cameraZ: baseNeedleTime(),
+                    clips: clips.map(c => ({
+                        id: c.id,
+                        start: c.start,
+                        duration: c.duration,
+                        channel: c.channel,
+                        seed: c.seed,
+                        selected: c.id === state.selectedId,
+                        stored: c.stored,
+                        exportable: c.exportable
+                    })),
+                    store: kind === 'all' ? state.storeSlots.map(s => ({ slot: s.slot, sourceId: s.sourceId, duration: s.duration, channel: s.channel, seed: s.seed, payload: s.payload })) : []
+                };
+
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                state.exportBlob = blob;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `arc-tunnel-${kind}-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                setReadout(`export_${kind} · ${clips.length} clip${clips.length === 1 ? '' : 's'} written`);
+                render();
+            }
+
+            async function importFile(file) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    importData(data, false);
+                } catch (err) {
+                    setReadout(`import_json rejected · ${err.message}`);
+                }
+            }
+
+            function importData(data, restore = false) {
+                let incoming = Array.isArray(data) ? data : Array.isArray(data?.clips) ? data.clips : null;
+                if (!incoming) { setReadout('import_json rejected · no clip array'); return; }
+                if (incoming.length === 0) { setReadout('import_json rejected · empty clip array'); return; }
+                const earliest = Math.min(...incoming.map(c => Number(c.start) || 0));
+                const offset = baseNeedleTime() - snap(earliest);
+                const made = incoming.map(raw => normalizeClip({
+                    ...raw,
+                    start: (Number(raw.start) || 0) + offset,
+                    duration: Math.max(MIN_DUR, Number(raw.duration) || DEFAULT_DUR),
+                    channel: clamp(Math.round(Number(raw.channel) || 0), 0, 3)
+                }, { keepId: restore }));
+                state.importBuffer = made;
+                state.clips.push(...made);
+                selectClip(made[0].id, false);
+                setReadout(`import_json · ${made.length} clip${made.length === 1 ? '' : 's'} placed at base needle ${baseNeedleTime()}`);
+                render();
+            }
+
+            function saveState() {
+                const payload = {
+                    format: 'arc-tunnel-local-state-v1',
+                    cameraZ: state.cameraZ,
+                    activeChannel: state.activeChannel,
+                    tubeMode: state.tubeMode,
+                    scale: state.scale,
+                    selectedId: state.selectedId,
+                    clips: state.clips,
+                    storeSlots: state.storeSlots,
+                    armedStoreSlot: state.armedStoreSlot,
+                    idCounter
+                };
+                localStorage.setItem(LS_KEY, JSON.stringify(payload));
+                state.localSave = true;
+                setReadout(`save_state · ${state.clips.length} clips stored locally`);
+                render();
+            }
+
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem(LS_KEY);
+                    if (!raw) return false;
+                    const data = JSON.parse(raw);
+                    state.cameraZ = Number(data.cameraZ) || 0;
+                    state.activeChannel = clamp(Number(data.activeChannel) || 0, 0, 3);
+                    state.tubeMode = Boolean(data.tubeMode);
+                    state.benchMode = !state.tubeMode;
+                    state.scale = clamp(Number(data.scale) || 0.32, 0.12, 1.4);
+                    state.clips = Array.isArray(data.clips) ? data.clips.map(c => normalizeClip(c, { keepId: true })) : [];
+                    state.storeSlots = Array.isArray(data.storeSlots) ? data.storeSlots : [];
+                    state.armedStoreSlot = data.armedStoreSlot ?? null;
+                    state.selectedId = data.selectedId || state.clips[0]?.id || null;
+                    idCounter = Math.max(Number(data.idCounter) || 1, inferNextId());
+                    state.clips.forEach(c => c.selected = c.id === state.selectedId);
+                    state.localSave = true;
+                    return true;
+                } catch (_) { return false; }
+            }
+
+            function inferNextId() {
+                let max = 0;
+                state.clips.forEach(c => {
+                    const n = Number(String(c.id).replace(/\D/g, ''));
+                    if (n > max) max = n;
+                });
+                return max + 1;
+            }
+
+            function resetDemo() {
+                state.cameraZ = 0;
+                state.activeChannel = 0;
+                state.tubeMode = false;
+                state.benchMode = true;
+                state.scale = 0.32;
+                state.selectedId = null;
+                state.hoverId = null;
+                state.soloChannel = null;
+                state.clipboardPayload = null;
+                state.storeSlots = [];
+                state.armedStoreSlot = null;
+                state.operation = { type: 'idle' };
+                idCounter = 1;
+                state.clips = [
+                    normalizeClip({ start: -SNAP * 4, duration: SNAP * 4, channel: 0, seed: 'root-a' }),
+                    normalizeClip({ start: SNAP * 1, duration: SNAP * 6, channel: 1, seed: 'root-b' }),
+                    normalizeClip({ start: SNAP * 5, duration: SNAP * 3, channel: 2, seed: 'root-c' }),
+                    normalizeClip({ start: SNAP * 8, duration: SNAP * 5, channel: 3, seed: 'root-d' })
+                ];
+                selectClip(state.clips[0].id, false);
+                setReadout('reset_demo · four bound clips restored');
+                render();
+            }
+
+            function render() {
+                renderViewport();
+                renderLogicPanel();
+                renderStoreRack();
+                renderButtons();
+            }
+
+            function renderViewport() {
+                const bx = baseX();
+                el.baseNeedle.style.left = bx + 'px';
+                el.modeBtn.textContent = state.tubeMode ? 'TUBE' : 'BENCH';
+                el.modeBtn.classList.toggle('active', state.tubeMode);
+                el.viewport.classList.toggle('tubeModeOn', state.tubeMode);
+
+                const bH = el.bench.clientHeight || 1;
+                const lH = bH / channels.length;
+                el.bench.innerHTML = '';
+
+                renderSnapTicks(el.bench);
+
+                channels.forEach((ch, i) => {
+                    const lane = document.createElement('div');
+                    lane.className = 'lane' + (i === state.activeChannel ? ' activeLane' : '');
+                    lane.dataset.channel = i;
+                    lane.style.top = (i * lH) + 'px';
+                    lane.style.height = lH + 'px';
+                    const label = document.createElement('button');
+                    label.className = 'laneLabel';
+                    label.textContent = ch.short;
+                    label.title = ch.name;
+                    label.addEventListener('click', ev => { ev.stopPropagation(); selectChannel(i); });
+                    lane.appendChild(label);
+                    el.bench.appendChild(lane);
+                });
+
+                const win = visibleWindow();
+                const clips = state.clips.filter(c => state.soloChannel == null || c.channel === state.soloChannel);
+                clips.forEach(c => {
+                    if (c.start > win.end || c.start + c.duration < win.start) return;
+                    const div = document.createElement('div');
+                    div.className = 'clip' + (c.id === state.selectedId ? ' selected' : '') + (c.id === state.hoverId ? ' hovered' : '');
+                    div.dataset.id = c.id;
+                    div.style.left = timeToX(c.start) + 'px';
+                    div.style.width = Math.max(28, c.duration * state.scale) + 'px';
+                    div.style.top = (laneTop(c.channel) + Math.max(8, (lH - 42) / 2)) + 'px';
+                    div.innerHTML = `
+        <div class="clipHandle start" data-handle="start" title="trim start">S</div>
+        <div class="clipLabel"><span>${esc(c.id)} · ${c.start} · ${c.duration}</span></div>
+        <div class="mark ch${c.channel}" title="${esc(channels[c.channel].name)}"></div>
+        <div class="clipHandle end" data-handle="end" title="trim end">E</div>
+        <div class="rollDial" data-handle="roll" title="roll overlapping cohort">R</div>`;
+                    el.bench.appendChild(div);
+                });
+
+                renderTube();
+                el.panelStatus.textContent = `${state.clips.length} CLIPS · NEEDLE ${baseNeedleTime()}`;
+            }
+
+            function renderSnapTicks(container) {
+                const win = visibleWindow();
+                const first = snap(win.start - SNAP * 4);
+                const last = snap(win.end + SNAP * 4);
+                for (let t = first; t <= last; t += SNAP) {
+                    const x = timeToX(t);
+                    const tick = document.createElement('div');
+                    tick.className = 'snapTick' + (t % (SNAP * 5) === 0 ? ' major' : '');
+                    tick.dataset.tick = t;
+                    tick.style.left = x + 'px';
+                    if (t % (SNAP * 5) === 0) tick.innerHTML = `<span>${t}</span>`;
+                    tick.addEventListener('click', ev => {
+                        ev.stopPropagation();
+                        state.cameraZ = Number(tick.dataset.tick);
+                        setReadout(`snap_line_moves_needle · base needle ${state.cameraZ}`);
+                        render();
+                    });
+                    container.appendChild(tick);
+                }
+            }
+
+            function renderTube() {
+                el.tube.innerHTML = '';
+                const w = el.tube.clientWidth || 1;
+                const h = el.tube.clientHeight || 1;
+
+                const axis = document.createElement('div');
+                axis.className = 'tubeAxis';
+                el.tube.appendChild(axis);
+
+                const ribCount = state.tubeMode ? 9 : 6;
+                for (let i = 0; i < ribCount; i++) {
+                    const rib = document.createElement('div');
+                    rib.className = 'tubeRib';
+                    const p = i / Math.max(1, ribCount - 1);
+                    const left = 10 + p * 80;
+                    const width = Math.max(36, (1 - Math.abs(p - 0.5) * 1.35) * w * 0.34);
+                    rib.style.left = left + '%';
+                    rib.style.width = width + 'px';
+                    el.tube.appendChild(rib);
+                }
+
+                const mouth = document.createElement('div');
+                mouth.className = 'tubeMouth';
+                el.tube.appendChild(mouth);
+
+                channels.forEach((ch, i) => {
+                    const band = document.createElement('button');
+                    band.className = 'tubeBand' + (i === state.activeChannel ? ' active' : '');
+                    band.textContent = `${ch.short} ${ch.name}`;
+                    band.addEventListener('click', () => selectChannel(i));
+                    el.tube.appendChild(band);
+                });
+
+                const win = visibleWindow();
+                state.clips.forEach(c => {
+                    if (c.start > win.end || c.start + c.duration < win.start) return;
+                    const depth = (c.channel + 0.5) / channels.length;
+                    const centerY = h * (0.26 + depth * 0.48);
+                    const arcPush = Math.sin((c.channel / 3) * Math.PI - Math.PI / 2) * (state.tubeMode ? 28 : 18);
+                    const top = centerY + arcPush - 11;
+                    const d = document.createElement('div');
+                    d.className = 'tubeClip' + (c.id === state.selectedId ? ' selected' : '');
+                    d.dataset.id = c.id;
+                    d.style.left = timeToX(c.start) + 'px';
+                    d.style.top = top + 'px';
+                    d.style.width = Math.max(42, c.duration * state.scale) + 'px';
+                    d.innerHTML = `<div class="markMini ch${c.channel}"></div><span>${esc(c.id)}</span>`;
+                    d.addEventListener('click', ev => { ev.stopPropagation(); selectClip(c.id); setReadout(`tube_clip_selects_line · ${c.id}`); });
+                    el.tube.appendChild(d);
+                });
+            }
+
+            function renderLogicPanel() {
+                const counts = channels.map((_, i) => state.clips.filter(c => c.channel === i).length);
+                const selected = selectedClip();
+                const win = visibleWindow();
+                const snapTicks = [];
+                for (let t = snap(win.start); t <= snap(win.end); t += SNAP * 2) snapTicks.push(t);
+
+                const clipLines = state.clips.map(c => `
+      <div class="line clipLine ${c.id === state.selectedId ? 'selected' : ''}" data-line-id="${esc(c.id)}">
+        <div class="lineMark ch${c.channel}"></div>
+        <button class="lineId" data-act="select" data-id="${esc(c.id)}">${esc(c.id)}</button>
+        <div class="fields">
+          <label><span class="smallLabel">START</span><input data-edit="start" data-id="${esc(c.id)}" type="number" step="${SNAP}" value="${c.start}"></label>
+          <label><span class="smallLabel">DUR</span><input data-edit="duration" data-id="${esc(c.id)}" type="number" step="${SNAP}" min="${MIN_DUR}" value="${c.duration}"></label>
+          <label><span class="smallLabel">CH</span><select data-edit="channel" data-id="${esc(c.id)}">${channels.map((ch, i) => `<option value="${i}" ${i === c.channel ? 'selected' : ''}>${ch.short}</option>`).join('')}</select></label>
+        </div>
+        <div class="ops">
+          <button data-act="store" data-id="${esc(c.id)}">STORE</button>
+          <button data-act="export" data-id="${esc(c.id)}">EXP</button>
+          <button data-act="delete" data-id="${esc(c.id)}">DEL</button>
+        </div>
+      </div>`).join('') || '<div class="line">NO CLIPS · NEW CREATES ONE RECORD AND ONE BOX</div>';
+
+                const channelLines = channels.map((ch, i) => `
+      <div class="line channelLine ${i === state.activeChannel ? 'selected' : ''}" data-channel-line="${i}">
+        <div class="lineMark ch${i}"></div>
+        <button data-act="channel" data-channel="${i}">${ch.short} ${ch.name}</button>
+        <div>${counts[i]}</div>
+        <button data-act="solo" data-channel="${i}">${state.soloChannel === i ? 'ALL' : 'SOLO'}</button>
+      </div>`).join('');
+
+                const snapLines = snapTicks.slice(0, 18).map(t => `
+      <div class="line snapLine">
+        <button data-act="needle" data-tick="${t}">NEEDLE ${t}</button>
+        <button data-act="snapSelected" data-tick="${t}">SEL START</button>
+        <button data-act="newTick" data-tick="${t}">NEW</button>
+      </div>`).join('');
+
+                const storeLines = state.storeSlots.map(s => `
+      <div class="line storeLine ${state.armedStoreSlot === s.slot ? 'selected' : ''}">
+        <div class="lineMark ch${s.channel}"></div>
+        <button data-act="armStore" data-slot="${s.slot}">SLOT ${s.slot}</button>
+        <button data-act="pasteStoreNeedle" data-slot="${s.slot}">PASTE</button>
+        <button data-act="clearStore" data-slot="${s.slot}">CLEAR</button>
+      </div>`).join('') || '<div class="line">STORE EMPTY · STORE OR LIFT A SELECTED CLIP</div>';
+
+                el.panelBody.innerHTML = `
+      <section class="section"><h2>Channels</h2>${channelLines}</section>
+      <section class="section"><h2>Clips · text mutates boxes</h2>${clipLines}</section>
+      <section class="section"><h2>Snap rail · lines move needle</h2>${snapLines}</section>
+      <section class="section"><h2>Store dock · payload cards</h2>${storeLines}</section>
+      <section class="section"><h2>Active operation</h2><div class="line">${esc(el.readout.textContent)}</div><div class="line">SELECTED: ${selected ? esc(selected.id) : 'NONE'} · CAMERA Z: ${baseNeedleTime()} · SCALE: ${state.scale.toFixed(2)}</div></section>
+    `;
+            }
+
+            function renderStoreRack() {
+                const cards = state.storeSlots.map(s => `
+      <div class="storeCard ${state.armedStoreSlot === s.slot ? 'armed' : ''}" data-slot="${s.slot}">
+        <div class="storeMark ch${s.channel}"></div>
+        <div class="storeText"><div>SLOT ${s.slot} · ${esc(s.sourceId)}</div><div>${s.duration}</div></div>
+      </div>`).join('') || '<div class="storeCard">STORE EMPTY</div>';
+                el.storeRack.innerHTML = cards;
+            }
+
+            function renderButtons() {
+                el.panelBtn.classList.toggle('active', el.logicPanel.classList.contains('open'));
+                el.saveBtn.classList.toggle('active', state.localSave);
+            }
+
+            function showMenu(x, y, items) {
+                el.menu.innerHTML = items.map(it => `<button class="menuItem" data-menu="${esc(it.key)}">${esc(it.label)}</button>`).join('');
+                el.menu.style.left = clamp(x, 4, window.innerWidth - 230) + 'px';
+                el.menu.style.top = clamp(y, 4, window.innerHeight - items.length * 38 - 10) + 'px';
+                el.menu.classList.add('show');
+            }
+
+            function hideMenu() { el.menu.classList.remove('show'); }
+
+            function contextMenuForClip(c, x, y) {
+                showMenu(x, y, [
+                    { key: 'select', label: 'SELECT ' + c.id },
+                    { key: 'copy', label: 'COPY' },
+                    { key: 'duplicate', label: 'DUPLICATE' },
+                    { key: 'store', label: 'STORE COPY' },
+                    { key: 'lift', label: 'LIFT TO STORE' },
+                    { key: 'snapStart', label: 'SNAP START' },
+                    { key: 'snapEnd', label: 'SNAP END' },
+                    { key: 'snapBoth', label: 'SNAP BOTH' },
+                    { key: 'snapToNeedle', label: 'SNAP TO NEEDLE' },
+                    { key: 'moveP', label: 'MOVE TO POSSIBLE' },
+                    { key: 'moveL', label: 'MOVE TO PLAUSIBLE' },
+                    { key: 'moveB', label: 'MOVE TO PROBABLE' },
+                    { key: 'moveF', label: 'MOVE TO PREFERRED' },
+                    { key: 'delete', label: 'DELETE' }
+                ]);
+                state._menuClipId = c.id;
+            }
+
+            function contextMenuForEmpty(x, y, channel) {
+                const time = timeFromViewportX(x);
+                showMenu(x, y, [
+                    { key: 'newHere', label: 'NEW CLIP HERE' },
+                    { key: 'pasteCopy', label: 'PASTE COPY' },
+                    { key: 'pasteStore', label: 'PASTE FROM STORE' },
+                    { key: 'moveNeedle', label: 'NEEDLE TO ' + snap(time) }
+                ]);
+                state._menuTime = snap(time);
+                state._menuChannel = channel;
+            }
+
+            function handleMenuAction(key) {
+                hideMenu();
+                const cid = state._menuClipId;
+                const c = cid ? state.clips.find(x => x.id === cid) : null;
+                if (key === 'select' && c) selectClip(c.id);
+                else if (key === 'copy') copySelected();
+                else if (key === 'duplicate') duplicateSelected();
+                else if (key === 'store') storeClip(false);
+                else if (key === 'lift') storeClip(true);
+                else if (key === 'snapStart') snapSelected('start');
+                else if (key === 'snapEnd') snapSelected('end');
+                else if (key === 'snapBoth') snapSelected('both');
+                else if (key === 'snapToNeedle') snapSelected('needle');
+                else if (key === 'moveP') moveSelectedToChannel(0);
+                else if (key === 'moveL') moveSelectedToChannel(1);
+                else if (key === 'moveB') moveSelectedToChannel(2);
+                else if (key === 'moveF') moveSelectedToChannel(3);
+                else if (key === 'delete') deleteClip(cid);
+                else if (key === 'newHere') addClipAt(state._menuTime, state._menuChannel);
+                else if (key === 'pasteCopy') pasteCopyAt(state._menuTime, state._menuChannel);
+                else if (key === 'pasteStore') pasteStoreAt(state._menuTime, state._menuChannel);
+                else if (key === 'moveNeedle') { state.cameraZ = state._menuTime; setReadout(`needle_moved · ${state.cameraZ}`); render(); }
+            }
+
+            // -- Pointer events --
+            el.viewport.addEventListener('pointerdown', e => {
+                hideMenu();
+                const r = el.viewport.getBoundingClientRect();
+                const x = e.clientX, y = e.clientY;
+                lastPointer = { x, y, time: timeFromViewportX(x), channel: channelFromViewportY(y) };
+                pointerMoved = false;
+
+                const clipDiv = e.target.closest('.clip[data-id]') || e.target.closest('.tubeClip[data-id]');
+                const handleDiv = e.target.closest('[data-handle]');
+
+                if (clipDiv) {
+                    const id = clipDiv.dataset.id;
+                    const c = state.clips.find(x => x.id === id);
+                    if (!c) return;
+                    selectClip(id, false);
+                    if (handleDiv) {
+                        const handle = handleDiv.dataset.handle;
+                        state.operation = {
+                            type: handle === 'start' ? 'trimStart' : handle === 'end' ? 'trimEnd' : handle === 'roll' ? 'roll' : 'move',
+                            clipId: id,
+                            origStart: c.start,
+                            origDur: c.duration,
+                            origChannel: c.channel,
+                            originalChannels: Object.fromEntries(state.clips.map(x => [x.id, x.channel])),
+                            startX: x,
+                            startY: y
+                        };
+                    } else {
+                        state.operation = {
+                            type: 'move',
+                            clipId: id,
+                            origStart: c.start,
+                            origDur: c.duration,
+                            origChannel: c.channel,
+                            startX: x,
+                            startY: y
+                        };
+                    }
+                    render();
+                    return;
+                }
+
+                longPressTimer = setTimeout(() => {
+                    if (!pointerMoved) {
+                        contextMenuForEmpty(x, y, channelFromViewportY(y));
+                    }
+                }, 500);
+
+                state.operation = { type: 'scrub', startX: x, startCameraZ: state.cameraZ };
+            });
+
+            window.addEventListener('pointermove', e => {
+                const op = state.operation;
+                if (!op || op.type === 'idle') return;
+                const dx = e.clientX - (op.startX || 0);
+                const dy = e.clientY - (op.startY || 0);
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) pointerMoved = true;
+
+                if (op.type === 'move') {
+                    const c = state.clips.find(x => x.id === op.clipId);
+                    if (!c) return;
+                    c.start = snap(op.origStart + dx / state.scale);
+                    c.channel = channelFromViewportY(e.clientY);
+                    state.activeChannel = c.channel;
+                    setReadout(`move · ${c.id} start ${c.start} channel ${channels[c.channel].name}`);
+                    render();
+                } else if (op.type === 'trimStart') {
+                    const c = state.clips.find(x => x.id === op.clipId);
+                    if (!c) return;
+                    const newStart = snap(op.origStart + dx / state.scale);
+                    const end = op.origStart + op.origDur;
+                    c.start = Math.min(newStart, end - MIN_DUR);
+                    c.duration = Math.max(MIN_DUR, end - c.start);
+                    setReadout(`trim_start · ${c.id} start ${c.start} duration ${c.duration}`);
+                    render();
+                } else if (op.type === 'trimEnd') {
+                    const c = state.clips.find(x => x.id === op.clipId);
+                    if (!c) return;
+                    c.duration = Math.max(MIN_DUR, snap(op.origDur + dx / state.scale));
+                    setReadout(`trim_end · ${c.id} duration ${c.duration}`);
+                    render();
+                } else if (op.type === 'roll') {
+                    const c = state.clips.find(x => x.id === op.clipId);
+                    if (!c) return;
+                    const delta = Math.round(-dy / 40);
+                    const n = rollCohort(c, delta);
+                    setReadout(`roll · ${n} clips shifted ${delta > 0 ? 'down' : 'up'}`);
+                    render();
+                } else if (op.type === 'scrub') {
+                    state.cameraZ = snap(op.startCameraZ - dx / state.scale);
+                    setReadout(`scrub · needle ${baseNeedleTime()}`);
+                    render();
+                }
+            });
+
+            window.addEventListener('pointerup', () => {
+                clearTimeout(longPressTimer);
+                state.operation = { type: 'idle' };
+            });
+
+            window.addEventListener('pointercancel', () => {
+                clearTimeout(longPressTimer);
+                state.operation = { type: 'idle' };
+            });
+
+            el.viewport.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                const clipDiv = e.target.closest('.clip[data-id]') || e.target.closest('.tubeClip[data-id]');
+                if (clipDiv) {
+                    const c = state.clips.find(x => x.id === clipDiv.dataset.id);
+                    if (c) { selectClip(c.id, false); contextMenuForClip(c, e.clientX, e.clientY); render(); }
+                } else {
+                    contextMenuForEmpty(e.clientX, e.clientY, channelFromViewportY(e.clientY));
+                }
+            });
+
+            el.viewport.addEventListener('wheel', e => {
+                e.preventDefault();
+                if (e.ctrlKey || e.metaKey) {
+                    state.scale = clamp(state.scale + (e.deltaY < 0 ? 0.03 : -0.03), 0.12, 1.4);
+                } else {
+                    state.cameraZ = snap(state.cameraZ + (e.deltaY > 0 ? SNAP : -SNAP));
+                }
+                setReadout(`wheel · needle ${baseNeedleTime()} scale ${state.scale.toFixed(2)}`);
+                render();
+            }, { passive: false });
+
+            // -- Panel / button events --
+            el.menu.addEventListener('click', e => {
+                const btn = e.target.closest('[data-menu]');
+                if (btn) handleMenuAction(btn.dataset.menu);
+            });
+
+            el.panelBody.addEventListener('click', e => {
+                const act = e.target.dataset.act;
+                if (!act) return;
+                const id = e.target.dataset.id;
+                const slot = e.target.dataset.slot != null ? Number(e.target.dataset.slot) : null;
+                const tick = e.target.dataset.tick != null ? Number(e.target.dataset.tick) : null;
+                const ch = e.target.dataset.channel != null ? Number(e.target.dataset.channel) : null;
+                if (act === 'select' && id) selectClip(id);
+                else if (act === 'store' && id) { selectClip(id, false); storeClip(false); }
+                else if (act === 'export' && id) { selectClip(id, false); exportPayload('selected'); }
+                else if (act === 'delete' && id) deleteClip(id);
+                else if (act === 'channel' && ch != null) selectChannel(ch);
+                else if (act === 'solo' && ch != null) setSolo(ch);
+                else if (act === 'needle' && tick != null) { state.cameraZ = tick; setReadout(`needle · ${tick}`); render(); }
+                else if (act === 'snapSelected' && tick != null) snapSelectedStartToTick(tick);
+                else if (act === 'newTick' && tick != null) addClipAt(tick, state.activeChannel);
+                else if (act === 'armStore' && slot != null) armStoreSlot(slot);
+                else if (act === 'pasteStoreNeedle' && slot != null) { state.armedStoreSlot = slot; pasteStoreAt(baseNeedleTime(), state.activeChannel); }
+                else if (act === 'clearStore' && slot != null) clearStore(slot);
+            });
+
+            el.panelBody.addEventListener('change', e => {
+                const field = e.target.dataset.edit;
+                const id = e.target.dataset.id;
+                if (!field || !id) return;
+                const c = state.clips.find(x => x.id === id);
+                if (!c) return;
+                if (field === 'start') c.start = snap(Number(e.target.value) || 0);
+                if (field === 'duration') c.duration = Math.max(MIN_DUR, snap(Number(e.target.value) || MIN_DUR));
+                if (field === 'channel') c.channel = clamp(Number(e.target.value) || 0, 0, 3);
+                setReadout(`edit_field · ${c.id} ${field} ${c[field]}`);
+                render();
+            });
+
+            el.storeRack.addEventListener('click', e => {
+                const card = e.target.closest('[data-slot]');
+                if (!card) return;
+                const slot = Number(card.dataset.slot);
+                if (state.armedStoreSlot === slot) {
+                    pasteStoreAt(baseNeedleTime(), state.activeChannel);
+                } else {
+                    armStoreSlot(slot);
+                }
+            });
+
+            el.modeBtn.addEventListener('click', () => {
+                state.tubeMode = !state.tubeMode;
+                state.benchMode = !state.tubeMode;
+                render();
+            });
+
+            el.panelBtn.addEventListener('click', () => { el.logicPanel.classList.toggle('open'); renderButtons(); });
+            el.panelCloseBtn.addEventListener('click', () => { el.logicPanel.classList.toggle('open'); renderButtons(); });
+            el.panelHeader.addEventListener('click', e => { if (e.target === el.panelHeader) { el.logicPanel.classList.toggle('open'); renderButtons(); } });
+
+            el.newAtNeedleBtn.addEventListener('click', () => addClipAt(baseNeedleTime(), state.activeChannel));
+            el.copyBtn.addEventListener('click', copySelected);
+            el.pasteBtn.addEventListener('click', () => pasteCopyAt(baseNeedleTime(), state.activeChannel));
+            el.storeBtn.addEventListener('click', () => storeClip(false));
+            el.liftBtn.addEventListener('click', () => storeClip(true));
+            el.importBtn.addEventListener('click', () => el.fileInput.click());
+            el.exportSelBtn.addEventListener('click', () => exportPayload('selected'));
+            el.exportVisibleBtn.addEventListener('click', () => exportPayload('visible'));
+            el.exportAllBtn.addEventListener('click', () => exportPayload('all'));
+            el.saveBtn.addEventListener('click', saveState);
+            el.resetBtn.addEventListener('click', resetDemo);
+            el.zoomOutBtn.addEventListener('click', () => { state.scale = clamp(state.scale - 0.04, 0.12, 1.4); render(); });
+            el.zoomInBtn.addEventListener('click', () => { state.scale = clamp(state.scale + 0.04, 0.12, 1.4); render(); });
+            el.fileInput.addEventListener('change', e => { if (e.target.files && e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; });
+
+            document.addEventListener('pointerdown', e => { if (!el.menu.contains(e.target)) hideMenu(); });
+
+            window.addEventListener('keydown', e => {
+                const k = e.key;
+                if (k === 'ArrowLeft') { e.preventDefault(); state.cameraZ -= SNAP; setReadout(`key · needle ${baseNeedleTime()}`); render(); }
+                if (k === 'ArrowRight') { e.preventDefault(); state.cameraZ += SNAP; setReadout(`key · needle ${baseNeedleTime()}`); render(); }
+                if (k === 'ArrowUp') { e.preventDefault(); selectChannel(clamp(state.activeChannel - 1, 0, 3)); }
+                if (k === 'ArrowDown') { e.preventDefault(); selectChannel(clamp(state.activeChannel + 1, 0, 3)); }
+                if (k.toLowerCase() === 'n') addClipAt(baseNeedleTime(), state.activeChannel);
+                if (k.toLowerCase() === 'c') copySelected();
+                if (k.toLowerCase() === 'v') pasteCopyAt(baseNeedleTime(), state.activeChannel);
+                if (k.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey) storeClip(false);
+                if (k.toLowerCase() === 'l') storeClip(true);
+                if (k === 'Delete' || k === 'Backspace') deleteClip();
+                if (k.toLowerCase() === 'p') { el.logicPanel.classList.toggle('open'); renderButtons(); }
+                if (k === 'Escape') hideMenu();
+                if (k === '-' || k === '_') { state.scale = clamp(state.scale - 0.04, 0.12, 1.4); render(); }
+                if (k === '=' || k === '+') { state.scale = clamp(state.scale + 0.04, 0.12, 1.4); render(); }
+            });
+
+            window.addEventListener('resize', () => render());
+
+            // -- Boot --
+            if (!loadState()) resetDemo();
+            else render();
+        })();
+    </script>
+</body>
+
+</html>

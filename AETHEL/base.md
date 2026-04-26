@@ -17,3 +17,4 @@ Create a hyper-detailed **16:9 surveillance composite** titled **“ShieldMallOf
 **CAM 12 OUTER ANNULUS – OCEANUS RIM:** continuous wet reflective black parking-ring boundary, sodium-vapor spill, perimeter patrol feel, river Oceanus as surveillance moat.
 
 The shield’s materials must feel **forged, ornate, bronze-gold, silver-belted, five-fold, triple-bordered**, with miniature epic scenes rendered crisply inside each feed. Preserve authentic CCTV grime only in the overlays; the central diorama remains legible, grand, mythic, and architecturally precise.
+---

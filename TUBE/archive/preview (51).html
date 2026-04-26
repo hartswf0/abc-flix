@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Arc Splice Operator — Ghost Surface</title>
+<style>
+:root{
+  --bg:#000;
+  --panel:#050505;
+  --line:#252525;
+  --soft:#777;
+  --fg:#fff;
+  --cyan:#00e5ff;
+  --hot:#ff0055;
+  --warn:#ffd34d;
+  --good:#9cffb8;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+  color:#fff;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#top{
+  position:fixed;
+  inset:0 0 auto 0;
+  height:52px;
+  z-index:50;
+  background:linear-gradient(#090909,#020202);
+  border-bottom:1px solid #2a2a2a;
+  display:grid;
+  grid-template-columns:minmax(110px,1fr) auto;
+  gap:8px;
+  align-items:center;
+  padding:6px 9px;
+}
+.brand{min-width:0;line-height:1.05}
+.brand b{
+  display:block;
+  color:var(--cyan);
+  font-size:12px;
+  letter-spacing:.13em;
+}
+.brand span{
+  display:block;
+  margin-top:4px;
+  color:#777;
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#controls{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:4px;
+  flex-wrap:wrap;
+}
+button{
+  height:27px;
+  min-width:29px;
+  padding:0 7px;
+  background:#000;
+  border:1px solid #444;
+  color:#fff;
+  font:900 8px ui-monospace,SFMono-Regular,monospace;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+button:hover{background:#fff;color:#000;border-color:#fff}
+button.on{background:var(--cyan);color:#000;border-color:var(--cyan)}
+button.src.loaded{color:var(--cyan);border-color:var(--cyan)}
+button.src.ghost{color:var(--hot);border-color:var(--hot)}
+button.src.missing{color:var(--warn);border-color:var(--warn)}
+button.src.on{background:var(--warn);color:#000;border-color:var(--warn)}
+#foot{
+  position:fixed;
+  inset:auto 0 0 0;
+  height:42px;
+  z-index:50;
+  background:#030303;
+  border-top:1px solid #2a2a2a;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+}
+.stat{
+  border-right:1px solid #242424;
+  padding:5px 9px;
+  overflow:hidden;
+}
+.stat:last-child{border-right:0}
+.stat label{
+  display:block;
+  color:#666;
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.stat output{
+  display:block;
+  margin-top:2px;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.cyan{color:var(--cyan)!important}
+.hot{color:var(--hot)!important}
+.warn{color:var(--warn)!important}
+#toast{
+  position:fixed;
+  z-index:90;
+  left:50%;
+  bottom:56px;
+  transform:translateX(-50%);
+  background:#fff;
+  color:#000;
+  border:1px solid #fff;
+  padding:8px 12px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  opacity:0;
+  pointer-events:none;
+  transition:.16s;
+  max-width:94vw;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(-4px);
+}
+canvas{
+  position:fixed;
+  left:0;
+  top:52px;
+  display:block;
+  background:#000;
+  cursor:crosshair;
+}
+input[type=file]{display:none}
+#pool{
+  position:fixed;
+  left:0;
+  top:0;
+  width:1px;
+  height:1px;
+  opacity:.001;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:-1;
+}
+@media(max-width:860px){
+  #top{
+    height:66px;
+    grid-template-columns:1fr;
+    align-items:start;
+    gap:4px;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px}
+  .brand b{font-size:10px}
+  .brand span{font-size:7px;margin-top:0}
+  #controls{justify-content:space-between;width:100%;gap:3px}
+  button{
+    height:23px;
+    min-width:25px;
+    padding:0 5px;
+    font-size:7px;
+    letter-spacing:.03em;
+  }
+  .hideMob{display:none!important}
+  canvas{top:66px}
+  #foot{
+    height:50px;
+    grid-template-columns:repeat(3,1fr);
+  }
+  .mobGone{display:none}
+  .stat{padding:5px 7px}
+  .stat label{font-size:7px}
+  .stat output{font-size:10px}
+  #toast{bottom:64px}
+}
+</style>
+</head>
+<body>
+<div id="pool"></div>
+
+<input id="videoInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.ogg" />
+<input id="projectInput" type="file" accept="application/json,.json" />
+
+<header id="top">
+  <div class="brand">
+    <b>ARC SPLICE OPERATOR</b>
+    <span>awaken source → extract lit fragments → arrange visible and absent time</span>
+  </div>
+  <div id="controls">
+    <button id="play">Play</button>
+    <button id="source">Source</button>
+    <button class="src on" data-i="0">A</button>
+    <button class="src" data-i="1">B</button>
+    <button class="src" data-i="2">C</button>
+    <button class="src" data-i="3">D</button>
+    <button id="undo">Undo</button>
+    <button id="edl">EDL</button>
+    <button id="save" class="hideMob">Save</button>
+    <button id="load" class="hideMob">Load</button>
+    <button id="clear">Clear</button>
+  </div>
+</header>
+
+<canvas id="stage"></canvas>
+
+<footer id="foot">
+  <div class="stat">
+    <label>time</label>
+    <output id="time" class="cyan">00:00:00</output>
+  </div>
+  <div class="stat">
+    <label>mode</label>
+    <output id="mode">edit</output>
+  </div>
+  <div class="stat">
+    <label>source</label>
+    <output id="src" class="warn">A dormant</output>
+  </div>
+  <div class="stat mobGone">
+    <label>runtime</label>
+    <output id="run" class="hot">0.0s</output>
+  </div>
+  <div class="stat mobGone">
+    <label>splices</label>
+    <output id="clips" class="cyan">0</output>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+(()=>{
+'use strict';
+
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const PI = Math.PI;
+
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const wrap = (n,m) => ((n % m) + m) % m;
+
+const canvas = $('stage');
+const ctx = canvas.getContext('2d',{alpha:false,desynchronized:true});
+const pool = $('pool');
+
+let W = 0;
+let H = 0;
+let topH = 52;
+let botH = 42;
+let M = null;
+let uid = 1;
+let last = 0;
+let toastTimer = 0;
+
+const S = {
+  density:24,
+  selected:0,
+  loading:-1,
+  preview:0,
+  time:0,
+  playing:false,
+  drag:null,
+  trim:null,
+  scrub:false,
+  roll:null,
+  seq:[],
+  undo:[]
+};
+
+const T = [
+  {
+    id:0,k:'A',h:188,s:100,l:52,
+    state:'empty',
+    loaded:false,ready:false,chunks:24,roll:0,
+    vid:null,url:null,file:null,name:'A_SOURCE',hover:-1
+  },
+  {
+    id:1,k:'B',h:318,s:100,l:56,
+    state:'empty',
+    loaded:false,ready:false,chunks:24,roll:0,
+    vid:null,url:null,file:null,name:'B_SOURCE',hover:-1
+  },
+  {
+    id:2,k:'C',h:50,s:100,l:58,
+    state:'empty',
+    loaded:false,ready:false,chunks:24,roll:0,
+    vid:null,url:null,file:null,name:'C_SOURCE',hover:-1
+  },
+  {
+    id:3,k:'D',h:0,s:0,l:86,
+    state:'empty',
+    loaded:false,ready:false,chunks:24,roll:0,
+    vid:null,url:null,file:null,name:'D_SOURCE',hover:-1
+  }
+];
+
+function col(t,a=1,l=t.l){
+  return `hsla(${t.h},${t.s}%,${l}%,${a})`;
+}
+
+function ccol(c,a=1,l=50){
+  return `hsla(${c.h},${c.s}%,${l}%,${a})`;
+}
+
+function line(x1,y1,x2,y2,c='#222',w=1){
+  ctx.strokeStyle = c;
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2,y2);
+  ctx.stroke();
+}
+
+function text(s,x,y,a='left',c='#fff',z=10,w='900'){
+  ctx.fillStyle = c;
+  ctx.textAlign = a;
+  ctx.textBaseline = 'middle';
+  ctx.font = `${w} ${z}px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
+  ctx.fillText(s,x,y);
+}
+
+function fmt(sec){
+  sec = Math.max(0,sec);
+  let f = Math.floor((sec % 1) * 24);
+  let s = Math.floor(sec) % 60;
+  let m = Math.floor(sec / 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(f).padStart(2,'0')}`;
+}
+
+function toast(s){
+  const e = $('toast');
+  e.textContent = s;
+  e.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>e.classList.remove('show'),1200);
+}
+
+function hit(r,x,y){
+  return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+}
+
+function sourceLive(t){
+  return t.state !== 'empty';
+}
+
+function sourceCanSlice(t){
+  return ['armed','visible','ghost','missing','relinked'].includes(t.state);
+}
+
+function bodyStatus(t){
+  if(t.state === 'visible' || t.state === 'relinked') return 'present';
+  if(t.state === 'ghost') return 'failed_decode';
+  if(t.state === 'missing') return 'missing';
+  if(t.state === 'armed') return 'armed_unresolved';
+  return 'absent';
+}
+
+function sourceStateLabel(t){
+  if(t.state === 'empty') return `${t.k} dormant`;
+  if(t.state === 'armed') return `${t.k} armed`;
+  if(t.state === 'visible') return `${t.k} visible body`;
+  if(t.state === 'ghost') return `${t.k} ghost body`;
+  if(t.state === 'missing') return `${t.k} missing body`;
+  if(t.state === 'relinked') return `${t.k} relinked body`;
+  return `${t.k} unknown`;
+}
+
+function sourceMonitorLabel(t){
+  if(!t) return 'NO SOURCE BODY';
+  if(t.state === 'visible' || t.state === 'relinked') return 'SOURCE PREVIEW';
+  if(t.state === 'ghost') return 'GHOST SOURCE';
+  if(t.state === 'missing') return 'MISSING BODY';
+  if(t.state === 'armed') return 'ARMED SOURCE';
+  return 'NO SOURCE BODY';
+}
+
+function resize(){
+  const mob = innerWidth < 860;
+  topH = mob ? 66 : 52;
+  botH = mob ? 50 : 42;
+  W = innerWidth;
+  H = Math.max(240,innerHeight - topH - botH);
+  let d = Math.max(1,devicePixelRatio || 1);
+  canvas.width = Math.floor(W * d);
+  canvas.height = Math.floor(H * d);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(d,0,0,d,0,0);
+  M = metrics(mob);
+}
+
+function metrics(mob){
+  let pad = mob ? 8 : 18;
+  let sourceH = Math.max(mob ? 142 : 166,Math.min(mob ? 224 : 252,H * .38));
+  let seqH = Math.max(mob ? 122 : 150,Math.min(mob ? 178 : 205,H * .28));
+  let monitorH = H - sourceH - seqH;
+  let reelX = mob ? 42 : 68;
+  let R = mob ? Math.max(15,sourceH / 17) : Math.max(19,sourceH / 14);
+  let stripX = reelX + R + (mob ? 24 : 34);
+  let endX = W - pad;
+  let stripW = Math.max(100,endX - stripX);
+  let slotW = stripW / S.density;
+  let trackH = sourceH / 4;
+  let seqY = sourceH;
+  let seqX = stripX;
+  let seqW = stripW;
+  let rows = mob ? 3 : 4;
+  let railY = seqY + (mob ? 16 : 19);
+  let rowTop = seqY + (mob ? 51 : 60);
+  let rowH = (seqH - (mob ? 64 : 76)) / rows;
+  let monitorY = sourceH + seqH;
+  return {
+    mob,pad,sourceH,seqH,monitorH,
+    reelX,R,stripX,endX,stripW,slotW,
+    trackH,seqY,seqX,seqW,rows,railY,rowTop,rowH,monitorY
+  };
+}
+
+function updateButtons(){
+  document.querySelectorAll('.src').forEach(b=>{
+    let t = T[+b.dataset.i];
+    b.classList.toggle('on',t.id === S.selected);
+    b.classList.toggle('loaded',t.state === 'visible' || t.state === 'armed' || t.state === 'relinked');
+    b.classList.toggle('ghost',t.state === 'ghost');
+    b.classList.toggle('missing',t.state === 'missing');
+  });
+}
+
+function setSrc(i){
+  S.selected = clamp(i,0,3);
+  S.preview = S.selected;
+  updateButtons();
+  hud();
+}
+
+function openSource(i=S.selected){
+  S.loading = i;
+  setSrc(i);
+  $('videoInput').value = '';
+  $('videoInput').click();
+  toast('CHOOSE BODY FOR SOURCE ' + T[i].k);
+}
+
+function snap(){
+  return JSON.stringify({
+    seq:S.seq.map(c=>({...c})),
+    time:S.time,
+    selected:S.selected,
+    preview:S.preview,
+    tracks:T.map(t=>({
+      id:t.id,
+      loaded:t.loaded,
+      ready:t.ready,
+      state:t.state,
+      chunks:t.chunks,
+      roll:t.roll,
+      file:t.file,
+      name:t.name
+    }))
+  });
+}
+
+function push(){
+  S.undo.push(snap());
+  if(S.undo.length > 50) S.undo.shift();
+}
+
+function restore(s){
+  try{
+    let p = JSON.parse(s);
+    S.seq = (p.seq || []).map(c=>({...c,id:c.id || uid++}));
+    S.time = p.time || 0;
+    S.selected = p.selected || 0;
+    S.preview = p.preview || 0;
+
+    (p.tracks || []).forEach(a=>{
+      let t = T[a.id];
+      if(!t) return;
+      t.loaded = !!a.loaded;
+      t.ready = !!a.ready && !!t.vid;
+      t.state = a.state || (t.loaded ? 'armed' : 'empty');
+      t.chunks = a.chunks || 24;
+      t.roll = a.roll || 0;
+      t.file = a.file || null;
+      t.name = a.name || t.name;
+    });
+
+    toast('UNDO HOLDS MEMORY');
+    hud();
+  }catch(e){}
+}
+
+function undo(){
+  let s = S.undo.pop();
+  if(s) restore(s);
+  else toast('NO MEMORY TO UNDO');
+}
+
+function drawReel(t){
+  let m = M;
+  let cx = m.reelX;
+  let cy = t.cy;
+  let R = m.R;
+
+  let live = sourceLive(t);
+  let ghost = t.state === 'ghost' || t.state === 'missing';
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = live ? col(t,1,ghost ? 70 : 58) : '#333';
+  ctx.setLineDash(ghost ? [5,4] : []);
+  ctx.beginPath();
+  ctx.arc(cx,cy,R,0,TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = live ? col(t,.32,58) : '#222';
+  ctx.beginPath();
+  ctx.arc(cx,cy,R * .62,0,TAU);
+  ctx.stroke();
+
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(cx,cy,R * .22,0,TAU);
+  ctx.fill();
+
+  ctx.strokeStyle = ghost ? col(t,.8,72) : '#666';
+  ctx.stroke();
+
+  for(let i=0;i<16;i++){
+    let a = -PI/2 + i * TAU / 16 + t.roll * TAU / Math.max(1,t.chunks);
+    let maj = i % 4 === 0;
+    line(
+      cx + R * (maj ? .58 : .74) * Math.cos(a),
+      cy + R * (maj ? .58 : .74) * Math.sin(a),
+      cx + R * .98 * Math.cos(a),
+      cy + R * .98 * Math.sin(a),
+      live ? col(t,maj ? .75 : .4,58) : '#222',
+      maj ? 1.5 : 1
+    );
+  }
+
+  let mx = cx + R * .85;
+  ctx.fillStyle = live ? col(t,.14,58) : '#050505';
+  ctx.fillRect(mx,cy - R * .22,Math.max(8,m.stripX - mx),R * .44);
+  ctx.strokeStyle = live ? col(t,.7,58) : '#333';
+  ctx.strokeRect(mx,cy - R * .22,Math.max(8,m.stripX - mx),R * .44);
+}
+
+function slicePath(t,i){
+  let m = M;
+  let x = m.stripX + i * m.slotW;
+  let y = t.cy;
+  let w = m.slotW;
+  let h = Math.max(15,m.R * .9);
+  let cut = Math.min(6,w * .25);
+  let p = new Path2D();
+
+  p.moveTo(x + cut,y - h/2);
+  p.lineTo(x + w - cut,y - h/2);
+  p.lineTo(x + w,y);
+  p.lineTo(x + w - cut,y + h/2);
+  p.lineTo(x + cut,y + h/2);
+  p.lineTo(x,y);
+  p.closePath();
+
+  return p;
+}
+
+function sourceIndex(t,i){
+  return wrap(Math.round(t.roll) + i,Math.max(1,t.chunks));
+}
+
+function active(){
+  let t = S.time;
+  return S.seq
+    .filter(c=>t >= c.slot && t < c.slot + c.dur)
+    .sort((a,b)=>b.layer - a.layer || b.id - a.id);
+}
+
+function sliceUseState(track,src){
+  let used = S.seq.some(c=>c.track === track && c.src === src);
+  let activeNow = active().some(c=>c.track === track && c.src === src);
+  let t = T[track];
+
+  if(activeNow && (t.state === 'ghost' || t.state === 'missing')) return 'ghost-active';
+  if(activeNow) return 'active';
+  if(used && (t.state === 'ghost' || t.state === 'missing')) return 'ghost-used';
+  if(used) return 'used';
+  return 'unused';
+}
+
+function drawSources(){
+  let m = M;
+
+  ctx.fillStyle = '#020202';
+  ctx.fillRect(0,0,W,m.sourceH);
+  line(0,m.sourceH,W,m.sourceH,'#282828',1.5);
+
+  T.forEach((t,i)=>{
+    t.cy = i * m.trackH + m.trackH / 2;
+    let cy = t.cy;
+    let live = sourceLive(t);
+    let canSlice = sourceCanSlice(t);
+    let ghost = t.state === 'ghost';
+    let missing = t.state === 'missing';
+
+    t.load = {
+      x:5,
+      y:cy - (m.mob ? 18 : 20),
+      w:m.mob ? 35 : 50,
+      h:m.mob ? 36 : 40
+    };
+
+    drawReel(t);
+
+    ctx.fillStyle =
+      t.state === 'visible' || t.state === 'relinked' ? col(t,.96,54) :
+      t.state === 'ghost' ? col(t,.26,42) :
+      t.state === 'missing' ? 'rgba(255,211,77,.12)' :
+      t.state === 'armed' ? col(t,.42,44) :
+      '#080808';
+
+    ctx.strokeStyle =
+      t.state === 'visible' || t.state === 'relinked' ? col(t,1,66) :
+      t.state === 'ghost' ? '#ff0055' :
+      t.state === 'missing' ? '#ffd34d' :
+      i === S.selected ? '#fff' : '#444';
+
+    ctx.lineWidth = i === S.selected ? 2 : 1;
+    ctx.setLineDash(missing || ghost ? [4,3] : []);
+    ctx.fillRect(t.load.x,t.load.y,t.load.w,t.load.h);
+    ctx.strokeRect(t.load.x,t.load.y,t.load.w,t.load.h);
+    ctx.setLineDash([]);
+
+    let padLabel =
+      t.state === 'empty' ? 'LOAD' :
+      t.state === 'ghost' ? 'GHST' :
+      t.state === 'missing' ? 'MISS' :
+      t.state === 'armed' ? 'ARM' :
+      'BODY';
+
+    text(
+      padLabel,
+      t.load.x + t.load.w/2,
+      cy,
+      'center',
+      t.state === 'visible' || t.state === 'relinked' ? '#000' : '#aaa',
+      m.mob ? 8 : 9
+    );
+
+    let title = live ? (t.file || t.name) : `SOURCE ${t.k} — DORMANT`;
+    let titleColor =
+      t.state === 'ghost' ? '#ff7aa5' :
+      t.state === 'missing' ? '#ffd34d' :
+      live ? col(t,1,66) :
+      '#777';
+
+    text(title,m.stripX,cy - (m.mob ? 19 : 23),'left',titleColor,m.mob ? 8 : 10);
+    text(
+      sourceStateLabel(t).toUpperCase() + ' · ROLL ' + Math.round(t.roll),
+      m.endX,
+      cy - (m.mob ? 19 : 23),
+      'right',
+      missing ? '#ffd34d' : ghost ? '#ff7aa5' : '#777',
+      m.mob ? 7 : 9
+    );
+
+    let fh = m.R * 1.42;
+    let fy = cy - fh / 2;
+
+    if(live){
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(m.stripX,fy,m.stripW,fh);
+      ctx.clip();
+
+      if(t.state === 'visible' && t.vid && t.vid.readyState >= 2){
+        ctx.fillStyle = col(t,.24,38);
+        ctx.fillRect(m.stripX,fy,m.stripW,fh);
+        ctx.globalAlpha = .42;
+        try{ ctx.drawImage(t.vid,m.stripX,fy,m.stripW,fh); }catch(e){}
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(0,0,0,.36)';
+        ctx.fillRect(m.stripX,fy,m.stripW,fh);
+        text('VISIBLE BODY',m.stripX+8,cy,'left',col(t,1,70),m.mob?8:10);
+      }
+      else if(t.state === 'ghost'){
+        ctx.fillStyle = col(t,.12,42);
+        ctx.fillRect(m.stripX,fy,m.stripW,fh);
+        ctx.strokeStyle = col(t,.7,68);
+        ctx.setLineDash([4,4]);
+        ctx.strokeRect(m.stripX,fy,m.stripW,fh);
+        ctx.setLineDash([]);
+        text('GHOST BODY — STILL ARMED',m.stripX+8,cy,'left',col(t,1,74),m.mob?7:9);
+      }
+      else if(t.state === 'missing'){
+        ctx.fillStyle = 'rgba(255,255,255,.035)';
+        ctx.fillRect(m.stripX,fy,m.stripW,fh);
+        ctx.strokeStyle = '#ffd34d';
+        ctx.setLineDash([7,5]);
+        ctx.strokeRect(m.stripX,fy,m.stripW,fh);
+        ctx.setLineDash([]);
+        text('MISSING BODY — STRUCTURE REMAINS',m.stripX+8,cy,'left','#ffd34d',m.mob?7:9);
+      }
+      else {
+        ctx.fillStyle = col(t,.18,38);
+        ctx.fillRect(m.stripX,fy,m.stripW,fh);
+        text('SOURCE ARMED — AWAITING BODY',m.stripX+8,cy,'left',col(t,1,70),m.mob?7:9);
+      }
+
+      ctx.restore();
+    }
+
+    for(let si=0;si<S.density;si++){
+      let p = slicePath(t,si);
+      let hov = t.hover === si;
+      let src = sourceIndex(t,si);
+      let use = sliceUseState(t.id,src);
+
+      let baseAlpha = canSlice ? .34 : .035;
+      let light = t.l;
+
+      if(use === 'used') baseAlpha = .58;
+      if(use === 'active') baseAlpha = .92;
+      if(use === 'ghost-used') baseAlpha = .36;
+      if(use === 'ghost-active') baseAlpha = .72;
+
+      ctx.fillStyle = canSlice
+        ? col(t,hov ? .86 : baseAlpha,hov ? 64 : light)
+        : 'rgba(255,255,255,.035)';
+
+      if(missing){
+        ctx.fillStyle = hov ? 'rgba(255,211,77,.45)' : 'rgba(255,211,77,.11)';
+      }
+
+      if(ghost){
+        ctx.fillStyle = hov ? col(t,.48,70) : col(t,.22,50);
+      }
+
+      ctx.strokeStyle =
+        use === 'active' || use === 'ghost-active'
+          ? '#ff0055'
+          : missing
+            ? '#ffd34d'
+            : ghost
+              ? '#ff7aa5'
+              : canSlice
+                ? col(t,hov ? 1 : .7,hov ? 68 : light)
+                : '#1a1a1a';
+
+      ctx.lineWidth = (hov || use === 'active' || use === 'ghost-active') ? 2 : 1;
+
+      if(missing || ghost) ctx.setLineDash([3,3]);
+      ctx.fill(p);
+      ctx.stroke(p);
+      ctx.setLineDash([]);
+
+      if(canSlice && (hov || m.slotW > 20)){
+        let labelColor =
+          use === 'active' || use === 'ghost-active' ? '#fff' :
+          hov ? '#000' :
+          '#111';
+
+        text(
+          String(src).padStart(2,'0'),
+          m.stripX + si * m.slotW + m.slotW/2,
+          cy,
+          'center',
+          labelColor,
+          m.mob ? 7 : 8
+        );
+      }
+    }
+  });
+}
+
+function clipRect(c,slot=c.slot,layer=c.layer,dur=c.dur){
+  let m = M;
+  let h = Math.min(36,Math.max(25,m.rowH * .78));
+  return {
+    x:m.seqX + slot * m.slotW,
+    y:m.rowTop + layer * m.rowH - h/2,
+    w:dur * m.slotW,
+    h
+  };
+}
+
+function clipPath(c,slot=c.slot,layer=c.layer,dur=c.dur){
+  let r = clipRect(c,slot,layer,dur);
+  let cut = Math.min(13,Math.max(5,M.slotW * .32));
+  let p = new Path2D();
+
+  p.moveTo(r.x + cut,r.y);
+  p.lineTo(r.x + r.w,r.y);
+  p.lineTo(r.x + r.w - cut,r.y + r.h);
+  p.lineTo(r.x,r.y + r.h);
+  p.closePath();
+
+  return p;
+}
+
+function drawClip(c,ghostPreview=false){
+  let p = clipPath(c);
+  let r = clipRect(c);
+  let t = T[c.track];
+  let spectral = t.state === 'ghost' || t.state === 'missing';
+
+  ctx.fillStyle = spectral
+    ? (t.state === 'missing' ? 'rgba(255,211,77,.45)' : ccol(c,.42,62))
+    : ccol(c,ghostPreview ? .42 : .9,ghostPreview ? 64 : 46);
+
+  ctx.fill(p);
+
+  ctx.strokeStyle =
+    ghostPreview ? '#00e5ff' :
+    t.state === 'missing' ? '#ffd34d' :
+    t.state === 'ghost' ? '#ff0055' :
+    '#000';
+
+  ctx.lineWidth = spectral ? 2 : ghostPreview ? 2 : 1;
+
+  if(spectral) ctx.setLineDash([5,4]);
+  ctx.stroke(p);
+  ctx.setLineDash([]);
+
+  if(r.w > 32){
+    let label = `${T[c.track].k}:${c.src}s`;
+    if(t.state === 'ghost') label += ' ghost';
+    if(t.state === 'missing') label += ' missing';
+
+    text(label,r.x+r.w/2,r.y+r.h/2,'center',spectral ? '#fff' : '#000',M.mob?8:10);
+  }
+
+  ctx.fillStyle = spectral ? 'rgba(255,255,255,.42)' : 'rgba(255,255,255,.28)';
+  ctx.fillRect(r.x-2,r.y+4,4,r.h-8);
+  ctx.fillRect(r.x+r.w-2,r.y+4,4,r.h-8);
+}
+
+function drawTimeline(){
+  let m = M;
+
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(0,m.seqY,W,m.seqH);
+
+  line(0,m.seqY,W,m.seqY,'#282828',1.5);
+  line(0,m.seqY+m.seqH,W,m.seqY+m.seqH,'#282828',1.5);
+  line(m.seqX,m.railY,m.seqX+m.seqW,m.railY,'#444',1.4);
+
+  for(let i=0;i<=S.density;i++){
+    let x = m.seqX + i * m.slotW;
+    let maj = i % 4 === 0;
+    let mid = i % 2 === 0;
+    let len = maj ? 22 : mid ? 14 : 8;
+
+    line(x,m.railY-len/2,x,m.railY+len/2,maj ? '#999' : '#444',maj ? 1.4 : 1);
+    if(maj && !m.mob) text(i+'s',x,m.railY+25,'center','#777',9);
+  }
+
+  for(let r=0;r<m.rows;r++){
+    let y = m.rowTop + r * m.rowH;
+    line(m.seqX,y,m.seqX+m.seqW,y,'#171717',1);
+    text(String(r+1),m.seqX-12,y,'right','#555',m.mob?8:9);
+  }
+
+  if(!S.seq.length){
+    text(
+      'pull a lit source slice onto the magnetic rail',
+      m.seqX + m.seqW/2,
+      m.rowTop + m.rowH,
+      'center',
+      '#555',
+      m.mob ? 8 : 11
+    );
+  }
+
+  S.seq.forEach(c=>drawClip(c));
+
+  if(S.drag){
+    let d = S.drag;
+    let slot = clamp(Math.round((d.x - d.off - m.seqX) / m.slotW),0,S.density - d.clip.dur);
+    let layer = clamp(Math.floor((d.y - (m.rowTop - m.rowH * .5)) / m.rowH),0,m.rows-1);
+    let valid =
+      d.y >= m.seqY &&
+      d.y <= m.seqY + m.seqH &&
+      d.x >= m.seqX - 24 &&
+      d.x <= m.seqX + m.seqW + 24;
+
+    let preview = {...d.clip,slot,layer};
+    let rr = clipRect(preview);
+
+    ctx.fillStyle = valid ? 'rgba(0,229,255,.14)' : 'rgba(255,0,85,.14)';
+    ctx.fillRect(rr.x,rr.y,rr.w,rr.h);
+
+    ctx.strokeStyle = valid ? '#00e5ff' : '#ff0055';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rr.x,rr.y,rr.w,rr.h);
+
+    ctx.setLineDash([5,5]);
+    drawClip(preview,true);
+    ctx.setLineDash([]);
+
+    text(
+      `${T[d.clip.track].k}:${d.clip.src}s → ${slot}s · L${layer+1}`,
+      rr.x + rr.w/2,
+      rr.y - 10,
+      'center',
+      valid ? '#00e5ff' : '#ff0055',
+      m.mob ? 7 : 9
+    );
+  }
+}
+
+function sync(c){
+  let t = T[c.track];
+  if(t.state === 'ghost' || t.state === 'missing') return;
+  if(!t.vid || t.vid.readyState < 1) return;
+
+  let loc = c.src + (S.time - c.slot);
+  let dur = t.vid.duration || t.chunks || S.density;
+  let target = clamp(loc % dur,0,Math.max(0,dur - .04));
+
+  if(Math.abs(t.vid.currentTime - target) > .08){
+    try{ t.vid.currentTime = target; }catch(e){}
+  }
+
+  if(S.playing && t.vid.paused) t.vid.play().catch(()=>{});
+  if(!S.playing && !t.vid.paused) t.vid.pause();
+}
+
+function proxy(c,x,y,w,h){
+  ctx.fillStyle = ccol(c,.22,38);
+  ctx.fillRect(x,y,w,h);
+
+  ctx.strokeStyle = ccol(c,.9,62);
+  ctx.lineWidth = 2;
+
+  let loc = S.time - c.slot + c.src;
+
+  for(let k=0;k<6;k++){
+    ctx.beginPath();
+    for(let xx=0;xx<=w;xx+=8){
+      let yy = y + h/2 + Math.sin(xx*.035 + loc*3 + k) * (h*.26) * (1-k*.08);
+      if(xx === 0) ctx.moveTo(x+xx,yy);
+      else ctx.lineTo(x+xx,yy);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawMonitor(){
+  let m = M;
+  let y0 = m.monitorY;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,y0,W,m.monitorH);
+  line(0,y0,W,y0,'#272727',1.5);
+
+  let vh = Math.max(50,m.monitorH - (m.mob ? 14 : 24));
+  let vw = vh * 16 / 9;
+  let maxW = Math.min(m.seqW,W - m.pad * 2);
+
+  if(vw > maxW){
+    vw = maxW;
+    vh = vw * 9 / 16;
+  }
+
+  let vx = (W - vw) / 2;
+  let vy = y0 + Math.max(7,(m.monitorH - vh) / 2);
+
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(vx,vy,vw,vh);
+  ctx.strokeStyle = '#303030';
+  ctx.strokeRect(vx,vy,vw,vh);
+
+  let clips = active();
+  let rt = runtime();
+  let overEmptySequence = S.seq.length && S.time < rt && !clips.length;
+  let prev = T[S.preview] && sourceLive(T[S.preview])
+    ? T[S.preview]
+    : T.find(t=>sourceLive(t));
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(vx,vy,vw,vh);
+  ctx.clip();
+
+  if(clips.length){
+    clips.forEach((c,i)=>{
+      let t = T[c.track];
+
+      ctx.globalAlpha = i ? .45 : 1;
+
+      if(t.state === 'ghost' || t.state === 'missing'){
+        proxy(c,vx,vy,vw,vh);
+        text(
+          t.state === 'ghost' ? 'GHOST OUTPUT' : 'MISSING BODY',
+          vx + vw/2,
+          vy + vh/2 - 4,
+          'center',
+          t.state === 'missing' ? '#ffd34d' : '#ff7aa5',
+          m.mob ? 11 : 16
+        );
+        text(
+          `${t.k}:${c.src}s still exerts force`,
+          vx + vw/2,
+          vy + vh/2 + 17,
+          'center',
+          '#aaa',
+          m.mob ? 7 : 10
+        );
+      }
+      else {
+        sync(c);
+        if(t.vid && t.vid.readyState >= 2){
+          try{ ctx.drawImage(t.vid,vx,vy,vw,vh); }
+          catch(e){ proxy(c,vx,vy,vw,vh); }
+        }
+        else {
+          proxy(c,vx,vy,vw,vh);
+        }
+      }
+
+      ctx.globalAlpha = 1;
+    });
+  }
+  else if(overEmptySequence){
+    ctx.fillStyle = '#020202';
+    ctx.fillRect(vx,vy,vw,vh);
+    ctx.strokeStyle = '#333';
+    ctx.strokeRect(vx,vy,vw,vh);
+
+    text('EMPTY TIME',vx+vw/2,vy+vh/2-8,'center','#ff0055',m.mob?13:18);
+    text('NO ACTIVE SPLICE UNDER PLAYHEAD',vx+vw/2,vy+vh/2+14,'center','#777',m.mob?7:10);
+  }
+  else if(prev){
+    ctx.fillStyle = col(prev,.22,36);
+    ctx.fillRect(vx,vy,vw,vh);
+
+    if(prev.state === 'visible' && prev.vid && prev.vid.readyState >= 2){
+      try{ ctx.drawImage(prev.vid,vx,vy,vw,vh); }catch(e){}
+      ctx.fillStyle = 'rgba(0,0,0,.24)';
+      ctx.fillRect(vx,vy,vw,vh);
+      text(
+        'SOURCE PREVIEW — DRAG A LIT SLICE TO THE RAIL',
+        vx+vw/2,
+        vy+vh/2,
+        'center',
+        '#fff',
+        m.mob ? 8 : 12
+      );
+    }
+    else if(prev.state === 'ghost'){
+      proxy({track:prev.id,h:prev.h,s:prev.s,src:0,slot:0,dur:1},vx,vy,vw,vh);
+      text('GHOST SOURCE',vx+vw/2,vy+vh/2-8,'center','#ff7aa5',m.mob?12:18);
+      text('DECODE FAILED · SOURCE STILL ARMED',vx+vw/2,vy+vh/2+14,'center','#aaa',m.mob?7:10);
+    }
+    else if(prev.state === 'missing'){
+      ctx.fillStyle = 'rgba(255,211,77,.08)';
+      ctx.fillRect(vx,vy,vw,vh);
+      text('MISSING BODY',vx+vw/2,vy+vh/2-8,'center','#ffd34d',m.mob?12:18);
+      text('STRUCTURE REMAINS · RELINK OR PERFORM ABSENT',vx+vw/2,vy+vh/2+14,'center','#aaa',m.mob?7:10);
+    }
+    else {
+      text(sourceMonitorLabel(prev),vx+vw/2,vy+vh/2-10,'center','#fff',m.mob?12:18);
+      text(prev.file || prev.name,vx+vw/2,vy+vh/2+12,'center',col(prev,1,70),m.mob?8:11);
+    }
+  }
+  else {
+    let cols = ['#d8d8d8','#d6d600','#00cfd6','#00ce50','#cc00cc','#d00022','#0022cc'];
+    cols.forEach((c,i)=>{
+      ctx.fillStyle = c;
+      ctx.fillRect(vx + i * vw / cols.length,vy,vw / cols.length,vh * .72);
+    });
+    ctx.fillStyle = '#080808';
+    ctx.fillRect(vx,vy + vh * .72,vw,vh * .28);
+    text('NO SOURCE BODY',vx+vw/2,vy+vh/2-8,'center','#000',m.mob?10:15);
+    text('TAP SOURCE OR LOAD PAD',vx+vw/2,vy+vh/2+12,'center','#fff',m.mob?7:10);
+  }
+
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(0,0,0,.72)';
+  ctx.fillRect(vx,vy,vw,24);
+
+  let label =
+    clips[0]
+      ? `${T[clips[0].track].k} ${T[clips[0].track].state.toUpperCase()} · SRC ${clips[0].src}s`
+      : overEmptySequence
+        ? 'EMPTY TIME'
+        : prev
+          ? sourceMonitorLabel(prev)
+          : 'RENDER BUFFER';
+
+  let labelColor =
+    clips[0]
+      ? (T[clips[0].track].state === 'missing' ? '#ffd34d' : T[clips[0].track].state === 'ghost' ? '#ff7aa5' : ccol(clips[0],1,62))
+      : overEmptySequence
+        ? '#ff0055'
+        : '#777';
+
+  text(label,vx+8,vy+12,'left',labelColor,m.mob?8:10);
+
+  ctx.fillStyle = 'rgba(0,0,0,.78)';
+  ctx.fillRect(vx+vw/2-52,vy+vh-27,104,22);
+  text(fmt(S.time),vx+vw/2,vy+vh-16,'center',S.playing ? '#00e5ff' : '#fff',m.mob?11:13);
+}
+
+function draw(){
+  if(!M) return;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+
+  for(let x=0;x<W;x+=(M.mob?32:40)) line(x,0,x,H,'#090909');
+  for(let y=0;y<H;y+=(M.mob?32:40)) line(0,y,W,y,'#090909');
+
+  drawSources();
+  drawTimeline();
+
+  let x = M.seqX + clamp(S.time,0,S.density) / S.density * M.seqW;
+  line(x,0,x,M.monitorY,'#ff0055',1.8);
+
+  ctx.fillStyle = '#ff0055';
+  ctx.beginPath();
+  ctx.moveTo(x-6,M.seqY);
+  ctx.lineTo(x+6,M.seqY);
+  ctx.lineTo(x,M.seqY+9);
+  ctx.fill();
+
+  drawMonitor();
+}
+
+function runtime(){
+  return S.seq.reduce((m,c)=>Math.max(m,c.slot+c.dur),0);
+}
+
+function hud(){
+  let t = T[S.selected];
+
+  $('time').textContent = fmt(S.time);
+  $('mode').textContent =
+    S.scrub ? 'scrub' :
+    S.roll ? 'roll' :
+    S.drag ? 'extract' :
+    S.trim ? 'trim' :
+    S.playing ? 'invoke' :
+    'edit';
+
+  $('src').textContent = sourceStateLabel(t);
+  $('run').textContent = runtime().toFixed(1) + 's';
+  $('clips').textContent = String(S.seq.length);
+  $('play').textContent = S.playing ? 'Pause' : 'Play';
+  $('play').classList.toggle('on',S.playing);
+
+  updateButtons();
+}
+
+function ptr(e){
+  let r = canvas.getBoundingClientRect();
+  return {
+    x:e.clientX - r.left,
+    y:e.clientY - r.top
+  };
+}
+
+function hitSource(x,y){
+  for(let t of T){
+    if(hit(t.load,x,y)) return {type:'load',t};
+
+    if(Math.hypot(x-M.reelX,y-t.cy) <= M.R * 1.3){
+      return {type:'roll',t};
+    }
+
+    if(sourceCanSlice(t) && Math.abs(y-t.cy) < M.R * 1.12 && x >= M.stripX && x <= M.endX){
+      let si = clamp(Math.floor((x - M.stripX) / M.slotW),0,S.density-1);
+      if(ctx.isPointInPath(slicePath(t,si),x,y)){
+        return {type:'slice',t,si,src:sourceIndex(t,si)};
+      }
+    }
+  }
+
+  return null;
+}
+
+function hitClip(x,y){
+  for(let i=S.seq.length-1;i>=0;i--){
+    let c = S.seq[i];
+    let r = clipRect(c);
+
+    if(hit({x:r.x-10,y:r.y,w:20,h:r.h},x,y)) return {type:'trimL',c,i};
+    if(hit({x:r.x+r.w-10,y:r.y,w:20,h:r.h},x,y)) return {type:'trimR',c,i};
+    if(ctx.isPointInPath(clipPath(c),x,y)) return {type:'clip',c,i};
+  }
+
+  return null;
+}
+
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+canvas.addEventListener('pointerdown',e=>{
+  let p = ptr(e);
+  let m = M;
+
+  if(
+    p.y >= m.seqY &&
+    p.y <= m.seqY + 36 &&
+    p.x >= m.seqX &&
+    p.x <= m.seqX + m.seqW
+  ){
+    S.scrub = true;
+    S.playing = false;
+    S.time = clamp((p.x - m.seqX) / m.seqW * S.density,0,S.density - .001);
+    canvas.setPointerCapture(e.pointerId);
+    hud();
+    return;
+  }
+
+  let ch = p.y > m.seqY + 36 && p.y < m.seqY + m.seqH ? hitClip(p.x,p.y) : null;
+
+  if(ch){
+    push();
+
+    if(ch.type === 'clip'){
+      S.seq.splice(ch.i,1);
+      S.drag = {
+        clip:ch.c,
+        x:p.x,
+        y:p.y,
+        off:p.x - (m.seqX + ch.c.slot * m.slotW)
+      };
+    }
+    else {
+      S.trim = {
+        kind:ch.type,
+        c:ch.c,
+        x:p.x,
+        slot:ch.c.slot,
+        src:ch.c.src,
+        dur:ch.c.dur
+      };
+    }
+
+    canvas.setPointerCapture(e.pointerId);
+    hud();
+    return;
+  }
+
+  let sh = p.y < m.sourceH ? hitSource(p.x,p.y) : null;
+
+  if(sh){
+    setSrc(sh.t.id);
+
+    if(sh.type === 'load'){
+      openSource(sh.t.id);
+      return;
+    }
+
+    if(sh.type === 'roll'){
+      S.roll = {
+        t:sh.t,
+        x:p.x,
+        roll:sh.t.roll
+      };
+      canvas.setPointerCapture(e.pointerId);
+      hud();
+      return;
+    }
+
+    if(sh.type === 'slice'){
+      push();
+      S.drag = {
+        clip:{
+          id:uid++,
+          track:sh.t.id,
+          h:sh.t.h,
+          s:sh.t.s,
+          src:sh.src,
+          slot:0,
+          layer:0,
+          dur:1
+        },
+        x:p.x,
+        y:p.y,
+        off:m.slotW * .5
+      };
+      canvas.setPointerCapture(e.pointerId);
+      toast(`EXTRACTING ${sh.t.k}:${sh.src}s`);
+      hud();
+      return;
+    }
+  }
+
+  if(p.y > m.monitorY){
+    S.playing = !S.playing;
+    hud();
+  }
+});
+
+canvas.addEventListener('pointermove',e=>{
+  let p = ptr(e);
+  let m = M;
+
+  if(S.scrub){
+    S.time = clamp((p.x - m.seqX) / m.seqW * S.density,0,S.density - .001);
+    hud();
+    return;
+  }
+
+  if(S.roll){
+    S.roll.t.roll = S.roll.roll + (p.x - S.roll.x) / Math.max(8,m.slotW);
+    hud();
+    return;
+  }
+
+  if(S.trim){
+    let q = S.trim;
+    let c = q.c;
+    let dx = Math.round((p.x - q.x) / m.slotW);
+
+    if(q.kind === 'trimR'){
+      c.dur = clamp(q.dur + dx,1,S.density - c.slot);
+    }
+    else {
+      let d = clamp(dx,-Math.min(q.slot,q.src),q.dur - 1);
+      c.slot = q.slot + d;
+      c.src = q.src + d;
+      c.dur = q.dur - d;
+    }
+
+    hud();
+    return;
+  }
+
+  if(S.drag){
+    S.drag.x = p.x;
+    S.drag.y = p.y;
+    hud();
+    return;
+  }
+
+  canvas.style.cursor = 'crosshair';
+  T.forEach(t=>t.hover = -1);
+
+  let sh = p.y < m.sourceH ? hitSource(p.x,p.y) : null;
+
+  if(sh){
+    canvas.style.cursor =
+      sh.type === 'slice' ? 'grab' :
+      sh.type === 'roll' ? 'ew-resize' :
+      'pointer';
+
+    if(sh.type === 'slice') sh.t.hover = sh.si;
+  }
+
+  let ch = p.y > m.seqY + 36 && p.y < m.seqY + m.seqH ? hitClip(p.x,p.y) : null;
+  if(ch) canvas.style.cursor = ch.type === 'clip' ? 'grab' : 'ew-resize';
+});
+
+function finishDrag(){
+  if(!S.drag) return;
+
+  let d = S.drag;
+  let m = M;
+  let valid =
+    d.y >= m.seqY &&
+    d.y <= m.seqY + m.seqH &&
+    d.x >= m.seqX - 24 &&
+    d.x <= m.seqX + m.seqW + 24;
+
+  if(valid){
+    d.clip.slot = clamp(Math.round((d.x - d.off - m.seqX) / m.slotW),0,S.density - d.clip.dur);
+    d.clip.layer = clamp(Math.floor((d.y - (m.rowTop - m.rowH * .5)) / m.rowH),0,m.rows - 1);
+    S.seq.push(d.clip);
+    S.preview = d.clip.track;
+    toast('SPLICE CONSECRATED · UNDO HOLDS MEMORY');
+  }
+  else {
+    toast('RAIL REJECTS DROP');
+  }
+
+  S.drag = null;
+}
+
+canvas.addEventListener('pointerup',e=>{
+  S.scrub = false;
+  S.roll = null;
+  S.trim = null;
+  finishDrag();
+
+  try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
+  hud();
+});
+
+canvas.addEventListener('pointercancel',()=>{
+  S.scrub = false;
+  S.roll = null;
+  S.trim = null;
+  S.drag = null;
+  hud();
+});
+
+$('videoInput').addEventListener('change',e=>{
+  let file = e.target.files && e.target.files[0];
+
+  if(!file || S.loading < 0){
+    toast('NO BODY SELECTED');
+    return;
+  }
+
+  let t = T[S.loading];
+
+  push();
+
+  t.loaded = true;
+  t.ready = false;
+  t.state = 'armed';
+  t.file = file.name;
+  t.name = file.name.replace(/\.[^.]+$/,'').slice(0,16).toUpperCase();
+  t.chunks = S.density;
+  t.roll = 0;
+
+  S.preview = t.id;
+  setSrc(t.id);
+
+  toast(t.k + ' SOURCE AWAKENED');
+
+  let v = t.vid;
+
+  if(!v){
+    v = document.createElement('video');
+    v.muted = true;
+    v.defaultMuted = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline','');
+    v.setAttribute('webkit-playsinline','');
+    v.loop = true;
+    v.preload = 'metadata';
+    v.controls = false;
+    pool.appendChild(v);
+    t.vid = v;
+  }
+
+  if(t.url) URL.revokeObjectURL(t.url);
+
+  t.url = URL.createObjectURL(file);
+
+  v.onloadedmetadata = ()=>{
+    let dur = isFinite(v.duration) ? Math.max(1,Math.floor(v.duration)) : S.density;
+    t.chunks = clamp(dur,1,S.density);
+    t.ready = true;
+    t.state = 'visible';
+
+    try{ v.currentTime = .05; }catch(err){}
+
+    toast(t.k + ' BODY VISIBLE');
+    hud();
+  };
+
+  v.onloadeddata = ()=>{
+    t.ready = true;
+    t.state = 'visible';
+    toast(t.k + ' SOURCE INCARNATED');
+    hud();
+  };
+
+  v.onerror = ()=>{
+    t.ready = false;
+    t.state = 'ghost';
+    t.loaded = true;
+    toast(t.k + ' GHOST BODY — STILL ARMED');
+    hud();
+  };
+
+  v.src = t.url;
+  v.load();
+
+  S.loading = -1;
+  e.target.value = '';
+  hud();
+});
+
+document.querySelectorAll('.src').forEach(b=>{
+  b.addEventListener('click',()=>{
+    let i = +b.dataset.i;
+    setSrc(i);
+
+    if(T[i].state === 'empty'){
+      openSource(i);
+    }
+    else if(T[i].state === 'missing'){
+      toast('MISSING BODY SELECTED · TAP SOURCE TO RELINK');
+    }
+    else {
+      toast(sourceStateLabel(T[i]).toUpperCase());
+    }
+  });
+});
+
+$('source').addEventListener('click',()=>openSource(S.selected));
+
+$('play').addEventListener('click',()=>{
+  S.playing = !S.playing;
+  hud();
+});
+
+$('undo').addEventListener('click',undo);
+
+$('clear').addEventListener('click',()=>{
+  if(S.seq.length){
+    push();
+    S.seq = [];
+    S.time = 0;
+    toast('SEQUENCE ERASED · UNDO HOLDS MEMORY');
+    hud();
+  }
+});
+
+function download(data,name){
+  let blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+
+  a.href = url;
+  a.download = name;
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function buildEdlScore(){
+  let events = [];
+
+  S.seq.slice()
+    .sort((a,b)=>a.slot-b.slot || a.layer-b.layer)
+    .forEach(c=>{
+      let t = T[c.track];
+
+      events.push({
+        type:'splice',
+        track:t.k,
+        source_state:t.state,
+        body_status:bodyStatus(t),
+        source_file:t.file,
+        source_name:t.name,
+        source_in:fmt(c.src),
+        source_out:fmt(c.src+c.dur),
+        sequence_in:fmt(c.slot),
+        sequence_out:fmt(c.slot+c.dur),
+        layer:c.layer,
+        duration_sec:c.dur,
+        meaning:
+          t.state === 'ghost'
+            ? 'ghost media exerts force'
+            : t.state === 'missing'
+              ? 'missing body remembered'
+              : 'visible splice'
+      });
+    });
+
+  let rt = Math.ceil(runtime());
+
+  for(let i=0;i<rt;i++){
+    let occupied = S.seq.some(c=>i >= c.slot && i < c.slot + c.dur);
+
+    if(!occupied){
+      let start = i;
+
+      while(
+        i < rt &&
+        !S.seq.some(c=>i >= c.slot && i < c.slot + c.dur)
+      ){
+        i++;
+      }
+
+      events.push({
+        type:'absence',
+        sequence_in:fmt(start),
+        sequence_out:fmt(i),
+        duration_sec:i-start,
+        meaning:'empty time'
+      });
+
+      i--;
+    }
+  }
+
+  return events
+    .sort((a,b)=>{
+      let aa = a.sequence_in || '00:00:00';
+      let bb = b.sequence_in || '00:00:00';
+      return aa < bb ? -1 : aa > bb ? 1 : 0;
+    })
+    .map((e,i)=>({event:i+1,...e}));
+}
+
+$('edl').addEventListener('click',()=>{
+  download(buildEdlScore(),'arc_splice_score_'+Date.now()+'.json');
+  toast('TEMPORAL SCORE EXPORTED');
+});
+
+$('save').addEventListener('click',()=>{
+  download({
+    version:'ghost-surface-1',
+    time:S.time,
+    seq:S.seq,
+    tracks:T.map(t=>({
+      id:t.id,
+      k:t.k,
+      file:t.file,
+      name:t.name,
+      loaded:t.loaded,
+      chunks:t.chunks,
+      roll:t.roll,
+      state:t.state,
+      body_status:bodyStatus(t)
+    }))
+  },'arc_splice_archive_'+Date.now()+'.json');
+
+  toast('ARCHIVE SAVED');
+});
+
+$('load').addEventListener('click',()=>$('projectInput').click());
+
+$('projectInput').addEventListener('change',e=>{
+  let f = e.target.files && e.target.files[0];
+  if(!f) return;
+
+  let r = new FileReader();
+
+  r.onload = ()=>{
+    try{
+      let p = JSON.parse(r.result);
+
+      push();
+
+      S.seq = (p.seq || []).map(c=>({...c,id:c.id || uid++}));
+
+      (p.tracks || []).forEach(a=>{
+        let t = T[a.id];
+        if(!t) return;
+
+        t.loaded = !!a.loaded;
+        t.file = a.file || null;
+        t.name = a.name || t.name;
+        t.chunks = a.chunks || 24;
+        t.roll = a.roll || 0;
+        t.ready = false;
+        t.state = a.loaded ? 'missing' : 'empty';
+      });
+
+      S.time = p.time || 0;
+
+      toast('ARCHIVE RESTORED · BODIES ABSENT');
+      hud();
+    }
+    catch(err){
+      toast('ARCHIVE LOAD FAILED');
+    }
+  };
+
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+window.addEventListener('keydown',e=>{
+  if(e.code === 'Space'){
+    e.preventDefault();
+    S.playing = !S.playing;
+    hud();
+  }
+
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    undo();
+  }
+
+  if(['1','2','3','4'].includes(e.key)){
+    setSrc(+e.key - 1);
+  }
+
+  if(e.key.toLowerCase() === 'e'){
+    $('edl').click();
+  }
+
+  if(e.key.toLowerCase() === 's' && (e.ctrlKey || e.metaKey)){
+    e.preventDefault();
+    $('save').click();
+  }
+});
+
+window.addEventListener('resize',resize);
+
+function frame(ts){
+  let dt = last ? Math.min(.05,(ts-last)/1000) : 0;
+  last = ts;
+
+  if(S.playing && !S.drag && !S.trim && !S.scrub && !S.roll){
+    let rt = runtime() || S.density;
+    S.time += dt;
+    if(S.time >= rt) S.time = 0;
+  }
+
+  draw();
+  hud();
+
+  requestAnimationFrame(frame);
+}
+
+resize();
+setSrc(0);
+hud();
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>

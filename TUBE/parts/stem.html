@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc Splice Tunnel — Operational White Surface</title>
+    <style>
+        :root {
+            --white: #fff;
+            --black: #000
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        #stage {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            z-index: 1;
+            background: #fff;
+            cursor: crosshair
+        }
+
+        input[type=file] {
+            display: none
+        }
+
+        #pool {
+            position: fixed;
+            left: -10px;
+            top: -10px;
+            width: 1px;
+            height: 1px;
+            opacity: .001;
+            overflow: hidden;
+            z-index: -1;
+            pointer-events: none
+        }
+
+        #boot {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: #fff;
+            color: #000;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            border: 14px solid #000
+        }
+
+        #top {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 54px;
+            z-index: 40;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            border-bottom: 3px solid #000;
+            background: #fff;
+            color: #000
+        }
+
+        #brand {
+            padding-left: 12px;
+            font-size: 12px;
+            font-weight: 1000;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #mode {
+            justify-self: center;
+            min-width: 92px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border: 3px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 12px;
+            font-weight: 1000;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        #buttons {
+            justify-self: end;
+            display: flex;
+            gap: 6px;
+            padding-right: 8px
+        }
+
+        button,
+        .cell,
+        .lineRow,
+        .edlRow,
+        .menuItem {
+            font-family: inherit
+        }
+
+        button {
+            height: 34px;
+            min-width: 42px;
+            border: 3px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            cursor: pointer
+        }
+
+        button:hover,
+        button.on,
+        .track.active {
+            background: #000 !important;
+            color: #fff !important
+        }
+
+        button:active {
+            transform: translate(1px, 1px)
+        }
+
+        #leftDock {
+            position: fixed;
+            left: 10px;
+            top: 64px;
+            bottom: 88px;
+            width: 260px;
+            z-index: 32;
+            background: #fff;
+            border: 3px solid #000;
+            display: flex;
+            flex-direction: column;
+            min-height: 0
+        }
+
+        .panelHead {
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #000;
+            padding: 0 8px;
+            font-weight: 1000;
+            font-size: 11px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: #fff;
+            color: #000
+        }
+
+        #sourceGates {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0;
+            border-bottom: 3px solid #000
+        }
+
+        .cell {
+            height: 32px;
+            border: 0;
+            border-right: 2px solid #000;
+            border-bottom: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 10px;
+            font-weight: 1000;
+            cursor: grab;
+            display: grid;
+            place-items: center
+        }
+
+        .cell:nth-child(6n) {
+            border-right: 0
+        }
+
+        .cell.used {
+            background: #000;
+            color: #fff
+        }
+
+        .cell.bound {
+            outline: 4px solid #000;
+            outline-offset: -6px
+        }
+
+        .cell.active {
+            background: #000;
+            color: #fff
+        }
+
+        #scriptPanel {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: #fff
+        }
+
+        .lineRow {
+            display: grid;
+            grid-template-columns: 36px 1fr;
+            gap: 0;
+            border-bottom: 2px solid #000;
+            cursor: pointer;
+            background: #fff;
+            color: #000;
+            min-height: 34px
+        }
+
+        .lineRow b {
+            border-right: 2px solid #000;
+            display: grid;
+            place-items: center;
+            font-size: 10px
+        }
+
+        .lineRow span {
+            display: flex;
+            align-items: center;
+            padding: 5px 7px;
+            font-size: 10px;
+            line-height: 1.2;
+            text-transform: uppercase
+        }
+
+        .lineRow.active {
+            background: #000;
+            color: #fff
+        }
+
+        #rightDock {
+            position: fixed;
+            right: 10px;
+            top: 64px;
+            bottom: 88px;
+            width: 300px;
+            z-index: 32;
+            background: #fff;
+            border: 3px solid #000;
+            display: flex;
+            flex-direction: column;
+            min-height: 0
+        }
+
+        #monitor {
+            height: 172px;
+            border-bottom: 3px solid #000;
+            position: relative;
+            background: #fff
+        }
+
+        #monCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff
+        }
+
+        #monLabel {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 28px;
+            background: #fff;
+            color: #000;
+            border-bottom: 3px solid #000;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 10px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #edlPanel {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: #fff
+        }
+
+        .edlRow {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            min-height: 34px;
+            border-bottom: 2px solid #000;
+            cursor: pointer;
+            background: #fff;
+            color: #000
+        }
+
+        .edlRow b {
+            border-right: 2px solid #000;
+            display: grid;
+            place-items: center;
+            font-size: 10px
+        }
+
+        .edlRow span {
+            padding: 5px 7px;
+            display: flex;
+            align-items: center;
+            font-size: 10px;
+            line-height: 1.15;
+            text-transform: uppercase
+        }
+
+        .edlRow.active {
+            background: #000;
+            color: #fff
+        }
+
+        #bottom {
+            position: fixed;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            height: 66px;
+            z-index: 40;
+            background: #fff;
+            border: 3px solid #000;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 10px;
+            padding: 8px
+        }
+
+        #tracks {
+            display: flex;
+            gap: 6px
+        }
+
+        .track {
+            height: 42px;
+            min-width: 54px;
+            border: 3px solid #000;
+            background: #fff;
+            color: #000;
+            font-size: 12px;
+            font-weight: 1000
+        }
+
+        #readout {
+            height: 42px;
+            border-left: 3px solid #000;
+            border-right: 3px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px
+        }
+
+        #selectedBox {
+            height: 42px;
+            min-width: 120px;
+            border: 3px solid #000;
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 1000;
+            text-transform: uppercase
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 80;
+            display: none;
+            background: #fff;
+            color: #000;
+            border: 3px solid #000;
+            width: 226px
+        }
+
+        #menu.show {
+            display: block
+        }
+
+        .menuTitle {
+            height: 34px;
+            border-bottom: 3px solid #000;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 1000;
+            text-transform: uppercase
+        }
+
+        .menuItem {
+            height: 34px;
+            border-bottom: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            cursor: pointer;
+            background: #fff;
+            color: #000
+        }
+
+        .menuItem:hover {
+            background: #000;
+            color: #fff
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 88px;
+            z-index: 90;
+            transform: translateX(-50%) translateY(8px);
+            opacity: 0;
+            background: #fff;
+            color: #000;
+            border: 3px solid #000;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            transition: .12s opacity, .12s transform;
+            pointer-events: none;
+            max-width: 92vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        @media(max-width:900px) {
+            #top {
+                grid-template-columns: 1fr auto;
+                height: 56px
+            }
+
+            #mode {
+                display: none
+            }
+
+            #brand {
+                font-size: 10px;
+                max-width: 38vw
+            }
+
+            button {
+                height: 32px;
+                min-width: 36px;
+                font-size: 9px
+            }
+
+            #leftDock {
+                left: 6px;
+                top: 62px;
+                width: 152px;
+                bottom: 86px
+            }
+
+            #sourceGates {
+                grid-template-columns: repeat(4, 1fr)
+            }
+
+            .cell {
+                height: 26px;
+                font-size: 9px
+            }
+
+            .cell:nth-child(6n) {
+                border-right: 2px solid #000
+            }
+
+            .cell:nth-child(4n) {
+                border-right: 0
+            }
+
+            .lineRow {
+                grid-template-columns: 28px 1fr;
+                min-height: 30px
+            }
+
+            .lineRow span {
+                font-size: 9px
+            }
+
+            #rightDock {
+                right: 6px;
+                top: 62px;
+                width: 158px;
+                bottom: 86px
+            }
+
+            #monitor {
+                height: 96px
+            }
+
+            #monLabel {
+                height: 24px;
+                font-size: 8px
+            }
+
+            .edlRow {
+                grid-template-columns: 28px 1fr;
+                min-height: 30px
+            }
+
+            .edlRow span {
+                font-size: 8px
+            }
+
+            #bottom {
+                left: 6px;
+                right: 6px;
+                bottom: 6px;
+                height: 70px;
+                grid-template-columns: 1fr;
+                gap: 4px;
+                padding: 5px
+            }
+
+            #tracks {
+                justify-content: center
+            }
+
+            .track {
+                height: 26px;
+                min-width: 34px;
+                font-size: 10px
+            }
+
+            #readout {
+                height: 24px;
+                font-size: 9px;
+                border: 2px solid #000
+            }
+
+            #selectedBox {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="boot">ARC SPLICE OPERATIONAL SURFACE</div>
+    <div id="pool"></div>
+    <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.ogg" />
+    <input id="projectInput" type="file" accept="application/json,.json" />
+    <canvas id="stage"></canvas>
+
+    <header id="top">
+        <div id="brand">Arc Splice Tunnel / White Control Surface</div>
+        <div id="mode">Tube</div>
+        <div id="buttons">
+            <button id="viewBtn">View</button>
+            <button id="playBtn">Play</button>
+            <button id="loadBtn">Load</button>
+            <button id="edlBtn">EDL</button>
+        </div>
+    </header>
+
+    <section id="leftDock">
+        <div class="panelHead"><span id="gateTitle">A Gates</span><span id="gateState">Ghost</span></div>
+        <div id="sourceGates"></div>
+        <div class="panelHead"><span>Script</span><span>Bind</span></div>
+        <div id="scriptPanel"></div>
+    </section>
+
+    <section id="rightDock">
+        <div id="monitor"><canvas id="monCanvas"></canvas>
+            <div id="monLabel">EMPTY TIME</div>
+        </div>
+        <div class="panelHead"><span>EDL Lines</span><span id="edlCount">0</span></div>
+        <div id="edlPanel"></div>
+    </section>
+
+    <footer id="bottom">
+        <div id="tracks"></div>
+        <div id="readout">READY</div>
+        <div id="selectedBox">NONE</div>
+    </footer>
+
+    <div id="menu"></div>
+    <div id="toast"></div>
+
+    <script>
+        (function () {
+            'use strict';
+            const $ = id => document.getElementById(id);
+            const canvas = $('stage'), ctx = canvas.getContext('2d', { alpha: false });
+            const mon = $('monCanvas'), mctx = mon.getContext('2d', { alpha: false });
+            const pool = $('pool'), sourceGates = $('sourceGates'), scriptPanel = $('scriptPanel'), edlPanel = $('edlPanel');
+            const tracksEl = $('tracks'), readout = $('readout'), selectedBox = $('selectedBox'), menu = $('menu');
+            const DENSITY = 24, FAR = 26, TUBE_R = 210;
+            let DPR = 1, last = 0, nextId = 1, dirty = true, toastTimer = null, rendered = [], activeVideo = null;
+            const PATTERN = ['solid', 'dash', 'dot', 'double'];
+            const SOURCES = ['A', 'B', 'C', 'D'].map((k, i) => ({ id: i, k, name: k + '_SOURCE', file: null, state: 'ghost', vid: null, url: null, chunks: DENSITY, relinks: 0 }));
+            const clips = [];
+            const lines = [
+                ['001', 'Build Arc Splice Tunnel as a white-field black-mark control surface.'],
+                ['002', 'Use source gates as physical addresses.'],
+                ['003', 'Use viewport splices as bound objects.'],
+                ['004', 'Use EDL lines as selectable machinery.'],
+                ['005', 'Bind text to geometry.'],
+                ['006', 'Bind geometry to text.'],
+                ['007', 'Treat missing media as an active state.'],
+                ['008', 'Treat empty time as an active interval.'],
+                ['009', 'Decode one video body only.'],
+                ['010', 'Anchor the camera at the rail base.'],
+                ['011', 'Preserve all ray paths and data paths.'],
+                ['012', 'Use no mid-tones.'],
+                ['013', 'Use no blur.'],
+                ['014', 'Use no pagination.'],
+                ['015', 'Make every visible mark operate.']
+            ];
+            const state = { W: 0, H: 0, CX: 0, CY: 0, baseY: 0, view: 0, viewMix: 0, targetViewMix: 0, time: 0, playing: false, activeSource: 0, selectedClip: null, selectedGate: null, selectedEvent: null, selectedLine: null, selectedGap: null, drag: null, scrub: null, hover: null, clipboard: null, lastSync: -999 };
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function lerp(a, b, t) { return a + (b - a) * t }
+            function uid() { return 'SP-' + String(nextId++).padStart(3, '0') }
+            function norm(i) { return ((i % 4) + 4) % 4 }
+            function fmt(t) { t = Math.max(0, t); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0') }
+            function toast(s) { clearTimeout(toastTimer); const e = $('toast'); e.textContent = s; e.classList.add('show'); toastTimer = setTimeout(() => e.classList.remove('show'), 1100) }
+            function mark() { dirty = true }
+            function runtime() { return Math.max(DENSITY, ...clips.map(c => c.start + c.dur)) }
+            function activeClip() { return clips.filter(c => state.time >= c.start && state.time < c.start + c.dur).sort((a, b) => b.track - a.track || b.id.localeCompare(a.id))[0] || null }
+            function download(data, name) { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000) }
+            function setReadout(s) { readout.textContent = s }
+            function resize() {
+                DPR = Math.min(1.5, window.devicePixelRatio || 1);
+                state.W = innerWidth; state.H = innerHeight; state.CX = state.W / 2; state.CY = state.H / 2; state.baseY = state.H - 110;
+                canvas.width = Math.floor(state.W * DPR); canvas.height = Math.floor(state.H * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+                const r = $('monitor').getBoundingClientRect(); mon.width = Math.max(10, Math.floor(r.width * DPR)); mon.height = Math.max(10, Math.floor(r.height * DPR)); mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+                mark();
+            }
+            function laneY(track) { const top = state.W < 900 ? 164 : 90; const bottom = state.H - 122; return top + (track + .5) * ((bottom - top) / 4) }
+            function laneH() { const top = state.W < 900 ? 164 : 90; const bottom = state.H - 122; return clamp((bottom - top) / 4 * .56, 28, 72) }
+            function timeX(t) { const scale = state.W < 900 ? 24 : 40; return state.CX + (t - state.time) * scale }
+            function pointTime(x) { const scale = state.W < 900 ? 24 : 40; return clamp(Math.round(state.time + (x - state.CX) / scale), 0, DENSITY - 1) }
+            function pointTrack(y) { let best = state.activeSource, bestD = 1e9; for (let i = 0; i < 4; i++) { let d = Math.abs(y - laneY(i)); if (d < bestD) { bestD = d; best = i } } return best }
+            function applyPattern(track) {
+                ctx.setLineDash([]);
+                if (PATTERN[track] === 'dash') ctx.setLineDash([9, 6]);
+                if (PATTERN[track] === 'dot') ctx.setLineDash([2, 7]);
+            }
+            function strokeByTrack(track, x, y, w, h, selected) {
+                ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = selected ? 5 : 3; applyPattern(track); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+                if (PATTERN[track] === 'double') { ctx.lineWidth = 2; ctx.strokeRect(x + 6, y + 6, Math.max(1, w - 12), Math.max(1, h - 12)) }
+                ctx.restore();
+            }
+            function sourceStateText() { const s = SOURCES[state.activeSource]; return s.k + ' ' + s.state.toUpperCase() }
+            function buildEvents() {
+                const ev = []; let n = 1, cursor = 0;
+                const sorted = clips.slice().sort((a, b) => a.start - b.start || a.track - b.track);
+                for (const c of sorted) {
+                    if (c.start > cursor) ev.push({ event: n++, type: 'empty_time', start: cursor, dur: c.start - cursor, label: 'EMPTY ' + fmt(cursor) + '-' + fmt(c.start) });
+                    const s = SOURCES[c.source];
+                    ev.push({ event: n++, type: s.state === 'visible' ? 'splice' : 'ghost_splice', clip: c, start: c.start, dur: c.dur, label: (s.state === 'visible' ? 'SPLICE ' : 'GHOST ') + s.k + ':' + String(c.src).padStart(2, '0') + ' @ ' + String(c.start).padStart(2, '0') });
+                    cursor = Math.max(cursor, c.start + c.dur);
+                }
+                if (cursor < runtime()) ev.push({ event: n++, type: 'empty_time', start: cursor, dur: runtime() - cursor, label: 'EMPTY ' + fmt(cursor) + '-' + fmt(runtime()) });
+                return ev;
+            }
+            function exportEDL() {
+                const events = buildEvents().map(e => {
+                    if (e.clip) { const c = e.clip, s = SOURCES[c.source]; return { event: e.event, type: e.type, clip: c.id, source: s.k, source_name: s.name, source_file: s.file, source_state: s.state, relinks: s.relinks, source_gate: c.src, sequence_gate: c.start, duration_sec: c.dur, track: c.track, track_pattern: PATTERN[c.track], sequence_in: fmt(c.start), sequence_out: fmt(c.start + c.dur) } }
+                    return { event: e.event, type: e.type, sequence_gate: e.start, duration_sec: e.dur, sequence_in: fmt(e.start), sequence_out: fmt(e.start + e.dur) }
+                });
+                download({ kind: 'arc-splice-operational-white-score', density: DENSITY, exported_at: new Date().toISOString(), sources: SOURCES.map(s => ({ k: s.k, name: s.name, file: s.file, state: s.state, relinks: s.relinks })), events }, 'arc_splice_operational_white_score_' + Date.now() + '.json');
+                selectLine('004'); toast('EDL SCORE WRITTEN');
+            }
+            function saveProject() { download({ version: 1, kind: 'arc-splice-operational-white-project', time: state.time, activeSource: state.activeSource, nextId, clips: clips.map(c => ({ ...c })), sources: SOURCES.map(s => ({ id: s.id, k: s.k, name: s.name, file: s.file, state: s.state, chunks: s.chunks, relinks: s.relinks })) }, 'arc_splice_operational_white_project_' + Date.now() + '.json'); toast('PROJECT WRITTEN') }
+            function loadProject(file) { const r = new FileReader(); r.onload = () => { try { const p = JSON.parse(r.result); clips.splice(0, clips.length, ...(p.clips || []).map(c => ({ id: c.id || uid(), source: norm(c.source || 0), track: norm(c.track || 0), src: clamp(+c.src || 0, 0, DENSITY - 1), start: clamp(+c.start || 0, 0, DENSITY - 1), dur: clamp(+c.dur || 1, 1, DENSITY), seed: c.seed || Math.random() }))); (p.sources || []).forEach(a => { const s = SOURCES[a.id]; if (!s) return; s.name = a.name || s.name; s.file = a.file || null; s.chunks = a.chunks || DENSITY; s.relinks = a.relinks || 0; if (!s.vid) s.state = s.file ? 'missing' : 'ghost' }); state.time = clamp(+p.time || 0, 0, runtime()); state.activeSource = norm(+p.activeSource || 0); nextId = Math.max(nextId, +p.nextId || 1); updateAll(); toast('PROJECT LOADED — RELINK BODIES') } catch (e) { toast('PROJECT LOAD FAILED') } }; r.readAsText(file) }
+            function stopAllExcept(s) { SOURCES.forEach(x => { if (x !== s && x.vid && !x.vid.paused) { try { x.vid.pause() } catch (e) { } } }) }
+            function syncActive(force) {
+                const c = activeClip(); if (!c) { stopAllExcept(null); activeVideo = null; return }
+                const s = SOURCES[c.source]; if (!s.vid || s.state !== 'visible' || s.vid.readyState < 1) { stopAllExcept(null); activeVideo = null; return }
+                const loc = clamp(c.src + (state.time - c.start), 0, Math.max(0, (s.vid.duration || DENSITY) - .05));
+                stopAllExcept(s);
+                if (force || activeVideo !== s || Math.abs(s.vid.currentTime - loc) > .25) { try { s.vid.currentTime = loc } catch (e) { } }
+                activeVideo = s;
+                if (state.playing) { const p = s.vid.play(); if (p && p.catch) p.catch(() => { }) }
+                else if (!s.vid.paused) { try { s.vid.pause() } catch (e) { } }
+            }
+            function openSource() { state.activeSource = norm(state.activeSource); $('videoInput').value = ''; $('videoInput').click(); toast('CHOOSE BODY ' + SOURCES[state.activeSource].k) }
+            function attachVideo(file) {
+                const s = SOURCES[state.activeSource]; let v = s.vid;
+                if (!v) { v = document.createElement('video'); v.muted = true; v.defaultMuted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.preload = 'metadata'; v.controls = false; pool.appendChild(v); s.vid = v }
+                if (s.url) URL.revokeObjectURL(s.url);
+                s.url = URL.createObjectURL(file); s.file = file.name; s.name = file.name.replace(/\.[^.]+$/, '').slice(0, 20).toUpperCase(); s.state = 'armed'; s.relinks++;
+                v.pause(); v.removeAttribute('src'); v.load();
+                v.onloadedmetadata = () => { s.state = 'visible'; s.chunks = clamp(Math.floor(v.duration || DENSITY), 1, DENSITY); try { v.currentTime = .01 } catch (e) { } updateAll(); toast('SOURCE VISIBLE ' + s.k) }
+                v.onerror = () => { s.state = 'decode_failed'; updateAll(); toast('DECODE FAILED — SOURCE STILL ARMED') }
+                v.src = s.url; v.load(); updateAll();
+            }
+            function drawBackground() {
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, state.W, state.H);
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                for (let x = 0; x < state.W; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 8); ctx.moveTo(x, state.H - 8); ctx.lineTo(x, state.H); ctx.stroke() }
+                for (let y = 0; y < state.H; y += 48) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(8, y); ctx.moveTo(state.W - 8, y); ctx.lineTo(state.W, y); ctx.stroke() }
+            }
+            function drawBase() {
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, state.baseY); ctx.lineTo(state.W, state.baseY); ctx.stroke();
+                ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(state.CX, 56); ctx.lineTo(state.CX, state.H - 78); ctx.stroke();
+                ctx.fillStyle = '#000'; ctx.fillRect(state.CX - 5, state.baseY - 5, 10, 10);
+            }
+            function project(z, track, edge) {
+                const depth = z - state.time + 7; if (depth < .35) return null;
+                const s = 620 / (depth * 38 + 520);
+                const angle = track * Math.PI / 2 - Math.PI / 2 + edge * Math.PI / 4;
+                return { x: state.CX + Math.cos(angle) * TUBE_R * s, y: state.baseY + Math.sin(angle) * TUBE_R * s - depth * 4 * s, s, depth };
+            }
+            function pointInPoly(p, pts) { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y; if (((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / ((yj - yi) || .0001) + xi)) inside = !inside } return inside }
+            function makeTubePoly(c) {
+                const a = [project(c.start, c.track, -1), project(c.start, c.track, 1), project(c.start + c.dur, c.track, 1), project(c.start + c.dur, c.track, -1)];
+                if (a.some(x => !x)) return null; return { pts: a, depth: Math.min(...a.map(p => p.depth)) };
+            }
+            function drawTube() {
+                ctx.save();
+                for (let z = Math.floor(state.time); z < state.time + FAR; z += 2) { const p = project(z, 0, 0); if (!p) continue; ctx.strokeStyle = '#000'; ctx.lineWidth = z % 4 === 0 ? 3 : 1; ctx.beginPath(); ctx.ellipse(state.CX, state.baseY - p.depth * 4 * p.s, TUBE_R * p.s, TUBE_R * .55 * p.s, 0, 0, Math.PI * 2); ctx.stroke() }
+                ctx.restore();
+                const items = []; clips.forEach(c => { const g = makeTubePoly(c); if (g) items.push({ c, g }) }); items.sort((a, b) => b.g.depth - a.g.depth).forEach(({ c, g }) => drawTubeClip(c, g));
+            }
+            function drawTubeClip(c, g) {
+                const selected = state.selectedClip === c, matched = state.selectedGate && state.selectedGate.source === c.source && state.selectedGate.gate === c.src;
+                ctx.save(); ctx.beginPath(); ctx.moveTo(g.pts[0].x, g.pts[0].y); for (let i = 1; i < g.pts.length; i++)ctx.lineTo(g.pts[i].x, g.pts[i].y); ctx.closePath();
+                ctx.fillStyle = (selected || matched) ? '#000' : '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (selected || matched) ? 5 : 3; applyPattern(c.track); ctx.stroke(); ctx.setLineDash([]);
+                if (SOURCES[c.source].state !== 'visible') { ctx.lineWidth = 1; for (let k = -80; k < 160; k += 12) { ctx.beginPath(); ctx.moveTo(g.pts[0].x + k, g.pts[0].y - 80); ctx.lineTo(g.pts[2].x + k, g.pts[2].y + 80); ctx.stroke() } }
+                const mx = (g.pts[0].x + g.pts[1].x + g.pts[2].x + g.pts[3].x) / 4, my = (g.pts[0].y + g.pts[1].y + g.pts[2].y + g.pts[3].y) / 4;
+                ctx.fillStyle = (selected || matched) ? '#fff' : '#000'; ctx.font = '900 11px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0'), mx, my);
+                ctx.restore(); rendered.push({ type: 'tube', clip: c, pts: g.pts });
+            }
+            function drawBench() {
+                const top = state.W < 900 ? 156 : 86, bot = state.H - 116;
+                ctx.save(); ctx.strokeStyle = '#000';
+                for (let z = 0; z <= DENSITY; z++) { const x = timeX(z); if (x < -40 || x > state.W + 40) continue; ctx.lineWidth = z % 4 === 0 ? 3 : 1; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + (z % 4 === 0 ? 32 : 16)); ctx.moveTo(x, bot); ctx.lineTo(x, bot - (z % 4 === 0 ? 32 : 16)); ctx.stroke(); if (z % 4 === 0) { ctx.fillStyle = '#000'; ctx.font = '900 10px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'center'; ctx.fillText(String(z).padStart(2, '0'), x, top + 48) } }
+                for (let t = 0; t < 4; t++) { const y = laneY(t); ctx.lineWidth = 2; applyPattern(t); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(state.W, y); ctx.stroke(); ctx.setLineDash([]); ctx.font = '900 11px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'left'; ctx.fillText(SOURCES[t].k + ' ' + PATTERN[t].toUpperCase(), Math.max(8, state.W < 900 ? 164 : 282), y - 12) }
+                ctx.restore();
+                clips.forEach(drawBenchClip);
+            }
+            function drawBenchClip(c) {
+                const x0 = timeX(c.start), x1 = timeX(c.start + c.dur), w = x1 - x0; if (x1 < -60 || x0 > state.W + 60) return;
+                const y = laneY(c.track), h = laneH(), top = y - h / 2, selected = state.selectedClip === c, matched = state.selectedGate && state.selectedGate.source === c.source && state.selectedGate.gate === c.src;
+                ctx.save(); ctx.fillStyle = (selected || matched) ? '#000' : '#fff'; ctx.fillRect(x0, top, w, h); strokeByTrack(c.track, x0, top, w, h, selected || matched);
+                if (SOURCES[c.source].state !== 'visible') { ctx.strokeStyle = (selected || matched) ? '#fff' : '#000'; ctx.lineWidth = 1; for (let xx = x0 - 60; xx < x1 + 60; xx += 12) { ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx + h, top + h); ctx.stroke() } }
+                ctx.fillStyle = (selected || matched) ? '#fff' : '#000'; ctx.font = '900 12px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0'), x0 + w / 2, y);
+                if (selected || state.hover && state.hover.clip === c) { drawHandle(x0, y, 'S', state.hover && state.hover.mode === 'start'); drawHandle(x1, y, 'E', state.hover && state.hover.mode === 'end') }
+                ctx.restore(); rendered.push({ type: 'bench', clip: c, x0, x1, y, top, h });
+            }
+            function drawHandle(x, y, label, active) { ctx.save(); ctx.fillStyle = active ? '#000' : '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, active ? 16 : 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 10px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y); ctx.restore() }
+            function hitRendered(x, y) { for (let i = rendered.length - 1; i >= 0; i--) { const r = rendered[i]; if (r.type === 'bench') { if (Math.hypot(x - r.x0, y - r.y) < 24) return { clip: r.clip, mode: 'start' }; if (Math.hypot(x - r.x1, y - r.y) < 24) return { clip: r.clip, mode: 'end' }; if (x >= r.x0 && x <= r.x1 && y >= r.top && y <= r.top + r.h) return { clip: r.clip, mode: 'body' } } else if (pointInPoly({ x, y }, r.pts)) return { clip: r.clip, mode: 'body' } } return null }
+            function drawDrag() {
+                if (!state.drag || state.drag.kind !== 'new') return;
+                const c = state.drag.clip, x0 = timeX(c.start), x1 = timeX(c.start + c.dur), y = laneY(c.track), h = laneH(), top = y - h / 2;
+                ctx.save(); ctx.setLineDash([8, 5]); ctx.fillStyle = '#fff'; ctx.fillRect(x0, top, x1 - x0, h); ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.strokeRect(x0, top, x1 - x0, h); ctx.setLineDash([]); ctx.fillStyle = '#000'; ctx.font = '900 12px ui-monospace,SFMono-Regular,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0'), x0 + (x1 - x0) / 2, y); ctx.restore();
+            }
+            function drawBindings() {
+                if (state.selectedGate && state.selectedClip) {
+                    const gateEl = document.querySelector('.cell[data-source="' + state.selectedGate.source + '"][data-gate="' + state.selectedGate.gate + '"]');
+                    const rr = rendered.find(r => r.clip === state.selectedClip);
+                    if (gateEl && rr) { const b = gateEl.getBoundingClientRect(); let tx, ty; if (rr.type === 'bench') { tx = (rr.x0 + rr.x1) / 2; ty = rr.y } else { tx = rr.pts.reduce((m, p) => m + p.x, 0) / rr.pts.length; ty = rr.pts.reduce((m, p) => m + p.y, 0) / rr.pts.length } ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(b.left + b.width / 2, b.top + b.height / 2); ctx.lineTo(tx, ty); ctx.stroke(); ctx.restore() }
+                }
+            }
+            function drawMonitor() {
+                const r = $('monitor').getBoundingClientRect(), w = r.width, h = r.height;
+                mctx.fillStyle = '#fff'; mctx.fillRect(0, 0, w, h); mctx.strokeStyle = '#000'; mctx.lineWidth = 3; mctx.strokeRect(0, 0, w, h);
+                const c = activeClip(), label = $('monLabel');
+                if (c) {
+                    const s = SOURCES[c.source]; label.textContent = (s.state === 'visible' ? 'SEQUENCE OUTPUT ' : 'GHOST OUTPUT ') + s.k + ':' + String(c.src).padStart(2, '0');
+                    if (s.vid && s.state === 'visible' && s.vid.readyState >= 2) { try { mctx.drawImage(s.vid, 0, 28, w, h - 28) } catch (e) { drawGhostMonitor('DRAW FAIL', s.k, w, h) } } else drawGhostMonitor(s.k + ' GHOST', s.state.toUpperCase(), w, h);
+                } else { const s = SOURCES[state.activeSource]; label.textContent = s.state === 'visible' ? 'SOURCE PREVIEW ' + s.k : 'EMPTY TIME'; if (s.vid && s.state === 'visible' && s.vid.readyState >= 2) { try { mctx.drawImage(s.vid, 0, 28, w, h - 28) } catch (e) { drawGhostMonitor('SOURCE', s.k, w, h) } } else drawGhostMonitor('EMPTY TIME', s.state.toUpperCase(), w, h) }
+            }
+            function drawGhostMonitor(a, b, w, h) { mctx.fillStyle = '#fff'; mctx.fillRect(0, 28, w, h - 28); mctx.strokeStyle = '#000'; mctx.lineWidth = 2; for (let y = 38; y < h; y += 13) { mctx.beginPath(); mctx.moveTo(0, y); mctx.lineTo(w, y + 18); mctx.stroke() } mctx.fillStyle = '#000'; mctx.font = '900 16px ui-monospace,SFMono-Regular,monospace'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle'; mctx.fillText(a, w / 2, h / 2); mctx.font = '900 10px ui-monospace,SFMono-Regular,monospace'; mctx.fillText(b, w / 2, h / 2 + 20) }
+            function draw() {
+                rendered = []; drawBackground(); drawBase(); if (state.viewMix < .98) drawTube(); if (state.viewMix > .02) drawBench(); drawDrag(); drawBindings(); drawMonitor(); dirty = false;
+            }
+            function updateTracks() {
+                tracksEl.innerHTML = '';
+                SOURCES.forEach((s, i) => { const b = document.createElement('button'); b.className = 'track' + (state.activeSource === i ? ' active' : ''); b.textContent = s.k; b.title = s.k + ' ' + s.state; b.addEventListener('click', () => { state.activeSource = i; selectLine('002'); updateAll(); toast(s.k + ' ' + s.state.toUpperCase()) }); tracksEl.appendChild(b) });
+            }
+            function updateGates() {
+                const s = SOURCES[state.activeSource]; $('gateTitle').textContent = s.k + ' Gates'; $('gateState').textContent = s.state;
+                sourceGates.innerHTML = '';
+                const used = new Set(clips.filter(c => c.source === state.activeSource).map(c => c.src));
+                for (let i = 0; i < DENSITY; i++) { const g = document.createElement('div'); g.className = 'cell' + (used.has(i) ? ' used' : '') + (state.selectedGate && state.selectedGate.source === state.activeSource && state.selectedGate.gate === i ? ' active' : ''); g.dataset.source = state.activeSource; g.dataset.gate = i; g.textContent = String(i).padStart(2, '0'); g.addEventListener('pointerdown', ev => { ev.preventDefault(); state.selectedGate = { source: state.activeSource, gate: i }; state.selectedClip = clips.find(c => c.source === state.activeSource && c.src === i) || state.selectedClip; state.drag = { kind: 'new', moved: false, clip: { id: uid(), source: state.activeSource, track: state.activeSource, src: i, start: pointTime(ev.clientX), dur: 1, seed: Math.random() } }; setReadout(SOURCES[state.activeSource].k + ':' + String(i).padStart(2, '0') + ' TO RAIL'); selectLine('002'); mark() }); sourceGates.appendChild(g) }
+            }
+            function updateScript() {
+                scriptPanel.innerHTML = '';
+                lines.forEach(([id, text]) => { const r = document.createElement('div'); r.className = 'lineRow' + (state.selectedLine === id ? ' active' : ''); r.dataset.line = id; r.innerHTML = '<b>' + id + '</b><span>' + text + '</span>'; r.addEventListener('click', () => runLine(id)); scriptPanel.appendChild(r) });
+            }
+            function updateEDL() {
+                const events = buildEvents(); $('edlCount').textContent = String(events.length); edlPanel.innerHTML = '';
+                events.forEach(e => { const r = document.createElement('div'); r.className = 'edlRow' + (state.selectedEvent === e.event ? ' active' : ''); r.innerHTML = '<b>' + String(e.event).padStart(2, '0') + '</b><span>' + e.type + ' / ' + e.label + '</span>'; r.addEventListener('click', () => { state.selectedEvent = e.event; state.time = e.start; if (e.clip) { state.selectedClip = e.clip; state.selectedGate = { source: e.clip.source, gate: e.clip.src }; state.selectedGap = null } else { state.selectedClip = null; state.selectedGap = e; state.selectedGate = null } selectLine('004'); syncActive(true); updateAll(); toast('EDL LINE ' + e.event) }); edlPanel.appendChild(r) });
+            }
+            function updateAll() {
+                updateTracks(); updateGates(); updateScript(); updateEDL();
+                $('mode').textContent = state.view ? 'Bench' : 'Tube'; $('playBtn').textContent = state.playing ? 'Pause' : 'Play';
+                const c = activeClip(); selectedBox.textContent = state.selectedClip ? state.selectedClip.id : (state.selectedGate ? SOURCES[state.selectedGate.source].k + ':' + String(state.selectedGate.gate).padStart(2, '0') : 'NONE');
+                setReadout(c ? 'INVOKE ' + SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0') + ' @ ' + fmt(state.time) : 'READY / ' + sourceStateText());
+                syncActive(false); mark();
+            }
+            function selectLine(id) { state.selectedLine = id }
+            function runLine(id) {
+                selectLine(id);
+                if (id === '002') { state.selectedGate = { source: state.activeSource, gate: 0 }; state.selectedClip = clips.find(c => c.source === state.activeSource && c.src === 0) || null; toast('SOURCE GATES BOUND') }
+                else if (id === '003') { state.selectedClip = state.selectedClip || clips[0] || null; if (state.selectedClip) state.selectedGate = { source: state.selectedClip.source, gate: state.selectedClip.src }; toast('VIEWPORT SPLICES BOUND') }
+                else if (id === '004') { const e = buildEvents()[0]; if (e) { state.selectedEvent = e.event; state.time = e.start; if (e.clip) { state.selectedClip = e.clip; state.selectedGate = { source: e.clip.source, gate: e.clip.src } } } toast('EDL LINES BOUND') }
+                else if (id === '007') { const c = clips.find(c => SOURCES[c.source].state !== 'visible'); state.selectedClip = c || null; if (c) state.selectedGate = { source: c.source, gate: c.src }; toast('MISSING MEDIA SELECTED') }
+                else if (id === '008') { const e = buildEvents().find(e => e.type === 'empty_time'); if (e) { state.selectedGap = e; state.selectedEvent = e.event; state.time = e.start; state.selectedClip = null; state.selectedGate = null } toast('EMPTY TIME SELECTED') }
+                else if (id === '009') { syncActive(true); toast('ONE BODY DECODE ENFORCED') }
+                else if (id === '010') { state.time = Math.floor(state.time); toast('CAMERA BASE ANCHORED') }
+                else if (id === '013') { toast('NO BLUR PRESENT') }
+                else if (id === '014') { toast('NO PAGINATION PRESENT') }
+                else toast('LINE ' + id + ' OPERATES');
+                updateAll();
+                const el = document.querySelector('.lineRow[data-line="' + id + '"]'); if (el) el.scrollIntoView({ block: 'nearest' });
+            }
+            function finishNewDrag(ev) {
+                const d = state.drag; if (!d || d.kind !== 'new') return;
+                if (d.moved && ev.clientY > 58 && ev.clientY < state.H - 78) {
+                    const c = d.clip; c.start = clamp(c.start, 0, DENSITY - 1); c.dur = clamp(c.dur, 1, DENSITY - c.start); clips.push(c); state.selectedClip = c; state.selectedGate = { source: c.source, gate: c.src }; state.time = c.start; selectLine('003'); toast('SPLICE PLACED ' + SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0'));
+                } else { toast('GATE BOUND ' + SOURCES[d.clip.source].k + ':' + String(d.clip.src).padStart(2, '0')) }
+                state.drag = null; updateAll();
+            }
+            function beginMove(hit, ev) {
+                state.selectedClip = hit.clip; state.selectedGate = { source: hit.clip.source, gate: hit.clip.src }; state.drag = { kind: 'move', clip: hit.clip, mode: hit.mode, x: ev.clientX, y: ev.clientY, start: hit.clip.start, dur: hit.clip.dur, src: hit.clip.src, track: hit.clip.track }; selectLine('006'); toast(hit.mode === 'body' ? 'SPLICE GRIPPED' : 'WOUND HANDLE'); updateAll();
+            }
+            function finishMove() { if (!state.drag || state.drag.kind !== 'move') return; toast('SPLICE SET ' + state.drag.clip.id); state.drag = null; updateAll() }
+            function deleteSelected() { if (!state.selectedClip) return toast('NO SPLICE SELECTED'); const id = state.selectedClip.id; const i = clips.indexOf(state.selectedClip); if (i >= 0) clips.splice(i, 1); state.selectedClip = null; state.selectedGate = null; updateAll(); toast('DELETED ' + id) }
+            function copySelected() { if (!state.selectedClip) return toast('NO SPLICE SELECTED'); const c = state.selectedClip; state.clipboard = { source: c.source, track: c.track, src: c.src, dur: c.dur }; toast('COPIED ' + c.id) }
+            function pasteClip() { if (!state.clipboard) return toast('CLIPBOARD EMPTY'); const p = state.clipboard, c = { id: uid(), source: p.source, track: state.activeSource, src: p.src, start: clamp(Math.round(state.time), 0, DENSITY - 1), dur: clamp(p.dur, 1, DENSITY), seed: Math.random() }; c.dur = clamp(c.dur, 1, DENSITY - c.start); clips.push(c); state.selectedClip = c; state.selectedGate = { source: c.source, gate: c.src }; updateAll(); toast('PASTED ' + c.id) }
+            function showMenu(x, y, hit) {
+                if (hit) { state.selectedClip = hit.clip; state.selectedGate = { source: hit.clip.source, gate: hit.clip.src } }
+                menu.innerHTML = '<div class="menuTitle">' + (hit ? 'Splice ' + hit.clip.id : 'Arc Splice') + '</div>';
+                const add = (label, fn) => { const e = document.createElement('div'); e.className = 'menuItem'; e.innerHTML = '<span>' + label + '</span><span></span>'; e.onclick = () => { hideMenu(); fn() }; menu.appendChild(e) };
+                if (hit) { add('Copy splice', copySelected); add('Delete splice', deleteSelected) }
+                add('Paste at needle', pasteClip); add('Load source', openSource); add('Save project', saveProject); add('Load project', () => $('projectInput').click()); add('Export EDL', exportEDL); add('Clear sequence', () => { clips.splice(0, clips.length); state.selectedClip = null; state.selectedGate = null; updateAll(); toast('SEQUENCE CLEARED') });
+                menu.style.left = clamp(x, 6, state.W - 236) + 'px'; menu.style.top = clamp(y, 60, state.H - 320) + 'px'; menu.classList.add('show'); updateAll();
+            }
+            function hideMenu() { menu.classList.remove('show') }
+            function onPointerDown(ev) {
+                hideMenu();
+                if (ev.button === 2) { showMenu(ev.clientX, ev.clientY, hitRendered(ev.clientX, ev.clientY)); return }
+                const hit = hitRendered(ev.clientX, ev.clientY);
+                if (hit) { beginMove(hit, ev); try { canvas.setPointerCapture(ev.pointerId) } catch (e) { } return }
+                state.scrub = { x: ev.clientX, time: state.time }; state.playing = false; updateAll(); try { canvas.setPointerCapture(ev.pointerId) } catch (e) { }
+            }
+            function onPointerMove(ev) {
+                if (state.drag && state.drag.kind === 'new') {
+                    const c = state.drag.clip; state.drag.moved = true; c.start = pointTime(ev.clientX); c.track = pointTrack(ev.clientY); setReadout(SOURCES[c.source].k + ':' + String(c.src).padStart(2, '0') + ' TO ' + String(c.start).padStart(2, '0') + ' TRACK ' + SOURCES[c.track].k); mark(); return;
+                }
+                if (state.drag && state.drag.kind === 'move') {
+                    const d = state.drag, c = d.clip; if (d.mode === 'body') { c.start = clamp(Math.round(d.start + (ev.clientX - d.x) / (state.W < 900 ? 24 : 40)), 0, DENSITY - c.dur); c.track = pointTrack(ev.clientY) }
+                    else if (d.mode === 'start') { const end = d.start + d.dur; const ns = clamp(Math.round(d.start + (ev.clientX - d.x) / (state.W < 900 ? 24 : 40)), 0, end - 1); c.src = clamp(d.src + (ns - d.start), 0, DENSITY - 1); c.start = ns; c.dur = end - ns }
+                    else if (d.mode === 'end') { c.dur = clamp(Math.round(d.dur + (ev.clientX - d.x) / (state.W < 900 ? 24 : 40)), 1, DENSITY - c.start) }
+                    state.time = c.start; mark(); return;
+                }
+                if (state.scrub) { state.time = clamp(state.scrub.time - (ev.clientX - state.scrub.x) / (state.W < 900 ? 24 : 40), 0, runtime()); syncActive(true); updateAll(); return }
+                state.hover = hitRendered(ev.clientX, ev.clientY); canvas.style.cursor = state.hover ? (state.hover.mode === 'body' ? 'grab' : 'ew-resize') : 'crosshair'; mark();
+            }
+            function onPointerUp(ev) {
+                if (state.drag && state.drag.kind === 'new') finishNewDrag(ev);
+                else if (state.drag && state.drag.kind === 'move') finishMove();
+                state.scrub = null; try { canvas.releasePointerCapture(ev.pointerId) } catch (e) { } updateAll();
+            }
+            canvas.addEventListener('pointerdown', onPointerDown);
+            canvas.addEventListener('pointermove', onPointerMove);
+            canvas.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointermove', ev => { if (state.drag || state.scrub) onPointerMove(ev) });
+            window.addEventListener('pointerup', ev => { if (state.drag || state.scrub) onPointerUp(ev) });
+            canvas.addEventListener('contextmenu', ev => { ev.preventDefault(); showMenu(ev.clientX, ev.clientY, hitRendered(ev.clientX, ev.clientY)) });
+            $('viewBtn').onclick = () => { state.view = state.view ? 0 : 1; state.targetViewMix = state.view ? 1 : 0; selectLine('010'); toast(state.view ? 'BENCH' : 'TUBE'); updateAll() }
+            $('playBtn').onclick = () => { state.playing = !state.playing; toast(state.playing ? 'SEQUENCE INVOKED' : 'SEQUENCE HELD'); updateAll() }
+            $('loadBtn').onclick = openSource; $('edlBtn').onclick = exportEDL;
+            $('videoInput').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) attachVideo(f); e.target.value = '' }
+            $('projectInput').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) loadProject(f); e.target.value = '' }
+            window.addEventListener('resize', resize);
+            window.addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (e.code === 'Space') { e.preventDefault(); state.playing = !state.playing; updateAll() } if (['1', '2', '3', '4'].includes(e.key)) { state.activeSource = +e.key - 1; updateAll() } if (k === 'l') openSource(); if (k === 'e') exportEDL(); if (k === 'b' || k === 't') $('viewBtn').click(); if ((e.ctrlKey || e.metaKey) && k === 'c') { e.preventDefault(); copySelected() } if ((e.ctrlKey || e.metaKey) && k === 'v') { e.preventDefault(); pasteClip() } if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); deleteSelected() } });
+            function tick(ts) {
+                const dt = last ? Math.min(.08, (ts - last) / 1000) : 0; last = ts;
+                if (Math.abs(state.viewMix - state.targetViewMix) > .003) { state.viewMix = lerp(state.viewMix, state.targetViewMix, .18); mark() }
+                if (state.playing && !state.drag && !state.scrub) { state.time += dt; if (state.time >= runtime()) state.time = 0; syncActive(false); mark(); updateEDL() }
+                if (dirty || state.playing) draw();
+                requestAnimationFrame(tick);
+            }
+            resize(); updateAll(); $('boot').style.display = 'none'; requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>

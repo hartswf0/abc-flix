@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>Arc-Tunnel Splice Operator</title>
+    <style>
+        :root {
+            --bg: #05060a;
+            --fg: #f8fafc;
+            --hot: #9cffb8;
+            --red: #d83a1a;
+            --warn: #fbbf24
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        body:before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 48%, rgba(156, 255, 184, .06), transparent 34%), radial-gradient(circle at 50% 54%, rgba(216, 58, 26, .06), transparent 62%)
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            z-index: 1;
+            background: #05060a;
+            cursor: crosshair
+        }
+
+        input {
+            display: none
+        }
+
+        #pool {
+            position: fixed;
+            left: -9px;
+            top: -9px;
+            width: 1px;
+            height: 1px;
+            opacity: .01;
+            overflow: hidden
+        }
+
+        #top {
+            position: fixed;
+            inset: 0 0 auto 0;
+            height: 72px;
+            z-index: 40;
+            padding: 8px 10px 0;
+            background: linear-gradient(to bottom, rgba(5, 6, 10, .96), rgba(5, 6, 10, .45), transparent);
+            pointer-events: none
+        }
+
+        #brand {
+            line-height: 1.05
+        }
+
+        #brand b {
+            display: block;
+            color: var(--red);
+            font-size: 11px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #hint {
+            display: block;
+            margin-top: 4px;
+            color: rgba(255, 255, 255, .5);
+            font-size: 8px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #buttons {
+            margin-top: 6px;
+            display: flex;
+            gap: 4px;
+            justify-content: space-between;
+            pointer-events: auto
+        }
+
+        button {
+            height: 24px;
+            min-width: 24px;
+            padding: 0 5px;
+            border: 1px solid rgba(248, 250, 252, .28);
+            background: rgba(5, 6, 10, .76);
+            color: #fff;
+            font: 900 7px ui-monospace, SFMono-Regular, monospace;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            cursor: pointer
+        }
+
+        button:hover,
+        button.on {
+            border-color: var(--hot);
+            color: #05060a;
+            background: var(--hot)
+        }
+
+        button:disabled {
+            opacity: .28
+        }
+
+        .src.loaded {
+            color: var(--hot);
+            border-color: var(--hot)
+        }
+
+        .src.on {
+            background: var(--warn);
+            color: #05060a;
+            border-color: var(--warn)
+        }
+
+        #mode {
+            position: fixed;
+            top: 44px;
+            left: 50%;
+            z-index: 42;
+            transform: translateX(-50%);
+            height: 22px;
+            min-width: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(156, 255, 184, .46);
+            background: rgba(5, 6, 10, .62);
+            font-size: 8px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            pointer-events: none
+        }
+
+        #center {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            z-index: 35;
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: .08s
+        }
+
+        #center:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 3px;
+            height: 3px;
+            background: var(--hot);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--hot);
+            transform: translate(-50%, -50%)
+        }
+
+        #center.pulse {
+            border-color: #fff;
+            box-shadow: 0 0 24px rgba(156, 255, 184, .48);
+            transform: translate(-50%, -50%) scale(1.2)
+        }
+
+        #bottom {
+            position: fixed;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            z-index: 40;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 7px;
+            align-items: end;
+            pointer-events: none
+        }
+
+        #lanes {
+            pointer-events: auto;
+            display: flex;
+            gap: 4px;
+            padding: 5px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 999px;
+            background: rgba(5, 6, 10, .58)
+        }
+
+        .lane {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            padding: 0
+        }
+
+        .lane:after {
+            content: attr(data-short);
+            font-size: 11px
+        }
+
+        .lane.active {
+            color: #05060a;
+            background: var(--laneColor);
+            border-color: #fff
+        }
+
+        #readout {
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            border: 1px solid rgba(156, 255, 184, .35);
+            background: rgba(5, 6, 10, .66);
+            font-size: 8px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 62px;
+            z-index: 76;
+            transform: translateX(-50%) translateY(10px);
+            opacity: 0;
+            pointer-events: none;
+            border: 1px solid rgba(156, 255, 184, .44);
+            background: rgba(5, 6, 10, .9);
+            padding: 9px 13px;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 10px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            transition: .16s;
+            max-width: 92vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        @media(min-width: 761px) {
+            #top {
+                height: 62px;
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 8px
+            }
+
+            #buttons {
+                margin-top: 0;
+                justify-content: flex-end
+            }
+
+            button {
+                height: 28px;
+                min-width: 30px;
+                font-size: 8px;
+                padding: 0 7px
+            }
+
+            #mode {
+                top: 15px;
+                height: 30px;
+                min-width: 96px;
+                font-size: 10px
+            }
+
+            #bottom {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                grid-template-columns: auto 1fr auto
+            }
+
+            .lane {
+                width: auto;
+                height: 30px;
+                border-radius: 999px;
+                padding: 0 10px;
+                font-size: 8px
+            }
+
+            .lane:after {
+                content: ""
+            }
+
+            #readout {
+                height: 40px;
+                font-size: 10px;
+                max-width: 52vw
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="pool"></div>
+    <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.ogg">
+    <canvas id="stage"></canvas>
+    <div id="center"></div>
+    <header id="top">
+        <div id="brand">
+            <b>ARC-TUNNEL SPLICE OPERATOR</b>
+            <span id="hint">proxy source · arc tunnel · bench head/tail · assembly export</span>
+        </div>
+        <div id="buttons">
+            <button id="viewBtn">View</button>
+            <button id="playBtn">Play</button>
+            <button id="loadBtn">Load</button>
+            <button class="src on" data-src="0">A</button>
+            <button class="src" data-src="1">B</button>
+            <button class="src" data-src="2">C</button>
+            <button class="src" data-src="3">D</button>
+            <button id="newBtn">New</button>
+            <button id="undoBtn">Undo</button>
+            <button id="redoBtn">Redo</button>
+            <button id="edlBtn">EDL</button>
+            <button id="asmBtn">ASM</button>
+            <button id="clearBtn">Clear</button>
+        </div>
+    </header>
+    <div id="mode">Source</div>
+    <footer id="bottom">
+        <div id="lanes"></div>
+        <div id="readout">1 load source · 2 drag slice · 3 trim head/tail</div>
+    </footer>
+    <div id="toast"></div>
+    <script>
+        (() => {
+            'use strict';
+            const cv = document.getElementById('stage')
+                , ctx = cv.getContext('2d', {
+                    alpha: false,
+                    desynchronized: true
+                })
+                , pool = document.getElementById('pool')
+                , file = document.getElementById('videoInput')
+                , center = document.getElementById('center')
+                , mode = document.getElementById('mode')
+                , readout = document.getElementById('readout')
+                , toastEl = document.getElementById('toast')
+                , lanesEl = document.getElementById('lanes')
+                , hint = document.getElementById('hint')
+                , $ = id => document.getElementById(id);
+            const COL = ['#6ee7b7', '#a78bfa', '#fb7185', '#fbbf24']
+                , GLOW = ['rgba(110,231,183,.38)', 'rgba(167,139,250,.38)', 'rgba(251,113,133,.38)', 'rgba(251,191,36,.38)']
+                , LANE = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERRED']
+                , SHORT = ['P', 'L', 'B', 'F']
+                , SRC = ['A', 'B', 'C', 'D']
+                , D = 24
+                , R = 245
+                , FOV = 760
+                , KEY = 'arcTunnelSpliceCombined:v3';
+            let W = 0
+                , H = 0
+                , CX = 0
+                , CY = 0
+                , DPR = 1
+                , last = 0
+                , nextId = 1
+                , rendered = []
+                , cells = []
+                , toastTimer = 0;
+            const sources = SRC.map((k, i) => ({
+                id: i,
+                k,
+                state: 'empty',
+                file: null,
+                name: k + '_SOURCE',
+                vid: null,
+                url: null,
+                proxy: [],
+                build: 0,
+                busy: false,
+                hover: -1,
+                load: null
+            }));
+            const clips = []
+                , S = {
+                    screen: 0,
+                    z: 0,
+                    roll: 0,
+                    targetRoll: 0,
+                    speed: 0,
+                    playing: false,
+                    lane: 2,
+                    source: 0,
+                    scale: 46,
+                    hover: null,
+                    selected: null,
+                    drag: null,
+                    trim: null,
+                    scrub: null,
+                    cohort: null,
+                    tx: null,
+                    undo: [],
+                    redo: [],
+                    state: 'NO SOURCE'
+                };
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
+                , lerp = (a, b, t) => a + (b - a) * t
+                , snap = v => Math.round(v)
+                , norm = t => ((t % 4) + 4) % 4
+                , uid = () => `AS-${String(nextId++).padStart(3, '0')}`
+                , unit = v => `${Math.round(v)}u`;
+            function toast(s) {
+                clearTimeout(toastTimer);
+                toastEl.textContent = s;
+                toastEl.classList.add('show');
+                toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1200)
+            }
+            function pulse() {
+                center.classList.add('pulse');
+                setTimeout(() => center.classList.remove('pulse'), 120)
+            }
+            function line(x1, y1, x2, y2, c = '#222', w = 1) {
+                ctx.strokeStyle = c;
+                ctx.lineWidth = w;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke()
+            }
+            function text(s, x, y, a = 'left', c = '#fff', z = 10, w = '900') {
+                ctx.fillStyle = c;
+                ctx.textAlign = a;
+                ctx.textBaseline = 'middle';
+                ctx.font = `${w} ${z}px ui-monospace,SFMono-Regular,monospace`;
+                ctx.fillText(String(s), x, y)
+            }
+            function rr(x, y, w, h, r) {
+                r = Math.min(r, Math.abs(w) / 2, h / 2);
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath()
+            }
+            function inside(p, pts) {
+                let b = false;
+                for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                    const xi = pts[i].x
+                        , yi = pts[i].y
+                        , xj = pts[j].x
+                        , yj = pts[j].y;
+                    if (((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / ((yj - yi) || .0001) + xi))
+                        b = !b
+                }
+                return b
+            }
+            function loaded(s) {
+                return s.state !== 'empty'
+            }
+            function snapState() {
+                return JSON.stringify({
+                    clips: clips.map(c => ({
+                        ...c
+                    })),
+                    z: S.z,
+                    screen: S.screen,
+                    sel: S.selected ? S.selected.id : null
+                })
+            }
+            function restore(raw) {
+                const p = JSON.parse(raw);
+                clips.splice(0, clips.length, ...(p.clips || []).map(c => ({
+                    ...c
+                })));
+                S.z = p.z || 0;
+                S.screen = p.screen || 0;
+                S.selected = clips.find(c => c.id === p.sel) || null;
+                nextId = Math.max(1, ...clips.map(c => parseInt(String(c.id).replace(/[^0-9]/g, ''), 10) || 0)) + 1;
+                hud()
+            }
+            function begin(label) {
+                if (!S.tx)
+                    S.tx = {
+                        label,
+                        before: snapState()
+                    }
+            }
+            function commit(msg) {
+                if (!S.tx)
+                    return;
+                const after = snapState();
+                if (after !== S.tx.before) {
+                    S.undo.push({
+                        label: S.tx.label,
+                        before: S.tx.before,
+                        after
+                    });
+                    if (S.undo.length > 70)
+                        S.undo.shift();
+                    S.redo = [];
+                    if (msg)
+                        toast(`${msg} · undo available`);
+                    save()
+                }
+                S.tx = null;
+                hud()
+            }
+            function cancel() {
+                if (S.tx) {
+                    restore(S.tx.before);
+                    S.tx = null
+                }
+                hud()
+            }
+            function undo() {
+                const op = S.undo.pop();
+                if (!op)
+                    return toast('nothing to undo');
+                restore(op.before);
+                S.redo.push(op);
+                toast('undo ' + op.label)
+            }
+            function redo() {
+                const op = S.redo.pop();
+                if (!op)
+                    return toast('nothing to redo');
+                restore(op.after);
+                S.undo.push(op);
+                toast('redo ' + op.label)
+            }
+            function save() {
+                try {
+                    localStorage.setItem(KEY, JSON.stringify({
+                        nextId,
+                        clips,
+                        z: S.z,
+                        screen: S.screen,
+                        sources: sources.map(s => ({
+                            id: s.id,
+                            file: s.file,
+                            name: s.name,
+                            state: s.state
+                        }))
+                    }))
+                } catch (e) { }
+            }
+            function load() {
+                try {
+                    const p = JSON.parse(localStorage.getItem(KEY) || 'null');
+                    if (!p || !Array.isArray(p.clips))
+                        return false;
+                    clips.push(...p.clips.map(c => ({
+                        ...c,
+                        lane: norm(c.lane),
+                        dur: Math.max(1, snap(c.dur))
+                    })));
+                    nextId = p.nextId || nextId;
+                    S.z = p.z || 0;
+                    S.screen = p.screen || 0;
+                    if (Array.isArray(p.sources))
+                        p.sources.forEach(a => {
+                            const s = sources[a.id];
+                            if (s && a.file && !s.vid) {
+                                s.file = a.file;
+                                s.name = a.name || s.name;
+                                s.state = 'offline'
+                            }
+                        }
+                        );
+                    return true
+                } catch (e) {
+                    return false
+                }
+            }
+            function resize() {
+                DPR = Math.min(2, devicePixelRatio || 1);
+                W = innerWidth;
+                H = innerHeight;
+                CX = W / 2;
+                CY = H / 2;
+                S.scale = W < 760 ? 34 : 46;
+                cv.width = Math.floor(W * DPR);
+                cv.height = Math.floor(H * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
+            }
+            function wait(v, ev, ms) {
+                return new Promise(res => {
+                    let done = false;
+                    const fn = () => {
+                        if (done)
+                            return;
+                        done = true;
+                        v.removeEventListener(ev, fn);
+                        res()
+                    }
+                        ;
+                    v.addEventListener(ev, fn, {
+                        once: true
+                    });
+                    setTimeout(fn, ms)
+                }
+                )
+            }
+            async function buildProxy(s) {
+                if (!s.vid || s.busy)
+                    return;
+                s.busy = true;
+                s.proxy = [];
+                s.build = 0;
+                s.state = 'proxying';
+                hud();
+                const v = s.vid
+                    , pc = document.createElement('canvas');
+                pc.width = 160;
+                pc.height = 90;
+                const g = pc.getContext('2d', {
+                    alpha: false
+                });
+                try {
+                    await wait(v, 'loadedmetadata', 300)
+                } catch (e) { }
+                const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : D;
+                for (let i = 0; i < D; i++) {
+                    try {
+                        v.currentTime = Math.min(dur - .05, Math.max(0, (i / D) * dur));
+                        await wait(v, 'seeked', 800);
+                        g.fillStyle = '#000';
+                        g.fillRect(0, 0, 160, 90);
+                        g.drawImage(v, 0, 0, 160, 90);
+                        const f = document.createElement('canvas');
+                        f.width = 160;
+                        f.height = 90;
+                        f.getContext('2d', {
+                            alpha: false
+                        }).drawImage(pc, 0, 0);
+                        s.proxy[i] = f;
+                        s.build = i + 1
+                    } catch (e) {
+                        s.proxy[i] = null
+                    }
+                    await new Promise(requestAnimationFrame)
+                }
+                s.state = s.proxy.some(Boolean) ? 'proxy-ready' : 'proxy-error';
+                s.busy = false;
+                toast(s.k + ' proxy ready');
+                save();
+                hud()
+            }
+            file.onchange = e => {
+                const f = e.target.files && e.target.files[0];
+                if (!f)
+                    return;
+                const s = sources[S.source];
+                s.file = f.name;
+                s.name = f.name.split('.').slice(0, -1).join('.') || f.name;
+                s.state = 'loading';
+                s.proxy = [];
+                s.build = 0;
+                let v = s.vid;
+                if (!v) {
+                    v = document.createElement('video');
+                    v.muted = true;
+                    v.defaultMuted = true;
+                    v.playsInline = true;
+                    v.preload = 'auto';
+                    pool.appendChild(v);
+                    s.vid = v
+                }
+                if (s.url)
+                    URL.revokeObjectURL(s.url);
+                s.url = URL.createObjectURL(f);
+                v.pause();
+                v.removeAttribute('src');
+                v.load();
+                v.onloadedmetadata = () => buildProxy(s);
+                v.onloadeddata = () => buildProxy(s);
+                v.onerror = () => {
+                    s.state = 'error';
+                    toast('decode failed');
+                    hud()
+                }
+                    ;
+                v.src = s.url;
+                v.load();
+                hud()
+            }
+                ;
+            function frameOf(src, i) {
+                const s = sources[src];
+                return s && s.proxy.length ? s.proxy[clamp(Math.floor(i), 0, D - 1)] || null : null
+            }
+            function drawFrame(src, i, x, y, w, h) {
+                const f = frameOf(src, i);
+                if (!f)
+                    return false;
+                ctx.drawImage(f, x, y, w, h);
+                return true
+            }
+            function laneY(t) {
+                const top = W < 760 ? 128 : 118
+                    , bot = W < 760 ? H - 78 : H - 94;
+                return top + (t + .5) * ((bot - top) / 4)
+            }
+            function laneH() {
+                const top = W < 760 ? 128 : 118
+                    , bot = W < 760 ? H - 78 : H - 94;
+                return clamp((bot - top) / 4 * .58, 32, 82)
+            }
+            function timeX(u) {
+                return CX + (u - S.z) * S.scale
+            }
+            function pointTime(x) {
+                return snap(S.z + (x - CX) / S.scale)
+            }
+            function pointLane(y) {
+                let b = S.lane
+                    , d = 1e9;
+                for (let t = 0; t < 4; t++) {
+                    const q = Math.abs(y - laneY(t));
+                    if (q < d) {
+                        d = q;
+                        b = t
+                    }
+                }
+                return b
+            }
+            function project(x, y, u) {
+                const dz = (u - S.z) * 70 + 960;
+                if (dz < 45)
+                    return null;
+                const sc = FOV / dz;
+                return {
+                    x: CX + x * sc,
+                    y: CY + y * sc,
+                    s: sc,
+                    depth: dz
+                }
+            }
+            function visual(c) {
+                return S.cohort && S.cohort.list.includes(c) ? norm(c.lane + S.cohort.steps) : c.lane
+            }
+            function head(c) {
+                return c.srcIn
+            }
+            function tail(c) {
+                return c.srcIn + Math.max(0, c.dur - 1)
+            }
+            function usedState(src, i) {
+                let used = false
+                    , hot = false;
+                for (const c of clips) {
+                    if (c.src !== src)
+                        continue;
+                    if (i >= c.srcIn && i < c.srcIn + c.dur) {
+                        used = true;
+                        if (S.z >= c.start && S.z < c.start + c.dur)
+                            hot = true
+                    }
+                }
+                return hot ? 'hot' : used ? 'used' : 'unused'
+            }
+            function bg() {
+                ctx.fillStyle = '#05060a';
+                ctx.fillRect(0, 0, W, H);
+                ctx.save();
+                ctx.globalAlpha = .075;
+                const gap = W < 760 ? 44 : 58;
+                for (let x = CX % gap; x < W; x += gap)
+                    line(x, 0, x, H, '#fff');
+                for (let y = CY % gap; y < H; y += gap)
+                    line(0, y, W, y, '#fff');
+                ctx.restore();
+                line(CX, 72, CX, H - 58, 'rgba(255,255,255,.28)')
+            }
+            function drawSources() {
+                cells = [];
+                const top = W < 760 ? 82 : 76
+                    , rowH = (H - top - 90) / 4
+                    , cellW = (W - 96) / D;
+                for (let r = 0; r < 4; r++) {
+                    const s = sources[r]
+                        , y = top + r * rowH + rowH / 2
+                        , load = {
+                            x: 10,
+                            y: y - 18,
+                            w: 58,
+                            h: 36
+                        };
+                    s.load = load;
+                    ctx.fillStyle = loaded(s) ? COL[r] : 'rgba(255,255,255,.05)';
+                    ctx.strokeStyle = r === S.source ? '#fff' : 'rgba(255,255,255,.25)';
+                    ctx.lineWidth = r === S.source ? 2 : 1;
+                    ctx.fillRect(load.x, load.y, load.w, load.h);
+                    ctx.strokeRect(load.x, load.y, load.w, load.h);
+                    text(loaded(s) ? 'VID' : 'LOAD', load.x + load.w / 2, y, 'center', loaded(s) ? '#05060a' : '#aaa', 9);
+                    text(loaded(s) ? s.file : s.k + ' empty — load video', 78, y - 24, 'left', loaded(s) ? COL[r] : '#777', 10);
+                    text(s.state === 'proxying' ? 'proxy ' + s.build + '/' + D : s.state, W - 12, y - 24, 'right', s.state === 'proxy-ready' ? '#9cffb8' : '#777', 8);
+                    for (let i = 0; i < D; i++) {
+                        const x = 78 + i * cellW
+                            , w = Math.max(3, cellW - 2)
+                            , h = Math.min(54, rowH * .46)
+                            , yy = y - h / 2
+                            , st = usedState(r, i);
+                        ctx.fillStyle = 'rgba(255,255,255,.035)';
+                        ctx.fillRect(x, yy, w, h);
+                        if (drawFrame(r, i, x, yy, w, h)) {
+                            ctx.fillStyle = st === 'hot' ? 'rgba(255,0,85,.38)' : st === 'used' ? 'rgba(0,0,0,.48)' : 'rgba(0,0,0,.18)';
+                            ctx.fillRect(x, yy, w, h)
+                        } else {
+                            ctx.fillStyle = loaded(s) ? COL[r] + '33' : 'rgba(255,255,255,.025)';
+                            ctx.fillRect(x, yy, w, h)
+                        }
+                        ctx.strokeStyle = st === 'hot' ? '#ff0055' : (s.hover === i ? '#fff' : 'rgba(255,255,255,.12)');
+                        ctx.strokeRect(x + .5, yy + .5, w - 1, h - 1);
+                        if ((s.hover === i || cellW > 22) && loaded(s))
+                            text(String(i).padStart(2, '0'), x + w / 2, y, 'center', s.hover === i ? '#fff' : 'rgba(255,255,255,.55)', 7);
+                        cells.push({
+                            src: r,
+                            idx: i,
+                            x,
+                            y: yy,
+                            w,
+                            h
+                        })
+                    }
+                }
+                if (!clips.length)
+                    text('drag a lit source slice into the bench lanes', CX, H - 58, 'center', 'rgba(255,255,255,.42)', 10)
+            }
+            function rails() {
+                const top = W < 760 ? 100 : 92
+                    , bot = W < 760 ? H - 64 : H - 78;
+                for (let u = snap(S.z - W / S.scale); u < S.z + W / S.scale; u++) {
+                    const x = timeX(u);
+                    if (x < -50 || x > W + 50)
+                        continue;
+                    const maj = u % 4 === 0;
+                    line(x, top - (maj ? 5 : 0), x, top + (maj ? 32 : 15), maj ? 'rgba(215,255,228,.46)' : 'rgba(255,255,255,.16)', maj ? 1.4 : 1);
+                    line(x, bot + (maj ? 5 : 0), x, bot - (maj ? 32 : 15), maj ? 'rgba(215,255,228,.46)' : 'rgba(255,255,255,.16)', maj ? 1.4 : 1);
+                    if (maj && W > 760)
+                        text(unit(u), x, top + 47, 'center', 'rgba(255,255,255,.35)', 9)
+                }
+                for (let t = 0; t < 4; t++) {
+                    const y = laneY(t)
+                        , h = laneH();
+                    line(18, y, W - 18, y, COL[t] + '44');
+                    if (W > 760)
+                        text(LANE[t], 22, y - h * .58, 'left', COL[t], 10)
+                }
+            }
+            function gaps() {
+                if (S.screen === 0)
+                    return;
+                const vis = clips.filter(c => timeX(c.start + c.dur) > -90 && timeX(c.start) < W + 90).sort((a, b) => a.start - b.start);
+                let cur = snap(S.z - W / S.scale);
+                for (const c of vis) {
+                    if (c.start > cur + 1) {
+                        const x0 = timeX(cur)
+                            , x1 = timeX(c.start);
+                        ctx.fillStyle = 'rgba(255,255,255,.035)';
+                        ctx.fillRect(x0, laneY(0) - laneH() / 2, Math.max(1, x1 - x0), laneY(3) - laneY(0) + laneH());
+                        if (x1 - x0 > 70)
+                            text('EMPTY TIME', x0 + (x1 - x0) / 2, laneY(1.5), 'center', 'rgba(255,255,255,.22)', 9)
+                    }
+                    cur = Math.max(cur, c.start + c.dur)
+                }
+            }
+            function clipRect(c) {
+                const x0 = timeX(c.start)
+                    , x1 = timeX(c.start + c.dur)
+                    , y = laneY(visual(c))
+                    , h = laneH();
+                return {
+                    x: x0,
+                    y: y - h / 2,
+                    w: x1 - x0,
+                    h,
+                    cx: (x0 + x1) / 2,
+                    cy: y
+                }
+            }
+            function drawThumb(c, k, x, y, w, h, hot) {
+                const idx = k === 'head' ? head(c) : tail(c);
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, w, h);
+                ctx.clip();
+                if (!drawFrame(c.src, idx, x, y, w, h)) {
+                    ctx.fillStyle = COL[c.src] + '33';
+                    ctx.fillRect(x, y, w, h);
+                    text(k === 'head' ? 'HEAD' : 'TAIL', x + w / 2, y + h / 2, 'center', '#fff', 8)
+                } else {
+                    ctx.fillStyle = 'rgba(0,0,0,.2)';
+                    ctx.fillRect(x, y, w, h)
+                }
+                ctx.restore();
+                ctx.strokeStyle = hot ? '#ff0055' : 'rgba(255,255,255,.62)';
+                ctx.lineWidth = hot ? 2 : 1;
+                ctx.strokeRect(x + .5, y + .5, w - 1, h - 1)
+            }
+            function handle(x, y, color, label, hot) {
+                ctx.beginPath();
+                ctx.arc(x, y, hot ? 17 : 13, 0, Math.PI * 2);
+                ctx.fillStyle = hot ? '#fff' : color;
+                ctx.fill();
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#05060a';
+                ctx.stroke();
+                text(label, x, y + .5, 'center', '#05060a', 9)
+            }
+            function rollDial(x, y, color, c) {
+                ctx.beginPath();
+                ctx.arc(x, y, S.cohort && S.cohort.base === c ? 24 : 20, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(5,6,10,.88)';
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                for (let i = 0; i < 4; i++) {
+                    const a = -Math.PI / 2 + i * Math.PI / 2;
+                    line(x + Math.cos(a) * 8, y + Math.sin(a) * 8, x + Math.cos(a) * 26, y + Math.sin(a) * 26, i === 0 ? '#fff' : 'rgba(255,255,255,.42)', i === 0 ? 2 : 1)
+                }
+                rendered.push({
+                    clip: c,
+                    type: 'roll',
+                    x,
+                    y,
+                    r: 30
+                })
+            }
+            function drawBench(c) {
+                const r = clipRect(c);
+                if (r.x + r.w < -90 || r.x > W + 90)
+                    return;
+                const color = COL[visual(c)]
+                    , sel = S.selected === c
+                    , hov = S.hover && S.hover.clip === c;
+                ctx.save();
+                rr(r.x, r.y, Math.max(4, r.w), r.h, 8);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = .72;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = sel ? '#fff' : color;
+                ctx.lineWidth = sel ? 2.5 : 1.15;
+                ctx.stroke();
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(r.x, r.y, r.w, r.h);
+                ctx.clip();
+                if (r.w > 64) {
+                    const tw = Math.min(58, Math.max(25, r.w * .32));
+                    drawThumb(c, 'head', r.x + 3, r.y + 3, tw - 4, r.h - 6, S.trim && S.trim.c === c && S.trim.kind === 'start');
+                    drawThumb(c, 'tail', r.x + r.w - tw + 1, r.y + 3, tw - 4, r.h - 6, S.trim && S.trim.c === c && S.trim.kind === 'end');
+                    if (r.w - tw * 2 > 26) {
+                        ctx.fillStyle = 'rgba(5,6,10,.35)';
+                        ctx.fillRect(r.x + tw, r.y + 4, r.w - tw * 2, r.h - 8);
+                        text(c.id + ' · ' + SRC[c.src] + ':' + c.srcIn + '→' + (c.srcIn + c.dur), r.cx, r.cy, 'center', '#fff', 9)
+                    }
+                } else
+                    drawThumb(c, 'head', r.x + 3, r.y + 3, Math.max(4, r.w - 6), r.h - 6, false);
+                ctx.restore();
+                if (sel || hov || S.drag && S.drag.c === c || S.trim && S.trim.c === c) {
+                    const m = hov ? S.hover.mode : null;
+                    handle(r.x, r.cy, color, 'H', m === 'start' || (S.trim && S.trim.c === c && S.trim.kind === 'start'));
+                    handle(r.x + r.w, r.cy, color, 'T', m === 'end' || (S.trim && S.trim.c === c && S.trim.kind === 'end'));
+                    rollDial(r.cx, r.y - 30, color, c)
+                }
+                rendered.push({
+                    clip: c,
+                    type: 'bench',
+                    x0: r.x,
+                    x1: r.x + r.w,
+                    y: r.cy,
+                    top: r.y,
+                    h: r.h
+                });
+                ctx.restore()
+            }
+            function tubePoly(c) {
+                const vt = visual(c)
+                    , a0 = vt * Math.PI / 2 - Math.PI / 2 + S.roll - Math.PI / 4 + .045
+                    , a1 = vt * Math.PI / 2 - Math.PI / 2 + S.roll + Math.PI / 4 - .045
+                    , z0 = c.start
+                    , z1 = c.start + c.dur
+                    , pts3 = []
+                    , steps = 5;
+                for (let i = 0; i <= steps; i++) {
+                    const a = lerp(a0, a1, i / steps);
+                    pts3.push({
+                        x: Math.cos(a) * 245,
+                        y: Math.sin(a) * 245,
+                        z: z0
+                    })
+                }
+                for (let i = steps; i >= 0; i--) {
+                    const a = lerp(a0, a1, i / steps);
+                    pts3.push({
+                        x: Math.cos(a) * 245,
+                        y: Math.sin(a) * 245,
+                        z: z1
+                    })
+                }
+                const pts = [];
+                let depth = 1e9;
+                for (const p of pts3) {
+                    const q = project(p.x, p.y, p.z);
+                    if (!q)
+                        return null;
+                    pts.push(q);
+                    depth = Math.min(depth, q.depth)
+                }
+                const mid = project(Math.cos((a0 + a1) / 2) * 245, Math.sin((a0 + a1) / 2) * 245, (z0 + z1) / 2);
+                return {
+                    pts,
+                    depth,
+                    mid,
+                    vt
+                }
+            }
+            function drawTube(c, g) {
+                const color = COL[g.vt]
+                    , sel = S.selected === c
+                    , hov = S.hover && S.hover.clip === c
+                    , co = S.cohort && S.cohort.list.includes(c)
+                    , path = new Path2D();
+                path.moveTo(g.pts[0].x, g.pts[0].y);
+                for (let i = 1; i < g.pts.length; i++)
+                    path.lineTo(g.pts[i].x, g.pts[i].y);
+                path.closePath();
+                const a = clamp(1 - g.depth / 6100, .08, 1)
+                    , focus = sel || hov || co ? 1 : .42;
+                ctx.globalAlpha = a * focus * .82;
+                ctx.fillStyle = color;
+                ctx.fill(path);
+                ctx.globalAlpha = a * (sel || hov || co ? 1 : .62);
+                ctx.strokeStyle = co ? '#fff' : color;
+                ctx.lineWidth = sel || co ? 2.5 : 1.2;
+                ctx.stroke(path);
+                ctx.globalAlpha = 1;
+                if (g.mid && (sel || hov || co || g.depth < 1800))
+                    text(c.id, g.mid.x, g.mid.y, 'center', '#fff', clamp(16 * g.mid.s, 8, 20));
+                rendered.push({
+                    clip: c,
+                    type: 'tube',
+                    pts: g.pts
+                })
+            }
+            function boundary() {
+                if (!S.trim)
+                    return;
+                const c = S.trim.c
+                    , bw = Math.min(W - 24, 520)
+                    , bh = Math.min(150, Math.max(92, H * .22))
+                    , x = (W - bw) / 2
+                    , y = W < 760 ? 82 : 72
+                    , half = bw / 2;
+                ctx.fillStyle = 'rgba(3,4,6,.92)';
+                ctx.fillRect(x, y, bw, bh);
+                ctx.strokeStyle = 'rgba(156,255,184,.5)';
+                ctx.strokeRect(x + .5, y + .5, bw - 1, bh - 1);
+                drawThumb(c, 'head', x + 10, y + 32, half - 18, bh - 48, S.trim.kind === 'start');
+                drawThumb(c, 'tail', x + half + 8, y + 32, half - 18, bh - 48, S.trim.kind === 'end');
+                text(S.trim.kind === 'start' ? 'UPDATING HEAD SHOT' : 'UPDATING TAIL SHOT', x + bw / 2, y + 16, 'center', S.trim.kind === 'start' ? '#9CFFB8' : '#fbbf24', 11);
+                text(`${c.id} · ${SRC[c.src]} head ${head(c)}u · tail ${tail(c)}u · ${c.dur}u`, x + bw / 2, y + bh - 12, 'center', '#fff', 9)
+            }
+            function hitTest(x, y) {
+                for (let i = rendered.length - 1; i >= 0; i--) {
+                    const r = rendered[i];
+                    if (r.type === 'roll' && Math.hypot(x - r.x, y - r.y) < r.r)
+                        return {
+                            clip: r.clip,
+                            mode: 'roll'
+                        };
+                    if (r.type === 'bench') {
+                        if (Math.hypot(x - r.x0, y - r.y) < 28)
+                            return {
+                                clip: r.clip,
+                                mode: 'start'
+                            };
+                        if (Math.hypot(x - r.x1, y - r.y) < 28)
+                            return {
+                                clip: r.clip,
+                                mode: 'end'
+                            };
+                        if (x >= r.x0 && x <= r.x1 && y >= r.top && y <= r.top + r.h)
+                            return {
+                                clip: r.clip,
+                                mode: 'body'
+                            }
+                    }
+                    if (r.type === 'tube' && inside({
+                        x,
+                        y
+                    }, r.pts))
+                        return {
+                            clip: r.clip,
+                            mode: 'body'
+                        }
+                }
+                return null
+            }
+            function drawAll() {
+                bg();
+                rendered = [];
+                cells = [];
+                if (S.screen === 0) {
+                    drawSources();
+                    rails();
+                    gaps();
+                    clips.filter(c => timeX(c.start + c.dur) > -110 && timeX(c.start) < W + 110).sort((a, b) => visual(a) - visual(b) || a.start - b.start).forEach(drawBench)
+                } else if (S.screen === 2) {
+                    rails();
+                    gaps();
+                    clips.filter(c => timeX(c.start + c.dur) > -110 && timeX(c.start) < W + 110).sort((a, b) => visual(a) - visual(b) || a.start - b.start).forEach(drawBench)
+                } else {
+                    for (let z = snap(S.z - 10); z < S.z + 80; z += 2) {
+                        const p = project(0, 0, z);
+                        if (p) {
+                            ctx.globalAlpha = clamp(1 - p.depth / 5200, .015, .105);
+                            ctx.strokeStyle = '#fff';
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, R * p.s, 0, Math.PI * 2);
+                            ctx.stroke()
+                        }
+                    }
+                    ctx.globalAlpha = 1;
+                    clips.filter(c => c.start + c.dur > S.z - 12 && c.start < S.z + 80).map(c => ({
+                        c,
+                        g: tubePoly(c)
+                    })).filter(o => o.g).sort((a, b) => b.g.depth - a.g.depth).forEach(o => drawTube(o.c, o.g));
+                    drawTubeScreen()
+                }
+                if (S.drag && S.drag.kind === 'source') {
+                    const c = S.drag.clip;
+                    ctx.globalAlpha = .9;
+                    drawThumb(c, 'head', S.drag.x - 40, S.drag.y - 24, 80, 45, false);
+                    ctx.globalAlpha = 1
+                }
+                line(CX, 72, CX, H - 58, 'rgba(255,255,255,.28)');
+                boundary();
+                hud()
+            }
+            function live() {
+                return clips.find(c => visual(c) === S.lane && c.start <= S.z && c.start + c.dur > S.z)
+            }
+            function outputClip() {
+                return clips.filter(c => c.start <= S.z && c.start + c.dur > S.z).sort((a, b) => visual(b) - visual(a) || b.start - a.start)[0] || null
+            }
+            function drawTubeScreen() {
+                if (S.screen !== 1)
+                    return;
+                const c = outputClip()
+                    , p = project(0, 0, S.z + 9);
+                if (!p)
+                    return;
+                const base = clamp(W * (W < 760 ? .64 : .48), 220, 560)
+                    , ww = base * clamp(p.s * 1.35, .52, .96)
+                    , hh = ww * 9 / 16
+                    , x = p.x - ww / 2
+                    , y = p.y - hh / 2;
+                ctx.save();
+                ctx.globalAlpha = .96;
+                ctx.fillStyle = 'rgba(0,0,0,.56)';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, Math.max(ww, hh) * .73, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(156,255,184,.18)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, Math.max(ww, hh) * .78, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowColor = 'rgba(156,255,184,.28)';
+                ctx.shadowBlur = 22;
+                ctx.fillStyle = '#020304';
+                ctx.fillRect(x, y, ww, hh);
+                ctx.shadowBlur = 0;
+                if (c) {
+                    const local = c.srcIn + (S.z - c.start);
+                    if (!drawFrame(c.src, local, x, y, ww, hh)) {
+                        ctx.fillStyle = COL[c.src] + '33';
+                        ctx.fillRect(x, y, ww, hh);
+                        text('PROXY MISSING', p.x, p.y, 'center', '#fff', 12)
+                    } else {
+                        ctx.fillStyle = 'rgba(0,0,0,.12)';
+                        ctx.fillRect(x, y, ww, hh)
+                    }
+                    ctx.fillStyle = 'rgba(0,0,0,.7)';
+                    ctx.fillRect(x, y, ww, 20);
+                    text(`TUBE OUTPUT · ${c.id} · ${SRC[c.src]}:${Math.floor(local)}u`, x + 8, y + 10, 'left', '#9cffb8', 8)
+                } else {
+                    ctx.fillStyle = 'rgba(255,255,255,.035)';
+                    ctx.fillRect(x, y, ww, hh);
+                    text('EMPTY TIME', p.x, p.y - 6, 'center', '#fbbf24', 14);
+                    text('absence is the shot', p.x, p.y + 14, 'center', 'rgba(255,255,255,.55)', 9)
+                }
+                ctx.strokeStyle = 'rgba(255,255,255,.72)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x + .5, y + .5, ww - 1, hh - 1);
+                ctx.restore()
+            }
+            function hud() {
+                undoBtn.disabled = !S.undo.length;
+                redoBtn.disabled = !S.redo.length;
+                edlBtn.disabled = !clips.length;
+                asmBtn.disabled = !clips.length;
+                clearBtn.disabled = !clips.length;
+                mode.textContent = ['Source', 'Tube', 'Bench'][S.screen];
+                playBtn.textContent = S.playing ? 'Pause' : 'Play';
+                playBtn.classList.toggle('on', S.playing);
+                document.querySelectorAll('.src').forEach(b => {
+                    const i = Number(b.dataset.src)
+                        , s = sources[i];
+                    b.classList.toggle('on', i === S.source);
+                    b.classList.toggle('loaded', loaded(s))
+                }
+                );
+                const l = outputClip();
+                if (S.trim)
+                    S.state = S.trim.kind === 'start' ? 'HEAD TRIM' : 'TAIL TRIM';
+                else if (S.drag)
+                    S.state = S.drag.kind === 'source' ? 'PENDING SPLICE' : 'PENDING MOVE';
+                else if (S.cohort)
+                    S.state = 'ROLL COHORT';
+                else if (l)
+                    S.state = 'TUNNEL OUTPUT';
+                else if (!sources.some(loaded))
+                    S.state = 'NO SOURCE';
+                else
+                    S.state = clips.length ? 'EMPTY TIME' : 'NO SPLICE';
+                hint.textContent = S.screen === 0 ? 'load source · drag lit slice into lanes' : S.screen === 1 ? 'tube output · spatial overlap' : 'bench · edit head/tail boundaries';
+                let msg = S.state;
+                if (S.drag && S.drag.kind === 'source')
+                    msg = `placing ${SRC[S.drag.clip.src]}:${S.drag.clip.srcIn} → ${LANE[pointLane(S.drag.y)]}`;
+                else if (S.drag)
+                    msg = 'MOVE ' + S.drag.c.id;
+                else if (S.cohort)
+                    msg = 'ROLL ' + (S.cohort.steps > 0 ? '+' : '') + S.cohort.steps + ' / ' + S.cohort.list.length;
+                else if (S.hover)
+                    msg = S.hover.mode === 'body' ? S.hover.clip.id + ' · ' + LANE[visual(S.hover.clip)] : (S.hover.mode === 'start' ? 'HEAD ' : 'TAIL ') + S.hover.clip.id;
+                else if (S.selected)
+                    msg = `${S.selected.id} · ${SRC[S.selected.src]} head ${head(S.selected)}u · tail ${tail(S.selected)}u`;
+                else if (l)
+                    msg = 'OUTPUT · ' + l.id;
+                else if (clips.length)
+                    msg = 'EMPTY TIME · absence is editable';
+                readout.textContent = msg;
+                readout.style.borderColor = S.state === 'EMPTY TIME' ? 'rgba(251,211,77,.48)' : 'rgba(156,255,184,.35)'
+            }
+            function tick(t) {
+                last = t;
+                if (S.playing && !S.drag && !S.trim && !S.cohort && !S.scrub)
+                    S.speed = lerp(S.speed, .09, .035);
+                else if (!S.scrub)
+                    S.speed *= .88;
+                S.z += S.speed;
+                S.roll = lerp(S.roll, S.targetRoll, .13);
+                drawAll();
+                requestAnimationFrame(tick)
+            }
+            function selectLane(t) {
+                S.lane = norm(t);
+                let target = (2 - S.lane) * Math.PI / 2;
+                while (target > S.targetRoll + Math.PI)
+                    target -= Math.PI * 2;
+                while (target < S.targetRoll - Math.PI)
+                    target += Math.PI * 2;
+                S.targetRoll = target;
+                pulse()
+            }
+            function addClip(src = S.source, srcIn = 0, start = snap(S.z), lane = S.lane) {
+                const c = {
+                    id: uid(),
+                    src,
+                    srcIn,
+                    dur: 1,
+                    start: snap(start),
+                    lane: norm(lane),
+                    seed: Math.random()
+                };
+                clips.push(c);
+                S.selected = c;
+                pulse();
+                return c
+            }
+            function ptr(e) {
+                const r = cv.getBoundingClientRect();
+                return {
+                    x: e.clientX - r.left,
+                    y: e.clientY - r.top
+                }
+            }
+            function sourceHit(x, y) {
+                for (const s of sources) {
+                    if (s.load && x >= s.load.x && x <= s.load.x + s.load.w && y >= s.load.y && y <= s.load.y + s.load.h)
+                        return {
+                            type: 'load',
+                            src: s.id
+                        };
+                    for (const c of cells) {
+                        if (c.src === s.id && x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h && loaded(s))
+                            return {
+                                type: 'slice',
+                                src: s.id,
+                                idx: c.idx
+                            }
+                    }
+                }
+                return null
+            }
+            function down(e) {
+                if (e.target.closest('button'))
+                    return;
+                e.preventDefault();
+                const p = ptr(e);
+                cv.setPointerCapture(e.pointerId);
+                S.hover = null;
+                S.drag = null;
+                S.trim = null;
+                S.scrub = null;
+                S.cohort = null;
+                if (S.screen === 0) {
+                    const sh = sourceHit(p.x, p.y);
+                    if (sh && sh.type === 'load') {
+                        loadSource(sh.src);
+                        return
+                    }
+                    if (sh && sh.type === 'slice') {
+                        begin('place');
+                        S.drag = {
+                            kind: 'source',
+                            clip: {
+                                id: uid(),
+                                src: sh.src,
+                                srcIn: sh.idx,
+                                dur: 1,
+                                start: snap(S.z),
+                                lane: S.lane,
+                                seed: Math.random()
+                            },
+                            x: p.x,
+                            y: p.y
+                        };
+                        return
+                    }
+                }
+                const h = hitTest(p.x, p.y);
+                if (h) {
+                    S.selected = h.clip;
+                    pulse();
+                    if (h.mode === 'roll') {
+                        begin('roll');
+                        const list = clips.filter(c => c.start < h.clip.start + h.clip.dur && h.clip.start < c.start + c.dur);
+                        S.cohort = {
+                            base: h.clip,
+                            list,
+                            startX: p.x,
+                            startY: p.y,
+                            steps: 0
+                        };
+                        return
+                    }
+                    begin(h.mode === 'body' ? 'move' : h.mode === 'start' ? 'head trim' : 'tail trim');
+                    if (h.mode === 'body')
+                        S.drag = {
+                            kind: 'move',
+                            c: h.clip,
+                            x: p.x,
+                            y: p.y,
+                            start: h.clip.start,
+                            lane: h.clip.lane
+                        };
+                    else
+                        S.trim = {
+                            c: h.clip,
+                            kind: h.mode,
+                            x: p.x,
+                            start: h.clip.srcIn,
+                            dur: h.clip.dur
+                        };
+                    return
+                }
+                if (e.detail === 2) {
+                    begin('add');
+                    addClip();
+                    commit('clip added');
+                    return
+                }
+                S.scrub = {
+                    x: p.x,
+                    y: p.y,
+                    z: S.z
+                }
+            }
+            function move(e) {
+                const p = ptr(e);
+                if (S.drag && S.drag.kind === 'source') {
+                    S.drag.x = p.x;
+                    S.drag.y = p.y;
+                    return
+                }
+                if (S.cohort) {
+                    const dx = p.x - S.cohort.startX
+                        , dy = p.y - S.cohort.startY;
+                    S.cohort.steps = clamp(Math.round((dx - dy * .35) / 82), -3, 3);
+                    return
+                }
+                if (S.trim) {
+                    const q = S.trim
+                        , c = q.c
+                        , dx = Math.round((p.x - q.x) / S.scale);
+                    if (q.kind === 'start') {
+                        const end = q.start + q.dur;
+                        c.srcIn = clamp(snap(q.start + dx), 0, end - 1);
+                        c.dur = end - c.srcIn
+                    } else
+                        c.dur = Math.max(1, snap(q.dur + dx));
+                    return
+                }
+                if (S.drag && S.drag.kind === 'move') {
+                    const d = S.drag
+                        , c = d.c
+                        , dx = (p.x - d.x) / S.scale
+                        , dy = p.y - d.y;
+                    c.start = snap(d.start + dx);
+                    if (S.screen !== 1)
+                        c.lane = pointLane(p.y);
+                    else if (Math.abs(dy) > 36)
+                        c.lane = norm(d.lane + (dy > 0 ? 1 : -1));
+                    return
+                }
+                if (S.scrub) {
+                    const dx = p.x - S.scrub.x
+                        , dy = p.y - S.scrub.y;
+                    S.z = S.scrub.z + (S.screen === 2 ? -dx / S.scale : dy * .07);
+                    S.speed = S.screen === 2 ? -dx * .0009 : dy * .0008;
+                    return
+                }
+                S.hover = hitTest(p.x, p.y);
+                if (S.screen === 0) {
+                    sources.forEach(s => s.hover = -1);
+                    const sh = sourceHit(p.x, p.y);
+                    if (sh && sh.type === 'slice')
+                        sources[sh.src].hover = sh.idx
+                }
+                cv.style.cursor = S.hover ? (S.hover.mode === 'body' ? 'grab' : S.hover.mode === 'roll' ? 'alias' : 'ew-resize') : 'crosshair'
+            }
+            function up(e) {
+                try {
+                    cv.releasePointerCapture(e.pointerId)
+                } catch (err) { }
+                if (S.drag && S.drag.kind === 'source') {
+                    const d = S.drag;
+                    d.clip.start = pointTime(d.x);
+                    d.clip.lane = pointLane(d.y);
+                    clips.push(d.clip);
+                    S.selected = d.clip;
+                    S.source = d.clip.src;
+                    commit('splice placed');
+                    S.drag = null;
+                    pulse()
+                }
+                if (S.cohort) {
+                    if (S.cohort.steps) {
+                        for (const c of S.cohort.list)
+                            c.lane = norm(c.lane + S.cohort.steps);
+                        commit('cohort rolled')
+                    } else
+                        cancel();
+                    S.cohort = null;
+                    pulse()
+                }
+                if (S.trim) {
+                    commit(S.trim.kind === 'start' ? 'head updated' : 'tail updated');
+                    S.trim = null;
+                    pulse()
+                }
+                if (S.drag && S.drag.kind === 'move') {
+                    commit('clip moved');
+                    S.drag = null;
+                    pulse()
+                }
+                S.scrub = null
+            }
+            function loadSource(i) {
+                S.source = i;
+                updateSourceButtons();
+                file.value = '';
+                file.click();
+                toast('choose source ' + SRC[i])
+            }
+            function updateSourceButtons() {
+                document.querySelectorAll('.src').forEach(b => b.classList.toggle('on', Number(b.dataset.src) === S.source))
+            }
+            function cycleView() {
+                S.screen = (S.screen + 1) % 3;
+                toast(['source view', 'tube view', 'bench view'][S.screen]);
+                pulse()
+            }
+            function togglePlay() {
+                S.playing = !S.playing;
+                pulse()
+            }
+            function buildEDL() {
+                const sorted = clips.slice().sort((a, b) => a.start - b.start || a.lane - b.lane)
+                    , events = [];
+                let cursor = sorted.length ? sorted[0].start : S.z
+                    , n = 1;
+                for (const c of sorted) {
+                    if (c.lane === 0 && c.start > cursor)
+                        events.push({
+                            event: n++,
+                            type: 'GAP',
+                            label: 'EMPTY TIME',
+                            sequence_in: unit(cursor),
+                            sequence_out: unit(c.start),
+                            duration_units: c.start - cursor
+                        });
+                    events.push({
+                        event: n++,
+                        type: 'CLIP',
+                        id: c.id,
+                        source: SRC[c.src],
+                        source_file: sources[c.src].file,
+                        lane: LANE[c.lane],
+                        head_source_unit: unit(head(c)),
+                        tail_source_unit: unit(tail(c)),
+                        sequence_in: unit(c.start),
+                        sequence_out: unit(c.start + c.dur),
+                        duration_units: c.dur
+                    });
+                    if (c.lane === 0)
+                        cursor = Math.max(cursor, c.start + c.dur)
+                }
+                return events
+            }
+            function dl(txt, name, type = 'application/json') {
+                const b = new Blob([txt], {
+                    type
+                })
+                    , u = URL.createObjectURL(b)
+                    , a = document.createElement('a');
+                a.href = u;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(u), 1000)
+            }
+            function exportEDL() {
+                dl(JSON.stringify(buildEDL(), null, 2), 'arc_tunnel_splice_edl_' + Date.now() + '.json');
+                toast('edl exported')
+            }
+            function exportASM() {
+                const payload = {
+                    version: 1,
+                    principle: 'proxy source plus arc tunnel edit; assemble from original media',
+                    sources: sources.map(s => ({
+                        key: s.k,
+                        file: s.file,
+                        state: s.state
+                    })),
+                    lanes: LANE,
+                    events: buildEDL()
+                }
+                    , nl = String.fromCharCode(10)
+                    , txt = ['// Arc-Tunnel Splice assembly plan', 'export const ARC_TUNNEL_SPLICE_ASSEMBLY = ' + JSON.stringify(payload, null, 2) + ';', '', '// Build from originals. UI proxies are only for fast decisions.', '// GAP events are intentional empty time.', '// head_source_unit and tail_source_unit are boundary shots.', '// Higher lane wins on overlap.', ''].join(nl);
+                dl(txt, 'arc_tunnel_splice_assembly_' + Date.now() + '.mjs', 'text/javascript');
+                toast('assembly exported')
+            }
+            function clearAll() {
+                if (!clips.length)
+                    return;
+                begin('clear');
+                clips.splice(0, clips.length);
+                S.selected = null;
+                commit('sequence cleared')
+            }
+            function key(e) {
+                const mod = e.ctrlKey || e.metaKey;
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    togglePlay()
+                }
+                if (e.key.toLowerCase() === 'v' && !mod)
+                    cycleView();
+                if (e.key.toLowerCase() === 'n') {
+                    begin('add');
+                    addClip();
+                    commit('clip added')
+                }
+                if ((e.key === 'Delete' || e.key === 'Backspace') && S.selected) {
+                    begin('delete');
+                    clips.splice(clips.indexOf(S.selected), 1);
+                    S.selected = null;
+                    commit('clip deleted')
+                }
+                if (mod && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo()
+                }
+                if (mod && e.key.toLowerCase() === 'y') {
+                    e.preventDefault();
+                    redo()
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown')
+                    selectLane(S.lane + 1);
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')
+                    selectLane(S.lane - 1);
+                if (e.key.toLowerCase() === 'e' && clips.length)
+                    exportEDL()
+            }
+            function makeLaneButtons() {
+                LANE.forEach((n, i) => {
+                    const b = document.createElement('button');
+                    b.className = 'lane';
+                    b.textContent = n;
+                    b.dataset.short = SHORT[i];
+                    b.style.setProperty('--laneColor', COL[i]);
+                    b.style.setProperty('--laneGlow', GLOW[i]);
+                    b.addEventListener('pointerdown', e => {
+                        e.stopPropagation();
+                        selectLane(i)
+                    }
+                    );
+                    lanesEl.appendChild(b)
+                }
+                )
+            }
+            viewBtn.onclick = cycleView;
+            playBtn.onclick = togglePlay;
+            loadBtn.onclick = () => loadSource(S.source);
+            newBtn.onclick = () => {
+                begin('add');
+                addClip();
+                commit('clip added')
+            }
+                ;
+            undoBtn.onclick = undo;
+            redoBtn.onclick = redo;
+            edlBtn.onclick = exportEDL;
+            asmBtn.onclick = exportASM;
+            clearBtn.onclick = clearAll;
+            document.querySelectorAll('.src').forEach(b => b.onclick = () => {
+                S.source = Number(b.dataset.src);
+                updateSourceButtons();
+                if (!loaded(sources[S.source]))
+                    loadSource(S.source);
+                else
+                    toast('source ' + SRC[S.source] + ' selected')
+            }
+            );
+            window.addEventListener('resize', resize);
+            window.addEventListener('wheel', e => {
+                S.z += e.deltaY * .04;
+                S.speed = e.deltaY * .0008
+            }
+                , {
+                    passive: true
+                });
+            window.addEventListener('keydown', key);
+            cv.addEventListener('contextmenu', e => e.preventDefault());
+            cv.addEventListener('pointerdown', down);
+            cv.addEventListener('pointermove', move);
+            cv.addEventListener('pointerup', up);
+            cv.addEventListener('pointercancel', up);
+            resize();
+            makeLaneButtons();
+            load();
+            selectLane(2);
+            updateSourceButtons();
+            hud();
+            requestAnimationFrame(tick)
+        }
+        )();
+    </script>
+</body>
+
+</html>

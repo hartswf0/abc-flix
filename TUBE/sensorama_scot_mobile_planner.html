@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>Sensorama SCOT Planner</title>
+  <style>
+    :root{
+      --bg:#f3f0e8;
+      --paper:#fffdf7;
+      --ink:#151515;
+      --muted:rgba(21,21,21,.58);
+      --line:rgba(21,21,21,.16);
+      --heavy:rgba(21,21,21,.28);
+      --red:#b23a2e;
+      --amber:#d99a17;
+      --teal:#0e6b66;
+      --black:#111;
+      --green:#2f7d4f;
+      --shadow:0 8px 0 rgba(21,21,21,.12);
+      --radius:18px;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{background-image:linear-gradient(rgba(21,21,21,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(21,21,21,.035) 1px,transparent 1px);background-size:22px 22px;padding-bottom:env(safe-area-inset-bottom)}
+    button,input,textarea{font:inherit;color:inherit}
+    button{border:0;background:none;padding:0;cursor:pointer}
+    .app{max-width:780px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+    header{position:sticky;top:0;z-index:20;background:rgba(243,240,232,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 14px 10px}
+    .topline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{min-width:0}
+    .eyebrow{font:800 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.16em;color:var(--red);margin-bottom:4px}
+    h1{margin:0;font:900 24px/1.02 Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:-.04em}
+    .tiny{font:800 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+    .pillBtn{border:2px solid var(--ink);background:var(--paper);padding:9px 10px;border-radius:999px;font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;box-shadow:0 3px 0 var(--ink)}
+    .pillBtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+    main{padding:14px;display:flex;flex-direction:column;gap:14px;flex:1}
+    .panel{background:var(--paper);border:2px solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .panelPad{padding:14px}
+    .horizonBar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+    .horizon{border:2px solid var(--line);border-radius:14px;background:rgba(255,255,255,.5);padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:68px}
+    .horizon[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+    .horizon b{font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em}
+    .horizon span{font:800 9px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;opacity:.72;text-align:center}
+    .explain{font-size:13px;line-height:1.42;color:var(--muted);margin:10px 0 0}
+    .progress{display:grid;grid-template-columns:repeat(4,1fr);height:10px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);background:var(--paper)}
+    .progress i{display:block;border-right:1px solid rgba(0,0,0,.25);opacity:.18}.progress i.on{opacity:1}.progress i:nth-child(1){background:var(--red)}.progress i:nth-child(2){background:var(--amber)}.progress i:nth-child(3){background:var(--teal)}.progress i:nth-child(4){background:var(--black)}
+    .sectionHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px}
+    .sectionTitle{display:flex;align-items:center;gap:8px;font:900 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.1em}
+    .dot{width:12px;height:12px;border-radius:50%;background:var(--ink);display:inline-block;border:2px solid var(--ink)}
+    .unitGrid{display:grid;grid-template-columns:1fr;gap:8px}
+    .unit{border:2px solid var(--line);background:white;border-radius:14px;padding:12px;text-align:left;width:100%;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}
+    .unit.selected{border-color:var(--ink);box-shadow:inset 0 0 0 2px currentColor;background:#fffaf0}
+    .unit h3{margin:0 0 4px;font:900 15px/1.05 Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:-.02em}
+    .unit p{margin:0;font-size:12px;line-height:1.32;color:var(--muted)}
+    .unit .tag{font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;border:1px solid currentColor;border-radius:999px;padding:4px 5px;color:inherit;white-space:nowrap}
+    .s-pressure{color:var(--red)}.s-source{color:var(--amber)}.s-function{color:var(--teal)}.s-form{color:var(--black)}
+    .stickyPlan{position:sticky;bottom:0;z-index:15;margin:0 -14px -14px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(243,240,232,0),rgba(243,240,232,.96) 18%,rgba(243,240,232,.99));pointer-events:none}
+    .planButton{width:100%;pointer-events:auto;border:2px solid var(--ink);border-radius:16px;background:var(--ink);color:var(--bg);padding:14px 14px;font:950 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.1em;box-shadow:0 6px 0 var(--amber)}
+    .planButton:disabled{opacity:.35;filter:grayscale(1);box-shadow:none}.planButton:active:not(:disabled){transform:translateY(3px);box-shadow:0 3px 0 var(--amber)}
+    .plan{display:none}.plan.show{display:block}
+    .heroPlan{padding:16px;border-bottom:2px solid var(--ink);background:#fffaf0}
+    .heroPlan h2{margin:0 0 8px;font:900 29px/.92 Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:-.04em}
+    .heroPlan p{margin:0;font-size:14px;line-height:1.42;color:var(--muted)}
+    .planGrid{display:grid;gap:10px;padding:14px}
+    .miniCard{border:1px solid var(--line);border-radius:14px;padding:12px;background:white}
+    .miniCard b{display:block;font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;color:var(--muted)}
+    .miniCard ul{margin:0;padding-left:18px;font-size:13px;line-height:1.42;color:var(--ink)}
+    .miniCard li+li{margin-top:4px}
+    .copyRow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+    .copyBtn{border:2px solid var(--ink);border-radius:13px;background:var(--paper);padding:12px 8px;font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;box-shadow:0 3px 0 var(--ink)}
+    .copyBtn.primary{background:var(--amber)}
+    .drawer{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.38);display:none;align-items:flex-end}.drawer.show{display:flex}
+    .sheet{width:100%;max-height:86dvh;background:var(--bg);border-top:3px solid var(--ink);border-radius:24px 24px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.24);overflow:auto;padding:16px 14px calc(18px + env(safe-area-inset-bottom))}
+    .sheetHead{display:flex;align-items:start;justify-content:space-between;gap:14px;margin-bottom:12px}.sheetHead h2{margin:0;font:900 28px/.9 Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:-.04em}.close{border:2px solid var(--ink);border-radius:999px;padding:8px 11px;background:white;font-weight:900}
+    .summaryLine{font:800 11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:8px 0 0}
+    textarea{width:100%;min-height:180px;border:2px solid var(--ink);border-radius:14px;background:white;padding:12px;font:500 12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;outline:none}
+    .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;transition:.18s;z-index:60;background:var(--ink);color:var(--bg);padding:10px 13px;border-radius:999px;font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    @media(min-width:700px){
+      h1{font-size:32px}.unitGrid{grid-template-columns:1fr 1fr}.planGrid{grid-template-columns:1fr 1fr}.heroPlan h2{font-size:38px}.stickyPlan{display:none}.app{padding-bottom:20px}.desktopPlan{display:block}.copyRow{grid-template-columns:repeat(4,1fr)}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topline">
+        <div class="brand">
+          <div class="eyebrow">SCOT × Sensorama × VR</div>
+          <h1>Embodied Media Planner</h1>
+        </div>
+        <div class="actions">
+          <button class="pillBtn" id="randomBtn">Auto</button>
+          <button class="pillBtn" id="resetBtn">Reset</button>
+        </div>
+      </div>
+      <div class="horizonBar" id="horizonBar"></div>
+      <p class="explain" id="horizonExplain"></p>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div class="progress" aria-hidden="true"><i id="p-pressure"></i><i id="p-source"></i><i id="p-function"></i><i id="p-form"></i></div>
+        <div class="panelPad" id="unitSections"></div>
+      </section>
+
+      <section class="panel plan desktopPlan" id="planPanel"></section>
+
+      <div class="stickyPlan">
+        <button class="planButton" id="openPlanBtn" disabled>Build Prototype Brief</button>
+      </div>
+    </main>
+  </div>
+
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div>
+          <div class="eyebrow">Generated prototype</div>
+          <h2 id="sheetTitle">Prototype Brief</h2>
+          <p class="summaryLine" id="sheetSummary"></p>
+        </div>
+        <button class="close" id="closeDrawer">×</button>
+      </div>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied</div>
+
+  <script>
+    const HORIZONS = {
+      possible: {
+        label: 'Possible', short: 'Variants', color: '#d99a17',
+        explain: 'Early interpretive flexibility. Weird branches are allowed: smell cinema, total theater, training rigs, arcade machines, non-headset immersion.',
+        units: {
+          pressure: [
+            ['Optical Supremacy','Media keeps pretending vision alone can carry presence.'],
+            ['Sensory Amputation','Smell, wind, vibration, temperature, and balance are cut away.'],
+            ['Television Compression','Spectacle collapses into a passive living-room rectangle.'],
+            ['Novelty Arms Race','Immersion becomes gimmick escalation instead of durable experience.']
+          ],
+          source: [
+            ['Sensorama','A one-person multisensory cinema cabinet using 3D film, stereo sound, wind, vibration, and smell.'],
+            ['Cinerama','Peripheral widescreen cinema built to exceed the flat television rectangle.'],
+            ['Smell-O-Vision','A failed but useful attempt to treat scent as narrative information.'],
+            ['Link Trainer','Mechanical flight simulation for safe embodied rehearsal.']
+          ],
+          function: [
+            ['Somatic Belief','The body believes when several senses agree.'],
+            ['Sensory Corroboration','Air, sound, scent, vibration, and image confirm the same world.'],
+            ['Peripheral Presence','Presence starts at the edge of sight and balance.'],
+            ['Safe Risk Rehearsal','Dangerous situations can be trained without actual danger.']
+          ],
+          form: [
+            ['Sensorama Archive Booth','A kiosk that replays historical places through image, sound, wind, scent, and vibration.'],
+            ['Scented Documentary Station','A nonfiction booth where scent is treated as evidence.'],
+            ['Peripheral Vision Theater','A curved-screen mini-theater focused on edge vision and orientation.'],
+            ['Training Without Danger Rig','A compact simulator for emergency, mobility, or field rehearsal.']
+          ]
+        }
+      },
+      plausible: {
+        label: 'Plausible', short: 'Buildable', color: '#eb6534',
+        explain: 'Studio-buildable prototypes. Use cheap fans, transducers, scent cards, browser cues, projection, paper logs, and clear interaction loops.',
+        units: {
+          pressure: [
+            ['Flat-Screen Fatigue','Screens multiply, but interaction remains glassy and bodily thin.'],
+            ['Mechanical Complexity','Multisensory media fails when cue systems are fragile or overbuilt.'],
+            ['Content Scarcity','New immersive machines die when nobody can author for them.'],
+            ['Museum Object Sterility','Historical artifacts become untouchable images stripped of use-weight.']
+          ],
+          source: [
+            ['Arcade Cabinet','Short, repeatable, public, durable, one-body-at-a-time media.'],
+            ['Travelogue Cinema','Mediated travel as a substitute for physically entering a place.'],
+            ['Theme-Park Show Control','Coordinated cues: image, sound, light, air, motion, and crowd timing.'],
+            ['Haptic Craft Machinery','Levers, pedals, vents, seats, knobs, motors, and repairable mechanisms.']
+          ],
+          function: [
+            ['Interface Grounding','Controls and material feedback make abstraction tangible.'],
+            ['Atmospheric Memory','Places are remembered as scent, pressure, rhythm, and texture.'],
+            ['Kinesthetic Narrative','Story becomes movement through space and resistance.'],
+            ['Sensory Literacy','Users learn to read more than visual symbols.']
+          ],
+          form: [
+            ['Haptic Film Player','A browser timeline maps scenes to audio, fan, vibration, scent-card, and lighting cues.'],
+            ['Total Cinema Toolkit','A low-cost kit: fan, transducer, scent strip, speaker, foot pedal, and cue sheet.'],
+            ['Multisensory Classroom Pod','A station for teaching history, ecology, geography, or media studies through bodily simulation.'],
+            ['Media Archaeology Cabinet','A working exhibit where dead immersive formats become living design patterns.']
+          ]
+        }
+      },
+      probable: {
+        label: 'Probable', short: 'Industry', color: '#b23a2e',
+        explain: 'Likely industry path. Headsets, spatial platforms, XR authoring, simulation training, and platform-controlled immersive content.',
+        units: {
+          pressure: [
+            ['Disembodied Avatar','Presence is represented by a floating identity without gravity or sensory consequence.'],
+            ['XR Platform Lock-In','Immersion becomes trapped in proprietary stores, SDKs, and tracking systems.'],
+            ['Simulator Sickness Gap','The body objects when visual motion and physical sensation disagree.'],
+            ['Immersion Without Memory','Spectacle impresses briefly but fails to become durable embodied knowledge.']
+          ],
+          source: [
+            ['Head-Mounted Display','The dominant personal portal for VR and XR computing.'],
+            ['Cockpit Interface','An instrumented control environment that fuses perception, decision, and feedback.'],
+            ['Motion Simulator','Actuated seating and platform cues used to intensify virtual movement.'],
+            ['Spatial Audio Stage','Directional sound anchors the body inside a simulated place.']
+          ],
+          function: [
+            ['Situated Learning','Knowledge is learned through position, timing, and bodily orientation.'],
+            ['Operational Imagination','People imagine systems by inhabiting their conditions.'],
+            ['Environmental Attention','Media restores attention to air, surfaces, temperature, and terrain.'],
+            ['Format Consciousness','Users see what each medium includes, excludes, and disciplines.']
+          ],
+          form: [
+            ['XR Cue Sequencer','A tool for authoring sensory cues beside VR or web scenes.'],
+            ['Embodied Media Timeline','A walk-through map linking Cinerama, Sensorama, simulation, HMDs, VR, and XR.'],
+            ['Climate Atmosphere Chamber','A sensory simulator for heat, humidity, wind, vibration, and ecological change.'],
+            ['Urban Ride Simulator','A seated reconstruction of city movement: bus, motorcycle, train, sidewalk, elevator.']
+          ]
+        }
+      },
+      preferred: {
+        label: 'Preferred', short: 'Target', color: '#2f7d4f',
+        explain: 'Value-driven closure. The goal is not just better VR; it is open, local, repairable, multisensory media that communities can actually use.',
+        units: {
+          pressure: [
+            ['Frictionless Sterility','Seamless interfaces remove the resistance needed for memory and accountability.'],
+            ['Cloud-Based Erasure','Remote platforms delete the local source code of experience.'],
+            ['Ecological Obfuscation','Computation hides its energy cost, material extraction, and infrastructure.'],
+            ['Passive Consumer Body','The user is seated, tracked, and monetized, but rarely given agency.']
+          ],
+          source: [
+            ['Public Kiosk','A shared civic machine rather than a private headset.'],
+            ['Oral History Booth','A community recording practice grounded in voice, place, route, and memory.'],
+            ['Repair Bench','A work surface where use, care, and maintenance become knowledge.'],
+            ['Community Archive','A local memory system controlled by participants, not platforms.']
+          ],
+          function: [
+            ['Multisensory Archive','History is preserved as atmosphere, route, sound, pressure, and bodily orientation.'],
+            ['Mechanical Trust','People trust what they can inspect, repair, and feel.'],
+            ['Public Demonstration','A prototype becomes an argument people can physically test.'],
+            ['Collective Memory','Media becomes a shared civic record rather than an isolated private feed.']
+          ],
+          form: [
+            ['Embodied Oral History Booth','Elders record memories as routes, smells, sounds, surfaces, weather, and posture.'],
+            ['Community Sensorama Kit','A cheap deployable kit for local museums, classrooms, libraries, and neighborhood archives.'],
+            ['Local Memory Kiosk','A public station where people enter a place through sensory traces and archived testimony.'],
+            ['Open Total Cinema Lab','A repairable public lab for building non-headset multisensory media experiments.']
+          ]
+        }
+      }
+    };
+
+    const TYPES = [
+      ['pressure','Pressure','What is broken or under tension?','#b23a2e'],
+      ['source','Source','What historical logic do we recover?','#d99a17'],
+      ['function','Function','What capacity comes back?','#0e6b66'],
+      ['form','Form','What can we build or test?','#111']
+    ];
+
+    const state = { horizon: 'preferred', selected: { pressure: null, source: null, function: null, form: null } };
+
+    const $ = s => document.querySelector(s);
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function init(){ renderHorizons(); autoPick('preferred'); render(); bind(); }
+
+    function bind(){
+      $('#randomBtn').addEventListener('click', () => autoPick(state.horizon, true));
+      $('#resetBtn').addEventListener('click', () => { state.selected = { pressure:null, source:null, function:null, form:null }; render(); });
+      $('#openPlanBtn').addEventListener('click', openDrawer);
+      $('#closeDrawer').addEventListener('click', closeDrawer);
+      $('#drawer').addEventListener('click', e => { if(e.target.id === 'drawer') closeDrawer(); });
+    }
+
+    function renderHorizons(){
+      const bar = $('#horizonBar');
+      bar.innerHTML = Object.entries(HORIZONS).map(([key,h]) => `<button class="horizon" data-horizon="${key}" aria-pressed="${key===state.horizon}"><b>${h.label}</b><span>${h.short}</span></button>`).join('');
+      bar.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => { state.horizon = btn.dataset.horizon; state.selected = { pressure:null, source:null, function:null, form:null }; renderHorizons(); render(); }));
+    }
+
+    function render(){
+      const h = HORIZONS[state.horizon];
+      $('#horizonExplain').textContent = h.explain;
+      const wrap = $('#unitSections');
+      wrap.innerHTML = TYPES.map(([type,label,help,color]) => {
+        const units = h.units[type];
+        const selected = state.selected[type];
+        return `<section class="unitSection s-${type}">
+          <div class="sectionHead">
+            <div><div class="sectionTitle"><span class="dot" style="background:${color}"></span>${label}</div><p class="explain" style="margin:6px 0 0">${help}</p></div>
+          </div>
+          <div class="unitGrid">${units.map((u,i)=> `<button class="unit ${selected===i?'selected':''}" data-type="${type}" data-index="${i}" style="color:${color}"><div><h3>${esc(u[0])}</h3><p>${esc(u[1])}</p></div><span class="tag">${selected===i?'Set':'Pick'}</span></button>`).join('')}</div>
+        </section>`;
+      }).join('');
+
+      wrap.querySelectorAll('.unit').forEach(btn => btn.addEventListener('click', () => { state.selected[btn.dataset.type] = Number(btn.dataset.index); render(); }));
+      updateProgress();
+      renderPlan();
+    }
+
+    function updateProgress(){
+      TYPES.forEach(([type]) => $('#p-'+type).classList.toggle('on', state.selected[type] !== null));
+      $('#openPlanBtn').disabled = !isComplete();
+    }
+
+    function isComplete(){ return TYPES.every(([type]) => state.selected[type] !== null); }
+
+    function getPick(type){
+      const idx = state.selected[type];
+      if(idx === null) return null;
+      return HORIZONS[state.horizon].units[type][idx];
+    }
+
+    function autoPick(horizon = state.horizon, rerender = false){
+      state.horizon = horizon;
+      const h = HORIZONS[horizon];
+      TYPES.forEach(([type]) => { state.selected[type] = Math.floor(Math.random() * h.units[type].length); });
+      renderHorizons();
+      if(rerender) render();
+    }
+
+    function buildPlan(){
+      const horizon = HORIZONS[state.horizon];
+      const pressure = getPick('pressure'), source = getPick('source'), func = getPick('function'), form = getPick('form');
+      const title = `${form[0]} for ${func[0]}`;
+      const thesis = `Use ${form[0]} to address ${pressure[0]} by recovering ${source[0]}, restoring ${func[0]} through a buildable embodied media prototype.`;
+      const parts = {
+        title, thesis, horizon: horizon.label,
+        cards: { pressure, source, function: func, form },
+        build: [
+          'Start with a table, booth, phone, laptop, or browser interface — not a fantasy platform.',
+          'Create one 60–90 second scene or memory route with timed cues.',
+          'Map each cue to a physical output: fan, speaker, vibration motor, scent card, light, object, or instruction.',
+          'Log what the user felt, misunderstood, trusted, or ignored.'
+        ],
+        materials: [
+          'Laptop or phone running the cue timeline',
+          'Small fan or handheld air cue',
+          'Bluetooth speaker or headphones',
+          'Cardboard / foamcore / printed placards',
+          'Scent cards: coffee, dust, salt, rain, oil, grass, paper, etc.',
+          'Optional: vibration transducer, gamepad, Arduino, LED strip'
+        ],
+        test: [
+          'Does the body understand the scene before the explanation?',
+          'Which cue actually changes memory: scent, air, sound, vibration, posture, or text?',
+          'Can another person author a new scene without rebuilding the whole system?',
+          'Does the prototype expose its mechanics instead of hiding them?'
+        ]
+      };
+      return parts;
+    }
+
+    function planHTML(compact=false){
+      if(!isComplete()) return '';
+      const p = buildPlan();
+      return `<div class="heroPlan"><div class="eyebrow">${esc(p.horizon)} Horizon</div><h2>${esc(p.title)}</h2><p>${esc(p.thesis)}</p></div>
+        <div class="planGrid">
+          <div class="miniCard"><b>Selected Matrix</b><ul>
+            <li><strong>Pressure:</strong> ${esc(p.cards.pressure[0])}</li>
+            <li><strong>Source:</strong> ${esc(p.cards.source[0])}</li>
+            <li><strong>Function:</strong> ${esc(p.cards.function[0])}</li>
+            <li><strong>Form:</strong> ${esc(p.cards.form[0])}</li>
+          </ul></div>
+          <div class="miniCard"><b>Build Loop</b><ul>${p.build.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+          <div class="miniCard"><b>Cheap Materials</b><ul>${p.materials.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+          <div class="miniCard"><b>Test Questions</b><ul>${p.test.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+          <div class="miniCard" style="grid-column:1/-1"><b>Copyable Prompt</b><textarea id="promptBox" readonly>${esc(copyPrompt())}</textarea><div class="copyRow"><button class="copyBtn primary" onclick="copyPlan()">Copy Brief</button><button class="copyBtn" onclick="copyPromptAction()">Copy Build Prompt</button><button class="copyBtn" onclick="downloadJSON()">Download JSON</button><button class="copyBtn" onclick="window.print()">Print</button></div></div>
+        </div>`;
+    }
+
+    function renderPlan(){
+      const panel = $('#planPanel');
+      if(isComplete()){ panel.classList.add('show'); panel.innerHTML = planHTML(); }
+      else { panel.classList.remove('show'); panel.innerHTML = ''; }
+    }
+
+    function openDrawer(){
+      if(!isComplete()) return;
+      const p = buildPlan();
+      $('#sheetTitle').textContent = p.title;
+      $('#sheetSummary').textContent = `${p.horizon} / ${p.cards.pressure[0]} → ${p.cards.source[0]} → ${p.cards.function[0]} → ${p.cards.form[0]}`;
+      $('#sheetBody').innerHTML = planHTML(true);
+      $('#drawer').classList.add('show');
+    }
+    function closeDrawer(){ $('#drawer').classList.remove('show'); }
+
+    function copyPrompt(){
+      if(!isComplete()) return '';
+      const p = buildPlan();
+      return `Build a usable prototype for this Sensorama/VR media-archaeology concept.\n\nSCOT horizon: ${p.horizon}\nPressure: ${p.cards.pressure[0]} — ${p.cards.pressure[1]}\nSource logic: ${p.cards.source[0]} — ${p.cards.source[1]}\nRecovered function: ${p.cards.function[0]} — ${p.cards.function[1]}\nManifest form: ${p.cards.form[0]} — ${p.cards.form[1]}\n\nThesis: ${p.thesis}\n\nOutput a concrete build plan with: materials, data/cue types, interaction loop, 90-second demo script, failure modes, and a minimum viable single-file HTML prototype concept. Keep it grounded, mobile-friendly, and buildable with cheap classroom materials.`;
+    }
+    function copyPlainBrief(){
+      const p = buildPlan();
+      return `${p.title}\n\n${p.thesis}\n\nHorizon: ${p.horizon}\nPressure: ${p.cards.pressure[0]} — ${p.cards.pressure[1]}\nSource: ${p.cards.source[0]} — ${p.cards.source[1]}\nFunction: ${p.cards.function[0]} — ${p.cards.function[1]}\nForm: ${p.cards.form[0]} — ${p.cards.form[1]}\n\nBuild Loop:\n- ${p.build.join('\n- ')}\n\nMaterials:\n- ${p.materials.join('\n- ')}\n\nTest Questions:\n- ${p.test.join('\n- ')}`;
+    }
+    async function copyText(text){
+      try{ await navigator.clipboard.writeText(text); }
+      catch(e){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+      const t=$('#toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1200);
+    }
+    function copyPlan(){ copyText(copyPlainBrief()); }
+    function copyPromptAction(){ copyText(copyPrompt()); }
+    function downloadJSON(){
+      const p = buildPlan();
+      const blob = new Blob([JSON.stringify(p,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = p.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.json';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    window.copyPlan = copyPlan;
+    window.copyPromptAction = copyPromptAction;
+    window.downloadJSON = downloadJSON;
+
+    init();
+  </script>
+</body>
+</html>

@@ -5,151 +5,242 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SWARMS · Operative Index</title>
 <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#f4f4f0;--fg:#1e1e1e;--act:#0033cc;--border:3px;--shadow:4px;--white:#fff;--faint:#ccc}
-  html,body{min-height:100vh;background:var(--bg);color:var(--fg);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  :root {
+    --bg: #f4f4f0; --paper: #fff; --ink: #050505;
+    --muted: #666; --line: #000; --accent: #0033cc;
+    --red: #d71920; --amber: #c8a800; --green: #14824c;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); min-height: 100vh;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    padding: 40px 28px 60px; color: var(--ink);
+  }
+  .header {
+    text-align: center;
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+  h1 {
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 28px;
+  }
+  .subtitle {
+    font-size: 12px; font-weight: 800;
+    color: var(--muted); margin-top: 8px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
 
-  .site-header{background:var(--fg);color:var(--white);padding:28px 24px 24px;text-align:center;border-bottom:var(--border) solid var(--fg)}
-  .logo{font-size:36px;font-weight:900;letter-spacing:.12em;line-height:1}
-  .logo span{color:var(--act)}
-  .tagline{font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:#888;margin-top:6px}
+  /* ── Canonical section ── */
+  .section-label {
+    font-size: 11px; font-weight: 900;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+    border-bottom: 2px solid #ccc; padding-bottom: 6px;
+  }
+  .canonical { margin-bottom: 48px; }
 
-  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 24px;border-bottom:var(--border) solid var(--fg);background:var(--white);max-width:1400px;margin:0 auto}
-  #search{flex:1;min-width:200px;border:2px solid var(--fg);padding:10px 14px;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;outline:none}
-  #search:focus{border-color:var(--act)}
-  .family-btn{background:var(--bg);color:var(--fg);border:2px solid var(--fg);padding:7px 12px;font:inherit;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
-  .family-btn[data-active="true"]{background:var(--fg);color:var(--white)}
-  .family-btn:hover{border-color:var(--act)}
-  .count{font-size:10px;font-weight:900;color:#999;letter-spacing:.06em;margin-left:auto}
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .card {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+    display: flex; flex-direction: column;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+  .card-head {
+    background: var(--ink); color: #fff;
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-head.compiler { background: var(--accent); }
+  .card-head.choreography { background: var(--green); }
+  .card-head.ancestor { background: #333; }
+  .card-head.console { background: var(--ink); }
+  .card-title {
+    font-weight: 900; font-size: 13px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .card-link {
+    color: #fff; text-decoration: none;
+    font-size: 10px; font-weight: 900;
+    letter-spacing: 0.1em;
+    border: 2px solid #fff; padding: 4px 12px;
+    text-transform: uppercase;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .card-link:hover { background: rgba(255,255,255,0.2); }
+  .card-body {
+    padding: 14px 16px;
+    font-size: 12px; line-height: 1.5;
+    color: #444;
+  }
+  .card-body strong { color: var(--ink); }
+  .card-meta {
+    padding: 8px 16px;
+    border-top: 1px solid #eee;
+    font-size: 10px; font-weight: 800;
+    color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+    display: flex; gap: 16px;
+  }
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:20px;padding:24px;max-width:1400px;margin:0 auto}
-  .card{background:var(--white);border:var(--border) solid var(--fg);box-shadow:var(--shadow) var(--shadow) 0 var(--fg);display:flex;flex-direction:column;overflow:hidden}
-  .card.hidden{display:none}
-  .card-head{background:var(--fg);color:var(--white);padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-  .card-title{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
-  .card-fam{font-size:9px;font-weight:700;letter-spacing:.06em;opacity:.6}
-  .card-open{color:var(--white);text-decoration:none;font-size:9px;font-weight:900;letter-spacing:.1em;border:2px solid var(--white);padding:3px 8px;text-transform:uppercase;transition:all .1s;flex-shrink:0}
-  .card-open:hover{background:var(--act);border-color:var(--act)}
-  .card-desc{padding:10px 14px;font-size:11px;line-height:1.55;color:#555;border-bottom:1px solid #eee}
-  .card-tags{padding:8px 14px;display:flex;flex-wrap:wrap;gap:4px}
-  .tag{font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--faint);color:#777}
-  .tag.fam{border-color:var(--act);color:var(--act)}
-  .iframe-wrap{width:100%;height:340px;background:#fafafa}
-  .iframe-wrap iframe{width:100%;height:100%;border:none;display:block}
+  /* ── Compact list for extended variants ── */
+  .compact-list {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 40px;
+  }
+  .compact-item {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px;
+  }
+  .compact-item:hover { background: #fafaf5; }
+  .compact-info { flex: 1; }
+  .compact-name {
+    font-weight: 900; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .compact-desc {
+    font-size: 11px; color: var(--muted); margin-top: 2px;
+  }
+  .compact-link {
+    font-size: 10px; font-weight: 900;
+    text-decoration: none; color: var(--ink);
+    border: 2px solid var(--ink); padding: 4px 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    white-space: nowrap;
+    transition: background 0.1s;
+  }
+  .compact-link:hover { background: var(--ink); color: #fff; }
 
-  .site-footer{text-align:center;padding:28px 24px 44px;font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#999;border-top:var(--border) solid var(--fg);max-width:1400px;margin:24px auto 0}
-  @media(max-width:600px){.grid{grid-template-columns:1fr}.toolbar{flex-direction:column}}
+  .footer {
+    text-align: center; color: var(--muted);
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding-top: 20px; border-top: 2px solid #ddd;
+  }
+
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 20px 12px 40px; }
+  }
 </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="logo"><span>SWARMS</span></div>
-  <div class="tagline">Latent Choreography · Flow Console · Resonance Operators · 10 Prototypes</div>
-</header>
-
-<div class="toolbar">
-  <input type="text" id="search" placeholder="Search files, families, descriptions..." autocomplete="off">
-  <button class="family-btn" data-fam="all" data-active="true" onclick="filterFamily('all',this)">ALL</button>
-  <button class="family-btn" data-fam="console" onclick="filterFamily('console',this)">FLOW CONSOLE</button>
-  <button class="family-btn" data-fam="flowv2" onclick="filterFamily('flowv2',this)">FLOW V2</button>
-  <button class="family-btn" data-fam="spatiotemporal" onclick="filterFamily('spatiotemporal',this)">SPATIOTEMPORAL</button>
-  <button class="family-btn" data-fam="kernel" onclick="filterFamily('kernel',this)">KERNEL</button>
-  <span class="count" id="resultCount">10 shown</span>
+<div class="header">
+  <h1>SWARMS</h1>
+  <div class="subtitle">ICARO Spatiotemporal Animation Tools · Latent Choreography · Flow Analysis</div>
 </div>
 
-<div class="grid" id="grid"></div>
-
-<footer class="site-footer">SWARMS · Latent Choreography Archive · ABC FLIX</footer>
-
-<script>
-const FILES = [
-  { file:'icaro-flow-console.html', title:'ICARO-PRO Flow Console Build', family:'console',
-    desc:'240KB full Flow Console. Multi-canvas animation editor with frame-by-frame drawing (pen, eraser, rect, line, patch), BEFLIX-128 script engine, timeline with selection/split/reverse, clip bin, memory gauge, and audio context for sync. Features undo stack, layer compositing (hand + video + rip), and WebM/GIF export pipeline. The foundational PRO editor surface.',
-    tags:['Canvas','Drawing','BEFLIX','Timeline','Audio','Export','240KB'] },
-  { file:'icaro-flow-resonance.html', title:'Flow Console + Resonance Engine', family:'console',
-    desc:'276KB extended Flow Console. Same drawing/timeline/BEFLIX core as the base console but with an added resonance engine module for analyzing motion patterns across frames. Adds FFT-driven analysis overlays and spatial frequency mapping to the editing surface.',
-    tags:['Canvas','Drawing','Resonance','FFT','276KB'] },
-  { file:'icaro-policy-trainer-final.html', title:'Policy Trainer — Final Build', family:'console',
-    desc:'285KB. The heaviest prototype. Extends the Flow Console with a policy training module: teaches the system to recognize and reproduce motion patterns through reinforcement-style iteration. Captures frame sequences, evaluates spatial coherence, and iterates editing policy. A self-improving editing surface.',
-    tags:['Canvas','Policy Training','Reinforcement','285KB'] },
-  { file:'icaro-flow-v2.html', title:'ICARO-FLOW V2 — Frame/Text/Motion/Signal', family:'flowv2',
-    desc:'77KB. Second-generation flow engine. Four operational modes: FRAME (canvas editing), TEXT (BEFLIX text-to-animation rasterizer), MOTION (wave/ripple generators and motion presets), and SIGNAL (temporal signal analysis). Cleaner architecture than the console builds with a more focused interface paradigm.',
-    tags:['Canvas','Frame','Text','Motion','Signal','77KB'] },
-  { file:'icaro-flow-v2 (1).html', title:'ICARO-FLOW V2.1 — Inception Field', family:'flowv2',
-    desc:'78KB. Variant of Flow V2 with "Inception Field" mode. Adds the inception code concept — generating animation sequences from underlying field equations rather than manual drawing. Pixels treated as particles under hidden force fields.',
-    tags:['Canvas','Inception','Field Equations','78KB'] },
-  { file:'preview (27).html', title:'ICARO-FLOW V2 — Preview Build', family:'flowv2',
-    desc:'75KB. Pre-release build of the V2 flow engine. Functionally identical to icaro-flow-v2.html but represents an earlier snapshot. Useful for A/B comparison of the V2 lineage.',
-    tags:['Canvas','Preview','V2 Snapshot','75KB'] },
-  { file:'icaro_nsds_analyze_operator.html', title:'NSDS Spatiotemporal Flow Engine', family:'spatiotemporal',
-    desc:'221KB. Spatiotemporal flow analysis engine implementing the NSDS (Negative Space Design System) protocol. Multi-canvas editing surface with integrated optical flow computation: tracks how pixel regions move frame-to-frame, visualizes motion vectors as overlay fields, and provides diagnostic panels for drift, ambiguity, and confidence metrics.',
-    tags:['Canvas','NSDS','Optical Flow','Diagnostics','221KB'] },
-  { file:'icaro_swarm_resonance_operator.html', title:'Swarm Resonance Flow Engine', family:'spatiotemporal',
-    desc:'231KB. Same spatiotemporal core as the NSDS engine but tuned for swarm resonance analysis. Detects emergent patterns in pixel motion — flocking, vortex, standing waves — and maps them to resonance categories. A bridge between pixel-level animation and the latent choreography abstraction.',
-    tags:['Canvas','Swarm','Resonance','Pattern Detection','231KB'] },
-  { file:'icaro_latent_choreography_kernel.html', title:'Latent Choreography Kernel', family:'kernel',
-    desc:'47KB. The theoretical core. Treats pixels as "parcel-bodies" under hidden fields: predator eyes, vortices, Chladni standing-wave attractors, and shear channels. Features four material regimes (Hybrid, School, Chladni, Shear), real-time resonance gradient computation, swarm clustering, and an inverse engine that infers hidden force fields from observed particle trajectories. Includes equation sketch panel showing the full update law.',
-    tags:['Canvas','Particles','Chladni','Inverse Engine','Theory','47KB'] },
-  { file:'icaro_pro_v_2_single_file.html', title:'ICARO-PRO V2 — Spatiotemporal Compiler', family:'kernel',
-    desc:'45KB. Compact spatiotemporal compiler with round-trip diagnostics. Tests encode→decode fidelity (pixel error, compression ratio, token count), tracks motion events, ambiguity, drift, and confidence. A diagnostic workbench for verifying that the BEFLIX encoding pipeline preserves spatial information faithfully.',
-    tags:['Canvas','Diagnostics','Round-Trip','Compiler','45KB'] },
-];
-
-const FAMILIES = {
-  all:'All Files',
-  console:'Flow Console Builds',
-  flowv2:'Flow V2 Series',
-  spatiotemporal:'Spatiotemporal Engines',
-  kernel:'Kernel / Theory'
-};
-
-let activeFamily = 'all';
-
-function renderCards(){
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  const q = document.getElementById('search').value.toLowerCase().trim();
-  let shown = 0;
-
-  FILES.forEach(f => {
-    const searchable = (f.file + ' ' + f.title + ' ' + f.desc + ' ' + f.tags.join(' ') + ' ' + f.family + ' ' + (FAMILIES[f.family]||'')).toLowerCase();
-    const matchesSearch = !q || searchable.includes(q);
-    const matchesFamily = activeFamily === 'all' || f.family === activeFamily;
-    if (!matchesSearch || !matchesFamily) return;
-    shown++;
-
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <div class="card-head">
-        <div>
-          <div class="card-title">${f.title}</div>
-          <div class="card-fam">${f.file} · ${FAMILIES[f.family]||f.family}</div>
-        </div>
-        <a href="${f.file}" target="_blank" class="card-open">&#x2924; OPEN</a>
+<!-- ══════════════════════════════════════ -->
+<!-- CANONICAL TOOLS                       -->
+<!-- ══════════════════════════════════════ -->
+<div class="canonical">
+  <div class="section-label">Canonical Tools</div>
+  <div class="grid">
+    <div class="card">
+      <div class="card-head compiler">
+        <div class="card-title">ICARO Compiler</div>
+        <a href="icaro-compiler.html" class="card-link">Open</a>
       </div>
-      <div class="card-desc">${f.desc}</div>
-      <div class="card-tags">
-        <span class="tag fam">${FAMILIES[f.family]||f.family}</span>
-        ${f.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+      <div class="card-body">
+        <strong>BEFLIX Spatiotemporal Compiler.</strong> Full animation workstation: 128×96 grid, 8-ink palette, 3-layer compositing, BEFLIX script grammar, round-trip fidelity testing, flow analysis, prediction engine, camera/media ingest, procedural generators (typewriter, scroll, ripple, flicker), GIF/WebM/MP4/PNG export.
       </div>
-      <div class="iframe-wrap"><iframe src="${f.file}" loading="lazy"></iframe></div>
-    `;
-    grid.appendChild(card);
-  });
+      <div class="card-meta">
+        <span>634 lines · 79 KB</span>
+        <span>Camera · Media · Export</span>
+      </div>
+    </div>
 
-  document.getElementById('resultCount').textContent = shown + ' shown';
-}
+    <div class="card">
+      <div class="card-head choreography">
+        <div class="card-title">Latent Choreography</div>
+        <a href="icaro-choreography.html" class="card-link">Open</a>
+      </div>
+      <div class="card-body">
+        <strong>Particle Swarm + Hidden Field Inference.</strong> Boid physics with alignment/cohesion/separation. Standing-wave resonance manifold (Chladni patterns). Hidden fields: predator eyes, vortices, oscillators, shear channels. Inverse engine: guess hidden causes from visible swarm motion. Live equation sketch.
+      </div>
+      <div class="card-meta">
+        <span>1176 lines · 48 KB</span>
+        <span>Hybrid · School · Chladni · Shear</span>
+      </div>
+    </div>
 
-function filterFamily(fam, btn){
-  activeFamily = fam;
-  document.querySelectorAll('.family-btn').forEach(b => b.dataset.active = 'false');
-  if(btn) btn.dataset.active = 'true';
-  renderCards();
-}
+    <div class="card">
+      <div class="card-head ancestor">
+        <div class="card-title">ICARO-PRO v2 · Ancestor</div>
+        <a href="icaro-pro-v2.html" class="card-link">Open</a>
+      </div>
+      <div class="card-body">
+        <strong>The ancestral genome.</strong> Compact 258-line prototype. 128×96 BEFLIX grid, timeline, round-trip decompiler, flow analysis with component matching, prediction, dream engine, kinematic tensor export. The original from which the full compiler evolved.
+      </div>
+      <div class="card-meta">
+        <span>258 lines · 46 KB</span>
+        <span>Compact · Complete · Original</span>
+      </div>
+    </div>
+  </div>
+</div>
 
-document.getElementById('search').addEventListener('input', renderCards);
-renderCards();
-</script>
+<!-- ══════════════════════════════════════ -->
+<!-- EXTENDED CONSOLE VARIANTS             -->
+<!-- ══════════════════════════════════════ -->
+<div class="section-label">Extended Console Variants</div>
+<div class="compact-list">
+  <div class="compact-item">
+    <div class="compact-info">
+      <div class="compact-name">Flow Console</div>
+      <div class="compact-desc">Extended flow diagnostics and analysis panels · 5137 lines</div>
+    </div>
+    <a href="icaro-flow-console.html" class="compact-link">Open</a>
+  </div>
+  <div class="compact-item">
+    <div class="compact-info">
+      <div class="compact-name">Resonance Console</div>
+      <div class="compact-desc">Standing-wave resonance visualization overlays · 5921 lines</div>
+    </div>
+    <a href="icaro-resonance-console.html" class="compact-link">Open</a>
+  </div>
+  <div class="compact-item">
+    <div class="compact-info">
+      <div class="compact-name">Policy Console</div>
+      <div class="compact-desc">NSDS-influenced policy/training interface · 6256 lines</div>
+    </div>
+    <a href="icaro-policy-console.html" class="compact-link">Open</a>
+  </div>
+  <div class="compact-item">
+    <div class="compact-info">
+      <div class="compact-name">NSDS Operator</div>
+      <div class="compact-desc">Negative Space Design analysis operator · 4650 lines</div>
+    </div>
+    <a href="icaro-nsds-operator.html" class="compact-link">Open</a>
+  </div>
+  <div class="compact-item">
+    <div class="compact-info">
+      <div class="compact-name">Swarm Operator</div>
+      <div class="compact-desc">Swarm choreography + resonance operator · 4890 lines</div>
+    </div>
+    <a href="icaro-swarm-operator.html" class="compact-link">Open</a>
+  </div>
+</div>
+
+<div class="footer">
+  SWARMS · 8 tools · 3 canonical + 5 console variants · All self-contained HTML
+</div>
 </body>
 </html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RIVERBED VIEWER</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#09090d;color:#bbb;font:11px/1.5 'SF Mono',Consolas,monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* TOP BAR */
+#bar{display:flex;gap:8px;padding:6px 10px;background:#0e0e14;border-bottom:1px solid #222;align-items:center;flex-shrink:0}
+#bar button{background:#151520;border:1px solid #333;color:#aaa;font:bold 10px/1 inherit;padding:5px 12px;cursor:pointer;text-transform:uppercase}
+#bar button:hover{border-color:#0ff;color:#0ff}
+#bar .sep{width:1px;height:18px;background:#222}
+#bar .tag{font-size:10px;font-weight:bold;padding:2px 8px;border-radius:2px}
+.tag.violet{background:rgba(180,0,255,.15);color:#b400ff}
+.tag.cyan{background:rgba(0,255,204,.12);color:#0fc}
+.tag.gold{background:rgba(255,170,0,.12);color:#fa0}
+.tag.red{background:rgba(255,60,100,.12);color:#f36}
+input[type=file]{display:none}
+
+/* MAIN */
+#main{flex:1;display:flex;overflow:hidden}
+
+/* VIDEO COLUMN */
+#vid-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;min-width:0}
+#stage{position:relative;width:100%;max-width:800px;aspect-ratio:16/9;background:#000;overflow:hidden}
+#stage video{width:100%;height:100%;object-fit:contain;display:block}
+#stage canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+
+/* PATCH BANNER */
+#patch-banner{position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:rgba(0,0,0,.85);border-top:2px solid #b400ff;font-size:11px;pointer-events:none;transition:border-color .3s}
+#patch-banner .pid{color:#b400ff;font-weight:bold}
+#patch-banner .imfn{color:#0fc;font-weight:bold;margin-left:8px}
+#patch-banner .vec{color:#888;margin-left:8px}
+
+/* EVENT FLASH */
+#event-flash{position:absolute;top:10px;right:10px;padding:4px 10px;font-size:10px;font-weight:bold;border-radius:3px;opacity:0;transition:opacity .15s;pointer-events:none}
+
+/* TIMELINE */
+#tl{width:100%;max-width:800px;margin-top:8px;position:relative;height:50px}
+#tl-bar{width:100%;height:6px;background:#1a1a22;border-radius:3px;position:relative;cursor:pointer;margin-top:4px}
+#tl-progress{height:100%;background:linear-gradient(90deg,#b400ff,#0fc);border-radius:3px;width:0;pointer-events:none}
+#tl-events{position:absolute;top:0;left:0;right:0;height:6px;pointer-events:none}
+.tl-marker{position:absolute;width:3px;height:10px;top:-2px;border-radius:1px;pointer-events:none}
+.tl-marker.vector{background:#f36}
+.tl-marker.surface{background:#fa0}
+.tl-marker.threshold{background:#0ff}
+.tl-marker.scale{background:#0f6}
+.tl-marker.event{background:#666}
+.tl-marker.anomaly{background:#f0f}
+
+/* PATCH REGIONS on timeline */
+.tl-patch{position:absolute;top:12px;height:14px;border:1px solid rgba(180,0,255,.4);background:rgba(180,0,255,.08);border-radius:2px;font-size:8px;color:#b400ff;display:flex;align-items:center;padding:0 4px;pointer-events:none;overflow:hidden;white-space:nowrap}
+
+#tl-time{display:flex;justify-content:space-between;font-size:9px;color:#555;margin-top:20px}
+#tl-time .val{color:#0fc;font-weight:bold}
+
+/* RIGHT PANEL */
+#right{width:320px;background:#0e0e14;border-left:1px solid #222;overflow-y:auto;flex-shrink:0;padding:0}
+.sect{padding:8px 10px;border-bottom:1px solid #1a1a22}
+.sect h3{font-size:9px;text-transform:uppercase;color:#555;letter-spacing:.5px;margin-bottom:4px}
+.hinge-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:10px}
+.hinge-bar{height:4px;border-radius:2px;background:#b400ff}
+.hinge-anchor{color:#b400ff;font-weight:bold;flex:1}
+.hinge-conf{color:#555;font-size:9px}
+.current-row{font-size:10px;padding:1px 0;color:#888}
+.current-var{color:#fa0;font-weight:bold}
+.iface-row{font-size:10px;padding:2px 0;border-left:2px solid #0ff;padding-left:6px;margin:2px 0}
+.iface-label{color:#0ff;font-weight:bold}
+.cmd-block{font-size:9px;color:#666;padding:4px 6px;background:#0c0c14;border:1px solid #1a1a22;margin:3px 0;line-height:1.4;word-break:break-word}
+.cmd-block .kw{color:#b400ff;font-weight:bold}
+.collector-row{font-size:10px;padding:2px 0;color:#888}
+.collector-kind{color:#f36;font-weight:bold;margin-right:4px}
+.warn{color:#f36;font-size:10px;padding:2px 0}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <button onclick="$('vid-file').click()">LOAD VIDEO</button>
+  <input type="file" id="vid-file" accept="video/*">
+  <button onclick="$('json-file').click()">LOAD COMPILE</button>
+  <input type="file" id="json-file" accept=".json">
+  <div class="sep"></div>
+  <button id="btn-play" onclick="togglePlay()">PLAY</button>
+  <div class="sep"></div>
+  <span id="tag-status" class="tag violet">NO DATA</span>
+  <span id="tag-patch" class="tag cyan">—</span>
+  <span id="tag-event" class="tag gold">—</span>
+</div>
+
+<div id="main">
+
+<div id="vid-col">
+  <div id="stage">
+    <video id="vid" muted playsinline></video>
+    <canvas id="overlay"></canvas>
+    <div id="patch-banner">
+      <span class="pid">—</span>
+      <span class="imfn">—</span>
+      <span class="vec">Load video + compile JSON</span>
+    </div>
+    <div id="event-flash"></div>
+  </div>
+  <div id="tl">
+    <div id="tl-bar" onclick="seekTo(event)">
+      <div id="tl-progress"></div>
+      <div id="tl-events"></div>
+    </div>
+    <div id="tl-time">
+      <span><span class="val" id="t-cur">0.00</span>s</span>
+      <span><span class="val" id="t-dur">0.00</span>s</span>
+    </div>
+  </div>
+</div>
+
+<div id="right">
+  <div class="sect" id="s-hinges"><h3>HINGES (what stands fast)</h3></div>
+  <div class="sect" id="s-currents"><h3>CURRENTS (what may flow)</h3></div>
+  <div class="sect" id="s-interfaces"><h3>INTERFACES (breach points)</h3></div>
+  <div class="sect" id="s-commands"><h3>GOLDEN RECORD</h3></div>
+  <div class="sect" id="s-collector"><h3>COLLECTOR</h3></div>
+  <div class="sect" id="s-warnings"><h3>WARNINGS</h3></div>
+</div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const vid = $('vid');
+const overlay = $('overlay');
+const ctx = overlay.getContext('2d');
+
+let data = null;   // parsed riverbed-compile.json
+let duration = 0;
+let playing = false;
+let lastEventFlash = 0;
+
+// ── LOADERS ──
+$('vid-file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  vid.src = URL.createObjectURL(f);
+  vid.onloadedmetadata = () => {
+    duration = vid.duration;
+    overlay.width = vid.videoWidth;
+    overlay.height = vid.videoHeight;
+    $('t-dur').textContent = duration.toFixed(2);
+    $('tag-status').textContent = vid.videoWidth + '×' + vid.videoHeight;
+    if (data) buildTimeline();
+  };
+};
+
+$('json-file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    data = JSON.parse(ev.target.result);
+    renderPanel();
+    if (duration > 0) buildTimeline();
+    $('tag-status').textContent = data.hinges.length + 'H ' + data.patches.length + 'P';
+  };
+  reader.readAsText(f);
+};
+
+// ── PLAYBACK ──
+function togglePlay() {
+  if (!vid.src) return;
+  playing = !playing;
+  if (playing) { vid.play(); $('btn-play').textContent = 'PAUSE'; tick(); }
+  else { vid.pause(); $('btn-play').textContent = 'PLAY'; }
+}
+
+function seekTo(e) {
+  if (!duration) return;
+  const rect = $('tl-bar').getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  vid.currentTime = pct * duration;
+}
+
+function tick() {
+  if (!playing) return;
+  updateFrame();
+  requestAnimationFrame(tick);
+}
+
+vid.ontimeupdate = () => { if (!playing) updateFrame(); };
+
+// ── FRAME UPDATE ──
+function updateFrame() {
+  const t = vid.currentTime;
+  $('t-cur').textContent = t.toFixed(2);
+  $('tl-progress').style.width = (t / Math.max(0.01, duration) * 100) + '%';
+
+  if (!data) return;
+
+  // Find active patch
+  const patch = data.patches.find(p => t >= p.start_s && t < p.end_s);
+  if (patch) {
+    $('tag-patch').textContent = patch.id + ' ' + patch.image_function;
+    const banner = $('patch-banner');
+    banner.querySelector('.pid').textContent = patch.id;
+    banner.querySelector('.imfn').textContent = patch.image_function;
+    banner.querySelector('.vec').textContent = patch.vector.substring(0, 60);
+
+    // Color the banner border by image function
+    const colors = {
+      'Opsign': '#0088ff',
+      'Sonsign': '#ff6600',
+      'Perception-Image': '#00ccaa',
+      'Action-Image': '#ff3366',
+      'Affection-Image': '#ffaa00',
+      'Crystal-Image': '#b400ff',
+    };
+    banner.style.borderColor = colors[patch.image_function] || '#b400ff';
+  }
+
+  // Find nearby events (within 0.3s)
+  const nearby = (data.source_kind === 'video' && data.source_hash)
+    ? findNearbyEvents(t, 0.3)
+    : [];
+
+  if (nearby.length > 0) {
+    const ev = nearby[0];
+    $('tag-event').textContent = ev.type + ': ' + ev.label.substring(0, 25);
+    flashEvent(ev);
+  }
+
+  drawOverlay(t, patch, nearby);
+}
+
+function findNearbyEvents(t, window) {
+  // Events are embedded in source data — we stored them in the JSON
+  // The compile JSON doesn't include raw events, but patches have triggers
+  // We can reconstruct from the patches + timeline markers
+  if (!data._events) return [];
+  return data._events.filter(e => Math.abs(e.time_s - t) < window);
+}
+
+// ── OVERLAY DRAWING ──
+function drawOverlay(t, patch, events) {
+  const w = overlay.width, h = overlay.height;
+  ctx.clearRect(0, 0, w, h);
+  if (!data) return;
+
+  // Patch region: tint the frame edges with the image-function color
+  if (patch) {
+    const colors = {
+      'Opsign': [0, 136, 255],
+      'Sonsign': [255, 102, 0],
+      'Perception-Image': [0, 204, 170],
+      'Action-Image': [255, 51, 102],
+      'Affection-Image': [255, 170, 0],
+      'Crystal-Image': [180, 0, 255],
+    };
+    const c = colors[patch.image_function] || [180, 0, 255];
+
+    // Subtle vignette border showing the active image-function
+    const grad = ctx.createRadialGradient(w/2, h/2, w*0.35, w/2, h/2, w*0.7);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0.25)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Show triggers as text
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.8)`;
+    ctx.font = 'bold 14px monospace';
+    const triggers = patch.triggers.join(' · ');
+    ctx.fillText(triggers, 12, 22);
+
+    // Carryover reminder
+    if (patch.carryover && patch.carryover.length) {
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '11px monospace';
+      ctx.fillText('CARRY: ' + patch.carryover.join(', '), 12, h - 50);
+    }
+
+    // Deposit
+    if (patch.deposit && patch.deposit.length) {
+      ctx.fillStyle = 'rgba(255,170,0,0.3)';
+      ctx.fillText('DEPOSIT: ' + patch.deposit.join(', '), 12, h - 36);
+    }
+  }
+
+  // Draw hinge anchors across the top
+  if (data.hinges) {
+    ctx.font = 'bold 10px monospace';
+    let x = 12;
+    for (const hinge of data.hinges.slice(0, 5)) {
+      const barW = Math.round(hinge.confidence * 60);
+      ctx.fillStyle = `rgba(180,0,255,${hinge.confidence * 0.6})`;
+      ctx.fillRect(x, 32, barW, 3);
+      ctx.fillStyle = `rgba(180,0,255,0.7)`;
+      ctx.fillText(hinge.anchor, x, 48);
+      x += Math.max(barW, ctx.measureText(hinge.anchor).width) + 12;
+    }
+  }
+
+  // Show event markers as bright flashes
+  for (const ev of events) {
+    const evColors = {
+      vector: '#ff3366',
+      surface: '#ffaa00',
+      threshold: '#00ffcc',
+      scale: '#00cc66',
+      anomaly: '#ff00ff',
+    };
+    const color = evColors[ev.type] || '#ffffff';
+    ctx.fillStyle = color;
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText('▶ ' + ev.type.toUpperCase() + ': ' + ev.label, 12, h - 70);
+  }
+}
+
+function flashEvent(ev) {
+  const now = Date.now();
+  if (now - lastEventFlash < 400) return;
+  lastEventFlash = now;
+
+  const flash = $('event-flash');
+  const evColors = {
+    vector: '#ff3366',
+    surface: '#ffaa00',
+    threshold: '#00ffcc',
+    scale: '#00cc66',
+    anomaly: '#ff00ff',
+  };
+  flash.style.background = evColors[ev.type] || '#fff';
+  flash.style.color = '#000';
+  flash.textContent = ev.type.toUpperCase() + ': ' + ev.label.substring(0, 30);
+  flash.style.opacity = '1';
+  setTimeout(() => flash.style.opacity = '0', 600);
+}
+
+// ── TIMELINE ──
+function buildTimeline() {
+  if (!data || !duration) return;
+  const evContainer = $('tl-events');
+  evContainer.innerHTML = '';
+
+  // Event markers
+  if (data._events) {
+    for (const ev of data._events) {
+      const pct = (ev.time_s / duration) * 100;
+      const m = document.createElement('div');
+      m.className = 'tl-marker ' + ev.type;
+      m.style.left = pct + '%';
+      m.title = ev.type + ': ' + ev.label + ' @ ' + ev.time_s.toFixed(1) + 's';
+      evContainer.appendChild(m);
+    }
+  }
+
+  // Patch regions
+  const tlBar = $('tl-bar');
+  // Remove old patches
+  tlBar.querySelectorAll('.tl-patch').forEach(e => e.remove());
+
+  for (const patch of data.patches) {
+    const left = (patch.start_s / duration) * 100;
+    const width = ((patch.end_s - patch.start_s) / duration) * 100;
+    const div = document.createElement('div');
+    div.className = 'tl-patch';
+    div.style.left = left + '%';
+    div.style.width = width + '%';
+    div.textContent = patch.id + ' ' + patch.image_function;
+    tlBar.appendChild(div);
+  }
+}
+
+// ── PANEL ──
+function renderPanel() {
+  if (!data) return;
+
+  // Hinges
+  const hDiv = $('s-hinges');
+  hDiv.innerHTML = '<h3>HINGES (what stands fast)</h3>';
+  for (const h of data.hinges) {
+    const barW = Math.round(h.confidence * 100);
+    hDiv.innerHTML += `
+      <div class="hinge-row">
+        <div class="hinge-bar" style="width:${barW}px"></div>
+        <span class="hinge-anchor">${h.anchor}</span>
+        <span class="hinge-conf">${(h.confidence * 100).toFixed(0)}%</span>
+      </div>`;
+  }
+
+  // Currents
+  const cDiv = $('s-currents');
+  cDiv.innerHTML = '<h3>CURRENTS (what may flow)</h3>';
+  for (const c of data.currents.slice(0, 8)) {
+    cDiv.innerHTML += `<div class="current-row"><span class="current-var">${c.variable}</span> — ${c.allowed_motion}</div>`;
+  }
+
+  // Interfaces
+  const iDiv = $('s-interfaces');
+  iDiv.innerHTML = '<h3>INTERFACES (breach points)</h3>';
+  for (const iface of data.interfaces) {
+    iDiv.innerHTML += `<div class="iface-row"><span class="iface-label">${iface.label}</span><br>${iface.trigger}<br><span style="color:#555">${iface.breach_law}</span></div>`;
+  }
+
+  // Commands
+  const cmdDiv = $('s-commands');
+  cmdDiv.innerHTML = '<h3>GOLDEN RECORD</h3>';
+  for (const cmd of data.commands) {
+    const highlighted = cmd
+      .replace(/\b(HINGE|LOCK|FLOW|BREACH|CARRY OVER|DEPOSIT|DO NOT CUT)\b/g, '<span class="kw">$1</span>');
+    cmdDiv.innerHTML += `<div class="cmd-block">${highlighted}</div>`;
+  }
+
+  // Collector
+  const bDiv = $('s-collector');
+  bDiv.innerHTML = '<h3>COLLECTOR</h3>';
+  for (const item of data.collector) {
+    bDiv.innerHTML += `<div class="collector-row"><span class="collector-kind">${item.kind}</span>${item.signal.substring(0, 50)}</div>`;
+  }
+
+  // Warnings
+  const wDiv = $('s-warnings');
+  wDiv.innerHTML = '<h3>WARNINGS</h3>';
+  for (const w of data.warnings || []) {
+    wDiv.innerHTML += `<div class="warn">${w}</div>`;
+  }
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'ArrowRight') vid.currentTime = Math.min(duration, vid.currentTime + 0.5);
+  if (e.key === 'ArrowLeft') vid.currentTime = Math.max(0, vid.currentTime - 0.5);
+});
+</script>
+</body>
+</html>

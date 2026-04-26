@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Operational Pragmatist Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #FFFFFF;
+            color: #000000;
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            touch-action: none;
+            user-select: none;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 10;
+        }
+
+        /* ─── Operational Control Surfaces ─── */
+        #monitor {
+            position: fixed;
+            top: 64px;
+            left: 24px;
+            background: #FFFFFF;
+            border: 2px solid #000000;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            padding: 8px 12px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px #000000;
+            transition: transform 0.05s ease-out, opacity 0.2s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #monitor.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #monitor:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px #000000;
+        }
+
+        #mon-id {
+            font-size: 24px;
+            font-weight: 800;
+            color: #000000;
+            text-transform: uppercase;
+        }
+
+        #mon-data {
+            font-size: 12px;
+            color: #000000;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        /* ─── Static HUD elements ─── */
+        #hud-top {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #FFFFFF;
+            border-bottom: 2px solid #000000;
+            display: flex;
+            align-items: stretch;
+            z-index: 50;
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+        }
+
+        .hud-block {
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-right: 2px solid #000000;
+        }
+
+        .hud-cmd {
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-right: 2px solid #000000;
+            cursor: pointer;
+            background: #FFFFFF;
+            color: #000000;
+            transition: background 0s, color 0s;
+        }
+
+        .hud-cmd:hover {
+            background: #000000;
+            color: #FFFFFF;
+        }
+
+        .hud-cmd:active {
+            padding-top: 2px;
+        }
+
+        #global-readout {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            font-size: 32px;
+            font-weight: 800;
+            color: #000000;
+            z-index: 50;
+            pointer-events: none;
+            text-shadow: 2px 2px 0px #FFFFFF, -2px -2px 0px #FFFFFF, 2px -2px 0px #FFFFFF, -2px 2px 0px #FFFFFF;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="hud-top">
+        <div class="hud-block">
+            NSDS-CORE v3
+        </div>
+        <div class="hud-cmd" id="cmd-play">
+            [ ENGAGE KINETICS ]
+        </div>
+        <div class="hud-cmd" id="cmd-load">
+            [ INJECT DATA ]
+        </div>
+    </div>
+
+    <div id="global-readout">0000 Z</div>
+
+    <canvas id="c"></canvas>
+
+    <!-- Bidirectional Control Surface -->
+    <div id="monitor">
+        <div id="mon-id">NO-SIGNAL</div>
+        <div id="mon-data">0 Z-UNITS</div>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('c');
+            const ctx = canvas.getContext('2d');
+            const monitor = document.getElementById('monitor');
+            const monId = document.getElementById('mon-id');
+            const monData = document.getElementById('mon-data');
+            const readout = document.getElementById('global-readout');
+
+            // Helper Math
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+            // App State
+            const state = {
+                cameraZ: 0,
+                speed: 0,
+                isPlaying: false,
+
+                // Interactions
+                hoverPoly: null, hoverType: 'none',
+                dragClip: null, dragType: 'none',
+                scrubbing: false,
+
+                dragStartX: 0, dragStartY: 0, dragStartDur: 0, dragStartClipZ: 0, dragStartTIdx: 0,
+                dragTarget: null,
+                absorbTarget: null,
+                dropEffect: null, // Tracking recent drops for tactile feedback flash
+
+                scrubStartY: 0, scrubStartZ: 0,
+                lastClickTime: 0, lastClickClip: null,
+
+                selectedClip: null,
+
+                W: 0, H: 0, CX: 0, CY: 0
+            };
+
+            let actx, master, oscTick, gainTick, oscSnap, gainSnap;
+
+            // Spatial Perspective Configuration
+            const FOV = 600;
+            const FAR_PLANE = 6000;
+            const TUBE_R = 300;
+            const GAP_ANGLE = 0.05;
+
+            const tracks = [[], [], [], []];
+            const trackOffsetsZ = [0, 0, 0, 0];
+            let nextId = 1;
+
+            // Pre-rendered Stipple/Hatch Patterns
+            const PATTERNS = [];
+
+            function initPatterns() {
+                const createPat = (drawFn) => {
+                    const c = document.createElement('canvas');
+                    c.width = 16; c.height = 16;
+                    const x = c.getContext('2d');
+                    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, 16, 16);
+                    x.fillStyle = '#000000'; x.strokeStyle = '#000000'; x.lineWidth = 2;
+                    drawFn(x);
+                    return ctx.createPattern(c, 'repeat');
+                };
+
+                PATTERNS[0] = '#FFFFFF';
+                PATTERNS[1] = createPat(x => { x.beginPath(); x.moveTo(0, 8); x.lineTo(16, 8); x.stroke(); });
+                PATTERNS[2] = createPat(x => { x.beginPath(); x.moveTo(8, 0); x.lineTo(8, 16); x.stroke(); });
+                PATTERNS[3] = createPat(x => { x.beginPath(); x.moveTo(0, 0); x.lineTo(16, 16); x.moveTo(16, 0); x.lineTo(0, 16); x.stroke(); });
+            }
+
+            // ──── DATA INJECTION (LOAD) ────
+            function injectDataFragment() {
+                const targetZ = state.cameraZ + 1500;
+                const trackIdx = Math.floor(Math.random() * 4);
+                const dur = Math.floor((10 + Math.random() * 30) * 10);
+
+                let insertIdx = 0;
+                let runZ = trackOffsetsZ[trackIdx];
+                for (let i = 0; i < tracks[trackIdx].length; i++) {
+                    if (runZ >= targetZ) { insertIdx = i; break; }
+                    runZ += tracks[trackIdx][i].dur;
+                    insertIdx = i + 1;
+                }
+
+                tracks[trackIdx].splice(insertIdx, 0, { id: `OP-${String(nextId++).padStart(3, '0')}`, dur: dur, zStart: 0 });
+                recalculateZOffsets();
+                playSnap();
+            }
+
+            function initTracks() {
+                for (let i = 0; i < 4; i++) {
+                    let z = 0;
+                    while (z < 10000) {
+                        const dur = Math.floor((20 + Math.random() * 40) * 10);
+                        tracks[i].push({ id: `OP-${String(nextId++).padStart(3, '0')}`, dur: dur, zStart: z });
+                        z += dur;
+                    }
+                }
+            }
+
+            function resize() {
+                state.W = canvas.width = window.innerWidth;
+                state.H = canvas.height = window.innerHeight;
+                state.CX = state.W / 2;
+                state.CY = state.H * 0.55;
+            }
+            window.addEventListener('resize', resize);
+
+            // ──── MATHEMATICAL PROJECTION ────
+            function project3D(px, py, pz) {
+                const D = 100;
+                const focalZ = state.cameraZ - D;
+
+                const camX = 0;
+                const camY = TUBE_R - 120;
+
+                const vx = px - camX;
+                const vy = py - camY;
+                const vz = pz - focalZ;
+
+                if (vz < 1) return null;
+
+                const scale = FOV / vz;
+                return {
+                    x: state.CX + vx * scale,
+                    y: state.CY + vy * scale,
+                    s: scale,
+                    depth: vz
+                };
+            }
+
+            function getClipGeometry(zStart, dur, tIdx) {
+                const baseAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+                const baseAngle = baseAngles[tIdx];
+
+                const a1 = baseAngle - Math.PI / 4 + GAP_ANGLE;
+                const a2 = baseAngle + Math.PI / 4 - GAP_ANGLE;
+
+                const z1 = zStart;
+                const z2 = zStart + dur;
+
+                const pts3D = [
+                    { x: TUBE_R * Math.cos(a1), y: TUBE_R * Math.sin(a1), z: z1 },
+                    { x: TUBE_R * Math.cos(a2), y: TUBE_R * Math.sin(a2), z: z1 },
+                    { x: TUBE_R * Math.cos(a2), y: TUBE_R * Math.sin(a2), z: z2 },
+                    { x: TUBE_R * Math.cos(a1), y: TUBE_R * Math.sin(a1), z: z2 }
+                ];
+
+                const pts2D = pts3D.map(p => project3D(p.x, p.y, p.z));
+                if (pts2D.includes(null)) return null;
+
+                const backCenter3D = { x: TUBE_R * Math.cos((a1 + a2) / 2), y: TUBE_R * Math.sin((a1 + a2) / 2), z: z2 };
+                const backCenter2D = project3D(backCenter3D.x, backCenter3D.y, backCenter3D.z);
+
+                const frontCenter3D = { x: TUBE_R * Math.cos((a1 + a2) / 2), y: TUBE_R * Math.sin((a1 + a2) / 2), z: z1 };
+                const frontCenter2D = project3D(frontCenter3D.x, frontCenter3D.y, frontCenter3D.z);
+
+                const path = new Path2D();
+                path.moveTo(pts2D[0].x, pts2D[0].y);
+                path.lineTo(pts2D[1].x, pts2D[1].y);
+                path.lineTo(pts2D[2].x, pts2D[2].y);
+                path.lineTo(pts2D[3].x, pts2D[3].y);
+                path.closePath();
+
+                return { pts2D, path, backCenter: backCenter2D, frontCenter: frontCenter2D, zDist: pts2D[0].depth };
+            }
+
+            // ──── RENDERING ────
+            function drawClip(geom, idStr, tIdx, renderMode, hoverType) {
+                ctx.save();
+
+                const depthAlpha = Math.max(0.1, 1 - (geom.zDist / FAR_PLANE));
+                if (depthAlpha <= 0.05) { ctx.restore(); return; }
+
+                let fill = PATTERNS[tIdx];
+                let stroke = '#000000';
+                if (tIdx === 2) stroke = '#FFFFFF';
+                let lw = 2;
+                let alpha = depthAlpha * 0.8;
+                let dash = [];
+                let drawHandle = false;
+                let drawText = true;
+                let textBg = '#000000';
+                let textFg = '#FFFFFF';
+
+                // Highlight/Shockwave drop logic
+                let dropP = 0;
+                if (renderMode === 'dropped' && state.dropEffect) {
+                    const dropElapsed = performance.now() - state.dropEffect.time;
+                    dropP = Math.max(0, 1 - (dropElapsed / 600)); // 600ms fade duration
+
+                    if (dropP > 0) {
+                        fill = '#000000';
+                        stroke = '#FFFFFF';
+                        lw = 4;
+                        alpha = 1.0;
+                        textBg = '#FFFFFF';
+                        textFg = '#000000';
+
+                        // Draw expanding shockwave
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(geom.pts2D[0].x, geom.pts2D[0].y);
+                        for (let i = 1; i < geom.pts2D.length; i++) ctx.lineTo(geom.pts2D[i].x, geom.pts2D[i].y);
+                        ctx.closePath();
+                        ctx.lineWidth = 20 * dropP;
+                        ctx.strokeStyle = `rgba(0, 0, 0, ${dropP})`;
+                        ctx.stroke();
+                        ctx.restore();
+                    } else {
+                        // Restore defaults if finished pulsing
+                        fill = PATTERNS[tIdx];
+                        lw = 2;
+                        alpha = depthAlpha * 0.8;
+                    }
+                } else if (renderMode === 'selected') {
+                    fill = '#000000'; stroke = '#000000'; lw = 4; drawHandle = true; textBg = '#FFFFFF'; textFg = '#000000'; alpha = depthAlpha * 1.0;
+                } else if (renderMode === 'hover') {
+                    alpha = depthAlpha * 1.0; drawHandle = true;
+                } else if (renderMode === 'ghost-origin') {
+                    fill = 'transparent'; stroke = '#000000'; lw = 2; alpha = depthAlpha * 0.4; dash = [8, 8]; drawText = false;
+                } else if (renderMode === 'ghost-target') {
+                    fill = PATTERNS[tIdx]; stroke = '#000000'; lw = 4; alpha = depthAlpha * 0.9; textBg = '#FFFFFF'; textFg = '#000000';
+                } else if (renderMode === 'absorb-target') {
+                    fill = '#000000'; stroke = '#FFFFFF'; lw = 4; alpha = depthAlpha * 1.0; textBg = '#FFFFFF'; textFg = '#000000';
+                }
+
+                ctx.globalAlpha = alpha;
+                ctx.setLineDash(dash);
+
+                ctx.fillStyle = fill;
+                ctx.fill(geom.path);
+
+                ctx.lineWidth = lw;
+                ctx.strokeStyle = stroke;
+                ctx.stroke(geom.path);
+                ctx.setLineDash([]);
+
+                // Draw Operational Handle
+                if (drawHandle && geom.backCenter) {
+                    ctx.beginPath();
+                    const hr = Math.max(6, Math.min(32, 24 * geom.backCenter.s));
+                    ctx.rect(geom.backCenter.x - hr / 2, geom.backCenter.y - hr / 2, hr, hr);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#000000';
+                    ctx.stroke();
+
+                    if (hoverType === 'handle') {
+                        ctx.beginPath();
+                        ctx.rect(geom.backCenter.x - hr, geom.backCenter.y - hr, hr * 2, hr * 2);
+                        ctx.strokeStyle = '#000000';
+                        ctx.setLineDash([4, 4]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+
+                // Draw Text ID
+                if (drawText && geom.frontCenter && geom.frontCenter.s > 0.1) {
+                    const fontSize = Math.max(10, 48 * geom.frontCenter.s);
+                    ctx.font = `800 ${fontSize}px 'JetBrains Mono', monospace`;
+
+                    const txtMetrics = ctx.measureText(idStr);
+                    const tw = txtMetrics.width + 12;
+                    const th = fontSize + 8;
+
+                    ctx.fillStyle = textBg;
+                    ctx.fillRect(geom.frontCenter.x - tw / 2, geom.frontCenter.y - th / 2, tw, th);
+
+                    ctx.fillStyle = textFg;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(idStr, geom.frontCenter.x, geom.frontCenter.y);
+                }
+
+                ctx.restore();
+            }
+
+            // ──── AUDIO ────
+            function setupAudio() {
+                if (actx) return;
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                master = actx.createGain();
+                master.gain.value = 0.4;
+                master.connect(actx.destination);
+
+                const setupOsc = (type) => {
+                    const gain = actx.createGain(); gain.gain.value = 0;
+                    const osc = actx.createOscillator(); osc.type = type;
+                    osc.connect(gain).connect(master); osc.start();
+                    return { osc, gain };
+                };
+
+                const t = setupOsc('square'); oscTick = t.osc; gainTick = t.gain;
+                const s = setupOsc('sawtooth'); oscSnap = s.osc; gainSnap = s.gain;
+            }
+
+            function playAsmr(type) {
+                if (!actx) return;
+                const now = actx.currentTime;
+                const osc = actx.createOscillator();
+                const gain = actx.createGain();
+
+                if (type === 'tick') {
+                    oscTick.frequency.setValueAtTime(800, now);
+                    oscTick.frequency.exponentialRampToValueAtTime(100, now + 0.02);
+                    gainTick.gain.cancelScheduledValues(now);
+                    gainTick.gain.setValueAtTime(0.2, now);
+                    gainTick.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                } else if (type === 'snap') {
+                    oscSnap.frequency.setValueAtTime(400, now);
+                    oscSnap.frequency.exponentialRampToValueAtTime(50, now + 0.05);
+                    gainSnap.gain.cancelScheduledValues(now);
+                    gainSnap.gain.setValueAtTime(0.5, now);
+                    gainSnap.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                } else if (type === 'lock') {
+                    // Distinct double mechanical "clack" for a successful placement
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.05);
+                    gain.gain.setValueAtTime(0.6, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+                    osc.frequency.setValueAtTime(600, now + 0.05);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+                    gain.gain.setValueAtTime(0.3, now + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+                    osc.connect(gain).connect(master);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'absorb') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.3, now + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.connect(gain).connect(master);
+                    osc.start(now); osc.stop(now + 0.15);
+                }
+            }
+
+            // ──── INTERACTION ENGINE ────
+            let renderedPolys = [];
+
+            function getHit(clientX, clientY) {
+                for (let i = renderedPolys.length - 1; i >= 0; i--) {
+                    const poly = renderedPolys[i];
+                    if (!poly.geom) continue;
+
+                    if (poly.geom.backCenter) {
+                        const hr = Math.max(16, 24 * poly.geom.backCenter.s);
+                        if (Math.abs(clientX - poly.geom.backCenter.x) < hr && Math.abs(clientY - poly.geom.backCenter.y) < hr) {
+                            return { poly, type: 'handle' };
+                        }
+                    }
+
+                    if (ctx.isPointInPath(poly.geom.path, clientX, clientY)) {
+                        return { poly, type: 'body' };
+                    }
+                }
+                return null;
+            }
+
+            // Action Buttons
+            document.getElementById('cmd-play').addEventListener('pointerdown', (e) => {
+                state.isPlaying = !state.isPlaying;
+                e.target.innerText = state.isPlaying ? '[ HALT KINETICS ]' : '[ ENGAGE KINETICS ]';
+                playAsmr('snap');
+            });
+
+            document.getElementById('cmd-load').addEventListener('pointerdown', (e) => {
+                injectDataFragment();
+            });
+
+            monitor.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                if (state.selectedClip) {
+                    state.cameraZ = state.selectedClip.zStart - 200;
+                    state.speed = 0;
+                    playAsmr('snap');
+                }
+            });
+
+            function handlePointerDown(e) {
+                if (e.target.closest('#hud-top') || e.target.closest('#monitor')) return;
+
+                const hit = getHit(e.clientX, e.clientY);
+
+                if (hit) {
+                    const now = performance.now();
+
+                    if (state.lastClickClip === hit.poly.clip && (now - state.lastClickTime) < 300 && hit.type === 'body') {
+                        const tIdx = hit.poly.tIdx;
+                        const cIdx = hit.poly.clipIdx;
+                        const clip = tracks[tIdx][cIdx];
+
+                        if (clip.dur > 20) {
+                            const dur1 = Math.round((clip.dur / 2) / 10) * 10;
+                            const dur2 = clip.dur - dur1;
+                            tracks[tIdx].splice(cIdx, 1,
+                                { id: `${clip.id}-A`, dur: dur1, zStart: 0 },
+                                { id: `${clip.id}-B`, dur: dur2, zStart: 0 }
+                            );
+                            recalculateZOffsets();
+                            playAsmr('snap');
+                        }
+                        state.lastClickClip = null;
+                        return;
+                    }
+
+                    state.dragClip = hit.poly.clip;
+                    state.dragType = hit.type;
+                    state.dragStartX = e.clientX;
+                    state.dragStartY = e.clientY;
+                    state.dragStartDur = hit.poly.clip.dur;
+                    state.dragStartClipZ = hit.poly.clip.zStart;
+                    state.dragStartTIdx = hit.poly.tIdx;
+
+                    state.lastClickClip = hit.poly.clip;
+                    state.lastClickTime = now;
+
+                    if (hit.type === 'body') {
+                        tracks[hit.poly.tIdx].splice(hit.poly.clipIdx, 1);
+                        recalculateZOffsets();
+
+                        state.dragTarget = {
+                            tIdx: hit.poly.tIdx,
+                            zStart: state.dragStartClipZ,
+                            insertIdx: hit.poly.clipIdx
+                        };
+                    }
+
+                    state.selectedClip = state.dragClip;
+                    monitor.classList.add('active');
+                    monitor.style.transform = `translate(${e.clientX + 20}px, ${e.clientY - 20}px)`;
+                    monId.innerText = state.dragClip.id;
+                    monData.innerText = `${state.dragClip.dur} Z-UNITS`;
+
+                    playAsmr('tick');
+                    canvas.setPointerCapture(e.pointerId);
+                    state.speed = 0;
+                    return;
+                }
+
+                state.scrubbing = true;
+                state.scrubStartY = e.clientY;
+                state.scrubStartZ = state.cameraZ;
+
+                state.selectedClip = null;
+                monitor.classList.remove('active');
+
+                canvas.setPointerCapture(e.pointerId);
+                state.speed = 0;
+            }
+
+            let scrubAccumulator = 0;
+
+            function handlePointerMove(e) {
+                if (state.scrubbing) {
+                    const deltaY = e.clientY - state.scrubStartY;
+                    state.cameraZ = state.scrubStartZ + (deltaY * 8);
+                    state.speed = deltaY * 0.6;
+
+                    scrubAccumulator += Math.abs(state.speed);
+                    if (scrubAccumulator > 80) {
+                        playAsmr('tick');
+                        scrubAccumulator = 0;
+                    }
+                    return;
+                }
+
+                if (state.dragClip) {
+                    const deltaX = e.clientX - state.dragStartX;
+                    const deltaY = e.clientY - state.dragStartY;
+
+                    if (state.dragType === 'handle') {
+                        const startDist = Math.hypot(state.dragStartX - state.CX, state.dragStartY - state.CY);
+                        const currentDist = Math.hypot(e.clientX - state.CX, e.clientY - state.CY);
+                        const deltaDist = currentDist - startDist;
+
+                        const newDur = Math.max(10, state.dragStartDur - deltaDist * 5);
+                        const snappedDur = Math.round(newDur / 10) * 10;
+
+                        if (snappedDur !== state.dragClip.dur) {
+                            state.dragClip.dur = snappedDur;
+                            recalculateZOffsets();
+                            monData.innerText = `${snappedDur} Z-UNITS`;
+                            playAsmr('tick');
+                        }
+                    } else if (state.dragType === 'body') {
+                        const dx = e.clientX - state.CX;
+                        const dy = e.clientY - state.CY;
+                        const angle = Math.atan2(dy, dx);
+
+                        let targetIdx = 0;
+                        if (angle >= -Math.PI * 0.75 && angle < -Math.PI * 0.25) targetIdx = 0;
+                        else if (angle >= -Math.PI * 0.25 && angle < Math.PI * 0.25) targetIdx = 1;
+                        else if (angle >= Math.PI * 0.25 && angle < Math.PI * 0.75) targetIdx = 2;
+                        else targetIdx = 3;
+
+                        const startDist = Math.hypot(state.dragStartX - state.CX, state.dragStartY - state.CY);
+                        const currentDist = Math.hypot(e.clientX - state.CX, e.clientY - state.CY);
+                        const deltaDist = startDist - currentDist;
+                        const desiredZ = Math.max(state.cameraZ, state.dragStartClipZ + deltaDist * 15);
+
+                        let insertIdx = 0;
+                        let runZ = trackOffsetsZ[targetIdx];
+
+                        for (let i = 0; i < tracks[targetIdx].length; i++) {
+                            if (desiredZ < runZ + tracks[targetIdx][i].dur / 2) {
+                                insertIdx = i; break;
+                            }
+                            runZ += tracks[targetIdx][i].dur;
+                            insertIdx = i + 1;
+                        }
+
+                        if (!state.dragTarget || state.dragTarget.tIdx !== targetIdx || state.dragTarget.zStart !== runZ) {
+                            state.dragTarget = { tIdx: targetIdx, zStart: runZ, insertIdx: insertIdx };
+                            playAsmr('tick');
+                        }
+
+                        state.absorbTarget = null;
+                        for (let i = renderedPolys.length - 1; i >= 0; i--) {
+                            const poly = renderedPolys[i];
+                            if (ctx.isPointInPath(poly.geom.path, e.clientX, e.clientY)) {
+                                state.absorbTarget = poly;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (monitor.classList.contains('active')) {
+                        monitor.style.transform = `translate(${e.clientX + 20}px, ${e.clientY - 20}px)`;
+                    }
+                    return;
+                }
+
+                const hit = getHit(e.clientX, e.clientY);
+                if (hit) {
+                    state.hoverPoly = hit.poly;
+                    state.hoverType = hit.type;
+                    canvas.style.cursor = hit.type === 'handle' ? 'ns-resize' : 'crosshair';
+                } else {
+                    state.hoverPoly = null;
+                    state.hoverType = 'none';
+                    canvas.style.cursor = 'crosshair';
+                }
+            }
+
+            function handlePointerUp(e) {
+                if (state.dragClip) {
+                    if (state.dragType === 'body') {
+                        if (state.absorbTarget) {
+                            const targetClip = state.absorbTarget.clip;
+                            targetClip.dur += state.dragClip.dur;
+                            targetClip.id = `${targetClip.id}+`;
+
+                            state.dropEffect = { clip: targetClip, time: performance.now(), type: 'absorb' };
+                            monId.innerText = "MERGED";
+                            monData.innerText = "DATA FUSED";
+                            monitor.classList.add('active');
+                            setTimeout(() => { if (!state.dragClip) monitor.classList.remove('active'); }, 600);
+
+                            playAsmr('absorb');
+                        } else if (state.dragTarget) {
+                            // Check if it actually moved track or significantly shifted index/z
+                            const didMove = state.dragTarget.tIdx !== state.dragStartTIdx || Math.abs(state.dragTarget.zStart - state.dragStartClipZ) > 1;
+
+                            tracks[state.dragTarget.tIdx].splice(state.dragTarget.insertIdx, 0, state.dragClip);
+                            recalculateZOffsets();
+
+                            if (didMove) {
+                                state.dropEffect = { clip: state.dragClip, time: performance.now(), type: 'move' };
+                                monId.innerText = "LOCKED";
+                                monData.innerText = "ORIGIN UPDATED";
+                                monitor.classList.add('active');
+                                setTimeout(() => { if (!state.dragClip) monitor.classList.remove('active'); }, 600);
+                                playAsmr('lock');
+                            } else {
+                                playAsmr('snap'); // Releasing back to same spot
+                            }
+                        }
+                    } else {
+                        // Releasing after handle dilate
+                        state.dropEffect = { clip: state.dragClip, time: performance.now(), type: 'dilate' };
+                        playAsmr('lock');
+                    }
+                }
+                state.scrubbing = false;
+                state.dragClip = null;
+                state.dragTarget = null;
+                state.absorbTarget = null;
+
+                try { canvas.releasePointerCapture(e.pointerId); } catch (err) { }
+            }
+
+            canvas.addEventListener('pointerdown', handlePointerDown);
+            canvas.addEventListener('pointermove', handlePointerMove);
+            canvas.addEventListener('pointerup', handlePointerUp);
+            canvas.addEventListener('pointercancel', handlePointerUp);
+
+            // ──── LOGIC & UPDATES ────
+            function recalculateZOffsets() {
+                for (let i = 0; i < 4; i++) {
+                    let runZ = trackOffsetsZ[i];
+                    tracks[i].forEach(clip => {
+                        clip.zStart = runZ;
+                        runZ += clip.dur;
+                    });
+                }
+            }
+
+            function ensureContiguity() {
+                for (let i = 0; i < 4; i++) {
+                    if (tracks[i].length === 0) continue;
+                    const first = tracks[i][0];
+
+                    if (first.zStart + first.dur < state.cameraZ - 1000) {
+                        const shifted = tracks[i].shift();
+                        trackOffsetsZ[i] += shifted.dur;
+                        tracks[i].push(shifted);
+                        recalculateZOffsets();
+                    }
+                    if (state.cameraZ < first.zStart) {
+                        const popped = tracks[i].pop();
+                        trackOffsetsZ[i] -= popped.dur;
+                        tracks[i].unshift(popped);
+                        recalculateZOffsets();
+                    }
+                }
+            }
+
+            // ──── MAIN LOOP ────
+            function draw() {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, state.W, state.H);
+
+                if (state.isPlaying) {
+                    state.speed += (15 - state.speed) * 0.05;
+                } else if (!state.scrubbing) {
+                    state.speed *= 0.85;
+                }
+                state.cameraZ += state.speed;
+
+                ensureContiguity();
+
+                readout.innerText = `${Math.floor(state.cameraZ)} Z`;
+
+                const renderQueue = [];
+                for (let tIdx = 0; tIdx < 4; tIdx++) {
+                    tracks[tIdx].forEach((clip, cIdx) => {
+                        if (clip.zStart + clip.dur < state.cameraZ || clip.zStart > state.cameraZ + FAR_PLANE) return;
+
+                        const geom = getClipGeometry(clip.zStart, clip.dur, tIdx);
+                        if (geom) {
+                            const isHover = state.hoverPoly && state.hoverPoly.clip === clip;
+                            const isSelected = state.selectedClip === clip;
+                            const isAbsorb = state.absorbTarget && state.absorbTarget.clip === clip;
+                            const isDropped = state.dropEffect && state.dropEffect.clip === clip;
+
+                            let mode = 'default';
+                            if (isDropped) mode = 'dropped';
+                            else if (isSelected) mode = 'selected';
+                            else if (isAbsorb) mode = 'absorb-target';
+                            else if (isHover) mode = 'hover';
+
+                            const isBeingResized = (state.dragClip === clip && state.dragType === 'handle');
+                            if (isBeingResized) mode = 'selected';
+
+                            renderQueue.push({ geom, clip, tIdx, cIdx, mode });
+                        }
+                    });
+                }
+
+                renderQueue.sort((a, b) => b.geom.zDist - a.geom.zDist);
+                renderedPolys = [];
+
+                renderQueue.forEach(item => {
+                    drawClip(item.geom, item.clip.id, item.tIdx, item.mode, state.hoverType);
+                    renderedPolys.push(item);
+                });
+
+                if (state.dragClip && state.dragType === 'body') {
+                    const geomOrig = getClipGeometry(state.dragStartClipZ, state.dragStartDur, state.dragStartTIdx);
+                    if (geomOrig) {
+                        drawClip(geomOrig, state.dragClip.id, state.dragStartTIdx, 'ghost-origin', 'none');
+                    }
+
+                    if (!state.absorbTarget && state.dragTarget) {
+                        const geomTarget = getClipGeometry(state.dragTarget.zStart, state.dragClip.dur, state.dragTarget.tIdx);
+                        if (geomTarget) {
+                            drawClip(geomTarget, state.dragClip.id, state.dragTarget.tIdx, 'ghost-target', 'none');
+                        }
+                    }
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            document.body.addEventListener('pointerdown', () => {
+                if (!actx) { setupAudio(); actx.resume(); }
+            }, { once: true });
+
+            resize();
+            initPatterns();
+            initTracks();
+            recalculateZOffsets();
+            requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

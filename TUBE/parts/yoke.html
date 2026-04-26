@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>ARC LATHE — Working Barrel Cutter</title>
+    <style>
+        :root {
+            --b: #000;
+            --w: #fff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: #fff;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+
+        header,
+        footer {
+            pointer-events: auto;
+            background: #000;
+            color: #fff;
+            border-color: #fff;
+        }
+
+        header {
+            border-bottom: 2px solid #fff;
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: clamp(20px, 4.5vw, 52px);
+            line-height: .82;
+            letter-spacing: -.1em;
+            text-transform: uppercase;
+            font-weight: 1000;
+        }
+
+        #state {
+            font-size: clamp(10px, 1.25vw, 14px);
+            line-height: 1.05;
+            text-transform: uppercase;
+            font-weight: 1000;
+            text-align: right;
+            max-width: 46vw;
+        }
+
+        footer {
+            border-top: 2px solid #fff;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #readout {
+            font-size: clamp(11px, 1.7vw, 22px);
+            font-weight: 1000;
+            text-transform: uppercase;
+            letter-spacing: -.06em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        button {
+            border: 2px solid #fff;
+            background: #000;
+            color: #fff;
+            font: inherit;
+            font-size: clamp(10px, 1vw, 14px);
+            font-weight: 1000;
+            text-transform: uppercase;
+            padding: 9px 10px;
+            cursor: pointer;
+            min-width: 58px;
+        }
+
+        button:hover,
+        button.on {
+            background: #fff;
+            color: #000;
+        }
+
+        #help {
+            position: fixed;
+            left: 10px;
+            top: 92px;
+            width: min(310px, 34vw);
+            border: 2px solid #fff;
+            background: #000;
+            color: #fff;
+            padding: 9px;
+            font-size: clamp(9px, 1vw, 12px);
+            font-weight: 1000;
+            text-transform: uppercase;
+            line-height: 1.08;
+            pointer-events: none;
+        }
+
+        #help strong {
+            display: block;
+            font-size: clamp(14px, 1.7vw, 22px);
+            letter-spacing: -.07em;
+            margin-bottom: 6px;
+        }
+
+        @media(max-width:760px) {
+            header {
+                padding: 8px;
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+
+            h1 {
+                font-size: clamp(24px, 9vw, 42px);
+            }
+
+            #state {
+                text-align: left;
+                max-width: none;
+                font-size: 9px;
+            }
+
+            #help {
+                display: none;
+            }
+
+            footer {
+                grid-template-columns: 1fr;
+                padding: 6px;
+                gap: 6px;
+            }
+
+            #buttons {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 5px;
+            }
+
+            button {
+                padding: 8px 4px;
+                min-width: 0;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="app"></canvas>
+    <div id="ui">
+        <header>
+            <h1>ARC<br>LATHE</h1>
+            <div id="state">BARREL IS THE EDITOR · CUTTER IS PLAYHEAD · TEXT IS CONTROL · FAILURE LEAVES GHOSTS</div>
+        </header>
+        <main></main>
+        <footer>
+            <div id="readout">DRAG BARREL TO SCRUB · GRAB CLIPS TO MOVE · EDGE HANDLE TO TRIM</div>
+            <div id="buttons">
+                <button id="play">PLAY</button>
+                <button id="roll">ROLL</button>
+                <button id="cleave">CLEAVE</button>
+                <button id="absorb">ABSORB</button>
+                <button id="ghosts">GHOSTS</button>
+                <button id="seed">SEED</button>
+                <button id="export">EXPORT</button>
+                <button id="reset">RESET</button>
+            </div>
+        </footer>
+    </div>
+    <aside id="help"><strong>LATHE LAW</strong>THE BARREL HOLDS TIME. THE CHUCKS HOLD ORIGIN. THE CUTTER TOUCHES THE
+        ACTIVE SECOND. ROLL REVEALS THE COHORT. ABSORB MAKES SCARS. CLEAVE MAKES CHILDREN. MISSES BECOME GHOSTS.</aside>
+    <script>
+        (() => {
+            'use strict';
+
+            const canvas = document.getElementById('app');
+            const ctx = canvas.getContext('2d');
+            const readout = document.getElementById('readout');
+            const stateEl = document.getElementById('state');
+            const buttons = {
+                play: document.getElementById('play'), roll: document.getElementById('roll'), cleave: document.getElementById('cleave'), absorb: document.getElementById('absorb'), ghosts: document.getElementById('ghosts'), seed: document.getElementById('seed'), export: document.getElementById('export'), reset: document.getElementById('reset')
+            };
+
+            let W = 0, H = 0, DPR = 1, now = 0, last = performance.now();
+            let hit = [];
+            let action = null;
+            let pulse = 0;
+            let nextId = 12;
+            const TAU = Math.PI * 2;
+            const TRACKS = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERABLE'];
+            const SNAP = 1;
+            const SEQ = 24;
+            const state = {
+                playing: false,
+                mode: 'LATHE',
+                showGhosts: false,
+                time: 5,
+                spin: .15,
+                selected: 'C03',
+                message: 'MAKE THE DAMN LATHE',
+                clips: [],
+                ghosts: [],
+                seeds: [],
+                events: [],
+                genealogy: {},
+                witness: 'BARREL READY'
+            };
+
+            function resetData() {
+                state.clips = [
+                    clip('C01', 0, 0, 5, 0, 0), clip('C02', 5, 4, 4, 1, 0), clip('C03', 10, 2, 6, 2, 0), clip('C04', 15, 8, 5, 3, 90),
+                    clip('C05', 3, 9, 4, 0, 0), clip('C06', 9, 13, 3, 1, 0), clip('C07', 14, 15, 6, 2, 180), clip('C08', 19, 18, 4, 3, 0),
+                    clip('C09', 1, 20, 3, 0, 270), clip('C10', 7, 21, 3, 1, 0), clip('C11', 13, 22, 2, 2, 0)
+                ];
+                state.ghosts = []; state.seeds = []; state.events = []; state.genealogy = {}; state.selected = 'C03'; state.time = 5; state.spin = .15; state.witness = 'BARREL READY';
+            }
+            function clip(id, sourceStart, seqStart, duration, track, roll) { return { id, sourceStart, seqStart, duration, track, roll, curvatureDebt: Math.random() * .35 + .1, unroll: .35 + Math.random() * .45, resistance: Math.random(), scars: [], children: [] }; }
+
+            function resize() {
+                DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                W = innerWidth; H = innerHeight;
+                canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
+                canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+            addEventListener('resize', resize, { passive: true });
+
+            function geom() {
+                const mobile = W < 760;
+                const header = mobile ? 118 : 92;
+                const footer = mobile ? 148 : 66;
+                const top = header + 8;
+                const bottom = H - footer - 8;
+                const cx = W / 2;
+                const cy = (top + bottom) * .51;
+                const left = mobile ? 28 : Math.max(210, W * .17);
+                const right = mobile ? W - 28 : W - 48;
+                const barrelX = mobile ? 46 : left + 52;
+                const barrelW = mobile ? W - 92 : right - left - 112;
+                const R = Math.max(58, Math.min(mobile ? 96 : 150, (bottom - top) * .28));
+                const bedY = cy + R + 42;
+                const reelY = top + Math.max(42, R * .42);
+                return { mobile, header, footer, top, bottom, cx, cy, left, right, barrelX, barrelW, R, bedY, reelY };
+            }
+
+            function line(x1, y1, x2, y2, w = 2, dash = false) { ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = w; if (dash) ctx.setLineDash([7, 7]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
+            function rect(x, y, w, h, fill = false, lw = 2) { ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = lw; ctx.fillStyle = fill ? '#fff' : '#000'; if (fill) ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); ctx.restore(); }
+            function text(s, x, y, size = 12, align = 'center', invert = false) { ctx.save(); ctx.font = '1000 ' + size + 'px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillStyle = invert ? '#000' : '#fff'; ctx.fillText(s, x, y); ctx.restore(); }
+            function wrap(s, x, y, w, lh, size, invert = false, max = 4) { const words = s.split(' '); let lineStr = '', out = []; ctx.font = '1000 ' + size + 'px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'; for (const word of words) { const test = lineStr ? lineStr + ' ' + word : word; if (ctx.measureText(test).width > w && lineStr) { out.push(lineStr); lineStr = word; } else lineStr = test; } if (lineStr) out.push(lineStr); out.slice(0, max).forEach((l, i) => text(l, x, y + i * lh, size, 'center', invert)); }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function snap(v) { return Math.round(v / SNAP) * SNAP; }
+            function mod(v, m) { return ((v % m) + m) % m; }
+            function getClip(id) { return state.clips.find(c => c.id === id); }
+            function selected() { return getClip(state.selected); }
+            function xToTime(x, g) { return clamp(((x - g.barrelX) / g.barrelW) * SEQ, 0, SEQ); }
+            function timeToX(t, g) { return g.barrelX + (t / SEQ) * g.barrelW; }
+            function interval(c) { return [c.seqStart, c.seqStart + c.duration]; }
+            function overlaps(a, b) { const A = interval(a), B = interval(b); return Math.max(A[0], B[0]) < Math.min(A[1], B[1]); }
+            function cohort(c) { return c ? state.clips.filter(o => overlaps(c, o)) : []; }
+            function activeAt(t) { return state.clips.filter(c => t >= c.seqStart && t < c.seqStart + c.duration).sort((a, b) => b.track - a.track)[0] || null; }
+            function rootEvent(kind, payload) { state.events.push({ kind, time: Date.now(), payload }); if (state.events.length > 80) state.events.shift(); }
+            function ghost(kind, payload) { state.ghosts.push({ id: 'G' + state.ghosts.length, kind, payload, t: state.time, x: payload && payload.x, y: payload && payload.y }); if (state.ghosts.length > 40) state.ghosts.shift(); }
+
+            function draw() {
+                now = performance.now(); const dt = Math.min(.05, (now - last) / 1000); last = now;
+                if (state.playing) { state.time = mod(state.time + dt * 2.2, SEQ); state.spin += dt * 1.5; } else { state.spin += dt * .18; }
+                if (pulse > 0) pulse--;
+                hit = [];
+                const g = geom();
+                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+                drawLatheBed(g);
+                drawSnapRails(g);
+                drawSourceReel(g);
+                drawBarrel(g);
+                drawCutter(g);
+                drawWitness(g);
+                if (state.showGhosts) drawGhosts(g);
+                drawMiniGenealogy(g);
+                updateDom();
+                requestAnimationFrame(draw);
+            }
+
+            function drawLatheBed(g) {
+                // Bed rails.
+                line(0, g.bedY, W, g.bedY, 4);
+                line(g.barrelX - 34, g.bedY + 26, g.barrelX + g.barrelW + 34, g.bedY + 26, 2);
+                for (let x = g.barrelX - 20; x < g.barrelX + g.barrelW + 40; x += 38) { line(x, g.bedY - 10, x + 22, g.bedY + 26, 1); }
+
+                // Chucks.
+                const chuckW = g.mobile ? 36 : 54;
+                const lx = g.barrelX - chuckW - 10, rx = g.barrelX + g.barrelW + 10;
+                rect(lx, g.cy - g.R * .7, chuckW, g.R * 1.4, false, 3);
+                rect(rx, g.cy - g.R * .7, chuckW, g.R * 1.4, false, 3);
+                for (let i = -2; i <= 2; i++) { line(lx, g.cy + i * g.R * .22, lx + chuckW, g.cy - i * g.R * .22, 1); line(rx, g.cy + i * g.R * .22, rx + chuckW, g.cy - i * g.R * .22, 1); }
+                text('SOURCE CHUCK', lx + chuckW / 2, g.cy - g.R * .9, 9, 'center');
+                text('OUTPUT CHUCK', rx + chuckW / 2, g.cy - g.R * .9, 9, 'center');
+
+                // Tool carriage base.
+                const cx = timeToX(state.time, g);
+                rect(cx - 34, g.bedY - 2, 68, 42, false, 2);
+                line(cx, g.bedY - 58, cx, g.bedY + 40, 2);
+                text('CUTTER', cx, g.bedY + 58, 10, 'center');
+            }
+
+            function drawSnapRails(g) {
+                const y1 = g.cy - g.R - 40, y2 = g.cy + g.R + 40;
+                line(g.barrelX, y1, g.barrelX + g.barrelW, y1, 2);
+                line(g.barrelX, y2, g.barrelX + g.barrelW, y2, 2);
+                for (let s = 0; s <= SEQ; s++) {
+                    const x = timeToX(s, g), major = s % 4 === 0;
+                    line(x, y1 - (major ? 14 : 8), x, y1 + (major ? 14 : 8), major ? 3 : 1);
+                    line(x, y2 - (major ? 14 : 8), x, y2 + (major ? 14 : 8), major ? 3 : 1);
+                    if (major) { text(String(s), x, y1 - 27, 10); text(String(s), x, y2 + 27, 10); }
+                }
+                text('MAGNETIC SNAP RAIL — NOT FOOTAGE', g.barrelX, y1 - 44, 10, 'left');
+            }
+
+            function drawSourceReel(g) {
+                const r = g.mobile ? 34 : 44;
+                const cx = g.mobile ? W - 52 : Math.max(72, g.left * .45), cy = g.reelY;
+                ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r * .42, 0, TAU); ctx.stroke();
+                for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i * TAU / 12 + state.spin; line(cx + Math.cos(a) * r * .5, cy + Math.sin(a) * r * .5, cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1); }
+                ctx.restore();
+                text('REEL', cx, cy + r + 18, 10);
+                const c = selected();
+                if (c) { const a0 = -Math.PI / 2 + (c.sourceStart / SEQ) * TAU, a1 = -Math.PI / 2 + ((c.sourceStart + c.duration) / SEQ) * TAU; ctx.save(); ctx.lineWidth = 8; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, r + 10, a0, a1); ctx.stroke(); ctx.restore(); }
+            }
+
+            function barrelPoint(t, track, roll, g) {
+                const x = timeToX(t, g);
+                const base = -Math.PI / 2 + track * (TAU / 4) + state.spin + (roll || 0) * Math.PI / 180;
+                const y = g.cy + Math.sin(base) * g.R * .62;
+                const depth = Math.cos(base);
+                return { x, y, depth, angle: base };
+            }
+
+            function drawBarrel(g) {
+                // outer cylinder envelope.
+                ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.ellipse(g.barrelX, g.cy, g.R * .28, g.R, 0, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(g.barrelX + g.barrelW, g.cy, g.R * .28, g.R, 0, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+                line(g.barrelX, g.cy - g.R, g.barrelX + g.barrelW, g.cy - g.R, 3);
+                line(g.barrelX, g.cy + g.R, g.barrelX + g.barrelW, g.cy + g.R, 3);
+                ctx.restore();
+
+                // quadrant seams.
+                for (let q = 0; q < 4; q++) {
+                    const a = -Math.PI / 2 + q * TAU / 4 + state.spin;
+                    const y = g.cy + Math.sin(a) * g.R;
+                    line(g.barrelX, y, g.barrelX + g.barrelW, y, 1, true);
+                }
+
+                // sort by back/front.
+                const polys = [];
+                for (const c of state.clips) {
+                    const p1 = barrelPoint(c.seqStart, c.track, c.roll, g);
+                    const p2 = barrelPoint(c.seqStart + c.duration, c.track, c.roll, g);
+                    const h = 18 + Math.max(0, (p1.depth + p2.depth)) * 10;
+                    const front = (p1.depth + p2.depth) / 2;
+                    polys.push({ c, p1, p2, h, front });
+                }
+                polys.sort((a, b) => a.front - b.front).forEach(p => drawClipOnBarrel(p, g));
+
+                hit.push({ type: 'barrel', x: g.barrelX, y: g.cy - g.R - 38, w: g.barrelW, h: g.R * 2 + 76 });
+            }
+
+            function drawClipOnBarrel(p, g) {
+                const c = p.c;
+                const sel = c.id === state.selected;
+                const co = state.mode === 'ROLL' && selected() && cohort(selected()).some(o => o.id === c.id);
+                const act = activeAt(state.time)?.id === c.id;
+                const x1 = p.p1.x, x2 = p.p2.x, y1 = p.p1.y, y2 = p.p2.y;
+                const h = p.h;
+                const fill = sel || co || act;
+                const yy = (y1 + y2) / 2;
+                const top = yy - h / 2, bot = yy + h / 2;
+                ctx.save();
+                if (p.front < -.22 && !sel && !co) { ctx.setLineDash([3, 5]); }
+                rect(x1, top, Math.max(6, x2 - x1), h, fill, sel || co ? 4 : 2);
+                if (fill) { text(c.id, (x1 + x2) / 2, yy, Math.max(9, Math.min(15, (x2 - x1) / 3)), 'center', true); } else { text(c.id, (x1 + x2) / 2, yy, 10, 'center', false); }
+                // scars as black/white bite marks.
+                c.scars.forEach((s, i) => { const sx = x1 + ((i + 1) / (c.scars.length + 1)) * (x2 - x1); rect(sx - 3, top, 6, h, !fill, 1); });
+                // selected handles.
+                if (sel) {
+                    rect(x1 - 8, top - 8, 16, h + 16, true, 2); text('S', x1, yy, 10, 'center', true);
+                    rect(x2 - 8, top - 8, 16, h + 16, true, 2); text('E', x2, yy, 10, 'center', true);
+                    hit.push({ type: 'handle', edge: 'start', clip: c, x: x1 - 18, y: top - 16, w: 36, h: h + 32 });
+                    hit.push({ type: 'handle', edge: 'end', clip: c, x: x2 - 18, y: top - 16, w: 36, h: h + 32 });
+                }
+                hit.push({ type: 'clip', clip: c, x: x1, y: top, w: Math.max(8, x2 - x1), h });
+                ctx.restore();
+            }
+
+            function drawCutter(g) {
+                const x = timeToX(state.time, g);
+                const active = activeAt(state.time);
+                line(x, g.cy - g.R - 62, x, g.cy + g.R + 62, 4);
+                ctx.save(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x, g.cy - g.R - 66); ctx.lineTo(x - 12, g.cy - g.R - 42); ctx.lineTo(x + 12, g.cy - g.R - 42); ctx.closePath(); ctx.fill(); ctx.restore();
+                if (active) {
+                    rect(x + 12, g.cy - g.R - 62, Math.min(330, W - x - 24), 46, true, 2);
+                    wrap('WITNESS: ' + state.witness, x + 178, g.cy - g.R - 47, 292, 12, 10, true, 3);
+                }
+            }
+
+            function drawWitness(g) {
+                const active = activeAt(state.time);
+                const boxW = g.mobile ? W - 20 : Math.min(430, W * .31);
+                const boxH = g.mobile ? 76 : 110;
+                const x = g.mobile ? 10 : W - boxW - 14;
+                const y = g.mobile ? g.top + 6 : g.top + 8;
+                rect(x, y, boxW, boxH, false, 2);
+                text('MONITOR WITNESS', x + 10, y + 16, 12, 'left');
+                if (active) {
+                    wrap('ACTIVE ' + active.id + ' / ' + TRACKS[active.track] + ' / SRC ' + active.sourceStart + ' / R' + active.roll, x + boxW / 2, y + 38, boxW - 20, 13, g.mobile ? 9 : 11, false, 2);
+                    wrap(state.witness, x + boxW / 2, y + 68, boxW - 20, 12, g.mobile ? 9 : 10, false, 3);
+                } else {
+                    wrap('NO ACTIVE CLIP UNDER CUTTER', x + boxW / 2, y + 42, boxW - 20, 14, 11, false, 2);
+                }
+            }
+
+            function drawGhosts(g) {
+                rect(10, g.bottom - 124, Math.min(W - 20, 760), 108, false, 2);
+                text('GHOST TIMELINE / ALMOST-EDITS', 22, g.bottom - 108, 12, 'left');
+                const startX = 22, y = g.bottom - 70;
+                state.ghosts.slice(-12).forEach((gh, i) => {
+                    const x = startX + i * 58;
+                    rect(x, y, 44, 34, i % 2 === 0, 2);
+                    text(gh.kind.slice(0, 4).toUpperCase(), x + 22, y + 17, 8, 'center', i % 2 === 0);
+                });
+            }
+
+            function drawMiniGenealogy(g) {
+                const c = selected(); if (!c || !c.children.length) return;
+                const x = 12, y = g.top + g.R * 2 + 20, w = 220, h = 72;
+                if (g.mobile) return;
+                rect(x, y, w, h, false, 2);
+                text('CLEAVE GENEALOGY', x + 10, y + 15, 11, 'left');
+                text(c.id, x + w / 2, y + 34, 12);
+                line(x + w / 2, y + 42, x + w / 2 - 45, y + 58, 1); line(x + w / 2, y + 42, x + w / 2 + 45, y + 58, 1);
+                text(c.children[0] || '-', x + w / 2 - 55, y + 62, 10); text(c.children[1] || '-', x + w / 2 + 55, y + 62, 10);
+            }
+
+            function updateDom() {
+                buttons.play.classList.toggle('on', state.playing);
+                buttons.roll.classList.toggle('on', state.mode === 'ROLL');
+                buttons.ghosts.classList.toggle('on', state.showGhosts);
+                const c = selected(); const a = activeAt(state.time);
+                stateEl.textContent = 'TIME ' + state.time.toFixed(1) + 'S · SELECT ' + (c ? c.id : 'NONE') + ' · ACTIVE ' + (a ? a.id : 'NONE') + ' · MODE ' + state.mode;
+                if (state.message) { readout.textContent = state.message; }
+            }
+
+            function hitTest(x, y) { for (let i = hit.length - 1; i >= 0; i--) { const h = hit[i]; if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) return h; } return null; }
+
+            canvas.addEventListener('pointerdown', e => {
+                canvas.setPointerCapture(e.pointerId);
+                const g = geom(); const h = hitTest(e.clientX, e.clientY);
+                if (h && h.type === 'clip') {
+                    state.selected = h.clip.id; action = { kind: 'move', clip: h.clip, startX: e.clientX, startY: e.clientY, origStart: h.clip.seqStart, origTrack: h.clip.track }; state.message = 'CLIP GRABBED: MOVE ACROSS BARREL TIME'; return;
+                }
+                if (h && h.type === 'handle') {
+                    state.selected = h.clip.id; action = { kind: 'trim', edge: h.edge, clip: h.clip, startX: e.clientX, origStart: h.clip.seqStart, origDur: h.clip.duration }; state.message = h.edge === 'start' ? 'START HANDLE: TRIM ORIGIN EDGE' : 'END HANDLE: TRIM EXIT EDGE'; return;
+                }
+                if (h && h.type === 'barrel') {
+                    action = { kind: 'scrub', startX: e.clientX, origTime: state.time }; state.playing = false; state.message = 'CUTTER SCRUBBING BARREL'; return;
+                }
+                ghost('missed-drop', { x: e.clientX, y: e.clientY }); state.message = 'MISS CAPTURED AS GHOST';
+            });
+
+            canvas.addEventListener('pointermove', e => {
+                if (!action) return;
+                const g = geom(); const dx = e.clientX - action.startX;
+                if (action.kind === 'scrub') {
+                    state.time = mod(action.origTime + (dx / g.barrelW) * SEQ, SEQ); return;
+                }
+                if (action.kind === 'move') {
+                    const c = action.clip;
+                    c.seqStart = clamp(snap(action.origStart + (dx / g.barrelW) * SEQ), 0, SEQ - c.duration);
+                    const dy = e.clientY - action.startY;
+                    if (Math.abs(dy) > 48) { c.track = clamp(action.origTrack + Math.round(dy / 64), 0, 3); }
+                    state.message = 'MOVING ' + c.id + ' · ' + TRACKS[c.track] + ' · ' + c.seqStart + 'S'; return;
+                }
+                if (action.kind === 'trim') {
+                    const c = action.clip; const dt = snap((dx / g.barrelW) * SEQ);
+                    if (action.edge === 'end') c.duration = clamp(action.origDur + dt, 1, SEQ - c.seqStart);
+                    else { const newStart = clamp(action.origStart + dt, 0, action.origStart + action.origDur - 1); const delta = newStart - action.origStart; c.seqStart = newStart; c.sourceStart += delta; c.duration = action.origDur - delta; }
+                    c.curvatureDebt = Math.min(1, c.curvatureDebt + .01);
+                    state.message = 'TRIM CHANGED CURVATURE DEBT'; return;
+                }
+            });
+
+            canvas.addEventListener('pointerup', e => {
+                if (!action) return;
+                if (action.kind === 'move') { rootEvent('MOVE', { id: action.clip.id, seqStart: action.clip.seqStart, track: action.clip.track }); state.witness = action.clip.id + ' MOVED; BELIEF-PRESSURE NOW ' + TRACKS[action.clip.track]; }
+                if (action.kind === 'trim') { rootEvent('TRIM', { id: action.clip.id, duration: action.clip.duration }); state.witness = action.clip.id + ' TRIMMED; CURVATURE DEBT INCREASED'; }
+                if (action.kind === 'scrub') { state.witness = 'CUTTER MOVED TO ' + state.time.toFixed(1) + 'S'; }
+                action = null; pulse = 12;
+            });
+            canvas.addEventListener('pointercancel', () => { if (action) { ghost('canceled-' + action.kind, { x: 0, y: 0 }); } action = null; });
+
+            buttons.play.onclick = () => { state.playing = !state.playing; state.message = state.playing ? 'LATHE SPINNING' : 'LATHE STOPPED'; };
+            buttons.roll.onclick = () => {
+                state.mode = state.mode === 'ROLL' ? 'LATHE' : 'ROLL';
+                const c = selected();
+                if (c && state.mode === 'ROLL') {
+                    const co = cohort(c); co.forEach(o => o.roll = mod(o.roll + 90, 360));
+                    rootEvent('TURN', { section: interval(c), cohort: co.map(o => o.id), delta: 90 });
+                    state.witness = 'ROLL: ' + co.length + ' CLIPS TURNED WITH ' + c.id;
+                    state.message = 'COHORT ORACLE: ' + co.map(o => o.id).join(' TURNS ');
+                } else state.message = 'ROLL MODE RELEASED';
+            };
+            buttons.cleave.onclick = () => {
+                const c = selected(); if (!c) return;
+                if (state.time <= c.seqStart || state.time >= c.seqStart + c.duration) { ghost('failed-cleave', { id: c.id }); state.message = 'CLEAVE FAILED: CUTTER NOT INSIDE SELECTED CLIP'; return; }
+                const cut = snap(state.time), leftDur = cut - c.seqStart, rightDur = c.duration - leftDur;
+                if (leftDur < 1 || rightDur < 1) { ghost('thin-cleave', { id: c.id }); return; }
+                const a = clip(c.id + 'A', c.sourceStart, c.seqStart, leftDur, c.track, c.roll);
+                const b = clip(c.id + 'B', c.sourceStart + leftDur, cut, rightDur, c.track, c.roll);
+                a.scars = [...c.scars, 'birth-left']; b.scars = [...c.scars, 'birth-right'];
+                c.children = [a.id, b.id]; state.genealogy[c.id] = [a.id, b.id];
+                state.clips = state.clips.filter(o => o.id !== c.id).concat(a, b); state.selected = b.id;
+                rootEvent('CLEAVE', { parent: c.id, children: [a.id, b.id] }); state.witness = 'CLEAVE: ' + c.id + ' BECAME ' + a.id + ' AND ' + b.id; state.message = state.witness;
+            };
+            buttons.absorb.onclick = () => {
+                const c = selected(); if (!c) return;
+                const candidates = state.clips.filter(o => o.id !== c.id && overlaps(c, o));
+                if (!candidates.length) { ghost('failed-absorb', { id: c.id }); state.message = 'ABSORB FAILED: NO OVERLAP. FAILURE SAVED AS GHOST'; return; }
+                const victim = candidates[0];
+                const end = Math.max(c.seqStart + c.duration, victim.seqStart + victim.duration); const start = Math.min(c.seqStart, victim.seqStart);
+                c.seqStart = start; c.duration = end - start; c.scars.push('ate-' + victim.id); c.curvatureDebt = Math.min(1, c.curvatureDebt + .2);
+                state.clips = state.clips.filter(o => o.id !== victim.id); state.selected = c.id;
+                rootEvent('ABSORB', { eater: c.id, eaten: victim.id }); state.witness = 'ABSORB: ' + c.id + ' ATE ' + victim.id + '; SCAR CREATED'; state.message = state.witness;
+            };
+            buttons.ghosts.onclick = () => { state.showGhosts = !state.showGhosts; state.message = state.showGhosts ? 'GHOST TIMELINE OPEN' : 'GHOST TIMELINE CLOSED'; };
+            buttons.seed.onclick = () => {
+                const c = selected(); if (!c) return;
+                const seed = { id: 'S' + state.seeds.length, clip: c.id, trigger: 'operator marked warm seed', state: JSON.parse(JSON.stringify(c)) };
+                state.seeds.push(seed); rootEvent('WARM_SEED', seed); state.witness = 'WARM SEED CAPTURED FROM ' + c.id; state.message = state.witness;
+            };
+            buttons.export.onclick = () => {
+                const data = { title: 'Arc Lathe Aberration Engine', timebase: { slotSeconds: 1, fps: 24 }, tracks: TRACKS, clips: state.clips, ghosts: state.ghosts, seeds: state.seeds, events: state.events, genealogy: state.genealogy, laws: ['barrel holds time', 'cutter is playhead', 'roll reveals cohort', 'failed gestures become ghosts', 'export remembers scars'] };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arc-lathe-aberration-export.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); state.message = 'SCAR EXPORT WRITTEN';
+            };
+            buttons.reset.onclick = () => { resetData(); state.message = 'LATHE RESET'; };
+
+            window.addEventListener('keydown', e => {
+                if (e.code === 'Space') { e.preventDefault(); buttons.play.click(); }
+                if (e.key === 'r') buttons.roll.click();
+                if (e.key === 'c') buttons.cleave.click();
+                if (e.key === 'a') buttons.absorb.click();
+                if (e.key === 'g') buttons.ghosts.click();
+                if (e.key === 'ArrowRight') state.time = mod(state.time + 1, SEQ);
+                if (e.key === 'ArrowLeft') state.time = mod(state.time - 1, SEQ);
+            });
+
+            resetData(); resize(); requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

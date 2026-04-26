@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc-Tunnel Operator — Working Mesh Build</title>
+    <style>
+        :root {
+            --bg: #fff;
+            --fg: #000;
+            --tray: rgba(255, 255, 255, .96)
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        body {
+            display: grid;
+            grid-template-columns: minmax(300px, 32vw) 1fr;
+            grid-template-rows: 100vh
+        }
+
+        button {
+            font: inherit;
+            color: #000;
+            background: #fff;
+            border: 2px solid #000;
+            cursor: pointer;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            touch-action: manipulation;
+            min-height: 44px
+        }
+
+        #logic {
+            position: relative;
+            z-index: 20;
+            height: 100vh;
+            overflow: auto;
+            border-right: 3px solid #000;
+            background: #fff;
+            padding: 12px 12px 140px;
+            overscroll-behavior: contain
+        }
+
+        #logic::-webkit-scrollbar {
+            width: 16px
+        }
+
+        #logic::-webkit-scrollbar-track {
+            background: #fff;
+            border-left: 2px solid #000
+        }
+
+        #logic::-webkit-scrollbar-thumb {
+            background: repeating-linear-gradient(to bottom, #000 0, #000 4px, #fff 4px, #fff 7px);
+            border: 2px solid #000
+        }
+
+        #logic::-webkit-scrollbar-button {
+            display: none
+        }
+
+        #logicHead {
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 10;
+            padding-bottom: 9px
+        }
+
+        #logic h1 {
+            font-size: 13px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            background: #000;
+            color: #fff;
+            border: 2px solid #000;
+            padding: 10px 12px
+        }
+
+        .sub {
+            margin-top: 8px;
+            border: 1px solid #000;
+            padding: 8px 9px;
+            font-size: 10px;
+            line-height: 1.42
+        }
+
+        .group {
+            margin: 12px 0 6px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px
+        }
+
+        .line {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 8px;
+            border: 1px solid #000;
+            margin: 5px 0;
+            padding: 8px;
+            font-size: 10.5px;
+            line-height: 1.32;
+            cursor: pointer;
+            background: #fff
+        }
+
+        .line .num {
+            font-weight: 900
+        }
+
+        .line b {
+            font-weight: 900
+        }
+
+        .line small {
+            display: block;
+            margin-top: 4px;
+            font-size: 8.5px;
+            letter-spacing: .08em;
+            text-transform: uppercase
+        }
+
+        .line.active {
+            background: #000;
+            color: #fff
+        }
+
+        .line.multi {
+            background: #eee
+        }
+
+        .line.hover {
+            outline: 3px solid #000;
+            outline-offset: -3px
+        }
+
+        .value {
+            font-weight: 900;
+            text-decoration: underline;
+            text-underline-offset: 2px
+        }
+
+        #stageWrap {
+            position: relative;
+            height: 100vh;
+            overflow: hidden;
+            background: #fff
+        }
+
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #fff;
+            cursor: crosshair
+        }
+
+        #hud {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            color: #000
+        }
+
+        #topbar {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px
+        }
+
+        .topCard {
+            border: 2px solid #000;
+            background: #fff;
+            padding: 8px 10px;
+            font-size: 10px;
+            line-height: 1.3;
+            text-transform: uppercase;
+            letter-spacing: .09em
+        }
+
+        .topCard b {
+            display: block;
+            font-size: 13px
+        }
+
+        .time {
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: .08em
+        }
+
+        .card {
+            text-align: center;
+            min-width: 128px
+        }
+
+        .card .id {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: .08em
+        }
+
+        .card .sub {
+            font-size: 10px;
+            font-weight: 900;
+            margin-top: 3px
+        }
+
+        #viewBadge {
+            position: absolute;
+            left: 50%;
+            top: 60px;
+            transform: translateX(-50%);
+            border: 2px solid #000;
+            background: #fff;
+            padding: 6px 10px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        #tubeStatus {
+            position: absolute;
+            left: 50%;
+            bottom: 124px;
+            transform: translateX(-50%);
+            border: 2px solid #000;
+            background: #fff;
+            padding: 7px 10px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            white-space: nowrap
+        }
+
+        .codeToggle {
+            position: absolute;
+            left: 12px;
+            bottom: 126px;
+            height: 38px;
+            padding: 0 13px;
+            font-size: 10px;
+            display: none;
+            pointer-events: auto
+        }
+
+        #dock {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px;
+            align-items: end;
+            pointer-events: auto
+        }
+
+        .tray {
+            border: 2px solid #000;
+            background: var(--tray);
+            padding: 8px;
+            box-shadow: 0 0 0 1px #fff
+        }
+
+        .trayTitle {
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px;
+            margin-bottom: 7px
+        }
+
+        .views {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px
+        }
+
+        .viewBtn,
+        .toolBtn,
+        .miniBtn {
+            height: 32px;
+            padding: 0 9px;
+            font-size: 10px
+        }
+
+        .viewBtn.active,
+        .toolBtn.active,
+        .miniBtn.active {
+            background: #000;
+            color: #fff
+        }
+
+        .axisBox {
+            min-width: 390px
+        }
+
+        .axisRow {
+            display: grid;
+            grid-template-columns: 48px 1fr 48px;
+            gap: 7px;
+            align-items: center
+        }
+
+        .axisRail {
+            height: 46px;
+            border: 3px solid #000;
+            background: repeating-linear-gradient(to right, #fff 0, #fff 18px, #000 18px, #000 20px);
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+            cursor: ew-resize
+        }
+
+        .axisRail:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: #000;
+            transform: translateY(-50%)
+        }
+
+        .axisFill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0%;
+            background: repeating-linear-gradient(135deg, #000 0, #000 5px, #fff 5px, #fff 9px);
+            opacity: .16
+        }
+
+        .axisSection {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            background: rgba(0, 0, 0, .13);
+            border-left: 2px solid #000;
+            border-right: 2px solid #000
+        }
+
+        .axisViewport {
+            position: absolute;
+            top: 8px;
+            bottom: 8px;
+            width: 110px;
+            transform: translateX(-50%);
+            border: 2px solid #000
+        }
+
+        .axisThumb {
+            position: absolute;
+            top: 50%;
+            width: 28px;
+            height: 36px;
+            border: 3px solid #000;
+            background: repeating-linear-gradient(to right, #fff 0, #fff 5px, #000 5px, #000 7px);
+            transform: translate(-50%, -50%);
+            box-shadow: 5px 0 0 #fff, -5px 0 0 #fff
+        }
+
+        .axisMeta {
+            margin-top: 6px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .rollRow,
+        .miniGrid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 6px
+        }
+
+        .tools {
+            min-width: 248px
+        }
+
+        .read {
+            margin-top: 6px;
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 10px;
+            text-transform: uppercase
+        }
+
+        .read b {
+            display: block;
+            font-size: 13px
+        }
+
+        .toast {
+            position: absolute;
+            left: 50%;
+            bottom: 168px;
+            transform: translateX(-50%) translateY(8px);
+            border: 2px solid #000;
+            background: #fff;
+            padding: 9px 14px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: .12s
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 200;
+            display: none;
+            min-width: 228px;
+            max-width: 290px;
+            background: #fff;
+            border: 2px solid #000;
+            box-shadow: 8px 8px 0 #000
+        }
+
+        #menu.show {
+            display: block
+        }
+
+        #menuHead {
+            background: #000;
+            color: #fff;
+            padding: 8px 10px;
+            border-bottom: 2px solid #000;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        .menuBody {
+            padding: 6px
+        }
+
+        .menuBtn {
+            width: 100%;
+            height: 34px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 9px;
+            margin: 3px 0;
+            font-size: 11px
+        }
+
+        .menuBtn:hover {
+            background: #000;
+            color: #fff
+        }
+
+        .sep {
+            height: 2px;
+            background: #000;
+            margin: 6px 0
+        }
+
+        .key {
+            font-size: 9px;
+            opacity: .75
+        }
+
+        @media(max-width:940px) {
+            body {
+                display: block
+            }
+
+            #stageWrap {
+                position: fixed;
+                inset: 0;
+                height: 100vh
+            }
+
+            canvas {
+                cursor: default
+            }
+
+            #logic {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 58vh;
+                z-index: 40;
+                border-right: 0;
+                border-top: 4px solid #000;
+                transform: translateY(calc(100% - 54px));
+                transition: transform .18s ease;
+                padding: 64px 12px 180px
+            }
+
+            body.logicOpen #logic {
+                transform: translateY(0)
+            }
+
+            #logicHead {
+                position: absolute;
+                left: 10px;
+                right: 10px;
+                top: 8px;
+                padding: 0
+            }
+
+            #logic h1 {
+                font-size: 11px;
+                padding: 12px;
+                min-height: 44px;
+                display: flex;
+                align-items: center
+            }
+
+            .sub {
+                display: none
+            }
+
+            .line {
+                font-size: 11px;
+                min-height: 54px;
+                padding: 11px 10px;
+                grid-template-columns: 38px 1fr;
+                margin: 7px 0
+            }
+
+            .line small {
+                font-size: 9px
+            }
+
+            .group {
+                font-size: 10px;
+                margin-top: 15px
+            }
+
+            .codeToggle {
+                display: block;
+                left: 8px;
+                bottom: calc(env(safe-area-inset-bottom) + 196px);
+                height: 52px;
+                min-width: 78px;
+                padding: 0 16px;
+                font-size: 11px;
+                box-shadow: 6px 6px 0 #000;
+                background: #fff
+            }
+
+            #topbar {
+                left: 8px;
+                right: 8px;
+                top: 8px;
+                gap: 6px;
+                pointer-events: none
+            }
+
+            .topCard:first-child {
+                display: none
+            }
+
+            .time {
+                font-size: 12px;
+                padding: 8px 9px;
+                min-height: 38px
+            }
+
+            .card {
+                min-width: 104px;
+                padding: 8px
+            }
+
+            .card .id {
+                font-size: 15px
+            }
+
+            .card .sub {
+                font-size: 8px
+            }
+
+            #viewBadge {
+                top: 52px;
+                font-size: 8px;
+                padding: 6px 9px;
+                max-width: 72vw;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            #tubeStatus {
+                display: none
+            }
+
+            #dock {
+                left: 0;
+                right: 0;
+                bottom: 0;
+                grid-template-columns: 1fr;
+                gap: 0;
+                align-items: stretch;
+                background: #fff;
+                border-top: 4px solid #000;
+                padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
+                box-shadow: 0 -4px 0 #fff;
+                pointer-events: auto
+            }
+
+            .tray {
+                padding: 8px;
+                border-width: 2px;
+                border-left: 0;
+                border-right: 0;
+                box-shadow: none
+            }
+
+            .tray:first-child {
+                border-top: 0
+            }
+
+            .trayTitle {
+                font-size: 8px;
+                margin-bottom: 6px;
+                padding-bottom: 4px
+            }
+
+            .views {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px
+            }
+
+            .viewBtn {
+                height: 52px;
+                min-height: 52px;
+                padding: 0;
+                font-size: 0;
+                border-width: 3px
+            }
+
+            .viewBtn:after {
+                content: attr(data-s);
+                font-size: 15px;
+                font-weight: 900
+            }
+
+            .axisBox {
+                min-width: 0;
+                order: -1
+            }
+
+            .axisRow {
+                grid-template-columns: 56px 1fr 56px;
+                gap: 8px
+            }
+
+            .axisRow>.toolBtn {
+                height: 60px;
+                min-height: 60px;
+                font-size: 10px;
+                border-width: 3px
+            }
+
+            .axisRail {
+                height: 68px;
+                border-width: 4px;
+                background: repeating-linear-gradient(to right, #fff 0, #fff 16px, #000 16px, #000 19px)
+            }
+
+            .axisRail:before {
+                height: 4px
+            }
+
+            .axisFill {
+                opacity: .18
+            }
+
+            .axisViewport {
+                top: 6px;
+                bottom: 6px;
+                width: 92px;
+                border-width: 3px
+            }
+
+            .axisThumb {
+                height: 56px;
+                width: 42px;
+                border-width: 4px;
+                box-shadow: 8px 0 0 #fff, -8px 0 0 #fff;
+                background: repeating-linear-gradient(to right, #fff 0, #fff 7px, #000 7px, #000 10px)
+            }
+
+            .axisMeta {
+                font-size: 9px;
+                gap: 5px;
+                margin-top: 7px
+            }
+
+            .rollRow,
+            .miniGrid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 7px;
+                margin-top: 7px
+            }
+
+            .tools {
+                min-width: 0
+            }
+
+            .toolBtn,
+            .miniBtn {
+                height: 52px;
+                min-height: 52px;
+                font-size: 10px;
+                padding: 0 4px;
+                border-width: 3px
+            }
+
+            .read {
+                font-size: 9px;
+                padding: 8px;
+                margin-top: 7px
+            }
+
+            .read b {
+                font-size: 12px
+            }
+
+            .toast {
+                bottom: calc(env(safe-area-inset-bottom) + 260px);
+                font-size: 10px;
+                max-width: 86vw;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            #menu {
+                min-width: min(88vw, 320px);
+                max-width: 88vw;
+                box-shadow: 6px 6px 0 #000
+            }
+
+            .menuBtn {
+                height: 50px;
+                font-size: 12px;
+                padding: 0 12px
+            }
+
+            .menuBody {
+                padding: 8px
+            }
+
+            #menuHead {
+                font-size: 11px;
+                padding: 10px 12px
+            }
+
+            .sep {
+                margin: 8px 0
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <aside id="logic">
+        <div id="logicHead">
+            <h1>Arc-Tunnel Operator · Working Build</h1>
+            <div class="sub">Click tube ⇄ code. Drag tape to move. Bumps block overlap. Right-click / long press opens
+                actions.</div>
+        </div>
+        <div id="logicLines"></div>
+    </aside>
+    <section id="stageWrap">
+        <canvas id="stage"></canvas>
+        <div id="hud">
+            <div id="topbar">
+                <div class="topCard"><b>Real 3D Mesh</b>tube-bound controls · no floating clip UI</div>
+                <div class="topCard time" id="timeCard">00:00:08:40</div>
+                <div class="topCard card">
+                    <div class="id" id="selId">SC-034</div>
+                    <div class="sub" id="selMeta">PROBABLE · 1</div>
+                </div>
+            </div>
+            <div id="viewBadge">OUTSIDE · Z 260 · ROLL 0°</div>
+            <div id="tubeStatus">pipe tape active · drag tape surfaces</div>
+            <button class="codeToggle" id="codeToggle">Code</button>
+            <div id="dock">
+                <div class="tray">
+                    <div class="trayTitle">Views</div>
+                    <div class="views" id="viewButtons"></div>
+                </div>
+                <div class="tray axisBox">
+                    <div class="trayTitle">Slide / tape rail</div>
+                    <div class="axisRow"><button class="toolBtn" data-slide="-160">Back</button>
+                        <div class="axisRail" id="axisRail">
+                            <div class="axisFill" id="axisFill"></div>
+                            <div class="axisSection" id="axisSection"></div>
+                            <div class="axisViewport" id="axisViewport"></div>
+                            <div class="axisThumb" id="axisThumb"></div>
+                        </div><button class="toolBtn" data-slide="160">Fwd</button>
+                    </div>
+                    <div class="axisMeta"><span id="zMetaA">Z 260 / 2600</span><span id="zMetaB">Section
+                            none</span><span id="zMetaC">1 selected</span></div>
+                    <div class="rollRow"><button class="miniBtn" data-roll="-0.3926990817">↺22</button><button
+                            class="miniBtn" data-roll="-0.0981747704">↺6</button><button class="miniBtn"
+                            data-roll="0.0981747704">↻6</button><button class="miniBtn"
+                            data-roll="0.3926990817">↻22</button></div>
+                </div>
+                <div class="tray tools">
+                    <div class="trayTitle">Gesture mode</div>
+                    <div class="miniGrid"><button class="toolBtn active" data-tool="move">Move</button><button
+                            class="toolBtn" data-tool="slide">Slide</button><button class="toolBtn"
+                            data-tool="roll">Roll</button><button class="toolBtn" data-tool="orbit">Orbit</button></div>
+                    <div class="trayTitle" style="margin-top:7px">Actions</div>
+                    <div class="miniGrid"><button class="toolBtn" id="playBtn">Play</button><button class="toolBtn"
+                            id="dupBtn">Dup</button><button class="toolBtn" id="delBtn">Delete</button><button
+                            class="toolBtn" id="snapBtn">Snap</button></div>
+                    <div class="miniGrid"><button class="miniBtn" id="moveBackBtn">-60</button><button class="miniBtn"
+                            id="moveFwdBtn">+60</button><button class="miniBtn" id="sectionInBtn">IN</button><button
+                            class="miniBtn" id="sectionOutBtn">OUT</button></div>
+                    <div class="miniGrid"><button class="miniBtn" id="selectSectionBtn">SEL</button><button
+                            class="miniBtn" id="moveSecBackBtn">SEC-</button><button class="miniBtn"
+                            id="moveSecFwdBtn">SEC+</button><button class="miniBtn" id="clearSecBtn">CLR</button></div>
+                    <div class="read"><span>Status</span><b id="readout">Ready</b></div>
+                </div>
+            </div>
+            <div class="toast" id="toast"></div>
+        </div>
+    </section>
+    <div id="menu">
+        <div id="menuHead">Menu</div>
+        <div class="menuBody" id="menuBody"></div>
+    </div>
+    <script>
+        (() => {
+            'use strict';
+            const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d'), wrap = document.getElementById('stageWrap');
+            const logicLines = document.getElementById('logicLines'), readout = document.getElementById('readout'), toastEl = document.getElementById('toast'), selId = document.getElementById('selId'), selMeta = document.getElementById('selMeta'), timeCard = document.getElementById('timeCard'), viewBadge = document.getElementById('viewBadge'), tubeStatus = document.getElementById('tubeStatus');
+            const axisRail = document.getElementById('axisRail'), axisFill = document.getElementById('axisFill'), axisThumb = document.getElementById('axisThumb'), axisViewport = document.getElementById('axisViewport'), axisSection = document.getElementById('axisSection'), zMetaA = document.getElementById('zMetaA'), zMetaB = document.getElementById('zMetaB'), zMetaC = document.getElementById('zMetaC'), viewButtons = document.getElementById('viewButtons'), menu = document.getElementById('menu'), menuHead = document.getElementById('menuHead'), menuBody = document.getElementById('menuBody');
+            let W = 0, H = 0, DPR = 1, drawn = [], drag = null, axisDrag = false, toastTimer = 0, longTimer = 0, nextId = 60;
+            const TAU = Math.PI * 2, SNAP = 60;
+            const TRACKS = [{ id: 'possible', name: 'POSSIBLE', short: 'P', theta0: -2.24, theta1: -1.46 }, { id: 'plausible', name: 'PLAUSIBLE', short: 'L', theta0: -1.10, theta1: -.24 }, { id: 'probable', name: 'PROBABLE', short: 'B', theta0: .16, theta1: .94 }, { id: 'preferred', name: 'PREFERRED', short: 'F', theta0: 1.08, theta1: 1.82 }];
+            let clips = [['SC-001', 0, 620, 0], ['SC-002', 660, 360, 0], ['SC-003', 1040, 330, 0], ['SC-004', 1390, 320, 0], ['SC-005', 1730, 250, 0], ['SC-006', 2010, 230, 0], ['SC-017', 0, 760, 1], ['SC-018', 780, 520, 1], ['SC-019', 1320, 420, 1], ['SC-020', 1760, 330, 1], ['SC-021', 2100, 260, 1], ['SC-022', 2380, 220, 1], ['SC-034', 0, 520, 2], ['SC-035', 540, 340, 2], ['SC-036', 900, 310, 2], ['SC-037', 1230, 330, 2], ['SC-038', 1580, 280, 2], ['SC-039', 1880, 230, 2], ['SC-040', 2130, 210, 2], ['SC-051', 0, 650, 3], ['SC-052', 680, 470, 3], ['SC-053', 1180, 360, 3], ['SC-054', 1560, 280, 3], ['SC-055', 1860, 230, 3], ['SC-056', 2110, 200, 3]].map((d, i) => ({ id: d[0], start: d[1], dur: d[2], track: d[3], idx: i, lineId: 'clip_' + d[0] }));
+            const state = { view: 'outside', tool: 'move', playing: false, inspect: false, axisZ: 260, barrelRoll: 0, hover: null, selection: new Set(['SC-034']), ghost: null, bump: null, landing: null, lastBumpKey: '', lastBumpTime: 0, section: { start: null, end: null }, cam: { yaw: -.72, pitch: .20, dist: 1260, fov: 780, target: { x: 0, y: 220, z: 260 } }, barrel: { radius: 230, length: 2600, baseY: 230 } };
+            function V(x = 0, y = 0, z = 0) { return { x, y, z } }; const add = (a, b) => V(a.x + b.x, a.y + b.y, a.z + b.z), sub = (a, b) => V(a.x - b.x, a.y - b.y, a.z - b.z), mul = (a, s) => V(a.x * s, a.y * s, a.z * s), dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z, cross = (a, b) => V(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x), len = a => Math.hypot(a.x, a.y, a.z), norm = a => { let l = len(a) || 1; return V(a.x / l, a.y / l, a.z / l) }, clamp = (v, a, b) => Math.max(a, Math.min(b, v)), snap = v => Math.round(v / SNAP) * SNAP;
+            function toast(t) { clearTimeout(toastTimer); toastEl.textContent = t; toastEl.classList.add('show'); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 900) } function setRead(t) { readout.textContent = t } function uid() { nextId++; return 'SC-' + String(nextId).padStart(3, '0') } function fmt(z) { const s = Math.floor(z / 60), mm = String(Math.floor(s / 60)).padStart(2, '0'), ss = String(s % 60).padStart(2, '0'), ff = String(Math.floor(z % 60)).padStart(2, '0'); return `00:${mm}:${ss}:${ff}` }
+            function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = wrap.clientWidth; H = wrap.clientHeight; canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); updateUI() } window.addEventListener('resize', resize);
+            function selectedClips() { return clips.filter(c => state.selection.has(c.id)) } function primaryClip() { return selectedClips()[0] || clips[0] } function reindex() { clips.forEach((c, i) => { c.idx = i; c.lineId = 'clip_' + c.id }) }
+            function clampAxis(z) { return clamp(z, 0, state.barrel.length) } function syncAxis() { state.axisZ = clampAxis(state.axisZ); if (state.view !== 'inside') state.cam.target.z = state.axisZ; updateUI() } function slideAxis(d) { state.axisZ = clampAxis(state.axisZ + d); syncAxis(); setRead('SLIDE Z ' + Math.round(state.axisZ)) } function rollBarrel(d) { state.barrelRoll += d; updateUI(); setRead('ROLL ' + (state.barrelRoll * 180 / Math.PI).toFixed(1) + '°') }
+            function updateUI() { const p = state.axisZ / state.barrel.length * 100; axisFill.style.width = p + '%'; axisThumb.style.left = p + '%'; axisViewport.style.left = p + '%'; zMetaA.textContent = 'Z ' + Math.round(state.axisZ) + ' / ' + state.barrel.length; if (state.section.start != null && state.section.end != null) { const a = Math.min(state.section.start, state.section.end) / state.barrel.length * 100, b = Math.max(state.section.start, state.section.end) / state.barrel.length * 100; axisSection.style.left = a + '%'; axisSection.style.width = (b - a) + '%'; zMetaB.textContent = 'Section ' + Math.round(Math.min(state.section.start, state.section.end)) + ' → ' + Math.round(Math.max(state.section.start, state.section.end)) } else { axisSection.style.left = '0%'; axisSection.style.width = '0%'; zMetaB.textContent = 'Section none' } zMetaC.textContent = state.selection.size + ' selected'; viewBadge.textContent = state.view.toUpperCase() + ' · ' + state.tool.toUpperCase() + ' · Z ' + Math.round(state.axisZ) + ' · ROLL ' + (state.barrelRoll * 180 / Math.PI).toFixed(0) + '°'; tubeStatus.textContent = state.bump ? 'BUMP ' + state.bump.blocker.id + ' · PARKED SLOT' : state.ghost ? 'GHOST ON PIPE · ' + state.ghost.id : 'MODE ' + state.tool.toUpperCase() + ' · DRAG ANYWHERE'; timeCard.textContent = fmt(state.axisZ); const pclip = primaryClip(); if (pclip) { selId.textContent = pclip.id; selMeta.textContent = TRACKS[pclip.track].name + ' · ' + state.selection.size } document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === state.tool)) }
+            function setView(v) { state.view = v; if (v === 'outside') { state.cam.yaw = -.72; state.cam.pitch = .20; state.cam.dist = 1260; state.cam.fov = 780; state.cam.target = { x: 0, y: 220, z: state.axisZ } } if (v === 'inside') { state.cam.fov = 720 } if (v === 'sideways') { state.cam.yaw = -Math.PI / 2; state.cam.pitch = .04; state.cam.dist = 1450; state.cam.fov = 760; state.cam.target = { x: 0, y: 80, z: state.axisZ } } if (v === 'top') { state.cam.yaw = -.001; state.cam.pitch = .92; state.cam.dist = 1550; state.cam.fov = 760; state.cam.target = { x: 0, y: 0, z: state.axisZ } } document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v)); syncAxis(); toast('VIEW ' + v.toUpperCase()) }
+            function cameraBasis() { if (state.view === 'inside') { const z = state.axisZ, eye = V(0, 0, z), target = V(0, 0, Math.min(state.barrel.length + 600, z + 760)), forward = norm(sub(target, eye)), right = norm(cross(forward, V(0, -1, 0))), up = norm(cross(right, forward)); return { eye, forward, right, up } } const c = state.cam, t = c.target, eye = V(t.x + Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist, t.y - Math.sin(c.pitch) * c.dist, t.z - Math.cos(c.yaw) * Math.cos(c.pitch) * c.dist), forward = norm(sub(t, eye)), right = norm(cross(forward, V(0, -1, 0))), up = norm(cross(right, forward)); return { eye, forward, right, up } }
+            function project(p) { const B = cameraBasis(), v = sub(p, B.eye), x = dot(v, B.right), y = dot(v, B.up), z = dot(v, B.forward); if (z < 20) return null; const s = state.cam.fov / z; return { x: W / 2 + x * s, y: H / 2 - y * s, z, s, world: p } }
+            function cylPoint(z, theta, r = state.barrel.radius) { const a = theta + state.barrelRoll; return V(Math.cos(a) * r, Math.sin(a) * r, z) }
+            function clipMesh(c, kind = 'clip') { const tr = TRACKS[c.track], z0 = c.start, z1 = c.start + c.dur, zSteps = Math.max(2, Math.ceil(c.dur / 90)), aSteps = 5, out = []; for (let zi = 0; zi < zSteps; zi++) { const za = z0 + (z1 - z0) * zi / zSteps, zb = z0 + (z1 - z0) * (zi + 1) / zSteps; for (let ai = 0; ai < aSteps; ai++) { const aa = tr.theta0 + (tr.theta1 - tr.theta0) * ai / aSteps, ab = tr.theta0 + (tr.theta1 - tr.theta0) * (ai + 1) / aSteps, verts = [cylPoint(za, aa), cylPoint(za, ab), cylPoint(zb, ab), cylPoint(zb, aa)], center = mul(verts.reduce((s, p) => add(s, p), V()), 1 / 4), normal = norm(cross(sub(verts[1], verts[0]), sub(verts[2], verts[1]))); out.push({ kind, clip: c, verts, center, normal }) } } return out }
+            function scene() { const out = []; clips.forEach(c => out.push(...clipMesh(c))); if (state.ghost) out.push(...clipMesh(state.ghost, 'ghost')); const R = state.barrel.radius, L = state.barrel.length; for (let i = 0; i <= 28; i++) { let z = L * i / 28; for (let a = 0; a < 40; a++) { out.push({ kind: 'wire', verts: [cylPoint(z, TAU * a / 40, R), cylPoint(z, TAU * (a + 1) / 40, R)] }) } } TRACKS.forEach((tr, ti) => [tr.theta0, tr.theta1].forEach(a => { for (let i = 0; i < 36; i++)out.push({ kind: 'rail', verts: [cylPoint(L * i / 36, a, R + 2), cylPoint(L * (i + 1) / 36, a, R + 2)] }) })); for (let a = 0; a < 64; a++)out.push({ kind: 'front', verts: [V(0, 0, 0), cylPoint(0, TAU * a / 64, R), cylPoint(0, TAU * (a + 1) / 64, R)] }); for (let a = 0; a < 64; a++)out.push({ kind: 'playhead', verts: [cylPoint(state.axisZ, TAU * a / 64, R + 18), cylPoint(state.axisZ, TAU * (a + 1) / 64, R + 18)] }); return out }
+            function facePath(ps) { ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); for (let i = 1; i < ps.length; i++)ctx.lineTo(ps[i].x, ps[i].y); if (ps.length > 2) ctx.closePath() }
+            function polyHit(x, y, pts) { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y; if (((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || .0001) + xi)) inside = !inside } return inside }
+            function distToSeg(px, py, a, b) { const vx = b.x - a.x, vy = b.y - a.y, wx = px - a.x, wy = py - a.y, c1 = vx * wx + vy * wy, c2 = vx * vx + vy * vy, t = c2 ? clamp(c1 / c2, 0, 1) : 0, dx = px - (a.x + vx * t), dy = py - (a.y + vy * t); return Math.hypot(dx, dy) }
+            function nearPoly(x, y, pts, slop) { let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, d = Infinity; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); d = Math.min(d, distToSeg(x, y, p, q)) } return x >= minX - slop && x <= maxX + slop && y >= minY - slop && y <= maxY + slop && d <= slop }
+            function hit(x, y) { const slop = innerWidth <= 940 ? 28 : 10; for (let i = drawn.length - 1; i >= 0; i--)if (polyHit(x, y, drawn[i].pts)) return drawn[i]; for (let i = drawn.length - 1; i >= 0; i--)if (nearPoly(x, y, drawn[i].pts, slop)) return drawn[i]; return null }
+            function drawGround() { ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,.14)'; ctx.lineWidth = 1; for (let z = -300; z <= state.barrel.length + 400; z += 200) { const a = project(V(-360, state.barrel.baseY, z)), b = project(V(360, state.barrel.baseY, z)); if (a && b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke() } } for (let x = -360; x <= 360; x += 120) { const a = project(V(x, state.barrel.baseY, -300)), b = project(V(x, state.barrel.baseY, state.barrel.length + 400)); if (a && b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke() } } ctx.restore() }
+            function drawTapeSurface(z0, z1, t0, t1, r, label, kind, clip, hitOn = true) { const cells = 12, hull = []; const touchBoost = innerWidth <= 940 ? 1.9 : 1; const center = (t0 + t1) / 2, half = (t1 - t0) / 2 * touchBoost; t0 = center - half; t1 = center + half; ctx.save(); for (let i = 0; i < cells; i++) { const za = z0 + (z1 - z0) * i / cells, zb = z0 + (z1 - z0) * (i + 1) / cells, ps = [cylPoint(za, t0, r), cylPoint(za, t1, r), cylPoint(zb, t1, r), cylPoint(zb, t0, r)].map(project); if (ps.some(p => !p)) continue; if (i === 0) hull.push(ps[0], ps[1]); if (i === cells - 1) hull.push(ps[2], ps[3]); facePath(ps); ctx.fillStyle = kind === 'rollTape' ? 'rgba(0,0,0,.10)' : 'rgba(255,255,255,.82)'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = kind === 'axisTape' ? 1.8 : 2.2; if (kind === 'axisTape') ctx.setLineDash([9, 7]); if (kind === 'moveTape') ctx.setLineDash([14, 6]); if (kind === 'rollTape') ctx.setLineDash([4, 5]); ctx.stroke(); ctx.setLineDash([]) } const mid = project(cylPoint((z0 + z1) / 2, (t0 + t1) / 2, r + 8)); if (mid) { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; const w = Math.max(48, label.length * 7); ctx.fillRect(mid.x - w / 2, mid.y - 11, w, 22); ctx.strokeRect(mid.x - w / 2, mid.y - 11, w, 22); ctx.fillStyle = '#000'; ctx.font = '900 9px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, mid.x, mid.y + 1) } ctx.restore(); if (hitOn && hull.length >= 4) drawn.push({ kind, pts: [hull[0], hull[1], hull[2], hull[3]], clip, id: clip ? clip.id : kind }) }
+            function tapeTicks(z0, z1, theta, r) { ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; for (let z = Math.ceil(z0 / 120) * 120; z <= z1; z += 120) { const a = project(cylPoint(z, theta - .055, r)), b = project(cylPoint(z, theta + .055, r)); if (a && b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke() } } ctx.restore() }
+            function drawBump(bump, track) { if (!bump || !bump.blocker) return; const tr = TRACKS[track], R = state.barrel.radius + 120, z = bump.edge, pts = []; for (let i = 0; i <= 22; i++) { const p = project(cylPoint(z, tr.theta0 - .22 + (tr.theta1 - tr.theta0 + .44) * i / 22, R)); if (p) pts.push(p) } if (pts.length < 2) return; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); const m = pts[Math.floor(pts.length / 2)], txt = 'BUMP ' + bump.blocker.id, w = txt.length * 8 + 14; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.fillRect(m.x - w / 2, m.y - 28, w, 21); ctx.strokeRect(m.x - w / 2, m.y - 28, w, 21); ctx.fillStyle = '#000'; ctx.font = '900 10px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, m.x, m.y - 17); ctx.restore() }
+            function drawTubeUI() { const active = primaryClip(); if (!active) return; const tr = TRACKS[active.track], tc = (tr.theta0 + tr.theta1) / 2, R = state.barrel.radius, z0 = active.start, z1 = active.start + active.dur, zm = (z0 + z1) / 2; drawTapeSurface(Math.max(0, state.axisZ - 420), Math.min(state.barrel.length, state.axisZ + 420), tc - .035, tc + .035, R + 72, 'AXIS TAPE', 'axisTape', null, true); tapeTicks(Math.max(0, state.axisZ - 420), Math.min(state.barrel.length, state.axisZ + 420), tc, R + 78); if (state.landing && state.landing.slot) drawTapeSurface(state.landing.slot.from, state.landing.slot.to, tc - .025, tc + .025, R + 112, 'FREE SLOT', 'slotTape', null, false); if (state.ghost) drawTapeSurface(state.ghost.start, state.ghost.start + state.ghost.dur, tc - .105, tc + .105, R + 102, state.bump ? 'BLOCKED LANDING' : 'LAND HERE', 'landingTape', state.ghost, false); if (state.bump) drawBump(state.bump, active.track); drawTapeSurface(z0, z1, tc - .075, tc + .075, R + 54, 'MOVE TAPE', 'moveTape', active, true); drawTapeSurface(zm - 24, zm + 24, tr.theta0 - .28, tr.theta1 + .28, R + 90, 'ROLL TAPE', 'rollTape', active, true); function seam(z, label) { const pts = []; for (let i = 0; i <= 18; i++) { const p = project(cylPoint(z, tr.theta0 + (tr.theta1 - tr.theta0) * i / 18, R + 30)); if (p) pts.push(p) } if (pts.length < 2) return; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); const m = pts[Math.floor(pts.length / 2)]; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.fillRect(m.x - 11, m.y - 10, 22, 20); ctx.strokeRect(m.x - 11, m.y - 10, 22, 20); ctx.fillStyle = '#000'; ctx.font = '900 10px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, m.x, m.y + 1); ctx.restore() } seam(z0, 'S'); seam(z1, 'E') }
+            function draw() { if (state.playing) { state.axisZ += 2.2; if (state.axisZ > state.barrel.length) state.axisZ = 0; syncAxis() } ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); drawGround(); drawn = []; const B = cameraBasis(), list = []; scene().forEach(f => { const ps = f.verts.map(project); if (ps.some(p => !p)) return; list.push({ f, ps, depth: ps.reduce((s, p) => s + p.z, 0) / ps.length }) }); list.sort((a, b) => b.depth - a.depth); for (const r of list) { const f = r.f, ps = r.ps; if (f.kind === 'clip') { const sel = state.selection.has(f.clip.id), hov = state.hover === f.clip.id, shade = .05 + Math.max(0, dot(f.normal, B.forward)) * .22; facePath(ps); ctx.fillStyle = sel ? '#000' : `rgba(0,0,0,${shade})`; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = sel ? 2.8 : hov ? 2.2 : 1; ctx.stroke(); if (sel || hov || r.depth < 1800) { const p = project(f.center); if (p) { ctx.fillStyle = sel ? '#fff' : '#000'; ctx.font = (sel ? '900 ' : '700 ') + Math.max(8, Math.min(16, 16 * p.s)) + 'px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f.clip.id, p.x, p.y) } } drawn.push({ kind: 'clip', id: f.clip.id, clip: f.clip, pts: ps, lineId: f.clip.lineId }) } else if (f.kind === 'ghost') { facePath(ps); ctx.save(); ctx.setLineDash([8, 6]); ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2.4; ctx.stroke(); ctx.setLineDash([]); ctx.restore() } else if (f.kind === 'wire') { ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.stroke() } else if (f.kind === 'rail') { ctx.strokeStyle = '#000'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.stroke() } else if (f.kind === 'front') { facePath(ps); ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.stroke() } else if (f.kind === 'playhead') { ctx.strokeStyle = '#000'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.stroke() } } drawTubeUI(); if (state.view !== 'inside') { const p = project(state.cam.target); if (p) { ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x - 15, p.y); ctx.lineTo(p.x + 15, p.y); ctx.moveTo(p.x, p.y - 15); ctx.lineTo(p.x, p.y + 15); ctx.stroke() } } requestAnimationFrame(draw) }
+            function focusClip(c, open = false) { state.axisZ = clamp(c.start + c.dur / 2, 0, state.barrel.length); state.selection.clear(); state.selection.add(c.id); syncAxis(); buildLogic(); updateSelection(); if (innerWidth <= 940 && !open) document.body.classList.remove('logicOpen'); setRead('FOCUS ' + c.id) } function updateSelection() { document.querySelectorAll('.line').forEach(el => { const id = el.dataset.clipId; el.classList.toggle('active', state.selection.size === 1 && state.selection.has(id)); el.classList.toggle('multi', state.selection.size > 1 && state.selection.has(id)) }); updateUI() }
+            function sameTrackClips(clip) { return clips.filter(c => c !== clip && c.track === clip.track).sort((a, b) => a.start - b.start) } function overlaps(a0, a1, b0, b1) { return a0 < b1 && b0 < a1 } function nearestFreeSlot(clip, desired) { const max = Math.max(0, state.barrel.length - clip.dur), others = sameTrackClips(clip), gaps = []; let cur = 0; for (const c of others) { if (c.start - cur >= clip.dur) gaps.push({ from: cur, to: c.start - clip.dur }); cur = Math.max(cur, c.start + c.dur) } if (state.barrel.length - cur >= clip.dur) gaps.push({ from: cur, to: max }); if (!gaps.length) return { start: clip.start, from: clip.start, to: clip.start }; let best = null, bd = 1e9; for (const g of gaps) { const s = clamp(desired, g.from, g.to), d = Math.abs(s - desired); if (d < bd) { bd = d; best = { start: s, from: g.from, to: g.to } } } best.start = snap(best.start); return best } function isFree(clip, start) { return !sameTrackClips(clip).some(c => overlaps(start, start + clip.dur, c.start, c.start + c.dur)) } function solveMove(clip, desired) { const max = Math.max(0, state.barrel.length - clip.dur), want = clamp(snap(desired), 0, max), blockers = sameTrackClips(clip).filter(c => overlaps(want, want + clip.dur, c.start, c.start + c.dur)); if (!blockers.length) return { start: want, blocked: false, slot: nearestFreeSlot(clip, want) }; const dir = want >= clip.start ? 1 : -1, blocker = dir > 0 ? blockers.sort((a, b) => a.start - b.start)[0] : blockers.sort((a, b) => b.start - a.start)[0]; let parked = dir > 0 ? blocker.start - clip.dur : blocker.start + blocker.dur; parked = clamp(snap(parked), 0, max); if (!isFree(clip, parked)) parked = nearestFreeSlot(clip, want).start; return { start: parked, blocked: true, blocker, slot: nearestFreeSlot(clip, want), edge: dir > 0 ? blocker.start : blocker.start + blocker.dur } } function bumpPulse(b) { const now = performance.now(), key = b ? b.id : ''; if (key !== state.lastBumpKey || now - state.lastBumpTime > 260) { try { navigator.vibrate && navigator.vibrate([12, 18, 12]) } catch (e) { } state.lastBumpKey = key; state.lastBumpTime = now } }
+            function buildLogic() { let html = '<div class="group">Camera</div>'; html += line('01', 'camera', null, 'views = <b>outside / inside / sideways / top</b>', 'same mesh, different camera'); html += line('02', 'axis', null, 'axisZ = <span class="value">' + Math.round(state.axisZ) + '</span>', 'rail, axis tape, W/S'); html += line('03', 'roll', null, 'barrelRoll = <span class="value">' + (state.barrelRoll * 180 / Math.PI).toFixed(1) + '°</span>', 'roll tape, A/D'); html += '<div class="group">Clips</div>'; clips.forEach((c, i) => html += line(String(10 + i).padStart(2, '0'), c.lineId, c, `clip <b>${c.id}</b> start=<span class="value">${Math.round(c.start)}</span> end=<span class="value">${Math.round(c.start + c.dur)}</span> track=<span class="value">${TRACKS[c.track].name}</span>`, 'click focus · shift add · right click tools')); html += '<div class="group">Section</div>'; html += line('98', 'section', null, 'section = <span class="value">' + (state.section.start == null ? 'none' : Math.min(state.section.start, state.section.end) + ' → ' + Math.max(state.section.start, state.section.end)) + '</span>', 'IN / OUT / select / delete'); logicLines.innerHTML = html; logicLines.querySelectorAll('.line').forEach(el => { const clipId = el.dataset.clipId; el.addEventListener('click', e => { if (clipId) { const c = clips.find(x => x.id === clipId); if (!c) return; if (e.shiftKey) { state.selection.has(c.id) ? state.selection.delete(c.id) : state.selection.add(c.id); if (!state.selection.size) state.selection.add(c.id); updateSelection() } else focusClip(c) } else toast(el.dataset.line) }); el.addEventListener('contextmenu', e => { e.preventDefault(); if (clipId) { const c = clips.find(x => x.id === clipId); if (c) showClipMenu(c, e.clientX, e.clientY) } else showBlankMenu(e.clientX, e.clientY) }) }); updateSelection() } function line(n, id, c, txt, small) { return `<div class="line" data-line="${id}" data-clip-id="${c ? c.id : ''}"><div class="num">${n}</div><div>${txt}<small>${small}</small></div></div>` }
+            function showMenu(title, items, x, y) { menuHead.textContent = title; menuBody.innerHTML = ''; items.forEach(it => { if (it.sep) { const s = document.createElement('div'); s.className = 'sep'; menuBody.appendChild(s); return } const b = document.createElement('button'); b.className = 'menuBtn'; b.innerHTML = '<span>' + it.label + '</span><span class="key">' + (it.key || '') + '</span>'; b.onclick = e => { e.stopPropagation(); menu.classList.remove('show'); it.run && it.run() }; menuBody.appendChild(b) }); menu.classList.add('show'); menu.style.left = clamp(x, 8, innerWidth - 250) + 'px'; menu.style.top = clamp(y, 8, innerHeight - 380) + 'px' } function showClipMenu(c, x, y) { if (!state.selection.has(c.id)) { state.selection.clear(); state.selection.add(c.id); updateSelection() } showMenu(c.id, [{ label: 'Focus', run: () => focusClip(c) }, { label: 'Duplicate', key: 'D', run: dupSelected }, { label: 'Delete', key: 'Del', run: delSelected }, { sep: true }, { label: 'Move -60', run: () => moveSelected(-60) }, { label: 'Move +60', run: () => moveSelected(60) }, { label: 'Snap', key: 'G', run: snapSelected }, { sep: true }, ...TRACKS.map((t, i) => ({ label: 'Track ' + t.name, run: () => trackSelected(i) })), { sep: true }, { label: 'Section from selection', run: sectionFromSelection }], x, y) } function showBlankMenu(x, y) { showMenu('Space Z ' + Math.round(state.axisZ), [{ label: 'New clip here', key: '+', run: () => newClip(state.axisZ, primaryClip().track) }, { label: 'Clear selection', run: () => { state.selection.clear(); updateSelection() } }, { sep: true }, { label: 'Section IN', run: () => { state.section.start = snap(state.axisZ); buildLogic() } }, { label: 'Section OUT', run: () => { state.section.end = snap(state.axisZ); buildLogic() } }, { label: 'Select section', run: selectSection }, { label: 'Delete section', run: deleteSection }], x, y) }
+            function dupSelected() { const made = []; selectedClips().forEach(c => { const n = { id: uid(), start: snap(c.start + 60), dur: c.dur, track: c.track, idx: 0, lineId: '' }; clips.push(n); made.push(n) }); reindex(); state.selection.clear(); made.forEach(c => state.selection.add(c.id)); buildLogic(); toast('DUPLICATED') } function delSelected() { const ids = new Set(state.selection); clips = clips.filter(c => !ids.has(c.id)); state.selection.clear(); if (clips[0]) state.selection.add(clips[0].id); reindex(); buildLogic(); toast('DELETED') } function moveSelected(d) { selectedClips().forEach(c => c.start = Math.max(0, snap(c.start + d))); buildLogic(); toast('MOVED') } function snapSelected() { selectedClips().forEach(c => { c.start = snap(c.start); c.dur = Math.max(SNAP, snap(c.dur)) }); buildLogic(); toast('SNAPPED') } function trackSelected(t) { selectedClips().forEach(c => c.track = t); buildLogic(); toast('TRACK') } function newClip(z, t) { const c = { id: uid(), start: snap(z), dur: SNAP * 5, track: t, idx: 0, lineId: '' }; clips.push(c); reindex(); state.selection.clear(); state.selection.add(c.id); buildLogic(); focusClip(c); toast('NEW ' + c.id) } function sectionFromSelection() { const sel = selectedClips(); if (!sel.length) return; state.section.start = Math.min(...sel.map(c => c.start)); state.section.end = Math.max(...sel.map(c => c.start + c.dur)); buildLogic(); toast('SECTION') } function selectSection() { if (state.section.start == null || state.section.end == null) return toast('NO SECTION'); const a = Math.min(state.section.start, state.section.end), b = Math.max(state.section.start, state.section.end); state.selection.clear(); clips.forEach(c => { if (overlaps(c.start, c.start + c.dur, a, b)) state.selection.add(c.id) }); updateSelection(); toast('SECTION SELECT') } function deleteSection() { selectSection(); delSelected() }
+            function stagePos(e) {
+                const r = canvas.getBoundingClientRect();
+                return { x: e.clientX - r.left, y: e.clientY - r.top };
+            }
+            function beginClipDrag(c, p) {
+                if (!c) return false;
+                if (!state.selection.has(c.id)) {
+                    state.selection.clear();
+                    state.selection.add(c.id);
+                    updateSelection();
+                }
+                state.ghost = { ...c };
+                state.bump = null;
+                state.landing = null;
+                drag = { mode: 'clip', x: p.x, y: p.y, clip: c, start: c.start };
+                setRead('MOVE ' + c.id);
+                tubeStatus.textContent = 'MOVE MODE · DRAGGING ' + c.id;
+                return true;
+            }
+
+            canvas.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                const p = stagePos(e), h = hit(p.x, p.y);
+                if (h && h.clip) showClipMenu(h.clip, e.clientX, e.clientY);
+                else showBlankMenu(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('pointerdown', e => {
+                menu.classList.remove('show');
+                const p = stagePos(e), h = hit(p.x, p.y);
+                try { canvas.setPointerCapture(e.pointerId) } catch (err) { }
+                clearTimeout(longTimer);
+
+                if (e.pointerType !== 'mouse') {
+                    longTimer = setTimeout(() => {
+                        if (!drag) return;
+                        if (h && h.clip) showClipMenu(h.clip, e.clientX, e.clientY);
+                        else showBlankMenu(e.clientX, e.clientY);
+                        drag = null;
+                        state.ghost = null;
+                        state.bump = null;
+                        state.landing = null;
+                    }, 620);
+                }
+
+                if (h && (h.kind === 'clip' || h.kind === 'moveTape')) {
+                    beginClipDrag(h.clip, p);
+                } else if (h && h.kind === 'axisTape') {
+                    drag = { mode: 'slide', x: p.x, y: p.y, axis: state.axisZ };
+                    setRead('SLIDE TAPE');
+                } else if (h && h.kind === 'rollTape') {
+                    drag = { mode: 'roll', x: p.x, roll: state.barrelRoll, clip: h.clip };
+                    setRead('ROLL TAPE');
+                } else if (e.shiftKey || state.tool === 'slide') {
+                    drag = { mode: 'slide', x: p.x, y: p.y, axis: state.axisZ };
+                    setRead('SLIDE ANYWHERE');
+                } else if (e.altKey || state.tool === 'roll') {
+                    drag = { mode: 'roll', x: p.x, roll: state.barrelRoll };
+                    setRead('ROLL ANYWHERE');
+                } else if (state.tool === 'move') {
+                    beginClipDrag(primaryClip(), p);
+                } else {
+                    drag = { mode: 'orbit', x: p.x, y: p.y, yaw: state.cam.yaw, pitch: state.cam.pitch };
+                    setRead('ORBIT');
+                }
+            });
+
+            canvas.addEventListener('pointermove', e => {
+                const p = stagePos(e);
+                if (drag) {
+                    if (Math.abs(p.x - drag.x) > 10 || Math.abs(p.y - drag.y) > 10) clearTimeout(longTimer);
+
+                    if (drag.mode === 'clip') {
+                        const desired = Math.max(0, drag.start + (p.x - drag.x) * 3.2 - (p.y - drag.y) * 2.0);
+                        const solved = solveMove(drag.clip, desired);
+                        state.bump = solved.blocked ? { blocker: solved.blocker, edge: solved.edge } : null;
+                        state.landing = solved;
+                        state.ghost = { ...drag.clip, start: solved.start };
+                        state.axisZ = clamp(solved.start + drag.clip.dur / 2, 0, state.barrel.length);
+                        updateUI();
+                        if (solved.blocked) {
+                            bumpPulse(solved.blocker);
+                            setRead('BUMP ' + solved.blocker.id + ' · SLOT ' + Math.round(solved.start));
+                        } else {
+                            setRead('LAND ' + drag.clip.id + ' @ ' + Math.round(solved.start));
+                        }
+                    } else if (drag.mode === 'slide') {
+                        state.axisZ = clamp(drag.axis + (p.x - drag.x) * 2 - (p.y - drag.y) * 3, 0, state.barrel.length);
+                        syncAxis();
+                        setRead('SLIDE Z ' + Math.round(state.axisZ));
+                    } else if (drag.mode === 'roll') {
+                        state.barrelRoll = drag.roll + (p.x - drag.x) * .01;
+                        updateUI();
+                        setRead('ROLL ' + (state.barrelRoll * 180 / Math.PI).toFixed(1) + '°');
+                    } else if (drag.mode === 'orbit') {
+                        if (state.view !== 'inside') {
+                            state.cam.yaw = drag.yaw + (p.x - drag.x) * .006;
+                            state.cam.pitch = clamp(drag.pitch + (p.y - drag.y) * .004, -.8, 1.12);
+                        }
+                        setRead('ORBIT');
+                    }
+                } else {
+                    const h = hit(p.x, p.y);
+                    state.hover = h ? h.id : null;
+                    document.querySelectorAll('.line').forEach(el => {
+                        el.classList.toggle('hover', h && el.dataset.clipId === h.id);
+                    });
+                }
+            });
+
+            canvas.addEventListener('pointerup', e => {
+                clearTimeout(longTimer);
+                if (drag && drag.mode === 'clip' && state.ghost) {
+                    drag.clip.start = state.ghost.start;
+                    state.axisZ = clamp(drag.clip.start + drag.clip.dur / 2, 0, state.barrel.length);
+                    syncAxis();
+                    buildLogic();
+                    toast(state.bump ? 'BUMP PARKED' : 'COMMITTED');
+                }
+                state.ghost = null;
+                state.bump = null;
+                state.landing = null;
+                drag = null;
+                try { canvas.releasePointerCapture(e.pointerId) } catch (err) { }
+            });
+
+            canvas.addEventListener('pointercancel', e => {
+                clearTimeout(longTimer);
+                state.ghost = null;
+                state.bump = null;
+                state.landing = null;
+                drag = null;
+                try { canvas.releasePointerCapture(e.pointerId) } catch (err) { }
+            });
+
+            canvas.addEventListener('wheel', e => {
+                if (state.view === 'inside') {
+                    slideAxis(e.deltaY * .8);
+                } else {
+                    state.cam.dist = clamp(state.cam.dist + e.deltaY * .9, 420, 2400);
+                    setRead('DOLLY');
+                }
+            }, { passive: true });
+
+            axisRail.addEventListener('pointerdown', e => {
+                axisDrag = true;
+                try { axisRail.setPointerCapture(e.pointerId) } catch (err) { }
+                setAxis(e.clientX);
+            });
+            axisRail.addEventListener('pointermove', e => {
+                if (axisDrag) setAxis(e.clientX);
+            });
+            axisRail.addEventListener('pointerup', e => {
+                axisDrag = false;
+                try { axisRail.releasePointerCapture(e.pointerId) } catch (err) { }
+            });
+            axisRail.addEventListener('pointercancel', e => {
+                axisDrag = false;
+                try { axisRail.releasePointerCapture(e.pointerId) } catch (err) { }
+            });
+            function setAxis(x) {
+                const r = axisRail.getBoundingClientRect();
+                state.axisZ = clamp((x - r.left) / r.width * state.barrel.length, 0, state.barrel.length);
+                syncAxis();
+                setRead('SCRUB Z ' + Math.round(state.axisZ));
+            }
+
+            ['outside', 'inside', 'sideways', 'top'].forEach(v => {
+                const b = document.createElement('button');
+                b.className = 'viewBtn';
+                b.dataset.view = v;
+                b.dataset.s = v[0].toUpperCase();
+                b.textContent = v;
+                b.onclick = () => setView(v);
+                viewButtons.appendChild(b);
+            });
+
+            document.querySelectorAll('[data-tool]').forEach(b => {
+                b.onclick = () => {
+                    state.tool = b.dataset.tool;
+                    updateUI();
+                    setRead('MODE ' + state.tool.toUpperCase());
+                    toast('MODE ' + state.tool.toUpperCase());
+                };
+            });
+            document.querySelectorAll('[data-slide]').forEach(b => {
+                b.onclick = () => slideAxis(parseFloat(b.dataset.slide));
+            });
+            document.querySelectorAll('[data-roll]').forEach(b => {
+                b.onclick = () => rollBarrel(parseFloat(b.dataset.roll));
+            });
+
+            document.getElementById('playBtn').onclick = () => {
+                state.playing = !state.playing;
+                document.getElementById('playBtn').classList.toggle('active', state.playing);
+                document.getElementById('playBtn').textContent = state.playing ? 'Pause' : 'Play';
+            };
+            document.getElementById('dupBtn').onclick = dupSelected;
+            document.getElementById('delBtn').onclick = delSelected;
+            document.getElementById('snapBtn').onclick = snapSelected;
+            document.getElementById('moveBackBtn').onclick = () => moveSelected(-60);
+            document.getElementById('moveFwdBtn').onclick = () => moveSelected(60);
+            document.getElementById('sectionInBtn').onclick = () => {
+                state.section.start = snap(state.axisZ);
+                buildLogic();
+                toast('SECTION IN');
+            };
+            document.getElementById('sectionOutBtn').onclick = () => {
+                state.section.end = snap(state.axisZ);
+                buildLogic();
+                toast('SECTION OUT');
+            };
+            document.getElementById('selectSectionBtn').onclick = selectSection;
+            document.getElementById('moveSecBackBtn').onclick = () => {
+                if (state.section.start != null && state.section.end != null) {
+                    state.section.start = Math.max(0, state.section.start - 60);
+                    state.section.end = Math.max(0, state.section.end - 60);
+                    selectedClips().forEach(c => c.start = Math.max(0, snap(c.start - 60)));
+                    buildLogic();
+                    toast('SECTION MOVED');
+                }
+            };
+            document.getElementById('moveSecFwdBtn').onclick = () => {
+                if (state.section.start != null && state.section.end != null) {
+                    state.section.start += 60;
+                    state.section.end += 60;
+                    selectedClips().forEach(c => c.start = Math.max(0, snap(c.start + 60)));
+                    buildLogic();
+                    toast('SECTION MOVED');
+                }
+            };
+            document.getElementById('clearSecBtn').onclick = () => {
+                state.section.start = null;
+                state.section.end = null;
+                buildLogic();
+                toast('SECTION CLEARED');
+            };
+            document.getElementById('codeToggle').onclick = () => document.body.classList.toggle('logicOpen');
+
+            document.addEventListener('pointerdown', e => {
+                if (!e.target.closest('#menu')) menu.classList.remove('show');
+            });
+
+            window.addEventListener('keydown', e => {
+                const k = e.key.toLowerCase();
+                if (k === '1') setView('outside');
+                if (k === '2') setView('inside');
+                if (k === '3') setView('sideways');
+                if (k === '4') setView('top');
+                if (k === 'm') { state.tool = 'move'; updateUI(); setRead('MODE MOVE'); }
+                if (k === 'x') { state.tool = 'slide'; updateUI(); setRead('MODE SLIDE'); }
+                if (k === 'r' && !e.ctrlKey && !e.metaKey) { state.tool = 'roll'; updateUI(); setRead('MODE ROLL'); }
+                if (k === 'o') { state.tool = 'orbit'; updateUI(); setRead('MODE ORBIT'); }
+                if (k === 'w') slideAxis(80);
+                if (k === 's') slideAxis(-80);
+                if (k === 'a') rollBarrel(-Math.PI / 16);
+                if (k === 'd' && !e.ctrlKey && !e.metaKey) rollBarrel(Math.PI / 16);
+                if (k === 'delete' || k === 'backspace') delSelected();
+                if (k === 'g') snapSelected();
+                if ((e.ctrlKey || e.metaKey) && k === 'd') {
+                    e.preventDefault();
+                    dupSelected();
+                }
+                if (k === 'escape') menu.classList.remove('show');
+            });
+
+            resize();
+            buildLogic();
+            setView('outside');
+            focusClip(clips.find(c => c.id === 'SC-034'), true);
+            draw();
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRIME PROMPT — THE OPERATIONAL PRAGMATIST</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+
+        :root {
+            --black: #000000;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--white);
+            color: var(--black);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Stark Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--white);
+            border-left: 2px solid var(--black);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--black);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #333;
+        }
+
+        /* Typography & Interaction Utilities */
+        .op-btn {
+            transition: all 0s;
+            cursor: pointer;
+        }
+
+        .op-btn:hover,
+        .op-btn.active {
+            background-color: var(--black);
+            color: var(--white);
+        }
+
+        .math-surface {
+            cursor: crosshair;
+            display: inline-block;
+            border-bottom: 2px solid var(--black);
+            font-weight: 800;
+            padding: 0 4px;
+        }
+
+        .math-surface:hover,
+        .math-surface.active {
+            background-color: var(--black);
+            color: var(--white);
+        }
+
+        .exec-block.active {
+            border-left: 8px solid var(--black);
+            background-color: #f4f4f4;
+            /* Technical stark contrast without being fully black */
+        }
+
+        .crt-scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen w-full border-8 border-black">
+
+    <!-- TOP NAV BAR -->
+    <header class="h-14 border-b-8 border-black flex items-center justify-between px-6 bg-white shrink-0 z-20">
+        <div class="font-black text-xl tracking-tighter uppercase">Operational Pragmatist // V2.0</div>
+        <div class="flex gap-4 text-xs font-bold uppercase tracking-widest">
+            <span class="border-2 border-black px-2 py-1">SYS.ENTROPY: <span id="entropy-metric">0.00</span></span>
+            <span class="bg-black text-white px-2 py-1 flex items-center gap-2">
+                <span class="w-2 h-2 bg-white rounded-full animate-ping"></span> ONLINE
+            </span>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- LEFT PANEL: Script & Execution Queue -->
+        <div class="w-1/3 min-w-[400px] h-full overflow-y-auto border-r-8 border-black bg-white flex flex-col z-10">
+            <div class="p-6 border-b-4 border-black border-dashed">
+                <p class="text-xs font-bold leading-relaxed mb-2 uppercase">
+                    > Directive: Do not summarize. Do not explain. Reconstruct input into active script of
+                    operations.<br>
+                    > Constraint: White/Black palette. Base-anchored perspective.
+                </p>
+            </div>
+
+            <!-- Execution Nodes Generated via JS -->
+            <div id="script-container" class="flex flex-col"></div>
+        </div>
+
+        <!-- RIGHT PANEL: Canvas Viewport (Base Anchored) -->
+        <div class="flex-1 relative bg-white cursor-crosshair">
+            <!-- Grid overlay -->
+            <div class="absolute inset-0 pointer-events-none opacity-10"
+                style="background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px); background-size: 40px 40px;">
+            </div>
+
+            <canvas id="engine" class="absolute inset-0 w-full h-full block"></canvas>
+
+            <!-- Base Anchor UI -->
+            <div
+                class="absolute bottom-0 left-0 w-full border-t-8 border-black bg-white h-12 flex items-center px-4 justify-between font-bold text-sm uppercase">
+                <span>[ Camera Anchor: BASE S_0 ]</span>
+                <span id="viewport-status">AWAITING INTERACTION</span>
+            </div>
+
+            <div class="crt-scanline"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ARCHITECTURE ---
+        const SCRIPT_DATA = [
+            {
+                id: '01',
+                title: 'Topology Collapse',
+                desc: 'Tear-down of linear sequence A → B → C.',
+                logics: [
+                    { text: 'Inject perturbation vector I at Node B.', trigger: 'perturbation' },
+                    { text: 'Evaluate transition function', math: 'δ(B, I)', textAfter: '. Invoke state fracture.', trigger: 'fracture' }
+                ]
+            },
+            {
+                id: '02',
+                title: 'Transducer Instantiation',
+                desc: 'Initialization of Deterministic Finite Transducer (FST).',
+                logics: [
+                    { text: 'Populate exhaustive state matrix S with s_0 as base anchor.', trigger: 'matrix_init' },
+                    { text: 'Map explicit transition relations', math: 'δ ⊆ S × Σ × Γ × S', textAfter: '.', trigger: 'matrix_route' }
+                ]
+            },
+            {
+                id: '03',
+                title: 'Entropy Control',
+                desc: 'Deployment of closed-loop allostatic barriers.',
+                logics: [
+                    { text: 'Calculate deviation margin against target transition', math: 'δ(s, σ)', textAfter: '.', trigger: 'entropy_wave' },
+                    { text: 'If threshold exceeded, route to strictly mapped bounded-error node.', trigger: 'entropy_clamp' }
+                ]
+            },
+            {
+                id: '04',
+                title: 'Inference Supervision',
+                desc: 'Isolation of MDP non-determinism.',
+                logics: [
+                    { text: 'Ingest LLM latent space interpretation (Stochastic swarm).', trigger: 'swarm_init' },
+                    { text: 'Clamp stochastic payload to predefined finite exit edges.', math: 'P=0.85 | P=0.15', trigger: 'swarm_clamp' }
+                ]
+            },
+            {
+                id: '05',
+                title: 'Formal Verification',
+                desc: 'Exhaustive unwinding of Kripke structure.',
+                logics: [
+                    { text: 'Execute breadth-first search traversing the geometric matrix.', trigger: 'verify_start' },
+                    { text: 'Assert Liveness Property:', math: 'M = ⟨ S, S_0, R, L ⟩', textAfter: ' Stack base anchors.', trigger: 'verify_stack' }
+                ]
+            }
+        ];
+
+        // --- DOM INITIALIZATION ---
+        const container = document.getElementById('script-container');
+        const canvas = document.getElementById('engine');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('viewport-status');
+        const entropyMetric = document.getElementById('entropy-metric');
+
+        let activeState = null;
+        let activeTrigger = null;
+        let animationFrameId = null;
+
+        // Resize Canvas
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Build Left Panel UI
+        SCRIPT_DATA.forEach((exec, index) => {
+            const block = document.createElement('div');
+            block.className = `exec-block border-b-4 border-black p-6 cursor-pointer transition-colors duration-75 group`;
+            block.onclick = (e) => {
+                if (e.target.tagName !== 'SPAN') activateState(exec.id, null);
+            };
+
+            let logicHtml = exec.logics.map(l => `
+        <div class="mt-3 text-sm flex items-start gap-2">
+            <span class="mt-1 block w-2 h-2 bg-black shrink-0"></span>
+            <div>
+                ${l.text}
+                ${l.math ? `<span class="math-surface" onclick="activateTrigger('${exec.id}', '${l.trigger}', event)">${l.math}</span>` : ''}
+                ${l.textAfter || ''}
+            </div>
+        </div>
+    `).join('');
+
+            block.innerHTML = `
+        <div class="flex justify-between items-baseline mb-2">
+            <h2 class="font-black text-lg uppercase">${exec.title}</h2>
+            <span class="text-xs font-bold border-2 border-black px-1 group-hover:bg-black group-hover:text-white">EXEC_${exec.id}</span>
+        </div>
+        <p class="text-xs font-bold uppercase tracking-wide opacity-60 mb-4 border-l-2 border-black pl-2">${exec.desc}</p>
+        <div class="logics-container opacity-50 transition-opacity duration-200">
+            ${logicHtml}
+        </div>
+    `;
+            block.id = `block-${exec.id}`;
+            container.appendChild(block);
+        });
+
+        // --- STATE MANAGEMENT ---
+        function activateState(id, trigger) {
+            if (activeState === id && activeTrigger === trigger) return;
+
+            activeState = id;
+            activeTrigger = trigger;
+
+            // Update DOM styles
+            document.querySelectorAll('.exec-block').forEach(b => {
+                b.classList.remove('active');
+                b.querySelector('.logics-container').style.opacity = '0.5';
+            });
+            const activeBlock = document.getElementById(`block-${id}`);
+            if (activeBlock) {
+                activeBlock.classList.add('active');
+                activeBlock.querySelector('.logics-container').style.opacity = '1';
+            }
+
+            document.querySelectorAll('.math-surface').forEach(m => m.classList.remove('active', 'bg-black', 'text-white'));
+            if (trigger) {
+                const mathEl = event.target;
+                mathEl.classList.add('active', 'bg-black', 'text-white');
+                statusText.innerText = `EXECUTING: ${trigger.toUpperCase()}`;
+            } else {
+                statusText.innerText = `STATE: ${SCRIPT_DATA.find(s => s.id === id).title.toUpperCase()}`;
+            }
+
+            // Reset Engine
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            Engine.reset();
+
+            // Start Engine Loop
+            Engine.setState(id, trigger);
+            engineLoop();
+        }
+
+        function activateTrigger(id, trigger, event) {
+            event.stopPropagation();
+            activateState(id, trigger);
+        }
+
+        // --- HARDWARE / CANVAS ENGINE ---
+        // Strictly enforces white/black, high-contrast operational visuals.
+
+        const Engine = {
+            state: null,
+            trigger: null,
+            time: 0,
+            objects: [],
+
+            reset() {
+                this.time = 0;
+                this.objects = [];
+                ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transforms
+            },
+
+            setState(id, trigger) {
+                this.state = id;
+                this.trigger = trigger;
+
+                const cw = canvas.width;
+                const ch = canvas.height;
+
+                if (id === '01') {
+                    // Topology Collapse Setup
+                    this.objects = [
+                        { id: 'A', x: cw * 0.2, y: ch * 0.5, targetX: cw * 0.2, targetY: ch * 0.5 },
+                        { id: 'B', x: cw * 0.5, y: ch * 0.5, targetX: cw * 0.5, targetY: ch * 0.5 },
+                        { id: 'C', x: cw * 0.8, y: ch * 0.5, targetX: cw * 0.8, targetY: ch * 0.5 }
+                    ];
+                    if (trigger === 'fracture') {
+                        this.objects[1].targetY += 100; // Drop B
+                    }
+                }
+                else if (id === '02') {
+                    // Matrix Setup
+                    this.cols = Math.floor(cw / 40);
+                    this.rows = Math.floor(ch / 40);
+                    this.path = [];
+                    if (trigger === 'matrix_route') {
+                        let x = 1, y = this.rows - 2; // Start bottom left (base anchored)
+                        this.path.push({ x, y });
+                    }
+                }
+                else if (id === '03') {
+                    // Entropy Setup
+                    this.history = new Array(100).fill(ch * 0.5);
+                }
+                else if (id === '04') {
+                    // Inference Swarm Setup
+                    for (let i = 0; i < 150; i++) {
+                        this.objects.push({
+                            x: cw / 2 + (Math.random() - 0.5) * 100,
+                            y: ch / 2 + (Math.random() - 0.5) * 100,
+                            vx: (Math.random() - 0.5) * 10,
+                            vy: (Math.random() - 0.5) * 10
+                        });
+                    }
+                }
+                else if (id === '05') {
+                    // Formal Verification Stack (Base Anchored)
+                    this.objects = []; // Array of rects {x, y, w, h}
+                }
+            },
+
+            update() {
+                this.time++;
+                const cw = canvas.width;
+                const ch = canvas.height;
+
+                entropyMetric.innerText = (Math.random() * (this.state === '04' ? 2 : 0.5)).toFixed(2);
+
+                if (this.state === '01') {
+                    // Spring physics for node B dropping
+                    this.objects.forEach(obj => {
+                        obj.x += (obj.targetX - obj.x) * 0.1;
+                        obj.y += (obj.targetY - obj.y) * 0.1;
+                    });
+                }
+                else if (this.state === '02' && this.trigger === 'matrix_route') {
+                    // Grow path
+                    if (this.time % 3 === 0 && this.path.length < 50) {
+                        let last = this.path[this.path.length - 1];
+                        let nextX = last.x + (Math.random() > 0.5 ? 1 : 0);
+                        let nextY = last.y - (Math.random() > 0.5 ? 1 : 0);
+                        if (nextX < this.cols && nextY > 0) this.path.push({ x: nextX, y: nextY });
+                    }
+                }
+                else if (this.state === '03') {
+                    // Generate noisy waveform
+                    let noise = (Math.sin(this.time * 0.1) * 50) + (Math.random() - 0.5) * 100;
+                    if (this.trigger === 'entropy_clamp') {
+                        const bound = 80;
+                        if (noise > bound) noise = bound;
+                        if (noise < -bound) noise = -bound;
+                    }
+                    this.history.push(ch * 0.5 + noise);
+                    this.history.shift();
+                }
+                else if (this.state === '04') {
+                    // Swarm physics
+                    const boxW = this.trigger === 'swarm_clamp' ? 200 : cw - 100;
+                    const boxH = this.trigger === 'swarm_clamp' ? 300 : ch - 100;
+                    const left = (cw - boxW) / 2;
+                    const right = left + boxW;
+                    const top = (ch - boxH) / 2;
+                    const bottom = top + boxH;
+
+                    this.objects.forEach(p => {
+                        p.x += p.vx; p.y += p.vy;
+
+                        // Brownian motion
+                        p.vx += (Math.random() - 0.5) * 2;
+                        p.vy += (Math.random() - 0.5) * 2;
+
+                        // Friction
+                        p.vx *= 0.95; p.vy *= 0.95;
+
+                        // Box Collision
+                        if (this.trigger === 'swarm_clamp' && p.y > bottom - 10) {
+                            // Check exit edges (P=0.85 left, P=0.15 right)
+                            if (p.x > left + 10 && p.x < left + 60) { p.y += 5; } // Fall through left
+                            else if (p.x > right - 60 && p.x < right - 10) { p.y += 5; } // Fall through right
+                            else { p.y = bottom - 10; p.vy *= -1; } // Bounce
+                        } else {
+                            if (p.x < left) { p.x = left; p.vx *= -1; }
+                            if (p.x > right) { p.x = right; p.vx *= -1; }
+                            if (p.y < top) { p.y = top; p.vy *= -1; }
+                            if (p.y > bottom && this.trigger !== 'swarm_clamp') { p.y = bottom; p.vy *= -1; }
+                        }
+                    });
+                }
+                else if (this.state === '05') {
+                    // Verification Stack (Base Anchored)
+                    if (this.time % 2 === 0 && this.objects.length < 150) {
+                        // Stack upwards from bottom
+                        const w = Math.random() * 100 + 50;
+                        const h = 20;
+                        const x = cw / 2 - w / 2 + (Math.random() - 0.5) * 200;
+                        let currentH = 0;
+                        this.objects.forEach(r => {
+                            // simple collision check for stack height
+                            if (x < r.x + r.w && x + w > r.x) {
+                                if (r.y < ch - currentH) currentH = ch - r.y;
+                            }
+                        });
+
+                        this.objects.push({ x: x, y: ch - currentH - h - (this.objects.length === 0 ? 50 : 0), w: w, h: h });
+                    }
+                }
+            },
+
+            draw() {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = '#000000';
+                ctx.fillStyle = '#000000';
+                ctx.lineWidth = 4;
+
+                if (this.state === '01') {
+                    this.drawTopology();
+                } else if (this.state === '02') {
+                    this.drawMatrix();
+                } else if (this.state === '03') {
+                    this.drawEntropy();
+                } else if (this.state === '04') {
+                    this.drawSwarm();
+                } else if (this.state === '05') {
+                    this.drawVerification();
+                } else {
+                    // Idle State
+                    ctx.font = '900 48px "JetBrains Mono"';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('AWAITING INPUT', canvas.width / 2, canvas.height / 2);
+                    ctx.strokeRect(canvas.width / 2 - 200, canvas.height / 2 - 50, 400, 100);
+                }
+            },
+
+            drawTopology() {
+                const [A, B, C] = this.objects;
+
+                // Draw Lines
+                ctx.beginPath();
+                ctx.moveTo(A.x, A.y);
+                ctx.lineTo(B.x, B.y);
+                if (this.trigger === 'fracture') {
+                    // Draw shattered line to C
+                    ctx.setLineDash([10, 15]);
+                    ctx.lineTo(C.x, C.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Perturbation Arrow
+                    const ax = B.x; const ay = B.y - 150;
+                    ctx.fillRect(ax - 5, ay, 10, B.y - ay - 40);
+                    ctx.beginPath(); ctx.moveTo(ax - 15, B.y - 40); ctx.lineTo(ax + 15, B.y - 40); ctx.lineTo(ax, B.y - 20); ctx.fill();
+                    ctx.font = 'bold 24px monospace'; ctx.fillText('I', ax, ay - 20);
+                } else {
+                    ctx.lineTo(C.x, C.y);
+                    ctx.stroke();
+                }
+
+                // Draw Nodes
+                this.objects.forEach(n => {
+                    const size = 60;
+                    ctx.fillStyle = (n.id === 'B' && this.trigger === 'fracture' && Math.floor(this.time / 10) % 2 === 0) ? '#000' : '#fff';
+                    ctx.fillRect(n.x - size / 2, n.y - size / 2, size, size);
+                    ctx.strokeRect(n.x - size / 2, n.y - size / 2, size, size);
+
+                    ctx.fillStyle = (n.id === 'B' && this.trigger === 'fracture' && Math.floor(this.time / 10) % 2 === 0) ? '#fff' : '#000';
+                    ctx.font = '900 24px monospace';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(n.id, n.x, n.y);
+                });
+            },
+
+            drawMatrix() {
+                const size = 40;
+                ctx.fillStyle = '#000';
+
+                // Base Matrix dots
+                for (let i = 1; i < this.cols; i++) {
+                    for (let j = 1; j < this.rows; j++) {
+                        ctx.fillRect(i * size - 2, j * size - 2, 4, 4);
+                    }
+                }
+
+                // Draw routed path
+                if (this.path && this.path.length > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.path[0].x * size, this.path[0].y * size);
+                    for (let i = 1; i < this.path.length; i++) {
+                        ctx.lineTo(this.path[i].x * size, this.path[i].y * size);
+                    }
+                    ctx.lineWidth = 8;
+                    ctx.stroke();
+
+                    // Lead cursor
+                    let last = this.path[this.path.length - 1];
+                    ctx.fillRect(last.x * size - 10, last.y * size - 10, 20, 20);
+                }
+            },
+
+            drawEntropy() {
+                const ch = canvas.height;
+                const cw = canvas.width;
+
+                // Bounds
+                const bound = 80;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(0, ch * 0.5 - bound); ctx.lineTo(cw, ch * 0.5 - bound);
+                ctx.moveTo(0, ch * 0.5 + bound); ctx.lineTo(cw, ch * 0.5 + bound);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Waveform
+                ctx.beginPath();
+                ctx.moveTo(0, this.history[0]);
+                const step = cw / this.history.length;
+                for (let i = 1; i < this.history.length; i++) {
+                    ctx.lineTo(i * step, this.history[i]);
+                }
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                if (this.trigger === 'entropy_clamp') {
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 20px monospace';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('BOUNDED_ERROR: ACTIVE', 20, ch * 0.5 - bound - 20);
+                    ctx.fillText('THRESHOLD CLAMP', 20, ch * 0.5 + bound + 30);
+                }
+            },
+
+            drawSwarm() {
+                const cw = canvas.width;
+                const ch = canvas.height;
+
+                const boxW = this.trigger === 'swarm_clamp' ? 300 : cw - 100;
+                const boxH = this.trigger === 'swarm_clamp' ? 400 : ch - 100;
+                const left = (cw - boxW) / 2;
+                const top = (ch - boxH) / 2;
+
+                // Container Box
+                ctx.lineWidth = 8;
+                if (this.trigger === 'swarm_clamp') {
+                    ctx.beginPath();
+                    ctx.moveTo(left, top); ctx.lineTo(left + boxW, top); ctx.lineTo(left + boxW, top + boxH);
+                    ctx.moveTo(left, top + boxH); ctx.lineTo(left, top);
+                    ctx.stroke();
+
+                    // Exit gates
+                    ctx.fillRect(left + 10, top + boxH, 50, 10);
+                    ctx.fillRect(left + boxW - 60, top + boxH, 50, 10);
+
+                    ctx.font = 'bold 16px monospace';
+                    ctx.fillText('P=0.85', left + 35, top + boxH + 30);
+                    ctx.fillText('P=0.15', left + boxW - 35, top + boxH + 30);
+                } else {
+                    ctx.strokeRect(left, top, boxW, boxH);
+                }
+
+                // Particles
+                this.objects.forEach(p => {
+                    ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+                });
+            },
+
+            drawVerification() {
+                ctx.lineWidth = 4;
+                this.objects.forEach((r, i) => {
+                    // Alternate fill/stroke for technical pattern
+                    if (i % 3 === 0) {
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(r.x, r.y, r.w, r.h);
+                    } else {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(r.x, r.y, r.w, r.h);
+                        ctx.strokeRect(r.x, r.y, r.w, r.h);
+                    }
+                });
+
+                // Scanline effect over stack
+                ctx.fillStyle = `rgba(0,0,0,${Math.sin(this.time * 0.2) * 0.2 + 0.2})`;
+                ctx.fillRect(0, canvas.height - (this.time * 10 % canvas.height), canvas.width, 4);
+            }
+        };
+
+        // --- ANIMATION LOOP ---
+        function engineLoop() {
+            Engine.update();
+            Engine.draw();
+            animationFrameId = requestAnimationFrame(engineLoop);
+        }
+
+        // Initial draw
+        Engine.reset();
+        Engine.draw();
+
+    </script>
+</body>
+
+</html>

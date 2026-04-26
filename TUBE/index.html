@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="only light">
+<title>TUBE INDEX — Functional Registry</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0!important}
+html{color-scheme:light only}
+body{
+  background:#FFF!important;color:#000!important;
+  font:11px/1.55 'IBM Plex Mono',ui-monospace,monospace;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+
+/* ═══ MASTHEAD ═══ */
+#mast{
+  position:sticky;top:0;z-index:200;
+  background:#000;color:#FFF;
+  padding:7px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:3px solid #000;
+}
+#mast h1{font-size:14px;font-weight:700;letter-spacing:.14em}
+#mast .ct{font-size:9px;opacity:.5}
+#mast nav{margin-left:auto;display:flex;gap:1px;flex-wrap:wrap}
+#mast nav a{
+  color:#FFF;text-decoration:none;font-size:8px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border:1px solid rgba(255,255,255,.2);
+  background:transparent;transition:all .08s;
+}
+#mast nav a:hover,#mast nav a.active{background:#FFF;color:#000}
+
+/* ═══ STATUS BAR ═══ */
+#status{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  padding:0;border-bottom:3px solid #000;
+}
+.stat-cell{
+  padding:10px 14px;
+  border-right:1px solid #000;
+  border-bottom:1px solid #000;
+}
+.stat-cell:last-child{border-right:none}
+.stat-label{font-size:7px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.4;margin-bottom:2px}
+.stat-value{font-size:18px;font-weight:700;line-height:1}
+.stat-sub{font-size:8px;opacity:.5;margin-top:2px}
+
+/* ═══ SECTION ═══ */
+.sec-h{
+  position:sticky;top:37px;z-index:100;
+  background:#FFF;
+  padding:10px 14px 6px;
+  border-bottom:2px solid #000;
+  border-top:3px solid #000;
+  display:flex;align-items:baseline;gap:10px;
+}
+.sec-h h2{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.sec-h .d{font-size:8px;opacity:.4;flex:1}
+.sec-h .n{
+  font-size:9px;font-weight:700;
+  background:#000;color:#FFF;
+  padding:1px 7px;min-width:18px;text-align:center;
+}
+
+/* ═══ NODE ROW ═══ */
+.node{
+  display:grid;
+  grid-template-columns:1fr 100px 80px 56px;
+  align-items:center;
+  padding:0 14px;height:36px;
+  border-bottom:1px solid #000;
+  text-decoration:none;color:#000;
+  cursor:pointer;transition:background .06s;
+  scroll-margin-top:80px;
+}
+.node:hover{background:#F0F0F0}
+.node:active,.node.bound{background:#000;color:#FFF}
+.node:active .role,.node.bound .role{color:#FFF;opacity:.6}
+.node:active .sz,.node.bound .sz{color:#FFF}
+.node:active .caps,.node.bound .caps{color:#FFF;opacity:.6}
+
+.node .nm{font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .role{font-size:7px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;opacity:.35;text-align:right}
+.node .caps{font-size:7px;font-weight:600;letter-spacing:.04em;opacity:.35;text-align:right;font-variant-numeric:tabular-nums}
+.node .sz{font-size:9px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* CAPABILITY PILLS */
+.pill{
+  display:inline-block;font-size:6px;font-weight:700;
+  padding:1px 4px;margin-right:2px;vertical-align:middle;
+  letter-spacing:.04em;border:1px solid;
+}
+.pill-load{background:#000;color:#FFF;border-color:#000}
+.pill-vid{background:#333;color:#FFF;border-color:#333}
+.pill-cnv{background:#666;color:#FFF;border-color:#666}
+.pill-exp{background:#000;color:#FFF;border-color:#000}
+.pill-raf{background:#999;color:#FFF;border-color:#999}
+.pill-ptr{background:#FFF;color:#000;border-color:#000}
+.pill-key{background:#FFF;color:#000;border-color:#000}
+
+/* DUPLICATE */
+.node.dup{opacity:.35;border-bottom:1px solid #CCC}
+.node.dup:hover{opacity:.65;background:#FFF5F5}
+.node.dup .nm{font-weight:400;font-style:italic}
+
+/* DATA (non-link) */
+.node.data{cursor:default;grid-template-columns:1fr 100px 56px}
+.node.data .nm{font-weight:400}
+
+/* ═══ DIAGRAM ═══ */
+#diagram{
+  padding:20px 14px;
+  border-bottom:3px solid #000;
+  display:flex;gap:20px;align-items:flex-start;
+}
+#tube-svg{flex-shrink:0}
+#legend{font-size:9px;line-height:1.8}
+#legend b{font-weight:700}
+#legend .zone{margin-bottom:8px}
+#legend .zone-title{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid #000;margin-bottom:2px}
+
+/* ═══ CAPABILITY MATRIX ═══ */
+#cap-matrix{
+  padding:14px;
+  border-bottom:3px solid #000;
+  overflow-x:auto;
+}
+#cap-matrix table{
+  width:100%;border-collapse:collapse;font-size:9px;
+}
+#cap-matrix th{
+  text-align:left;font-size:7px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 6px;border-bottom:2px solid #000;
+  position:sticky;top:37px;background:#FFF;
+}
+#cap-matrix td{
+  padding:3px 6px;border-bottom:1px solid #EEE;
+  font-variant-numeric:tabular-nums;
+}
+#cap-matrix tr:hover td{background:#F0F0F0}
+.dot-yes{display:inline-block;width:8px;height:8px;background:#000}
+.dot-no{display:inline-block;width:8px;height:8px;background:#EEE}
+.dot-dup{display:inline-block;width:8px;height:8px;background:#C00}
+
+/* ═══ FOOTER ═══ */
+#ft{
+  margin-top:auto;
+  padding:10px 14px;
+  border-top:3px solid #000;
+  font-size:9px;font-weight:600;
+  display:flex;gap:16px;flex-wrap:wrap;
+  background:linear-gradient(0deg,#F4F4F4,#FFF);
+}
+</style>
+</head>
+<body>
+
+<header id="mast">
+  <h1>TUBE</h1>
+  <span class="ct">FUNCTIONAL REGISTRY — 36 PARTS</span>
+  <nav id="nav">
+    <a href="#S-T1" data-f="S-T1">FULL PIPELINE</a>
+    <a href="#S-T2" data-f="S-T2">LOAD+PLAY</a>
+    <a href="#S-T3" data-f="S-T3">RENDER</a>
+    <a href="#S-T4" data-f="S-T4">UI ONLY</a>
+    <a href="#S-DUP" data-f="S-DUP">DUPLICATES</a>
+    <a href="#S-MATRIX" data-f="S-MATRIX">MATRIX</a>
+    <a href="#S-LOADED" data-f="S-LOADED">ROOT TOOLS</a>
+    <a href="#S-DATA" data-f="S-DATA">DATA</a>
+  </nav>
+</header>
+
+<!-- ═══ STATUS GRID ═══ -->
+<div id="status">
+  <div class="stat-cell">
+    <div class="stat-label">Full Pipeline</div>
+    <div class="stat-value">13</div>
+    <div class="stat-sub">Load → Video → Canvas → Export</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Load + Play</div>
+    <div class="stat-value">9</div>
+    <div class="stat-sub">Load media, play video, no export</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Render Only</div>
+    <div class="stat-value">8</div>
+    <div class="stat-sub">Canvas/animation, no media I/O</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">UI / Layout</div>
+    <div class="stat-value">3</div>
+    <div class="stat-sub">Interface shell, no runtime</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Duplicate Pairs</div>
+    <div class="stat-value">2</div>
+    <div class="stat-sub">cathode=bulb, envelope=deflector</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Unique Builds</div>
+    <div class="stat-value">34</div>
+    <div class="stat-sub">Total distinct implementations</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- TIER 1: FULL PIPELINE — Load → Video → Canvas → Export -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-T1">
+  <h2>FULL PIPELINE</h2>
+  <span class="d">Load media → Video playback → Canvas render → Export output</span>
+  <span class="n">13</span>
+</div>
+
+<a class="node" id="N-TV" href="parts/tv.html">
+  <span class="nm">tv.html</span>
+  <span class="role">Root Cut Operator</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">55 KB</span>
+</a>
+<a class="node" id="N-XRAY" href="parts/xray.html">
+  <span class="nm">xray.html</span>
+  <span class="role">Light Media Build</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">82 KB</span>
+</a>
+<a class="node" id="N-GETTER" href="parts/getter.html">
+  <span class="nm">getter.html</span>
+  <span class="role">Arc Splice Operator</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">73 KB</span>
+</a>
+<a class="node" id="N-WHAT" href="parts/what.html">
+  <span class="nm">what.html</span>
+  <span class="role">Arc-Tunnel Splice</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">68 KB</span>
+</a>
+<a class="node" id="N-STEM" href="parts/stem.html">
+  <span class="nm">stem.html</span>
+  <span class="role">White Surface Tunnel</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">52 KB</span>
+</a>
+<a class="node" id="N-SOCKET" href="parts/socket.html">
+  <span class="nm">socket.html</span>
+  <span class="role">Splice Surface</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">70 KB</span>
+</a>
+<a class="node" id="N-SHIELD" href="parts/shield.html">
+  <span class="nm">shield.html</span>
+  <span class="role">Mobile Output v7</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">38 KB</span>
+</a>
+<a class="node" id="N-BASE" href="parts/base.html">
+  <span class="nm">base.html</span>
+  <span class="role">Tunnel Operator Full</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">60 KB</span>
+</a>
+<a class="node" id="N-ANODE" href="parts/anode.html">
+  <span class="nm">anode.html</span>
+  <span class="role">Tunnel Operator Full</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">58 KB</span>
+</a>
+<a class="node" id="N-BULB" href="parts/bulb.html">
+  <span class="nm">bulb.html</span>
+  <span class="role">Tube Native Controls</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">57 KB</span>
+</a>
+<a class="node" id="N-HEATER" href="parts/heater.html">
+  <span class="nm">heater.html</span>
+  <span class="role">Beast Shared Dial</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">35 KB</span>
+</a>
+<a class="node" id="N-FILAMENT" href="parts/filament.html">
+  <span class="nm">filament.html</span>
+  <span class="role">Arc Operator</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">38 KB</span>
+</a>
+<a class="node" id="N-SUPPRESSOR" href="parts/suppressor.html">
+  <span class="nm">suppressor.html</span>
+  <span class="role">Mobile Video Build</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-exp">EXP</span></span>
+  <span class="sz">54 KB</span>
+</a>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- TIER 2: LOAD + PLAY — Can ingest media, no export -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-T2">
+  <h2>LOAD + PLAY</h2>
+  <span class="d">File ingest → Video playback → Render — no structured export</span>
+  <span class="n">9</span>
+</div>
+
+<a class="node" id="N-XLOCO" href="parts/xloco.html">
+  <span class="nm">xloco.html</span>
+  <span class="role">Riverbed Editor</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">59 KB</span>
+</a>
+<a class="node" id="N-ZOKE" href="parts/zoke.html">
+  <span class="nm">zoke.html</span>
+  <span class="role">Lock Workbench</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">47 KB</span>
+</a>
+<a class="node" id="N-MASK" href="parts/mask.html">
+  <span class="nm">mask.html</span>
+  <span class="role">Operational Engine</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">21 KB</span>
+</a>
+<a class="node" id="N-BEAM" href="parts/beam.html">
+  <span class="nm">beam.html</span>
+  <span class="role">Light Operation Instrument</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">74 KB</span>
+</a>
+<a class="node" id="N-FUNNEL" href="parts/funnel.html">
+  <span class="nm">funnel.html</span>
+  <span class="role">Arc Splice Operator</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">44 KB</span>
+</a>
+<a class="node" id="N-GUN" href="parts/gun.html">
+  <span class="nm">gun.html</span>
+  <span class="role">Splice Section Bay</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">43 KB</span>
+</a>
+<a class="node" id="N-UV" href="parts/uv.html">
+  <span class="nm">uv.html</span>
+  <span class="role">Root Cut Operator</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">42 KB</span>
+</a>
+<a class="node" id="N-SCREEN" href="parts/screen.html">
+  <span class="nm">screen.html</span>
+  <span class="role">Tactile Operational Build</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">45 KB</span>
+</a>
+<a class="node" id="N-YOKE" href="parts/yoke.html">
+  <span class="nm">yoke.html</span>
+  <span class="role">Arc Lathe Barrel Cutter</span>
+  <span class="caps"><span class="pill pill-load">LOAD</span><span class="pill pill-vid">VID</span><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">32 KB</span>
+</a>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- TIER 3: RENDER ONLY — Canvas/Animation, no media I/O -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-T3">
+  <h2>RENDER ENGINES</h2>
+  <span class="d">Canvas rendering — animation loops — pointer controls — no file ingest</span>
+  <span class="n">8</span>
+</div>
+
+<a class="node" id="N-XTRA" href="parts/xtra.html">
+  <span class="nm">xtra.html</span>
+  <span class="role">Arc-Tunnel Operator</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">46 KB</span>
+</a>
+<a class="node" id="N-FACEPLATE" href="parts/faceplate.html">
+  <span class="nm">faceplate.html</span>
+  <span class="role">Living Shield Instrument</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">43 KB</span>
+</a>
+<a class="node" id="N-MICA" href="parts/mica.html">
+  <span class="nm">mica.html</span>
+  <span class="role">Pragmatist Editor</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">36 KB</span>
+</a>
+<a class="node" id="N-NECK" href="parts/neck.html">
+  <span class="nm">neck.html</span>
+  <span class="role">Pragmatist Editor</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">26 KB</span>
+</a>
+<a class="node" id="N-PHOSPHOR" href="parts/phosphor.html">
+  <span class="nm">phosphor.html</span>
+  <span class="role">Space-Time Pipeline</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">34 KB</span>
+</a>
+<a class="node" id="N-PLATE" href="parts/plate.html">
+  <span class="nm">plate.html</span>
+  <span class="role">Tactile Assembly</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">28 KB</span>
+</a>
+<a class="node" id="N-PIN" href="parts/pin.html">
+  <span class="nm">pin.html</span>
+  <span class="role">Mosaic Assembly</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">23 KB</span>
+</a>
+<a class="node" id="N-OP" href="parts/op.html">
+  <span class="nm">op.html</span>
+  <span class="role">Prime Prompt Engine</span>
+  <span class="caps"><span class="pill pill-cnv">CNV</span><span class="pill pill-raf">RAF</span></span>
+  <span class="sz">26 KB</span>
+</a>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- TIER 4: UI / LAYOUT ONLY — No canvas, no video -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-T4">
+  <h2>UI / LAYOUT</h2>
+  <span class="d">Interface shells — CSS/DOM structures — no runtime rendering engine</span>
+  <span class="n">3</span>
+</div>
+
+<a class="node" id="N-GRID" href="parts/grid.html">
+  <span class="nm">grid.html</span>
+  <span class="role">Arc Binding Surface V2</span>
+  <span class="caps"><span class="pill pill-key">KEY</span></span>
+  <span class="sz">30 KB</span>
+</a>
+<a class="node" id="N-VOLUME" href="parts/volume.html">
+  <span class="nm">volume.html</span>
+  <span class="role">Assembly Pragmatist</span>
+  <span class="caps"><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">28 KB</span>
+</a>
+<a class="node" id="N-XL" href="parts/xl.html">
+  <span class="nm">xl.html</span>
+  <span class="role">Topographical Lock</span>
+  <span class="caps"><span class="pill pill-key">KEY</span><span class="pill pill-ptr">PTR</span></span>
+  <span class="sz">26 KB</span>
+</a>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- DUPLICATES -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-DUP">
+  <h2>DUPLICATES</h2>
+  <span class="d">Identical file content — need differentiation or consolidation</span>
+  <span class="n">2</span>
+</div>
+
+<a class="node dup" id="N-CATHODE" href="parts/cathode.html">
+  <span class="nm">cathode.html = bulb.html</span>
+  <span class="role">Tube Native Controls</span>
+  <span class="caps">MD5 MATCH</span>
+  <span class="sz">57 KB</span>
+</a>
+<a class="node dup" id="N-ENVELOPE" href="parts/envelope.html">
+  <span class="nm">envelope.html = deflector.html</span>
+  <span class="role">Working Mesh Build</span>
+  <span class="caps">MD5 MATCH</span>
+  <span class="sz">65 KB</span>
+</a>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- CAPABILITY MATRIX -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-MATRIX">
+  <h2>CAPABILITY MATRIX</h2>
+  <span class="d">Precise functional fingerprint for every unique part</span>
+  <span class="n">34</span>
+</div>
+
+<div id="cap-matrix">
+<table>
+<tr>
+  <th>PART</th>
+  <th>FILE LOAD</th>
+  <th>VIDEO</th>
+  <th>CANVAS</th>
+  <th>EXPORT</th>
+  <th>RAF LOOP</th>
+  <th>POINTER</th>
+  <th>KEYBOARD</th>
+  <th>TIMELINE</th>
+  <th>SIZE</th>
+</tr>
+<!-- T1: Full Pipeline -->
+<tr><td><b>tv</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>55K</td></tr>
+<tr><td><b>xray</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>82K</td></tr>
+<tr><td><b>getter</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>73K</td></tr>
+<tr><td><b>what</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>68K</td></tr>
+<tr><td><b>stem</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>52K</td></tr>
+<tr><td><b>socket</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>70K</td></tr>
+<tr><td><b>shield</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>38K</td></tr>
+<tr><td><b>base</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>60K</td></tr>
+<tr><td><b>anode</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>58K</td></tr>
+<tr><td><b>bulb</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>57K</td></tr>
+<tr><td><b>heater</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>35K</td></tr>
+<tr><td><b>filament</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>38K</td></tr>
+<tr><td><b>suppressor</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>54K</td></tr>
+<!-- T2: Load + Play -->
+<tr><td><b>xloco</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>59K</td></tr>
+<tr><td><b>zoke</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>47K</td></tr>
+<tr><td><b>mask</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>21K</td></tr>
+<tr><td><b>beam</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>74K</td></tr>
+<tr><td><b>funnel</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td>44K</td></tr>
+<tr><td><b>gun</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>43K</td></tr>
+<tr><td><b>uv</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>42K</td></tr>
+<tr><td><b>screen</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>45K</td></tr>
+<tr><td><b>yoke</b></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>32K</td></tr>
+<!-- T3: Render Only -->
+<tr><td><b>xtra</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>46K</td></tr>
+<tr><td><b>faceplate</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>43K</td></tr>
+<tr><td><b>mica</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td>36K</td></tr>
+<tr><td><b>neck</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td>26K</td></tr>
+<tr><td><b>phosphor</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td>34K</td></tr>
+<tr><td><b>plate</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>28K</td></tr>
+<tr><td><b>pin</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>23K</td></tr>
+<tr><td><b>op</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td>26K</td></tr>
+<!-- T4: UI Only -->
+<tr><td><b>grid</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td>30K</td></tr>
+<tr><td><b>volume</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td>28K</td></tr>
+<tr><td><b>xl</b></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-no"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-yes"></span></td><td><span class="dot-no"></span></td><td>26K</td></tr>
+<!-- Duplicates -->
+<tr><td style="opacity:.35"><i>cathode</i></td><td colspan="8" style="opacity:.35;font-size:8px">DUPLICATE OF bulb.html — identical MD5 hash</td><td style="opacity:.35">57K</td></tr>
+<tr><td style="opacity:.35"><i>envelope</i></td><td colspan="8" style="opacity:.35;font-size:8px">DUPLICATE OF deflector.html — identical MD5 hash</td><td style="opacity:.35">65K</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- LOADED TOOLS (existing live files in TUBE root) -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="sec-h" id="S-LOADED">
+  <h2>ROOT TOOLS</h2>
+  <span class="d">Existing operational artifacts in TUBE root — inherited from prior sessions</span>
+  <span class="n">24</span>
+</div>
+
+<a class="node" href="b.html"><span class="nm">b.html</span><span class="role">Arc-Tunnel Stable</span><span class="caps"></span><span class="sz">46 KB</span></a>
+<a class="node" href="arc_tunnel_riverbed_editor.html"><span class="nm">arc_tunnel_riverbed_editor.html</span><span class="role">Riverbed Editor</span><span class="caps"></span><span class="sz">63 KB</span></a>
+<a class="node" href="arc_tunnel_beast_single_file.html"><span class="nm">arc_tunnel_beast_single_file.html</span><span class="role">Beast Build</span><span class="caps"></span><span class="sz">35 KB</span></a>
+<a class="node" href="arc_tunnel_operator_single_file.html"><span class="nm">arc_tunnel_operator_single_file.html</span><span class="role">Base Operator</span><span class="caps"></span><span class="sz">30 KB</span></a>
+<a class="node" href="arc_tunnel_operator_full_single_file.html"><span class="nm">arc_tunnel_operator_full_single_file.html</span><span class="role">Full Build</span><span class="caps"></span><span class="sz">33 KB</span></a>
+<a class="node" href="arc_splice_section_bay.html"><span class="nm">arc_splice_section_bay.html</span><span class="role">Section Bay</span><span class="caps"></span><span class="sz">37 KB</span></a>
+<a class="node" href="arc_splice_operator_3dth.html"><span class="nm">arc_splice_operator_3dth.html</span><span class="role">3D Threshold</span><span class="caps"></span><span class="sz">31 KB</span></a>
+<a class="node" href="arc_splice_operator_editor.html"><span class="nm">arc_splice_operator_editor.html</span><span class="role">Splice Editor</span><span class="caps"></span><span class="sz">25 KB</span></a>
+<a class="node" href="tactile_arc_tunnel_section_surgery.html"><span class="nm">tactile_arc_tunnel_section_surgery.html</span><span class="role">Touch Surgery</span><span class="caps"></span><span class="sz">40 KB</span></a>
+<a class="node" href="clip_surgery_bay_single_file_html.html"><span class="nm">clip_surgery_bay_single_file_html.html</span><span class="role">Clip Surgery</span><span class="caps"></span><span class="sz">32 KB</span></a>
+<a class="node" href="persistent_sensorama_cone_single_file_html.html"><span class="nm">persistent_sensorama_cone_single_file_html.html</span><span class="role">Persistent Cone</span><span class="caps"></span><span class="sz">30 KB</span></a>
+<a class="node" href="icaro-state-lens-operator.html"><span class="nm">icaro-state-lens-operator.html</span><span class="role">State Lens</span><span class="caps"></span><span class="sz">284 KB</span></a>
+<a class="node" href="icaro-nsds-operator-patch-rl-fast.html"><span class="nm">icaro-nsds-operator-patch-rl-fast.html</span><span class="role">Fast RL</span><span class="caps"></span><span class="sz">267 KB</span></a>
+<a class="node" href="icaro_slice_trial_mode.html"><span class="nm">icaro_slice_trial_mode.html</span><span class="role">Slice Trial</span><span class="caps"></span><span class="sz">50 KB</span></a>
+<a class="node" href="icaro-slice-court-1.html"><span class="nm">icaro-slice-court-1.html</span><span class="role">Slice Court</span><span class="caps"></span><span class="sz">35 KB</span></a>
+<a class="node" href="icaro_stepping_stone_operator.html"><span class="nm">icaro_stepping_stone_operator.html</span><span class="role">Stepping Stone</span><span class="caps"></span><span class="sz">31 KB</span></a>
+<a class="node" href="icaro_patch_policy_operator.html"><span class="nm">icaro_patch_policy_operator.html</span><span class="role">Patch Policy</span><span class="caps"></span><span class="sz">32 KB</span></a>
+<a class="node" href="sensorama_vr_timeline_geometry.html"><span class="nm">sensorama_vr_timeline_geometry.html</span><span class="role">Timeline Geo</span><span class="caps"></span><span class="sz">52 KB</span></a>
+<a class="node" href="sensorama_vr_futures_cone_refined.html"><span class="nm">sensorama_vr_futures_cone_refined.html</span><span class="role">Refined Cone</span><span class="caps"></span><span class="sz">41 KB</span></a>
+<a class="node" href="sensorama_vr_cone_wall_clean_ux.html"><span class="nm">sensorama_vr_cone_wall_clean_ux.html</span><span class="role">Clean UX</span><span class="caps"></span><span class="sz">40 KB</span></a>
+<a class="node" href="sensorama_scot_mobile_planner.html"><span class="nm">sensorama_scot_mobile_planner.html</span><span class="role">SCOT Planner</span><span class="caps"></span><span class="sz">29 KB</span></a>
+<a class="node" href="sensorama_vr_futures_cone_density.html"><span class="nm">sensorama_vr_futures_cone_density.html</span><span class="role">Density View</span><span class="caps"></span><span class="sz">25 KB</span></a>
+<a class="node" href="riverbed_video_editor_prototype.html"><span class="nm">riverbed_video_editor_prototype.html</span><span class="role">Editor Proto</span><span class="caps"></span><span class="sz">41 KB</span></a>
+<a class="node" href="taxonomy_spiral_film_matrix (1).html"><span class="nm">taxonomy_spiral_film_matrix (1).html</span><span class="role">Taxonomy Spiral</span><span class="caps"></span><span class="sz">36 KB</span></a>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- DATA -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="sec-h" id="S-DATA">
+  <h2>DATA</h2>
+  <span class="d">RL state — tensor captures — worldtext exports</span>
+  <span class="n">6</span>
+</div>
+<div class="node data"><span class="nm">rl-policy-operator.json</span><span class="role">Q-Table</span><span class="sz">720 KB</span></div>
+<div class="node data"><span class="nm">video-rl-policy.json</span><span class="role">Video Q</span><span class="sz">153 KB</span></div>
+<div class="node data"><span class="nm">icaro_tensor_frame_05.json</span><span class="role">Tensor F05</span><span class="sz">197 KB</span></div>
+<div class="node data"><span class="nm">icaro-slice-court-evidence.json</span><span class="role">Court Evidence</span><span class="sz">144 KB</span></div>
+<div class="node data"><span class="nm">golden-egg-1777153445441.md</span><span class="role">Worldtext MD</span><span class="sz">18 KB</span></div>
+<div class="node data"><span class="nm">golden-egg-blocks-1777153444237.json</span><span class="role">Worldtext JSON</span><span class="sz">30 KB</span></div>
+
+<footer id="ft">
+  <span><b>36</b> PARTS</span>
+  <span><b>34</b> UNIQUE</span>
+  <span><b>13</b> FULL PIPELINE</span>
+  <span><b>9</b> LOAD+PLAY</span>
+  <span><b>8</b> RENDER</span>
+  <span><b>3</b> UI ONLY</span>
+  <span><b>2</b> DUPLICATES</span>
+  <span><b>24</b> ROOT TOOLS</span>
+</footer>
+
+<script>
+const navLinks=document.querySelectorAll('#nav a');
+const secHeaders=document.querySelectorAll('.sec-h');
+const nodes=document.querySelectorAll('.node');
+let boundNode=null;
+
+nodes.forEach(n=>{n.addEventListener('click',()=>{
+  if(boundNode)boundNode.classList.remove('bound');
+  n.classList.add('bound');boundNode=n;
+})});
+
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){
+    const f=e.target.id;
+    navLinks.forEach(a=>a.classList.toggle('active',a.dataset.f===f));
+  }});
+},{root:null,rootMargin:'-40px 0px -60% 0px',threshold:0});
+secHeaders.forEach(h=>obs.observe(h));
+
+navLinks.forEach(a=>{a.addEventListener('click',e=>{
+  e.preventDefault();
+  const t=document.getElementById(a.dataset.f);
+  if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+  navLinks.forEach(l=>l.classList.remove('active'));
+  a.classList.add('active');
+})});
+
+let fi=-1;const na=Array.from(nodes);
+document.addEventListener('keydown',e=>{
+  if(e.key==='j'||e.key==='ArrowDown'){e.preventDefault();fi=Math.min(fi+1,na.length-1);bf()}
+  if(e.key==='k'||e.key==='ArrowUp'){e.preventDefault();fi=Math.max(fi-1,0);bf()}
+  if(e.key==='Enter'&&fi>=0){const n=na[fi];if(n.href)window.location.href=n.href}
+});
+function bf(){
+  if(boundNode)boundNode.classList.remove('bound');
+  const n=na[fi];n.classList.add('bound');
+  n.scrollIntoView({behavior:'smooth',block:'center'});
+  boundNode=n;
+}
+</script>
+</body>
+</html>

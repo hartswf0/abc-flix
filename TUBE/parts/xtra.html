@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc-Tunnel Operator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #05060a;
+            --fg: #f8fafc;
+            --ink: #020305;
+            --muted: #94a3b8;
+            --rail: #d7ffe4;
+            --hot: #9CFFB8;
+            --hot2: #ffffff;
+            --red: #d83a1a;
+            --c0: #6ee7b7;
+            --c1: #a78bfa;
+            --c2: #fb7185;
+            --c3: #fbbf24;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            touch-action: none;
+            user-select: none
+        }
+
+        body:before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 80;
+            background: radial-gradient(circle at 50% 52%, rgba(156, 255, 184, .06), transparent 42%), radial-gradient(circle at 50% 50%, rgba(216, 58, 26, .08), transparent 62%)
+        }
+
+        body:after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 90;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.032'/%3E%3C/svg%3E");
+            mix-blend-mode: screen
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            background: #05060a;
+            cursor: crosshair;
+            z-index: 1
+        }
+
+        #topbar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 62px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px 0 18px;
+            z-index: 50;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(5, 6, 10, .96), rgba(5, 6, 10, .38), transparent)
+        }
+
+        #brand {
+            pointer-events: none;
+            letter-spacing: .17em;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: var(--red);
+            font-weight: 700;
+            white-space: nowrap;
+            text-shadow: 0 0 14px rgba(216, 58, 26, .28)
+        }
+
+        #modePill {
+            pointer-events: none;
+            color: #fff;
+            border: 1px solid rgba(156, 255, 184, .55);
+            box-shadow: 0 0 18px rgba(156, 255, 184, .1);
+            background: rgba(5, 6, 10, .64);
+            height: 34px;
+            min-width: 126px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        #buttons {
+            display: flex;
+            gap: 9px;
+            pointer-events: auto
+        }
+
+        button {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1px solid rgba(248, 250, 252, .34);
+            background: rgba(5, 6, 10, .72);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            backdrop-filter: blur(8px);
+            cursor: pointer;
+            transition: transform .1s, border-color .12s, box-shadow .12s, background .12s
+        }
+
+        button:hover,
+        button.on {
+            border-color: var(--hot);
+            color: var(--hot);
+            box-shadow: 0 0 18px rgba(156, 255, 184, .22);
+            background: rgba(156, 255, 184, .12)
+        }
+
+        button:active {
+            transform: scale(.9)
+        }
+
+        button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            stroke: currentColor
+        }
+
+        #monitor {
+            position: fixed;
+            right: 18px;
+            top: 78px;
+            width: 222px;
+            height: 118px;
+            border: 1px solid rgba(248, 250, 252, .28);
+            background: #030406;
+            z-index: 46;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .46)
+        }
+
+        #monitor:before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(255, 255, 255, .035) 50%);
+            background-size: 100% 4px;
+            opacity: .8
+        }
+
+        #monitor:after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 45px #000;
+            border-radius: 12px
+        }
+
+        #monId {
+            position: relative;
+            z-index: 2;
+            font-size: 25px;
+            line-height: 1;
+            color: var(--hot);
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-align: center
+        }
+
+        #monSub {
+            position: relative;
+            z-index: 2;
+            margin-top: 8px;
+            color: #fff;
+            font-size: 11px;
+            letter-spacing: .15em;
+            text-transform: uppercase
+        }
+
+        #bottomRail {
+            position: fixed;
+            left: 18px;
+            right: 18px;
+            bottom: 18px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            pointer-events: none
+        }
+
+        #tracks {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            pointer-events: auto;
+            background: rgba(5, 6, 10, .48);
+            border: 1px solid rgba(255, 255, 255, .13);
+            padding: 9px;
+            border-radius: 999px;
+            backdrop-filter: blur(10px)
+        }
+
+        .trackBtn {
+            width: auto;
+            height: 34px;
+            border-radius: 999px;
+            padding: 0 12px;
+            font-size: 11px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            border-color: rgba(255, 255, 255, .18);
+            box-shadow: none;
+            background: rgba(255, 255, 255, .04)
+        }
+
+        .trackBtn.active {
+            background: var(--track);
+            color: #030406;
+            border-color: #fff;
+            box-shadow: 0 0 18px color-mix(in srgb, var(--track), transparent 62%)
+        }
+
+        #readout {
+            height: 42px;
+            min-width: 210px;
+            border: 1px solid rgba(156, 255, 184, .42);
+            background: rgba(5, 6, 10, .62);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            letter-spacing: .11em;
+            text-transform: uppercase;
+            font-size: 12px;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 20px rgba(156, 255, 184, .08)
+        }
+
+        #centerDot {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 38px;
+            height: 38px;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: 50%;
+            z-index: 40;
+            pointer-events: none;
+            transition: transform .08s, border-color .08s, box-shadow .08s
+        }
+
+        #centerDot:after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 3px;
+            height: 3px;
+            transform: translate(-50%, -50%);
+            background: var(--hot);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--hot)
+        }
+
+        #centerDot.hit {
+            border-color: #fff;
+            box-shadow: 0 0 22px rgba(156, 255, 184, .52);
+            transform: translate(-50%, -50%) scale(1.26)
+        }
+
+        #gestureHelp {
+            position: fixed;
+            left: 18px;
+            top: 78px;
+            z-index: 45;
+            pointer-events: none;
+            color: #fff;
+            font-size: 11px;
+            letter-spacing: .09em;
+            line-height: 1.7;
+            text-transform: uppercase;
+            background: rgba(5, 6, 10, .35);
+            border: 1px solid rgba(255, 255, 255, .1);
+            padding: 10px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            opacity: .82
+        }
+
+        #gestureHelp b {
+            color: var(--hot);
+            font-weight: 700
+        }
+
+        @media(max-width:760px) {
+            #topbar {
+                height: 56px;
+                padding: 9px 12px 0 12px
+            }
+
+            #brand {
+                font-size: 10px;
+                max-width: 42vw;
+                overflow: hidden;
+                text-overflow: ellipsis
+            }
+
+            #modePill {
+                height: 30px;
+                min-width: 92px;
+                font-size: 10px;
+                letter-spacing: .08em
+            }
+
+            #buttons {
+                gap: 6px
+            }
+
+            button {
+                width: 38px;
+                height: 38px
+            }
+
+            #gestureHelp {
+                display: none
+            }
+
+            #monitor {
+                top: 64px;
+                right: 12px;
+                width: 152px;
+                height: 82px;
+                border-radius: 10px
+            }
+
+            #monId {
+                font-size: 18px
+            }
+
+            #monSub {
+                font-size: 9px;
+                margin-top: 5px
+            }
+
+            #bottomRail {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                gap: 8px;
+                align-items: flex-end
+            }
+
+            #tracks {
+                gap: 5px;
+                padding: 6px;
+                max-width: calc(100vw - 116px);
+                overflow: hidden
+            }
+
+            .trackBtn {
+                height: 32px;
+                width: 32px;
+                padding: 0;
+                font-size: 0;
+                border-radius: 50%
+            }
+
+            .trackBtn:after {
+                content: attr(data-short);
+                font-size: 12px;
+                letter-spacing: 0;
+                color: inherit
+            }
+
+            #readout {
+                min-width: 92px;
+                height: 44px;
+                font-size: 11px;
+                padding: 0 9px;
+                text-align: center
+            }
+
+            #centerDot {
+                width: 34px;
+                height: 34px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="stage"></canvas>
+    <div id="centerDot"></div>
+    <header id="topbar">
+        <div id="brand">Arc-Tunnel Operator</div>
+        <div id="modePill">Tube</div>
+        <div id="buttons">
+            <button id="viewBtn" title="Change view" aria-label="Change view"><svg viewBox="0 0 24 24" fill="none"
+                    stroke-width="2">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M3 12h18M12 3v18"></path>
+                </svg></button>
+            <button id="playBtn" title="Play" aria-label="Play"><svg id="playIcon" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"></path>
+                </svg></button>
+        </div>
+    </header>
+    <section id="gestureHelp">
+        <div><b>empty drag</b> scrub</div>
+        <div><b>edge handles</b> trim to rails</div>
+        <div><b>top dial</b> roll section</div>
+        <div><b>double tap</b> cleave</div>
+    </section>
+    <section id="monitor">
+        <div id="monId">NO SIGNAL</div>
+        <div id="monSub">—</div>
+    </section>
+    <footer id="bottomRail">
+        <div id="tracks"></div>
+        <div id="readout">READY</div>
+    </footer>
+    <script>
+        (function () {
+            'use strict';
+            const canvas = document.getElementById('stage');
+            const ctx = canvas.getContext('2d');
+            const centerDot = document.getElementById('centerDot');
+            const readout = document.getElementById('readout');
+            const modePill = document.getElementById('modePill');
+            const monId = document.getElementById('monId');
+            const monSub = document.getElementById('monSub');
+            const trackWrap = document.getElementById('tracks');
+            const playBtn = document.getElementById('playBtn');
+            const viewBtn = document.getElementById('viewBtn');
+            const COLORS = ['#6ee7b7', '#a78bfa', '#fb7185', '#fbbf24'];
+            const NAMES = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERRED'];
+            const SHORT = ['P', 'L', 'B', 'F'];
+            const SNAP = 60;
+            const TUBE_R = 238;
+            const FOV = 820;
+            const FAR = 5400;
+            const GAP = .04;
+            let DPR = 1;
+            let nextId = 1;
+            const state = {
+                W: 0, H: 0, CX: 0, CY: 0,
+                view: 0, flat: 0, targetFlat: 0, pan: 0, targetPan: 0,
+                cameraZ: 140, cameraRoll: 0, targetRoll: 0, speed: 0, playing: false,
+                activeTrack: 2,
+                hover: null, selected: null,
+                drag: null, dragMode: null, scrub: null,
+                roll: null, cohort: [], section: null,
+                snapPreview: null, lastTickZ: 0, lastTapClip: null, lastTapTime: 0,
+                pointer: { x: 0, y: 0 }
+            };
+            const tracks = [[], [], [], []];
+            const offsets = [0, 0, 0, 0];
+            let polys = [];
+            function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function lerp(a, b, t) { return a + (b - a) * t }
+            function snap(v) { return Math.round(v / SNAP) * SNAP }
+            function norm(a) { while (a < -Math.PI) a += Math.PI * 2; while (a >= Math.PI) a -= Math.PI * 2; return a }
+            function qtr(v) { return Math.round(v / (Math.PI / 2)) * (Math.PI / 2) }
+            function uid() { return 'SC-' + String(nextId++).padStart(3, '0') }
+            function pulse() { centerDot.classList.add('hit'); window.setTimeout(() => centerDot.classList.remove('hit'), 120) }
+            function vibe(pattern) { if (navigator.vibrate) { try { navigator.vibrate(pattern) } catch (e) { } } }
+            function init() {
+                for (let t = 0; t < 4; t++) {
+                    tracks[t] = []; offsets[t] = 0;
+                    let z = 0;
+                    while (z < 8200) {
+                        const dur = snap(170 + Math.random() * 760);
+                        tracks[t].push({ id: uid(), dur: Math.max(SNAP, dur), roll: 0, mark: Math.random() });
+                        z += dur;
+                    }
+                }
+                NAMES.forEach((name, i) => {
+                    const b = document.createElement('button');
+                    b.className = 'trackBtn';
+                    b.textContent = name;
+                    b.dataset.short = SHORT[i];
+                    b.style.setProperty('--track', COLORS[i]);
+                    b.addEventListener('pointerdown', e => { e.stopPropagation(); selectTrack(i); });
+                    trackWrap.appendChild(b);
+                });
+            }
+            function resize() {
+                DPR = Math.min(2, window.devicePixelRatio || 1);
+                state.W = window.innerWidth; state.H = window.innerHeight; state.CX = state.W / 2; state.CY = state.H / 2;
+                canvas.width = Math.floor(state.W * DPR); canvas.height = Math.floor(state.H * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+            function project(x, y, z) {
+                const viewAngle = state.pan * Math.PI / 2;
+                const camDist = 1050;
+                const focusZ = state.cameraZ + 360;
+                const camX = Math.sin(viewAngle) * camDist;
+                const camZ = focusZ - Math.cos(viewAngle) * camDist;
+                const camY = -state.pan * 40;
+                let vx = x - camX, vy = y - camY, vz = z - camZ;
+                const ca = Math.cos(-viewAngle), sa = Math.sin(-viewAngle);
+                const rx = vx * ca - vz * sa;
+                const rz = vx * sa + vz * ca;
+                const ry = vy;
+                if (rz < 18) return null;
+                const s = FOV / rz;
+                return { x: state.CX + rx * s, y: state.CY + ry * s, s, depth: rz };
+            }
+            function trackAngle(t) { return t * Math.PI / 2 - Math.PI / 2 + state.cameraRoll }
+            function trackFromPointer(x, y) {
+                const a = norm(Math.atan2(y - state.CY, x - state.CX) - state.cameraRoll);
+                if (a >= -Math.PI / 4 && a < Math.PI / 4) return 1;
+                if (a >= Math.PI / 4 && a < 3 * Math.PI / 4) return 2;
+                if (a >= -3 * Math.PI / 4 && a < -Math.PI / 4) return 0;
+                return 3;
+            }
+            function laneY(t) {
+                const top = state.H < 760 ? 158 : 156;
+                const bottom = state.H < 760 ? state.H - 108 : state.H - 132;
+                const usable = Math.max(170, bottom - top);
+                return top + (t + .5) * (usable / 4);
+            }
+            function laneHeight() {
+                const top = state.H < 760 ? 158 : 156;
+                const bottom = state.H < 760 ? state.H - 108 : state.H - 132;
+                return Math.max(42, Math.min(128, (bottom - top) / 4 * .72));
+            }
+            function flatY(t, u) { return laneY(t) + (u - .5) * laneHeight() * .86 }
+            function worldPoint(t, u, z, localRoll) {
+                const angle = trackAngle(t) + (u - .5) * (Math.PI / 2 - GAP * 2) + localRoll;
+                const cylX = Math.cos(angle) * TUBE_R;
+                const cylY = Math.sin(angle) * TUBE_R;
+                const fy = flatY(t, u);
+                const x = lerp(cylX, 0, state.flat);
+                const y = lerp(cylY, fy, state.flat);
+                return { x, y, z };
+            }
+            function clipBounds(t, c) {
+                let z = offsets[t];
+                for (let i = 0; i < c; i++)z += tracks[t][i].dur;
+                const clip = tracks[t][c];
+                return { start: z, end: z + (clip ? clip.dur : 0), clip };
+            }
+            function overlap(a0, a1, b0, b1) { return a0 < b1 && b0 < a1 }
+            function buildCohort(t, c) {
+                const base = clipBounds(t, c);
+                const group = [];
+                if (!base.clip) return group;
+                for (let ti = 0; ti < 4; ti++) {
+                    for (let ci = 0; ci < tracks[ti].length; ci++) {
+                        const b = clipBounds(ti, ci);
+                        if (b.clip && overlap(base.start, base.end, b.start, b.end)) {
+                            group.push({ t: ti, c: ci, clip: b.clip, startRoll: b.clip.roll || 0, start: b.start, end: b.end });
+                        }
+                    }
+                }
+                state.section = { start: base.start, end: base.end };
+                return group;
+            }
+            function cohortHas(clip) { return state.cohort.some(item => item.clip === clip) }
+            function makeGeom(clip, t, c, z1, z2) {
+                const pts = [];
+                const steps = 5;
+                const roll = clip.roll || 0;
+                for (let i = 0; i <= steps; i++)pts.push(worldPoint(t, i / steps, z1, roll));
+                for (let i = steps; i >= 0; i--)pts.push(worldPoint(t, i / steps, z2, roll));
+                const screen = [];
+                let depth = Infinity;
+                for (const p of pts) {
+                    const q = project(p.x, p.y, p.z);
+                    if (!q) return null;
+                    screen.push(q); depth = Math.min(depth, q.depth);
+                }
+                const f = worldPoint(t, .5, z1, roll);
+                const b = worldPoint(t, .5, z2, roll);
+                const m = worldPoint(t, .5, (z1 + z2) / 2, roll);
+                const front = project(f.x, f.y, f.z);
+                const back = project(b.x, b.y, b.z);
+                const mid = project(m.x, m.y, m.z);
+                return { pts: screen, depth, front, back, mid, z1, z2 };
+            }
+            function pathFrom(pts) { const p = new Path2D(); p.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++)p.lineTo(pts[i].x, pts[i].y); p.closePath(); return p }
+            function inside(point, pts) {
+                let hit = false;
+                for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+                    const cross = ((yi > point.y) !== (yj > point.y)) && (point.x < (xj - xi) * (point.y - yi) / ((yj - yi) || .00001) + xi);
+                    if (cross) hit = !hit;
+                }
+                return hit;
+            }
+            function rollHandle(poly) {
+                if (!poly || !poly.geom.mid) return null;
+                const lift = state.flat > .7 ? laneHeight() * .72 : 52;
+                return { x: poly.geom.mid.x, y: poly.geom.mid.y - lift };
+            }
+            function dist(a, b, c, d) { return Math.hypot(a - c, b - d) }
+            function handleAt(x, y, poly) {
+                if (!poly || !poly.geom.front || !poly.geom.back) return null;
+                const threshold = state.W < 760 ? 32 : 26;
+                if (state.flat > .38 && dist(x, y, poly.geom.front.x, poly.geom.front.y) < threshold) return 'start';
+                if (dist(x, y, poly.geom.back.x, poly.geom.back.y) < threshold) return 'end';
+                const rh = rollHandle(poly);
+                if (state.flat > .38 && rh && dist(x, y, rh.x, rh.y) < (state.W < 760 ? 34 : 28)) return 'roll';
+                return inside({ x, y }, poly.geom.pts) ? 'body' : null;
+            }
+            function selectTrack(i) {
+                state.activeTrack = i;
+                const target = (2 - i) * Math.PI / 2;
+                let next = target;
+                while (next > state.targetRoll + Math.PI) next -= Math.PI * 2;
+                while (next < state.targetRoll - Math.PI) next += Math.PI * 2;
+                state.targetRoll = next;
+                pulse(); vibe(8);
+            }
+            function trimLabel(mode) { return mode === 'start' ? 'TRIM START' : mode === 'end' ? 'TRIM END' : mode === 'roll' ? 'ROLL SECTION' : 'MOVE CLIP' }
+            function setReadout(txt, color) { readout.textContent = txt; readout.style.borderColor = color || 'rgba(156,255,184,.42)'; readout.style.color = color || '#fff' }
+            function updateInfinite() {
+                for (let t = 0; t < 4; t++) {
+                    if (!tracks[t].length) continue;
+                    let first = tracks[t][0];
+                    while (offsets[t] + first.dur < state.cameraZ - 700) { offsets[t] += first.dur; tracks[t].push(tracks[t].shift()); first = tracks[t][0]; }
+                    while (state.cameraZ < offsets[t] - 200) { const last = tracks[t].pop(); offsets[t] -= last.dur; tracks[t].unshift(last); }
+                }
+            }
+            function currentClip() {
+                let z = offsets[state.activeTrack];
+                for (let i = 0; i < tracks[state.activeTrack].length; i++) {
+                    const clip = tracks[state.activeTrack][i];
+                    const n = z + clip.dur;
+                    if (z <= state.cameraZ && n > state.cameraZ) return { clip, t: state.activeTrack, c: i, start: z, end: n };
+                    z = n;
+                }
+                return null;
+            }
+            function drawTubeRings() {
+                ctx.save();
+                ctx.lineWidth = 1;
+                for (let zz = snap(state.cameraZ - 200); zz < state.cameraZ + FAR; zz += SNAP * 2) {
+                    const p = project(0, 0, zz);
+                    if (!p || p.s < .06) continue;
+                    ctx.globalAlpha = clamp(1 - p.depth / 4200, .04, .18) * (1 - state.flat * .7);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, TUBE_R * p.s, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            function drawLanes() {
+                if (state.flat < .08) return;
+                const a = state.flat;
+                ctx.save();
+                ctx.globalAlpha = a;
+                const lh = laneHeight();
+                for (let t = 0; t < 4; t++) {
+                    const y = laneY(t), col = COLORS[t];
+                    ctx.strokeStyle = col;
+                    ctx.globalAlpha = .14 * a;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(state.W - 20, y); ctx.stroke();
+                    ctx.globalAlpha = .78 * a;
+                    ctx.fillStyle = col;
+                    ctx.font = '700 11px Share Tech Mono, monospace';
+                    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                    if (state.W > 760) ctx.fillText(NAMES[t], 22, y - lh * .34);
+                }
+                ctx.restore();
+            }
+            function drawTicks() {
+                if (state.flat < .35) return;
+                const alpha = state.flat;
+                const top = state.H < 760 ? 148 : 132;
+                const bot = state.H < 760 ? state.H - 92 : state.H - 110;
+                const start = snap(state.cameraZ - 900), end = state.cameraZ + FAR;
+                ctx.save();
+                for (let z = start; z < end; z += SNAP) {
+                    const p = project(0, 0, z);
+                    if (!p || p.x < -70 || p.x > state.W + 70) continue;
+                    const major = Math.round(z / SNAP) % 4 === 0;
+                    ctx.globalAlpha = (major ? .48 : .18) * alpha;
+                    ctx.strokeStyle = major ? cssVar('--rail') : '#ffffff';
+                    ctx.lineWidth = major ? 1.4 : 1;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, top); ctx.lineTo(p.x, top + (major ? 34 : 17));
+                    ctx.moveTo(p.x, bot); ctx.lineTo(p.x, bot - (major ? 34 : 17));
+                    ctx.stroke();
+                }
+                if (state.snapPreview !== null) {
+                    const p = project(0, 0, state.snapPreview);
+                    if (p) {
+                        ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+                        ctx.beginPath(); ctx.moveTo(p.x, top - 8); ctx.lineTo(p.x, top + 48); ctx.moveTo(p.x, bot + 8); ctx.lineTo(p.x, bot - 48); ctx.stroke();
+                    }
+                }
+                if (state.section) {
+                    const a = project(0, 0, state.section.start), b = project(0, 0, state.section.end);
+                    if (a && b) {
+                        ctx.globalAlpha = .18 * alpha; ctx.fillStyle = cssVar('--hot'); ctx.fillRect(Math.min(a.x, b.x), top + 45, Math.abs(a.x - b.x), bot - top - 90);
+                        ctx.globalAlpha = .72 * alpha; ctx.strokeStyle = cssVar('--hot'); ctx.lineWidth = 2; ctx.setLineDash([8, 8]); ctx.beginPath(); ctx.moveTo(a.x, top + 40); ctx.lineTo(a.x, bot - 40); ctx.moveTo(b.x, top + 40); ctx.lineTo(b.x, bot - 40); ctx.stroke(); ctx.setLineDash([]);
+                    }
+                }
+                ctx.restore();
+            }
+            function drawHandle(x, y, color, label, active) {
+                if (!x && !y) return;
+                ctx.save();
+                ctx.beginPath(); ctx.arc(x, y, active ? 17 : 13, 0, Math.PI * 2); ctx.fillStyle = active ? '#fff' : color; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#030406'; ctx.stroke();
+                ctx.beginPath(); ctx.arc(x, y, active ? 26 : 21, 0, Math.PI * 2); ctx.strokeStyle = active ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.35)'; ctx.lineWidth = active ? 2 : 1; ctx.stroke();
+                ctx.fillStyle = '#030406'; ctx.font = '800 9px Share Tech Mono, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y + .5);
+                ctx.restore();
+            }
+            function drawRollDial(poly, color, active) {
+                if (state.flat < .35) return;
+                const h = rollHandle(poly); if (!h) return;
+                ctx.save();
+                ctx.beginPath(); ctx.arc(h.x, h.y, active ? 25 : 21, 0, Math.PI * 2); ctx.fillStyle = active ? 'rgba(156,255,184,.24)' : 'rgba(5,6,10,.82)'; ctx.fill(); ctx.lineWidth = active ? 2.5 : 1.5; ctx.strokeStyle = active ? '#fff' : color; ctx.stroke();
+                for (let i = 0; i < 4; i++) {
+                    const a = -Math.PI / 2 + i * Math.PI / 2;
+                    ctx.beginPath(); ctx.moveTo(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10); ctx.lineTo(h.x + Math.cos(a) * 28, h.y + Math.sin(a) * 28); ctx.strokeStyle = i === 0 ? '#fff' : 'rgba(255,255,255,.42)'; ctx.lineWidth = i === 0 ? 2 : 1; ctx.stroke();
+                }
+                ctx.beginPath(); ctx.moveTo(h.x, h.y + 23); ctx.lineTo(poly.geom.mid.x, poly.geom.mid.y); ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+            }
+            function drawClip(poly) {
+                const { clip, t, geom } = poly;
+                const color = COLORS[t];
+                const path = pathFrom(geom.pts);
+                const selected = state.selected && state.selected.clip === clip;
+                const hovered = state.hover && state.hover.clip === clip;
+                const cohort = cohortHas(clip);
+                const active = t === state.activeTrack;
+                const depthA = clamp(1 - geom.depth / 5500, .12, 1);
+                const focus = state.flat > .7 || active || selected || cohort ? .95 : .32;
+                ctx.save();
+                ctx.globalAlpha = depthA * focus * (cohort ? 1 : .86);
+                ctx.fillStyle = color;
+                ctx.fill(path);
+                ctx.globalAlpha = depthA * (hovered || selected || cohort ? 1 : .52);
+                ctx.strokeStyle = cohort ? cssVar('--hot') : (selected ? '#fff' : color);
+                ctx.lineWidth = cohort || selected ? 2.4 : 1.15;
+                ctx.stroke(path);
+                if (cohort) { ctx.globalAlpha = .22; ctx.fillStyle = '#fff'; ctx.fill(path) }
+                if (geom.mid && geom.mid.s > .12) {
+                    const labelOn = selected || hovered || cohort || state.flat > .68 || geom.depth < 2100;
+                    if (labelOn) {
+                        ctx.globalAlpha = depthA * (selected || hovered || cohort ? 1 : .8);
+                        ctx.fillStyle = '#fff';
+                        const fs = clamp(18 * geom.mid.s, 9, 23);
+                        ctx.font = '800 ' + fs + 'px Share Tech Mono, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        let rot = 0;
+                        if (state.flat < .45) { const p0 = geom.pts[0], p1 = geom.pts[geom.pts.length - 1]; rot = Math.atan2(p1.y - p0.y, p1.x - p0.x); if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI; }
+                        ctx.save(); ctx.translate(geom.mid.x, geom.mid.y); ctx.rotate(rot); ctx.fillText(clip.id, 0, 0); ctx.restore();
+                    }
+                }
+                if ((selected || hovered || state.drag && state.drag.clip === clip) && state.flat > .35) {
+                    const mode = state.hover && state.hover.clip === clip ? state.hover.mode : null;
+                    drawHandle(geom.front && geom.front.x, geom.front && geom.front.y, color, 'S', mode === 'start' || state.dragMode === 'start');
+                    drawHandle(geom.back && geom.back.x, geom.back && geom.back.y, color, 'E', mode === 'end' || state.dragMode === 'end');
+                    drawRollDial(poly, color, mode === 'roll' || state.dragMode === 'roll');
+                }
+                ctx.restore();
+            }
+            function updateHud() {
+                const active = (Math.round(2 - state.cameraRoll / (Math.PI / 2)) % 4 + 4) % 4;
+                state.activeTrack = active;
+                const btns = [...trackWrap.children];
+                btns.forEach((b, i) => b.classList.toggle('active', i === active));
+                const cur = currentClip();
+                if (cur) { monId.textContent = cur.clip.id; monId.style.color = COLORS[cur.t]; monSub.textContent = NAMES[cur.t]; document.getElementById('monitor').style.borderColor = COLORS[cur.t]; }
+                else { monId.textContent = 'NO SIGNAL'; monSub.textContent = '—'; monId.style.color = cssVar('--muted'); document.getElementById('monitor').style.borderColor = 'rgba(248,250,252,.28)'; }
+                if (state.drag) setReadout(trimLabel(state.dragMode), COLORS[state.drag.t]);
+                else if (state.roll) setReadout('ROLL ' + state.cohort.length + ' CLIPS', cssVar('--hot'));
+                else if (state.hover) setReadout(state.hover.mode === 'body' ? state.hover.clip.id : trimLabel(state.hover.mode), COLORS[state.hover.t]);
+                else if (state.selected) setReadout(state.selected.clip.id, COLORS[state.selected.t]);
+                else setReadout(NAMES[active], COLORS[active]);
+            }
+            function cleave(t, c) {
+                const clip = tracks[t][c];
+                if (!clip || clip.dur < SNAP * 2) return;
+                const a = snap(clip.dur / 2), b = clip.dur - a;
+                tracks[t].splice(c, 1, { id: clip.id + 'A', dur: a, roll: clip.roll || 0, mark: clip.mark }, { id: clip.id + 'B', dur: b, roll: clip.roll || 0, mark: clip.mark });
+                pulse(); vibe([8, 20, 8]);
+            }
+            function portClip(item, newTrack) {
+                if (newTrack === item.t) return;
+                const oldTrack = item.t, oldIdx = item.c, clip = item.clip;
+                const b = clipBounds(oldTrack, oldIdx);
+                tracks[oldTrack].splice(oldIdx, 1);
+                let z = offsets[newTrack], insert = 0;
+                for (let i = 0; i < tracks[newTrack].length; i++) {
+                    if (z > b.start) { insert = i; break }
+                    z += tracks[newTrack][i].dur; insert = i + 1;
+                }
+                tracks[newTrack].splice(insert, 0, clip);
+                item.t = newTrack; item.c = insert;
+                state.selected = { clip, t: newTrack, c: insert };
+                pulse(); vibe(10);
+            }
+            function pointerDown(e) {
+                if (e.target.closest('button')) return;
+                e.preventDefault();
+                canvas.setPointerCapture(e.pointerId);
+                state.pointer = { x: e.clientX, y: e.clientY };
+                state.scrub = null; state.drag = null; state.roll = null; state.snapPreview = null;
+                for (let i = polys.length - 1; i >= 0; i--) {
+                    const poly = polys[i];
+                    const mode = handleAt(e.clientX, e.clientY, poly);
+                    if (mode) {
+                        state.selected = { clip: poly.clip, t: poly.t, c: poly.c };
+                        const now = performance.now();
+                        if (mode === 'body' && state.lastTapClip === poly.clip && now - state.lastTapTime < 320) { cleave(poly.t, poly.c); state.lastTapClip = null; return; }
+                        state.lastTapClip = poly.clip; state.lastTapTime = now;
+                        if (mode === 'roll') {
+                            const cohort = buildCohort(poly.t, poly.c);
+                            state.cohort = cohort;
+                            state.roll = { clip: poly.clip, t: poly.t, c: poly.c, startX: e.clientX, startY: e.clientY, handle: rollHandle(poly), startAngle: 0 };
+                            if (state.roll.handle) state.roll.startAngle = Math.atan2(e.clientY - state.roll.handle.y, e.clientX - state.roll.handle.x);
+                            state.dragMode = 'roll';
+                            pulse(); vibe(6); return;
+                        }
+                        const bounds = clipBounds(poly.t, poly.c);
+                        state.drag = { clip: poly.clip, t: poly.t, c: poly.c, startX: e.clientX, startY: e.clientY, bounds, offset: offsets[poly.t], dur: poly.clip.dur };
+                        state.dragMode = mode;
+                        state.cohort = []; state.section = null;
+                        pulse(); vibe(5); return;
+                    }
+                }
+                state.scrub = { x: e.clientX, y: e.clientY, z: state.cameraZ };
+                state.cohort = []; state.section = null;
+            }
+            function pointerMove(e) {
+                state.pointer = { x: e.clientX, y: e.clientY };
+                if (state.roll) {
+                    let delta;
+                    if (state.roll.handle) {
+                        const ang = Math.atan2(e.clientY - state.roll.handle.y, e.clientX - state.roll.handle.x);
+                        delta = norm(ang - state.roll.startAngle);
+                        if (Math.abs(e.clientX - state.roll.startX) > 50) delta += (e.clientX - state.roll.startX) / 280;
+                    } else delta = (e.clientX - state.roll.startX) / 110;
+                    const snapped = qtr(delta);
+                    state.cohort.forEach(item => { item.clip.roll = item.startRoll + snapped; });
+                    setReadout('ROLL ' + (snapped / (Math.PI / 2)).toFixed(0) + ' / ' + state.cohort.length, cssVar('--hot'));
+                    return;
+                }
+                if (state.drag) {
+                    const d = state.drag;
+                    const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+                    if (state.dragMode === 'start' || state.dragMode === 'end') {
+                        const delta = state.flat > .35 ? dx * 2.15 : (-dy + dx * .35) * 1.3;
+                        if (state.dragMode === 'end') {
+                            const nextEnd = snap(d.bounds.end + delta);
+                            const dur = Math.max(SNAP, nextEnd - d.bounds.start);
+                            d.clip.dur = dur; state.snapPreview = d.bounds.start + dur;
+                        } else {
+                            let nextStart = snap(d.bounds.start + delta);
+                            const dur = Math.max(SNAP, d.bounds.end - nextStart);
+                            nextStart = d.bounds.end - dur;
+                            d.clip.dur = dur;
+                            offsets[d.t] = d.offset + (nextStart - d.bounds.start);
+                            state.snapPreview = nextStart;
+                        }
+                        return;
+                    }
+                    if (state.dragMode === 'body') {
+                        let nt = d.t;
+                        if (state.flat > .45) {
+                            let best = 0, bestDist = Infinity;
+                            for (let t = 0; t < 4; t++) { const dd = Math.abs(e.clientY - laneY(t)); if (dd < bestDist) { bestDist = dd; best = t; } }
+                            nt = best;
+                        } else nt = trackFromPointer(e.clientX, e.clientY);
+                        if (nt !== d.t) portClip(d, nt);
+                        return;
+                    }
+                }
+                if (state.scrub) {
+                    const dx = e.clientX - state.scrub.x, dy = e.clientY - state.scrub.y;
+                    const delta = state.flat > .35 ? -dx * 3.2 : dy * 4.2;
+                    state.cameraZ = state.scrub.z + delta;
+                    state.speed = state.flat > .35 ? -dx * .08 : dy * .11;
+                    return;
+                }
+                state.hover = null;
+                for (let i = polys.length - 1; i >= 0; i--) {
+                    const poly = polys[i];
+                    const mode = handleAt(e.clientX, e.clientY, poly);
+                    if (mode) { state.hover = { clip: poly.clip, t: poly.t, c: poly.c, mode }; canvas.style.cursor = mode === 'body' ? 'grab' : mode === 'roll' ? 'alias' : 'ew-resize'; return; }
+                }
+                canvas.style.cursor = 'crosshair';
+            }
+            function pointerUp(e) {
+                try { canvas.releasePointerCapture(e.pointerId) } catch (err) { }
+                if (state.roll) {
+                    state.cohort.forEach(item => { item.clip.roll = qtr(item.clip.roll || 0); });
+                    pulse(); vibe([10, 18, 10]);
+                }
+                if (state.drag) { pulse(); vibe(8); }
+                state.roll = null; state.drag = null; state.dragMode = null; state.scrub = null; state.snapPreview = null;
+            }
+            function wheel(e) { state.cameraZ += e.deltaY * 1.2; state.speed = e.deltaY * .04; }
+            function key(e) {
+                if (e.key === ' ') { togglePlay(); e.preventDefault(); }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') selectTrack((state.activeTrack + 1) % 4);
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') selectTrack((state.activeTrack + 3) % 4);
+            }
+            function togglePlay() {
+                state.playing = !state.playing;
+                playBtn.classList.toggle('on', state.playing);
+                playBtn.innerHTML = state.playing ? '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>';
+                vibe(10); pulse();
+            }
+            function cycleView() {
+                state.view = (state.view + 1) % 3;
+                const names = ['Tube', 'Bench', 'Hybrid'];
+                modePill.textContent = names[state.view];
+                if (state.view === 0) { state.targetFlat = 0; state.targetPan = 0; }
+                if (state.view === 1) { state.targetFlat = 1; state.targetPan = 1; }
+                if (state.view === 2) { state.targetFlat = .45; state.targetPan = .65; }
+                pulse(); vibe(8);
+            }
+            function draw() {
+                ctx.clearRect(0, 0, state.W, state.H);
+                ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, state.W, state.H);
+                state.flat = lerp(state.flat, state.targetFlat, .12);
+                state.pan = lerp(state.pan, state.targetPan, .12);
+                state.cameraRoll = lerp(state.cameraRoll, state.targetRoll, .14);
+                if (state.playing && !state.scrub && !state.drag && !state.roll) state.speed = lerp(state.speed, 8.8, .035);
+                else if (!state.scrub) state.speed *= .9;
+                state.cameraZ += state.speed;
+                if (Math.abs(state.cameraZ - state.lastTickZ) > 240) { state.lastTickZ = state.cameraZ; if (state.playing || Math.abs(state.speed) > 3) { pulse(); } }
+                updateInfinite();
+                drawTubeRings();
+                drawLanes();
+                drawTicks();
+                polys = [];
+                const queue = [];
+                for (let t = 0; t < 4; t++) {
+                    let z = offsets[t];
+                    for (let c = 0; c < tracks[t].length; c++) {
+                        const clip = tracks[t][c];
+                        const z1 = z, z2 = z + clip.dur; z = z2;
+                        if (z2 < state.cameraZ - 200 || z1 > state.cameraZ + FAR) continue;
+                        const geom = makeGeom(clip, t, c, z1, z2);
+                        if (geom) queue.push({ clip, t, c, geom });
+                    }
+                }
+                queue.sort((a, b) => b.geom.depth - a.geom.depth);
+                queue.forEach(poly => { polys.push(poly); drawClip(poly); });
+                updateHud();
+                requestAnimationFrame(draw);
+            }
+            window.addEventListener('resize', resize);
+            canvas.addEventListener('contextmenu', e => { e.preventDefault(); return false; });
+            document.addEventListener('contextmenu', e => { if (e.target === canvas) e.preventDefault(); });
+            canvas.addEventListener('pointerdown', pointerDown);
+            canvas.addEventListener('pointermove', pointerMove);
+            canvas.addEventListener('pointerup', pointerUp);
+            canvas.addEventListener('pointercancel', pointerUp);
+            window.addEventListener('wheel', wheel, { passive: true });
+            window.addEventListener('keydown', key);
+            playBtn.addEventListener('click', togglePlay);
+            viewBtn.addEventListener('click', cycleView);
+            resize(); init(); selectTrack(2); requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

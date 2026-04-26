@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>Arc Tunnel Operator Full</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace
+        }
+
+        button,
+        input {
+            font: inherit;
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 0
+        }
+
+        button {
+            height: 34px;
+            padding: 0 8px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        button.active {
+            background: #000;
+            color: #fff
+        }
+
+        .app {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-columns: 52px 1fr 310px;
+            grid-template-rows: 46px 1fr 66px;
+            background: #fff
+        }
+
+        .top {
+            grid-column: 1/4;
+            border-bottom: 2px solid #000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            z-index: 5
+        }
+
+        .brand {
+            width: 52px;
+            height: 46px;
+            border-right: 2px solid #000;
+            display: grid;
+            place-items: center;
+            font-weight: 1000
+        }
+
+        .title {
+            flex: 1;
+            font-weight: 1000;
+            letter-spacing: .06em;
+            white-space: nowrap;
+            overflow: hidden
+        }
+
+        .left {
+            grid-column: 1;
+            grid-row: 2/4;
+            border-right: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            align-items: center;
+            padding: 8px 4px
+        }
+
+        .left button {
+            width: 42px;
+            height: 35px;
+            font-size: 10px;
+            padding: 0
+        }
+
+        .spacer {
+            flex: 1
+        }
+
+        .stage {
+            grid-column: 2;
+            grid-row: 2;
+            position: relative;
+            overflow: hidden;
+            background: #fff
+        }
+
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff
+        }
+
+        .side {
+            grid-column: 3;
+            grid-row: 2/4;
+            border-left: 2px solid #000;
+            background: #fff;
+            overflow: auto;
+            z-index: 8
+        }
+
+        .sideHead {
+            height: 40px;
+            border-bottom: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            font-weight: 1000
+        }
+
+        .sideBlock {
+            border-bottom: 2px solid #000;
+            padding: 9px 10px;
+            font-size: 11px
+        }
+
+        .sideBlock h3 {
+            font-size: 12px;
+            margin-bottom: 7px;
+            text-transform: uppercase
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 5px 8px
+        }
+
+        .op {
+            display: grid;
+            grid-template-columns: 58px 1fr;
+            border-bottom: 1px solid #000;
+            cursor: pointer
+        }
+
+        .op.active {
+            background: #000;
+            color: #fff
+        }
+
+        .op b {
+            padding: 9px
+        }
+
+        .op span {
+            border-left: 1px solid currentColor;
+            padding: 8px;
+            font-size: 10px;
+            text-transform: uppercase;
+            line-height: 1.25
+        }
+
+        .dock {
+            grid-column: 2;
+            grid-row: 3;
+            border-top: 2px solid #000;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            padding: 7px 8px;
+            background: #fff;
+            z-index: 7
+        }
+
+        .tools {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px
+        }
+
+        .tools button {
+            height: 40px;
+            font-size: 12px;
+            padding: 0 4px
+        }
+
+        .micro {
+            display: flex;
+            gap: 6px;
+            align-items: center
+        }
+
+        .micro button {
+            width: 38px;
+            height: 40px
+        }
+
+        .status {
+            min-width: 185px;
+            font-size: 12px;
+            font-weight: 1000;
+            text-transform: uppercase
+        }
+
+        .muted {
+            opacity: .7
+        }
+
+        .hud {
+            position: absolute;
+            left: 14px;
+            top: 12px;
+            border: 3px solid #000;
+            background: #fff;
+            box-shadow: 6px 6px 0 #000;
+            padding: 8px 10px;
+            z-index: 4;
+            pointer-events: none;
+            min-width: 175px
+        }
+
+        .hud .big {
+            font-weight: 1000;
+            font-size: 17px
+        }
+
+        .hud .small {
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase
+        }
+
+        .toast {
+            position: absolute;
+            left: 50%;
+            bottom: 84px;
+            transform: translateX(-50%);
+            background: #000;
+            color: #fff;
+            border: 2px solid #000;
+            padding: 9px 12px;
+            font-weight: 1000;
+            font-size: 12px;
+            z-index: 20;
+            display: none;
+            text-align: center
+        }
+
+        .tray {
+            position: absolute;
+            left: 14px;
+            bottom: 12px;
+            width: min(500px, calc(100% - 28px));
+            border: 2px solid #000;
+            background: #fff;
+            z-index: 4
+        }
+
+        .trayHead {
+            height: 30px;
+            border-bottom: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 9px;
+            font-weight: 1000
+        }
+
+        .trayItems {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr)
+        }
+
+        .trayItem {
+            height: 44px;
+            border-right: 1px solid #000;
+            padding: 6px;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            overflow: hidden
+        }
+
+        .trayItem:last-child {
+            border-right: 0
+        }
+
+        .trayItem.filled {
+            background: #000;
+            color: #fff
+        }
+
+        .preview {
+            position: absolute;
+            right: 12px;
+            bottom: 74px;
+            width: min(250px, 34vw);
+            aspect-ratio: 16/9;
+            border: 2px solid #000;
+            background: #fff;
+            display: none;
+            z-index: 4;
+            object-fit: cover
+        }
+
+        .preview.on {
+            display: block
+        }
+
+        .help {
+            position: absolute;
+            inset: 12px;
+            border: 3px solid #000;
+            background: #fff;
+            z-index: 30;
+            display: none;
+            overflow: auto;
+            padding: 14px;
+            box-shadow: 8px 8px 0 #000
+        }
+
+        .help.open {
+            display: block
+        }
+
+        .help button {
+            float: right;
+            background: #000;
+            color: #fff
+        }
+
+        .help h2 {
+            font-size: 20px;
+            margin-bottom: 10px
+        }
+
+        .help h3 {
+            font-size: 14px;
+            margin: 14px 0 6px;
+            border-top: 2px solid #000;
+            padding-top: 10px
+        }
+
+        .help p,
+        .help li {
+            font-size: 12px;
+            line-height: 1.45;
+            margin: 4px 0
+        }
+
+        .help ul {
+            padding-left: 18px
+        }
+
+        .fileInput {
+            display: none
+        }
+
+        @media(max-width:920px) {
+            .app {
+                grid-template-columns: 0 1fr 0;
+                grid-template-rows: 46px 1fr 142px
+            }
+
+            .brand {
+                width: 48px
+            }
+
+            .title {
+                font-size: 12px
+            }
+
+            .left {
+                display: none
+            }
+
+            .top button {
+                height: 42px;
+                min-width: 62px
+            }
+
+            .side {
+                position: fixed;
+                top: 46px;
+                right: 0;
+                bottom: 0;
+                width: min(320px, 88vw);
+                transform: translateX(calc(100% - 42px));
+                box-shadow: -5px 0 0 #000;
+                transition: transform .18s
+            }
+
+            .side.open {
+                transform: translateX(0)
+            }
+
+            .sideHead {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 42px;
+                height: 100%;
+                writing-mode: vertical-rl;
+                border-right: 2px solid #000;
+                border-bottom: 0;
+                justify-content: flex-start;
+                padding: 10px 0
+            }
+
+            .sideHead span {
+                transform: rotate(180deg)
+            }
+
+            .sideContent {
+                margin-left: 42px
+            }
+
+            .stage {
+                grid-column: 1/4
+            }
+
+            .dock {
+                grid-column: 1/4;
+                grid-row: 3;
+                grid-template-columns: 1fr;
+                padding: 8px
+            }
+
+            .tools {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 7px
+            }
+
+            .tools button {
+                height: 52px;
+                font-size: 13px
+            }
+
+            .op {
+                min-height: 52px
+            }
+
+            .op b {
+                padding: 14px 9px
+            }
+
+            .op span {
+                padding: 12px 8px
+            }
+
+            .trayItem {
+                height: 56px;
+                font-size: 10px
+            }
+
+            .micro {
+                border-top: 2px solid #000;
+                padding-top: 7px
+            }
+
+            .micro button {
+                width: 48px;
+                height: 44px
+            }
+
+            .status {
+                min-width: 0;
+                flex: 1;
+                font-size: 11px
+            }
+
+            .tray {
+                bottom: 150px;
+                left: 8px;
+                width: calc(100% - 16px)
+            }
+
+            .trayItem {
+                height: 48px
+            }
+
+            .hud {
+                left: 8px;
+                top: 8px;
+                min-width: 148px;
+                box-shadow: 4px 4px 0 #000
+            }
+
+            .preview {
+                bottom: 214px;
+                right: 8px;
+                width: min(210px, 46vw)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <header class="top">
+            <div class="brand">ATO</div>
+            <div class="title">ARC TUNNEL OPERATOR</div><button id="playBtn">PLAY</button><button id="snapBtn"
+                class="active">SNAP</button><button id="topImportBtn">LOAD</button><button id="viewBtn">INSIDE</button>
+        </header>
+        <nav class="left"><button id="helpBtn">HELP</button><button data-mode="move">MOVE</button><button
+                data-mode="trim">TRIM</button><button data-mode="roll">ROLL</button><button
+                data-mode="lift">LIFT</button><button data-mode="route">ROUTE</button><button
+                id="importBtn">FILE</button>
+            <div class="spacer"></div><button id="resetBtn">RST</button>
+        </nav>
+        <main class="stage" id="stage"><canvas id="canvas"></canvas><video id="miniVideo" class="preview" muted
+                playsinline></video>
+            <div class="hud" id="hud">
+                <div class="big">SC-110</div>
+                <div class="small">CLIP</div>
+            </div>
+            <div class="tray">
+                <div class="trayHead"><span>STORE TRAY</span><span id="trayCount">0</span></div>
+                <div class="trayItems" id="trayItems"></div>
+            </div>
+            <div class="toast" id="toast"></div>
+            <section class="help" id="help"><button id="closeHelp">CLOSE</button>
+                <h2>Arc Tunnel Controls</h2>
+                <p>The tube is the edit. Time flows outward through the tube. Tracks are rails. Clips are collars.</p>
+                <h3>Gestures</h3>
+                <ul>
+                    <li>Tap clip to select.</li>
+                    <li>Drag M to move time.</li>
+                    <li>Drag H or T to trim.</li>
+                    <li>Drag L to change rail.</li>
+                    <li>Drag UP to lift inside, seam, outside.</li>
+                    <li>Drag R to roll.</li>
+                    <li>Drag OUT to route.</li>
+                    <li>Drag ring to scrub.</li>
+                </ul>
+            </section>
+        </main>
+        <aside class="side" id="side">
+            <div class="sideHead" id="sideHead"><span>OPS</span></div>
+            <div class="sideContent" id="sideContent"></div>
+        </aside>
+        <footer class="dock">
+            <div class="tools"><button data-mode="move" class="active">MOVE</button><button
+                    data-mode="trim">TRIM</button><button data-mode="roll">ROLL</button><button
+                    data-mode="lift">LIFT</button><button data-mode="split">SPLIT</button><button
+                    data-mode="route">ROUTE</button><button data-mode="store">STORE</button></div>
+            <div class="micro"><button id="granUp">&lt;</button><button id="granDown">&gt;</button><button
+                    id="zoomOut">-</button><button id="zoomIn">+</button>
+                <div class="status" id="status">READY<br><span class="muted">CLIP</span></div>
+            </div>
+        </footer>
+    </div>
+    <input id="fileInput" class="fileInput" type="file" multiple accept="video/*,image/*,text/*,.json">
+    <script>
+        (function () {
+            'use strict';
+            var PI = Math.PI, TAU = PI * 2, NL = String.fromCharCode(10);
+            var state = {
+                view: 'inside', mode: 'move', snap: true, playing: false, time: 34, zoom: 1, rot: 0, gran: 'clip', selected: 'SC-110', track: 3, drag: null, timer: null, lastTick: 0, routes: [], tray: [], history: [], media: null, clips: [
+                    { id: 'SC-110', start: 24, dur: 8, track: 6, wall: 'inside', roll: 0, locked: false, label: 'PREFERRED', source: 'demo', tin: 0, tout: 8, tags: ['preferred'] },
+                    { id: 'SC-093', start: 18, dur: 5, track: 7, wall: 'inside', roll: 0, locked: false, label: 'PROBABLE', source: 'demo', tin: 0, tout: 5, tags: [] },
+                    { id: 'SC-094', start: 28, dur: 4, track: 5, wall: 'inside', roll: 0, locked: false, label: 'CELL', source: 'demo', tin: 0, tout: 4, tags: [] },
+                    { id: 'SC-065', start: 39, dur: 6, track: 4, wall: 'inside', roll: 0, locked: false, label: 'PROBABLE', source: 'demo', tin: 0, tout: 6, tags: [] },
+                    { id: 'SC-064', start: 48, dur: 10, track: 3, wall: 'inside', roll: 0, locked: false, label: 'PROBABLE', source: 'demo', tin: 0, tout: 10, tags: [] },
+                    { id: 'SC-036', start: 70, dur: 5, track: 2, wall: 'inside', roll: 0, locked: false, label: 'NODE', source: 'demo', tin: 0, tout: 5, tags: [] },
+                    { id: 'SC-035', start: 86, dur: 7, track: 1, wall: 'outside', roll: 0, locked: false, label: 'OUTSIDE', source: 'demo', tin: 0, tout: 7, tags: [] },
+                    { id: 'SC-010', start: 57, dur: 7, track: 10, wall: 'inside', roll: 0, locked: false, label: 'CUT', source: 'demo', tin: 0, tout: 7, tags: [] }
+                ]
+            };
+            var el = { canvas: gid('canvas'), stage: gid('stage'), hud: gid('hud'), status: gid('status'), side: gid('side'), sideHead: gid('sideHead'), sideContent: gid('sideContent'), playBtn: gid('playBtn'), snapBtn: gid('snapBtn'), viewBtn: gid('viewBtn'), resetBtn: gid('resetBtn'), importBtn: gid('importBtn'), topImportBtn: gid('topImportBtn'), fileInput: gid('fileInput'), toast: gid('toast'), trayItems: gid('trayItems'), trayCount: gid('trayCount'), miniVideo: gid('miniVideo'), help: gid('help'), helpBtn: gid('helpBtn'), closeHelp: gid('closeHelp'), granUp: gid('granUp'), granDown: gid('granDown'), zoomOut: gid('zoomOut'), zoomIn: gid('zoomIn') };
+            var ctx = el.canvas.getContext('2d'), W = 0, H = 0, DPR = 1, g = { cx: 0, cy: 0, r0: 20, r1: 400, a0: 0, as: PI, objs: [] };
+            function gid(id) { return document.getElementById(id) }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
+            function lerp(a, b, t) { return a + (b - a) * t }
+            function end(c) { return c.start + c.dur }
+            function fmt(t) { var m = Math.floor(t / 60), s = Math.floor(t % 60); return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') }
+            function selected() { for (var i = 0; i < state.clips.length; i++) { if (state.clips[i].id === state.selected) return state.clips[i] } return null }
+            function hist(a, d) { state.history.push({ at: Date.now(), action: a, data: d }); if (state.history.length > 60) state.history.shift() }
+            function toast(s) { clearTimeout(state.timer); el.toast.textContent = s; el.toast.style.display = 'block'; state.timer = setTimeout(function () { el.toast.style.display = 'none' }, 1200) }
+            function tick(k) { var n = performance.now(); if (n - state.lastTick < 40) return; state.lastTick = n; if (navigator.vibrate) { try { navigator.vibrate(k === 'block' ? [20, 20, 35] : k === 'hard' ? 20 : 8) } catch (e) { } } try { if (!tick.ac) tick.ac = new (window.AudioContext || window.webkitAudioContext)(); var ac = tick.ac; if (ac.state === 'suspended') ac.resume(); var o = ac.createOscillator(), v = ac.createGain(); o.type = 'square'; o.frequency.value = k === 'block' ? 90 : k === 'hard' ? 190 : 300; v.gain.value = k === 'block' ? 0.035 : 0.018; o.connect(v); v.connect(ac.destination); o.start(); v.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.04); o.stop(ac.currentTime + 0.04) } catch (e) { } }
+            function resize() { DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1)); var r = el.stage.getBoundingClientRect(); W = Math.max(320, Math.floor(r.width)); H = Math.max(240, Math.floor(r.height)); el.canvas.width = Math.floor(W * DPR); el.canvas.height = Math.floor(H * DPR); el.canvas.style.width = W + 'px'; el.canvas.style.height = H + 'px'; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); draw() }
+            function layout() {
+                var mobile = W < 700;
+                var b = Math.max(260, Math.min(W, H));
+                var z = state.zoom;
+                if (state.view === 'barrel') {
+                    g.cx = W * 0.50; g.cy = H * 0.50; g.r0 = Math.max(24, b * 0.11); g.r1 = b * 0.43 * z; g.a0 = -PI / 2 + state.rot; g.as = TAU - 0.001;
+                } else if (state.view === 'sideways') {
+                    g.cx = W * 0.50; g.cy = H * 0.50; g.r0 = Math.max(28, b * 0.13); g.r1 = b * 0.45 * z; g.a0 = -PI / 2 + state.rot; g.as = TAU - 0.001;
+                } else if (state.view === 'outside') {
+                    g.cx = W * (mobile ? 0.52 : 0.53); g.cy = H * (mobile ? 0.45 : 0.47); g.r0 = Math.max(24, b * 0.09); g.r1 = b * 0.54 * z; g.a0 = -PI * 0.18 + state.rot; g.as = PI * 1.36;
+                } else if (state.view === 'bench') {
+                    g.cx = W * 0.50; g.cy = H * 0.50; g.r0 = Math.max(24, b * 0.12); g.r1 = b * 0.39 * z; g.a0 = -PI / 2 + state.rot; g.as = TAU - 0.001;
+                } else {
+                    g.cx = W * (mobile ? 0.52 : 0.52); g.cy = H * (mobile ? 0.57 : 0.58); g.r0 = Math.max(24, b * 0.09); g.r1 = b * 0.55 * z; g.a0 = PI * 0.78 + state.rot; g.as = PI * 1.44;
+                }
+                if (g.r1 < g.r0 + 70) g.r1 = g.r0 + 70;
+            }
+            function rOf(t) { return lerp(g.r0, g.r1, clamp(t / 100, 0, 1)) }
+            function tOf(r) { return clamp((r - g.r0) / (g.r1 - g.r0) * 100, 0, 100) }
+            function aOf(track) { return g.a0 + g.as * ((track + 0.5) / 12) }
+            function trackOf(a) { var rel = angleRel(a); if (g.as > TAU - 0.01) { return clamp(Math.floor((rel / TAU) * 12), 0, 11) } return clamp(Math.floor(clamp(rel / g.as, 0, 0.999) * 12), 0, 11) }
+            function xy(r, a) { return { x: g.cx + Math.cos(a) * r, y: g.cy + Math.sin(a) * r } }
+            function polar(x, y) { var dx = x - g.cx, dy = y - g.cy, a = Math.atan2(dy, dx), r = Math.sqrt(dx * dx + dy * dy); return { r: r, a: a, t: tOf(r), track: trackOf(a) } }
+            function angleRel(a) { var rel = a - g.a0; while (rel < 0) rel += TAU; while (rel >= TAU) rel -= TAU; return rel }
+            function inArc(a) { if (g.as > TAU - 0.01) return true; var rel = angleRel(a); return rel >= 0 && rel <= g.as }
+            function inTubeField(p) { var po = polar(p.x, p.y); var pad = 42; return po.r >= g.r0 - pad && po.r <= g.r1 + pad && inArc(po.a) }
+            function wall(w) {
+                if (state.view === 'sideways') return w === 'outside' ? 34 : w === 'seam' ? 17 : 0;
+                if (state.view === 'outside') return w === 'outside' ? 22 : w === 'seam' ? 11 : 0;
+                return w === 'outside' ? 18 : w === 'seam' ? 9 : 0;
+            }
+            function viewAlpha(c) {
+                if (c.id === state.selected) return 1;
+                if (state.view === 'inside') return c.wall === 'inside' ? 1 : c.wall === 'seam' ? 0.45 : 0.18;
+                if (state.view === 'outside') return c.wall === 'outside' ? 1 : c.wall === 'seam' ? 0.55 : 0.18;
+                if (state.view === 'bench') return 0.72;
+                return 1;
+            }
+            function arcBox(rA, rB, aA, aB) { var p1 = xy(rA, aA), p2 = xy(rB, aA), p4 = xy(rA, aB); ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.arc(g.cx, g.cy, rB, aA, aB, false); ctx.lineTo(p4.x, p4.y); ctx.arc(g.cx, g.cy, rA, aB, aA, true); ctx.closePath() }
+            function lineArc(r, aA, aB) { ctx.beginPath(); ctx.arc(g.cx, g.cy, r, aA, aB, false); ctx.stroke() }
+            function draw() { layout(); ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); g.objs = []; drawBg(); drawGrid(); drawViewLegend(); if (typeof drawLoadDock === 'function') drawLoadDock(); drawCameraRig(); drawRoutes(); drawClips(); drawRing(); drawRouteGhost(); drawFloatingLabels(); updateHud() }
+            function drawViewLegend() {
+                ctx.save();
+                ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+                var name = state.view.toUpperCase();
+                var desc = { inside: 'INNER WALL ACTIVE / OUTSIDE FADED', outside: 'OUTER SHELL ACTIVE / INSIDE FADED', sideways: 'CROSS SECTION / LIFT PLANE', barrel: 'FULL BARREL MAP / ALL RAILS', bench: 'BENCH MAP / STORED ROUTES' }[state.view] || '';
+                var w = Math.min(360, W - 26), h = 44;
+                ctx.fillRect(12, 12, w, h); ctx.strokeRect(12, 12, w, h);
+                ctx.fillStyle = '#000'; ctx.font = '1000 13px monospace'; ctx.fillText('VIEW ' + name, 22, 30);
+                ctx.font = '900 10px monospace'; ctx.fillText(desc, 22, 46);
+                ctx.restore();
+            }
+            function drawCameraRig() {
+                ctx.save();
+                var pad = 10;
+                var x = W - 154;
+                var y = 12;
+                if (W < 760) { x = W - 132; y = 58; }
+                ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+                ctx.fillRect(x, y, 142, 72); ctx.strokeRect(x, y, 142, 72);
+                ctx.fillStyle = '#000'; ctx.font = '1000 11px monospace'; ctx.fillText('CAMERA', x + 10, y + 18);
+                ctx.font = '900 9px monospace'; ctx.fillText('ROT ' + Math.round(state.rot * 57.2958) + ' DEG', x + 10, y + 36);
+                ctx.fillText('ZOOM ' + state.zoom.toFixed(2), x + 10, y + 50);
+                ctx.fillText('VIEW ' + state.view.toUpperCase(), x + 10, y + 64);
+                var eye = { x: x + 112, y: y + 25 };
+                ctx.beginPath(); ctx.arc(eye.x, eye.y, 14, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(eye.x, eye.y, 4, 0, TAU); ctx.fillStyle = '#000'; ctx.fill();
+                var p1 = xy(g.r0, g.a0), p2 = xy(g.r1, g.a0 + g.as);
+                ctx.setLineDash([7, 5]); ctx.beginPath(); ctx.moveTo(eye.x, eye.y); ctx.lineTo(g.cx, g.cy); ctx.stroke(); ctx.setLineDash([]);
+                handle('camera:rot', 'circle', x + 112, y + 52, 13, false, 'ROT');
+                handle('camera:zoom', 'square', x + 82, y + 52, 12, false, 'Z');
+                g.objs.push({ type: 'camera', id: 'camera:body', x: x + 71, y: y + 36, r: 48 });
+                ctx.restore();
+            }
+            function drawBg() { ctx.save(); ctx.globalAlpha = .12; ctx.strokeStyle = '#000'; for (var x = -H; x < W + H; x += 12) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H, H); ctx.stroke() } ctx.restore() }
+            function drawGrid() {
+                ctx.save();
+                ctx.strokeStyle = '#000';
+                var a1 = g.a0, a2 = g.a0 + g.as;
+                if (state.view === 'sideways') {
+                    ctx.setLineDash([10, 6]); ctx.lineWidth = 3; lineArc(g.r0 + 17, a1, a2); lineArc(g.r0 + 34, a1, a2); ctx.setLineDash([]);
+                }
+                for (var i = 0; i <= 12; i++) {
+                    var a = g.a0 + g.as * i / 12, p1 = xy(g.r0, a), p2 = xy(g.r1, a);
+                    ctx.setLineDash(i % 2 ? [6, 5] : []); ctx.lineWidth = (i === 0 || i === 12) ? 2 : 1;
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                }
+                ctx.setLineDash([]);
+                for (var t = 0; t <= 100; t += 5) {
+                    ctx.globalAlpha = t % 10 === 0 ? 0.85 : 0.35; ctx.lineWidth = t % 20 === 0 ? 2 : 1; lineArc(rOf(t), a1, a2);
+                }
+                ctx.globalAlpha = 1;
+                for (i = 0; i < 12; i++) {
+                    a = aOf(i); p1 = xy(g.r0, a); p2 = xy(g.r1, a); ctx.lineWidth = i === state.track ? 4 : 2;
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                    var m = xy(g.r1 - 34, a); g.objs.push({ type: 'track', id: String(i), track: i, x: m.x, y: m.y, r: 18 });
+                }
+                if (state.view === 'sideways') {
+                    ctx.font = '900 10px monospace'; ctx.fillStyle = '#000'; ctx.textAlign = 'center';
+                    var pIn = xy(g.r0 + 6, -PI / 2), pSeam = xy(g.r0 + 20, -PI / 2), pOut = xy(g.r0 + 38, -PI / 2);
+                    ctx.fillText('IN', pIn.x, pIn.y - 4); ctx.fillText('SEAM', pSeam.x, pSeam.y - 4); ctx.fillText('OUT', pOut.x, pOut.y - 4);
+                }
+                ctx.restore();
+            }
+            function angles(c) { var band = g.as / 12, base = g.a0 + g.as * c.track / 12, pad = band * .14; return { a1: base + pad + c.roll * .006, a2: base + band - pad + c.roll * .006 } }
+            function drawClips() { state.clips.slice().sort(function (a, b) { return rOf(b.start) - rOf(a.start) }).forEach(drawClip) }
+            function drawClip(c) {
+                var sel = c.id === state.selected, A = angles(c), rA = rOf(c.start) + wall(c.wall), rB = rOf(end(c)) + wall(c.wall), blocked = state.drag && state.drag.clipId === c.id && state.drag.blocked;
+                ctx.save();
+                ctx.globalAlpha = viewAlpha(c);
+                ctx.strokeStyle = '#000'; ctx.fillStyle = sel ? '#000' : '#fff'; ctx.lineWidth = sel ? 4 : 2;
+                if (!sel && viewAlpha(c) < 0.5) ctx.setLineDash([7, 5]);
+                arcBox(rA, rB, A.a1, A.a2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+                if (!sel && viewAlpha(c) >= 0.5) { ctx.save(); ctx.clip(); ctx.globalAlpha = 0.45; for (var x = -H; x < W + H; x += 9) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H, H); ctx.stroke() } ctx.restore() }
+                if (blocked) { ctx.lineWidth = 8; ctx.stroke() }
+                drawRibs(rA, rB, A, sel);
+                var mid = xy((rA + rB) / 2, (A.a1 + A.a2) / 2); g.objs.push({ type: 'clip', id: c.id, x: mid.x, y: mid.y, r: 30, clip: c });
+                ctx.globalAlpha = 1;
+                if (sel) drawHandles(c, rA, rB, A);
+                ctx.restore();
+            }
+            function drawRibs(rA, rB, A, sel) { ctx.save(); ctx.strokeStyle = sel ? '#fff' : '#000'; ctx.lineWidth = 1; for (var i = 1; i < 4; i++)lineArc(lerp(rA, rB, i / 4), A.a1, A.a2); ctx.restore() }
+            function handle(id, kind, x, y, s, fill, txt) { ctx.save(); ctx.lineWidth = 3; ctx.strokeStyle = fill ? '#fff' : '#000'; ctx.fillStyle = fill ? '#000' : '#fff'; if (kind === 'circle') { ctx.beginPath(); ctx.arc(x, y, s, 0, TAU); ctx.fill(); ctx.stroke() } else if (kind === 'diamond') { ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath(); ctx.fill(); ctx.stroke() } else { ctx.fillRect(x - s, y - s, s * 2, s * 2); ctx.strokeRect(x - s, y - s, s * 2, s * 2) } if (txt) { ctx.fillStyle = fill ? '#fff' : '#000'; ctx.font = '900 8px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var short = String(txt); if (short.length > 4) short = short.slice(0, 4); ctx.fillText(short, x, y + .5) } ctx.restore(); g.objs.push({ type: 'handle', id: id, x: x, y: y, r: s + 12 }) }
+            function drawHandles(c, rA, rB, A) {
+                var ma = (A.a1 + A.a2) / 2, mr = (rA + rB) / 2;
+                var head = xy(rA, ma), tail = xy(rB, ma), center = xy(mr, ma), lane = xy(mr, A.a2 + .01), roll = xy(mr + 34, ma), lift = xy(mr, ma - .18), lock = xy(rA, A.a2), route = xy(rB, A.a1);
+                var m = state.mode;
+                handle(c.id + ':center', 'square', center.x, center.y, 13, true, m === 'move' ? 'MOVE' : 'M');
+                if (m === 'trim') { handle(c.id + ':head', 'circle', head.x, head.y, 12, true, 'IN'); handle(c.id + ':tail', 'circle', tail.x, tail.y, 12, true, 'OUT') }
+                else if (m === 'move') { handle(c.id + ':lane', 'diamond', lane.x, lane.y, 12, true, 'RAIL') }
+                else if (m === 'roll') { handle(c.id + ':roll', 'circle', roll.x, roll.y, 12, true, 'ROLL') }
+                else if (m === 'lift') { handle(c.id + ':lift', 'diamond', lift.x, lift.y, 12, true, 'LIFT') }
+                else if (m === 'route') { handle(c.id + ':route', 'circle', route.x, route.y, 12, true, 'SEND') }
+                else if (m === 'store') { handle(c.id + ':lock', 'square', lock.x, lock.y, 9, true, c.locked ? 'LOCK' : 'PIN') }
+                else if (m === 'split') { handle(c.id + ':head', 'circle', head.x, head.y, 8, true, 'CUT'); handle(c.id + ':tail', 'circle', tail.x, tail.y, 8, true, 'CUT') }
+                else { handle(c.id + ':lane', 'diamond', lane.x, lane.y, 10, true, 'L') }
+                drawModeHint(center.x, center.y + 24, m);
+                drawLabel(c, center.x, center.y);
+            }
+            function drawModeHint(x, y, m) { ctx.save(); ctx.font = '900 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var label = m.toUpperCase(); var w = ctx.measureText(label).width + 10; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.fillRect(x - w / 2, y - 8, w, 16); ctx.strokeRect(x - w / 2, y - 8, w, 16); ctx.fillStyle = '#000'; ctx.fillText(label, x, y); ctx.restore() }
+            function drawLabel(c, x, y) { var t = c.id; ctx.save(); ctx.font = '1000 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var w = ctx.measureText(t).width + 12; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.fillRect(x - w / 2, y - 10, w, 20); ctx.strokeRect(x - w / 2, y - 10, w, 20); ctx.fillStyle = '#000'; ctx.fillText(t, x, y + 1); ctx.restore() }
+            function drawFloatingLabels() {
+                if (W < 760 && state.zoom < 1.15) return;
+                state.clips.forEach(function (c) {
+                    if (c.id === state.selected) return;
+                    if (c.track !== state.track && Math.abs(c.start - state.time) > 12) return;
+                    var A = angles(c), p = xy((rOf(c.start) + rOf(end(c))) / 2 + wall(c.wall), (A.a1 + A.a2) / 2);
+                    if (p.x > -40 && p.x < W + 40 && p.y > -40 && p.y < H + 40) drawLabel(c, p.x, p.y)
+                })
+            }
+            function drawRing() { var r = rOf(state.time), a1 = g.a0, a2 = g.a0 + g.as, mid = xy(r, (a1 + a2) / 2), top = xy(r, a1), bot = xy(r, a2); ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 4; lineArc(r, a1, a2); handle('lathe:scrub', 'square', top.x, top.y, 9, false, 'I'); handle('lathe:rot', 'square', bot.x, bot.y, 9, false, 'O'); ctx.font = '1000 11px monospace'; ctx.textAlign = 'center'; ctx.fillText('TIME ' + fmt(state.time), mid.x, mid.y - 12); g.objs.push({ type: 'lathe', id: 'lathe', x: mid.x, y: mid.y, r: 26 }); ctx.restore() }
+            function drawRoutes() { ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.setLineDash([8, 5]); state.routes.forEach(function (rt) { var a = findClip(rt.from), b = findClip(rt.to); if (!a) return; var A = angles(a), p1 = xy(rOf(end(a)) + wall(a.wall), A.a1), p2; if (b) { var B = angles(b); p2 = xy(rOf(b.start) + wall(b.wall), B.a2) } else if (rt.to === 'tray') { p2 = { x: 30, y: H - 40 } } else { p2 = { x: W - 40, y: 40 } } ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.quadraticCurveTo(g.cx, g.cy, p2.x, p2.y); ctx.stroke() }); ctx.restore() }
+            function drawRouteGhost() { if (!state.drag || state.drag.type !== 'route') return; ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.setLineDash([10, 5]); ctx.beginPath(); ctx.moveTo(state.drag.startPt.x, state.drag.startPt.y); ctx.quadraticCurveTo((state.drag.startPt.x + state.drag.x) / 2, g.cy, state.drag.x, state.drag.y); ctx.stroke(); ctx.restore() }
+            function findClip(id) { for (var i = 0; i < state.clips.length; i++) { if (state.clips[i].id === id) return state.clips[i] } return null }
+            function updateHud() { var c = selected(); if (c) { el.hud.querySelector('.big').textContent = c.id; el.hud.querySelector('.small').textContent = 'CLIP ' + c.label + ' ' + fmt(c.start) + ' ' + fmt(c.dur); el.status.innerHTML = c.id + ' / ' + c.label + '<br><span class="muted">' + state.gran.toUpperCase() + ' / ' + c.wall.toUpperCase() + ' / TRACK ' + c.track + '</span>' } else { el.hud.querySelector('.big').textContent = 'TUBE'; el.hud.querySelector('.small').textContent = 'NO CLIP'; el.status.innerHTML = 'TUBE / ' + state.view.toUpperCase() + '<br><span class="muted">TIME ' + fmt(state.time) + '</span>' } renderSide(); renderTray() }
+            function renderSide() { var c = selected(), html = '<div class="sideBlock"><h3>State</h3><div class="grid"><b>view</b><span>' + state.view + '</span><b>mode</b><span>' + state.mode + '</span><b>granularity</b><span>' + state.gran + '</span><b>time</b><span>' + fmt(state.time) + '</span><b>snap</b><span>' + (state.snap ? 'on' : 'off') + '</span><b>selected</b><span>' + (c ? c.id : 'tube') + '</span></div></div>'; var ops = ['move', 'trim', 'roll', 'lift', 'route', 'split', 'store', 'export', 'reset']; for (var i = 0; i < ops.length; i++) { var o = ops[i]; html += '<div class="op ' + (o === state.mode ? 'active' : '') + '" data-op="' + o + '"><b>' + o + '</b><span>' + describe(o) + '</span></div>' } html += '<div class="sideBlock"><h3>Export</h3><div class="grid"><button data-export="state">STATE</button><button data-export="cutlist">CUTLIST</button><button data-export="routes">ROUTES</button><button data-export="edl">EDL</button></div></div>'; el.sideContent.innerHTML = html }
+            function describe(o) { var m = { move: 'drag through time', trim: 'edit head or tail', roll: 'rotate on barrel', lift: 'inside seam outside', route: 'drag socket arrow', split: 'cut at time head', store: 'copy to tray', export: 'download records', reset: 'restore view' }; return m[o] || o }
+            function renderTray() { el.trayCount.textContent = state.tray.length; var html = ''; for (var i = 0; i < 5; i++) { var it = state.tray[i]; html += it ? '<div class="trayItem filled" data-tray="' + i + '"><b>' + it.id + '</b><br>' + it.kind + '</div>' : '<div class="trayItem" data-tray="' + i + '"><b>EMPTY</b><br>STORE</div>' } el.trayItems.innerHTML = html }
+            function setMode(m) { state.mode = m; var bs = document.querySelectorAll('[data-mode]'); for (var i = 0; i < bs.length; i++)bs[i].classList.toggle('active', bs[i].getAttribute('data-mode') === m); if (m === 'split') splitSelected(); if (m === 'store') storeSelected(); if (m === 'route') toast('DRAG OUT SOCKET'); hist('mode', { mode: m }); draw() }
+            function cycleView() { var v = ['inside', 'outside', 'sideways', 'barrel', 'bench']; var i = v.indexOf(state.view); state.view = v[(i + 1) % v.length]; el.viewBtn.textContent = state.view.toUpperCase(); hist('view', { view: state.view }); tick('hard'); draw() }
+            function snapTime(t) { if (!state.snap) return t; var marks = [0, 100]; state.clips.forEach(function (c) { marks.push(c.start, end(c)); for (var i = 1; i < 4; i++)marks.push(c.start + c.dur * i / 4) }); var best = t, bd = 999; marks.forEach(function (m) { var d = Math.abs(t - m); if (d < bd && d < 1.2) { bd = d; best = m } }); return best }
+            function overlaps(c, ignore) { for (var i = 0; i < state.clips.length; i++) { var o = state.clips[i]; if (o.id === ignore) continue; if (o.track !== c.track || o.wall !== c.wall) continue; if (c.start < end(o) && c.start + c.dur > o.start) return o } return null }
+            function pos(e) { var r = el.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top } }
+            function arcRel(a, start) { var rel = a - start; while (rel < 0) rel += TAU; while (rel >= TAU) rel -= TAU; return rel }
+            function inSector(a, a1, a2) { var span = a2 - a1; while (span < 0) span += TAU; if (span > TAU - 0.01) return true; return arcRel(a, a1) <= span }
+            function clipAtPoint(x, y) { var po = polar(x, y), padR = W < 760 ? 28 : 14, padA = W < 760 ? 0.11 : 0.055; var best = null; for (var i = state.clips.length - 1; i >= 0; i--) { var c = state.clips[i], A = angles(c), rA = rOf(c.start) + wall(c.wall) - padR, rB = rOf(end(c)) + wall(c.wall) + padR; if (po.r >= rA && po.r <= rB && inSector(po.a, A.a1 - padA, A.a2 + padA)) { best = { type: 'clip', id: c.id, x: x, y: y, r: 42, clip: c }; if (c.id === state.selected) return best } } return best }
+            function latheAtPoint(x, y) { var po = polar(x, y), r = rOf(state.time), pad = W < 760 ? 26 : 14; if (Math.abs(po.r - r) <= pad && inArc(po.a)) return { type: 'lathe', id: 'lathe', x: x, y: y, r: pad }; return null }
+            function hit(x, y) { var minR = W < 760 ? 30 : 20; for (var i = g.objs.length - 1; i >= 0; i--) { var o = g.objs[i], dx = x - o.x, dy = y - o.y, rr = Math.max(o.r, minR); if (dx * dx + dy * dy <= rr * rr) return o } return clipAtPoint(x, y) || latheAtPoint(x, y) || null }
+            function modeDragType(c, po) { if (state.mode === 'trim') { var dh = Math.abs(po.t - c.start), dt = Math.abs(po.t - end(c)); return dh < dt ? 'trimHead' : 'trimTail' } if (state.mode === 'roll') return 'roll'; if (state.mode === 'lift') return 'lift'; if (state.mode === 'route') return 'route'; return 'move' }
+            function startDrag(e) { if (e.button !== undefined && e.button !== 0) return; var p = pos(e), h = hit(p.x, p.y), po = polar(p.x, p.y); state.drag = null; if (!h && !inTubeField(p)) { return } if (h) { if (h.type === 'clip') { state.selected = h.id; state.track = h.clip.track; var c = selected(); if (state.mode === 'store') { storeSelected(); return } if (state.mode === 'split') { state.time = clamp(po.t, c.start + .3, end(c) - .3); splitSelected(); return } var dtype = modeDragType(c, po); state.drag = { type: dtype, clipId: c.id, x: p.x, y: p.y, startPt: { x: p.x, y: p.y }, orig: copyClip(c), pol: po, blocked: false }; tick('hard') } else if (h.type === 'handle') { var parts = h.id.split(':'), c2 = findClip(parts[0]); if (parts[0] === 'camera') { state.drag = { type: parts[1] === 'zoom' ? 'cameraZoom' : 'cameraRot', x: p.x, y: p.y, pol: po, origZoom: state.zoom, origRot: state.rot }; tick('hard') } else if (c2) { state.selected = c2.id; state.track = c2.track; var type = 'move'; if (parts[1] === 'head') type = 'trimHead'; if (parts[1] === 'tail') type = 'trimTail'; if (parts[1] === 'lane') type = 'lane'; if (parts[1] === 'roll') type = 'roll'; if (parts[1] === 'lift') type = 'lift'; if (parts[1] === 'route') type = 'route'; if (parts[1] === 'lock') { c2.locked = !c2.locked; toast(c2.locked ? 'LOCKED' : 'UNLOCKED'); draw(); return } state.drag = { type: type, clipId: c2.id, x: p.x, y: p.y, startPt: { x: p.x, y: p.y }, orig: copyClip(c2), pol: po, blocked: false }; tick('hard') } else { state.drag = { type: 'lathe', x: p.x, y: p.y, pol: po, origTime: state.time, origRot: state.rot } } } else if (h.type === 'lathe') { state.drag = { type: 'lathe', x: p.x, y: p.y, pol: po, origTime: state.time, origRot: state.rot } } else if (h.type === 'camera') { state.drag = { type: 'cameraRot', x: p.x, y: p.y, pol: po, origZoom: state.zoom, origRot: state.rot }; tick('hard') } else if (h.type === 'track') { state.track = h.track; state.gran = 'track'; tick('hard') } } else if (inTubeField(p)) { state.drag = { type: 'pan', x: p.x, y: p.y, pol: po, origTime: state.time, origRot: state.rot } } draw() }
+            function moveDrag(e) { var d = state.drag; if (!d) return; var p = pos(e), po = polar(p.x, p.y); d.x = p.x; d.y = p.y; if (d.type === 'lathe') { state.time = snapTime(po.t); if (Math.abs(po.a - d.pol.a) > .06 && Math.abs(po.r - d.pol.r) < 34) state.rot = d.origRot + (po.a - d.pol.a); updatePreview(); tick('soft') } else if (d.type === 'cameraRot') { state.rot = d.origRot + (po.a - d.pol.a); tick('soft') } else if (d.type === 'cameraZoom') { state.zoom = clamp(d.origZoom + (d.pol.r - po.r) / (g.r1 - g.r0), .55, 1.9); tick('soft') } else if (d.type === 'pan') { var dr = (po.r - d.pol.r) / (g.r1 - g.r0) * 100; if (Math.abs(dr) > Math.abs((po.a - d.pol.a) * 25)) { state.time = snapTime(d.origTime + dr) } else { state.rot = d.origRot + (po.a - d.pol.a) } } else if (d.type === 'route') { } else { var c = findClip(d.clipId); if (!c || c.locked) return; if (d.type === 'move') { c.start = snapTime(d.orig.start + (po.t - d.pol.t)); c.start = clamp(c.start, 0, 100 - c.dur) } else if (d.type === 'trimHead') { var ns = snapTime(clamp(po.t, 0, end(c) - .5)), oe = end(d.orig); c.start = ns; c.dur = Math.max(.5, oe - ns); c.tin = d.orig.tin + (ns - d.orig.start) } else if (d.type === 'trimTail') { var ne = snapTime(clamp(po.t, c.start + .5, 100)); c.dur = Math.max(.5, ne - c.start); c.tout = c.tin + c.dur } else if (d.type === 'lane') { c.track = trackOf(po.a); state.track = c.track; tick('soft') } else if (d.type === 'roll') { c.roll = d.orig.roll + (po.a - d.pol.a) * 120 } else if (d.type === 'lift') { var walls = ['inside', 'seam', 'outside'], idx = walls.indexOf(d.orig.wall), delta = po.r - d.pol.r; if (idx < 0) idx = 0; if (delta > 20) idx = Math.min(2, idx + 1); if (delta < -20) idx = Math.max(0, idx - 1); c.wall = walls[idx] } var bad = overlaps(c, c.id); d.blocked = !!bad; if (bad) tick('block') } draw() }
+            function endDrag(e) { var d = state.drag; if (!d) return; var p = pos(e); if (d.type === 'route') { var h = hit(p.x, p.y), target = null; if (h && h.type === 'clip' && h.id !== d.clipId) target = h.id; else if (h && h.type === 'track') target = 'track-' + h.track; else if (p.y > H - 95) target = 'tray'; if (target) { state.routes.push({ from: d.clipId, to: target, type: target === 'tray' ? 'reject' : 'splice', at: state.time }); if (target === 'tray') storeById(d.clipId, false); toast('ROUTE ' + d.clipId + ' -> ' + target); tick('hard') } else { toast('NO TARGET'); tick('block') } } else if (['move', 'trimHead', 'trimTail', 'lane', 'lift', 'roll'].indexOf(d.type) >= 0) { var c = findClip(d.clipId); if (c) { var bad = overlaps(c, c.id); if (bad) { restoreClip(c, d.orig); toast('BLOCKED BY ' + bad.id); tick('block') } else { normalize(c); hist(d.type, { id: c.id }); tick('hard') } } } state.drag = null; draw() }
+            function copyClip(c) { var o = {}; for (var k in c) o[k] = c[k]; o.tags = (c.tags || []).slice(); return o }
+            function restoreClip(c, o) { for (var k in o) c[k] = o[k]; c.tags = (o.tags || []).slice() }
+            function normalize(c) { c.dur = clamp(Number(c.dur) || 1, .5, 100); c.start = clamp(Number(c.start) || 0, 0, 100 - c.dur); c.track = clamp(Math.round(Number(c.track) || 0), 0, 11); if (['inside', 'seam', 'outside'].indexOf(c.wall) < 0) c.wall = 'inside'; c.tin = Number(c.tin) || 0; c.tout = c.tin + c.dur; c.roll = Number(c.roll) || 0; if (!Array.isArray(c.tags)) c.tags = [] }
+            function nextId() { var id; do { id = 'SC-' + String(Math.floor(10 + Math.random() * 890)).padStart(3, '0') } while (findClip(id)); return id }
+            function storeById(id, copyOnly) { var c = findClip(id); if (!c) return null; var it = { kind: state.gran, id: c.id + '-' + state.gran, start: c.start, dur: c.dur, track: c.track, wall: c.wall, clip: copyClip(c) }; state.tray.unshift(it); if (state.tray.length > 12) state.tray.pop(); if (!copyOnly) { state.clips = state.clips.filter(function (x) { return x.id !== id }); state.selected = state.clips[0] ? state.clips[0].id : null } renderTray(); return it }
+            function storeSelected() { var c = selected(); if (!c) { toast('NO CLIP'); return } var it = storeById(c.id, true); if (it) { toast('STORED ' + it.id); tick('hard') } draw() }
+            function recallTray(i) { var it = state.tray[i]; if (!it) return; var c = copyClip(it.clip); c.id = nextId(); c.start = clamp(state.time, 0, 100 - c.dur); c.track = state.track; c.wall = state.view === 'outside' ? 'outside' : state.view === 'sideways' ? 'seam' : 'inside'; c.locked = false; normalize(c); state.clips.push(c); state.selected = c.id; toast('RECALLED ' + c.id); tick('hard'); draw() }
+            function splitSelected() { var c = selected(); if (!c) { toast('NO CLIP'); return } if (state.time <= c.start + .25 || state.time >= end(c) - .25) { toast('TIME HEAD OUTSIDE CLIP'); tick('block'); return } var old = end(c), left = state.time - c.start, right = old - state.time; c.dur = left; c.tout = c.tin + left; var n = copyClip(c); n.id = nextId(); n.start = state.time; n.dur = right; n.tin = c.tout; n.tout = n.tin + right; n.label = 'SPLIT'; n.locked = false; n.tags = (n.tags || []).concat(['split']); state.clips.push(n); state.selected = n.id; toast('CUT SCAR AT ' + fmt(state.time)); tick('hard'); draw() }
+            function deleteSelected() { var c = selected(); if (c) { storeById(c.id, false); toast('REMOVED TO TRAY'); tick('hard'); draw() } }
+            function exportData(type) { var data; if (type === 'cutlist') { data = state.clips.slice().sort(function (a, b) { return a.start - b.start }).map(function (c, i) { return { index: i, id: c.id, start: c.start, end: end(c), duration: c.dur, track: c.track, wall: c.wall, roll: c.roll, source: c.source, tin: c.tin, tout: c.tout, tags: c.tags || [] } }) } else if (type === 'routes') { data = state.routes } else if (type === 'edl') { data = state.clips.slice().sort(function (a, b) { return a.start - b.start }).map(function (c, i) { return String(i + 1).padStart(3, '0') + '  ' + c.id + '  V  C  ' + fmt(c.tin) + ' ' + fmt(c.tout) + ' ' + fmt(c.start) + ' ' + fmt(end(c)) + ' TRACK ' + c.track + ' ' + c.wall.toUpperCase() }).join(NL) } else { data = { app: 'Arc Tunnel Operator', version: '4-safe', view: state.view, mode: state.mode, snap: state.snap, time: state.time, zoom: state.zoom, rot: state.rot, gran: state.gran, selected: state.selected, track: state.track, clips: state.clips, routes: state.routes, tray: state.tray, history: state.history } } var text = typeof data === 'string' ? data : JSON.stringify(data, null, 2); var blob = new Blob([text], { type: 'text/plain;charset=utf-8' }); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arc_tunnel_' + type + '_' + Date.now() + '.txt'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href) }, 1000); toast('EXPORTED ' + type.toUpperCase()) }
+            function loadState(obj) { if (!obj || !Array.isArray(obj.clips)) throw new Error('bad state'); state.view = obj.view || state.view; state.mode = obj.mode || state.mode; state.snap = obj.snap !== undefined ? !!obj.snap : state.snap; state.time = Number(obj.time) || state.time; state.zoom = Number(obj.zoom) || state.zoom; state.rot = Number(obj.rot) || 0; state.gran = obj.gran || state.gran; state.selected = obj.selected || null; state.track = Number(obj.track) || state.track; state.clips = obj.clips; state.clips.forEach(normalize); state.routes = Array.isArray(obj.routes) ? obj.routes : []; state.tray = Array.isArray(obj.tray) ? obj.tray : []; if (!selected()) state.selected = state.clips[0] ? state.clips[0].id : null; el.viewBtn.textContent = state.view.toUpperCase(); toast('STATE LOADED'); draw() }
+            function importFile(file) { if (!file) return; var url = URL.createObjectURL(file); if (file.name.toLowerCase().indexOf('.json') > -1 || file.type === 'application/json') { var r = new FileReader(); r.onload = function () { try { loadState(JSON.parse(String(r.result))) } catch (e) { toast('JSON LOAD FAILED') } }; r.readAsText(file); return } var id = nextId(), dur = 6, label = 'TEXT', tags = ['text']; if (file.type.indexOf('video/') === 0) { label = 'VIDEO'; tags = ['video']; dur = 8; state.media = { type: 'video', url: url, name: file.name }; el.miniVideo.src = url; el.miniVideo.classList.add('on'); el.miniVideo.load() } else if (file.type.indexOf('image/') === 0) { label = 'IMAGE'; tags = ['image']; dur = 6 } var c = { id: id, start: state.time, dur: dur, track: state.track, wall: state.view === 'outside' ? 'outside' : 'inside', roll: 0, locked: false, label: label, source: file.name, tin: 0, tout: dur, tags: tags }; normalize(c); if (file.type.indexOf('text/') === 0) { var rr = new FileReader(); rr.onload = function () { c.text = String(rr.result).slice(0, 1000); state.clips.push(c); state.selected = id; toast('TEXT LOADED'); draw() }; rr.readAsText(file); return } state.clips.push(c); state.selected = id; toast(label + ' LOADED'); draw() }
+            function updatePreview() { if (state.media && state.media.type === 'video' && el.miniVideo.duration) { try { el.miniVideo.currentTime = clamp((state.time / 100) * el.miniVideo.duration, 0, Math.max(0, el.miniVideo.duration - .05)) } catch (e) { } } }
+            function playLoop() { if (!state.playing) return; state.time += .055; if (state.time > 100) state.time = 0; updatePreview(); draw(); requestAnimationFrame(playLoop) }
+            function togglePlay() { state.playing = !state.playing; el.playBtn.textContent = state.playing ? 'PAUSE' : 'PLAY'; el.playBtn.classList.toggle('active', state.playing); if (state.playing) { try { el.miniVideo.play() } catch (e) { } playLoop() } else { try { el.miniVideo.pause() } catch (e) { } } }
+            function softReset() { state.zoom = 1; state.rot = 0; state.time = 34; state.view = 'inside'; el.viewBtn.textContent = 'INSIDE'; el.side.classList.remove('open'); setMode('move'); toast('SOFT RESET') }
+            function pDown(e) {
+                if (e.pointerId !== undefined) { try { el.canvas.setPointerCapture(e.pointerId) } catch (err) { } }
+                startDrag(e);
+            }
+            function pMove(e) { moveDrag(e) }
+            function pUp(e) {
+                if (e && e.pointerId !== undefined) { try { el.canvas.releasePointerCapture(e.pointerId) } catch (err) { } }
+                endDrag(e || { clientX: 0, clientY: 0 });
+            }
+            function stepGran(dir) {
+                var ls = ['tube', 'track', 'clip', 'beat', 'cell', 'edge', 'frame'];
+                var i = ls.indexOf(state.gran);
+                if (i < 0) i = 2;
+                state.gran = ls[clamp(i + dir, 0, ls.length - 1)];
+                toast('GRAN ' + state.gran);
+                draw();
+            }
+            function importFiles(fileList) {
+                var files = Array.prototype.slice.call(fileList || []);
+                if (!files.length) return;
+                files.forEach(function (f, idx) { setTimeout(function () { importFile(f) }, idx * 90) });
+            }
+            function openFilePicker() { el.fileInput.click() }
+
+            window.addEventListener('resize', resize);
+            el.canvas.addEventListener('pointerdown', pDown);
+            window.addEventListener('pointermove', pMove);
+            window.addEventListener('pointerup', pUp);
+            window.addEventListener('pointercancel', pUp);
+
+            el.canvas.addEventListener('dblclick', function () {
+                var c = selected();
+                if (c) {
+                    state.time = c.start + c.dur / 2;
+                    updatePreview();
+                    toast('SNAP TO ' + c.id);
+                    draw();
+                }
+            });
+
+            el.canvas.addEventListener('wheel', function (e) {
+                e.preventDefault();
+                var dz = e.deltaY < 0 ? 0.08 : -0.08;
+                if (e.ctrlKey || e.metaKey) { state.zoom = clamp(state.zoom + dz, .55, 1.9) }
+                else { state.time = snapTime(state.time + (e.deltaY > 0 ? 1 : -1)); updatePreview() }
+                draw();
+            }, { passive: false });
+
+            el.canvas.addEventListener('dragover', function (e) { e.preventDefault(); toast('DROP TO LOAD CLIPS') });
+            el.canvas.addEventListener('drop', function (e) { e.preventDefault(); importFiles(e.dataTransfer && e.dataTransfer.files) });
+
+            document.body.addEventListener('click', function (e) {
+                var m = e.target.getAttribute('data-mode');
+                if (m) { setMode(m); return }
+                var op = e.target.closest('.op');
+                if (op) {
+                    var k = op.getAttribute('data-op');
+                    if (k === 'export') exportData('state');
+                    else if (k === 'reset') softReset();
+                    else setMode(k);
+                    el.side.classList.add('open');
+                    return;
+                }
+                var ex = e.target.getAttribute('data-export');
+                if (ex) { exportData(ex); return }
+                var tr = e.target.closest('[data-tray]');
+                if (tr) {
+                    var i = Number(tr.getAttribute('data-tray'));
+                    if (state.tray[i]) recallTray(i); else storeSelected();
+                    return;
+                }
+            });
+
+            el.sideHead.addEventListener('click', function () { el.side.classList.toggle('open') });
+            el.playBtn.addEventListener('click', togglePlay);
+            el.snapBtn.addEventListener('click', function () { state.snap = !state.snap; el.snapBtn.classList.toggle('active', state.snap); toast(state.snap ? 'SNAP ON' : 'SNAP OFF') });
+            el.viewBtn.addEventListener('click', cycleView);
+            el.resetBtn.addEventListener('click', softReset);
+            el.importBtn.addEventListener('click', openFilePicker);
+            el.topImportBtn.addEventListener('click', openFilePicker);
+            el.fileInput.addEventListener('change', function (e) { importFiles(e.target.files); e.target.value = '' });
+            el.helpBtn.addEventListener('click', function () { el.help.classList.toggle('open') });
+            el.closeHelp.addEventListener('click', function () { el.help.classList.remove('open') });
+            el.granUp.addEventListener('click', function () { stepGran(-1) });
+            el.granDown.addEventListener('click', function () { stepGran(1) });
+            el.zoomOut.addEventListener('click', function () { state.zoom = clamp(state.zoom - .12, .55, 1.9); draw() });
+            el.zoomIn.addEventListener('click', function () { state.zoom = clamp(state.zoom + .12, .55, 1.9); draw() });
+
+            window.addEventListener('keydown', function (e) {
+                var k = e.key;
+                if (k === ' ') { e.preventDefault(); togglePlay() }
+                if (k === 'ArrowLeft') { e.preventDefault(); state.time = snapTime(state.time - 1); updatePreview(); draw() }
+                if (k === 'ArrowRight') { e.preventDefault(); state.time = snapTime(state.time + 1); updatePreview(); draw() }
+                if (k === 'ArrowUp') { e.preventDefault(); var c1 = selected(); if (c1) { c1.track = clamp(c1.track - 1, 0, 11); state.track = c1.track; draw() } }
+                if (k === 'ArrowDown') { e.preventDefault(); var c2 = selected(); if (c2) { c2.track = clamp(c2.track + 1, 0, 11); state.track = c2.track; draw() } }
+                if (k.toLowerCase() === 'v') cycleView();
+                if (k.toLowerCase() === 'x') splitSelected();
+                if (k.toLowerCase() === 'b') storeSelected();
+                if (k === 'Delete' || k === 'Backspace') deleteSelected();
+                if (k === ',' || k === '.') stepGran(k === ',' ? -1 : 1);
+                if (k === 'Escape') el.help.classList.remove('open');
+            });
+
+            resize();
+            draw();
+        })();
+    </script>
+</body>
+
+</html>

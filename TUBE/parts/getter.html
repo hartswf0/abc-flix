@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARC SPLICE OPERATOR</title>
+    <style>
+        :root {
+            --white: #ffffff;
+            --black: #000000;
+            --hatch: repeating-linear-gradient(-45deg,
+                    #000000 0px,
+                    #000000 1px,
+                    #ffffff 1px,
+                    #ffffff 5px);
+            --slot-width: 52px;
+            --lane-height: 38px;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+            --font-sans: 'Inter', 'Helvetica Neue', 'Arial', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--white);
+            color: var(--black);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            line-height: 1.3;
+            letter-spacing: -0.01em;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        /* ── LAYOUT ── */
+        #app {
+            display: grid;
+            grid-template-columns: 1fr 180px;
+            grid-template-rows: auto 1fr auto auto;
+            grid-template-areas:
+                'source logic'
+                'sequence logic'
+                'monitor logic'
+                'status logic';
+            width: 100%;
+            height: 100%;
+            gap: 0;
+            border: 2px solid var(--black);
+            background: var(--white);
+        }
+
+        #source-bay {
+            grid-area: source;
+            border-bottom: 2px solid var(--black);
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+            background: var(--white);
+        }
+
+        #sequence-bay {
+            grid-area: sequence;
+            border-bottom: 2px solid var(--black);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--white);
+            position: relative;
+        }
+
+        #monitor-bay {
+            grid-area: monitor;
+            border-bottom: 2px solid var(--black);
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 0;
+            background: var(--white);
+        }
+
+        #status-bay {
+            grid-area: status;
+            padding: 4px 12px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            display: flex;
+            gap: 18px;
+            background: var(--white);
+            border-top: 2px solid var(--black);
+        }
+
+        #logic-panel {
+            grid-area: logic;
+            border-left: 2px solid var(--black);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: var(--white);
+            overflow-y: auto;
+        }
+
+        /* ── TYPOGRAPHY ── */
+        .bay-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--black);
+            border-bottom: 1px solid var(--black);
+            padding-bottom: 2px;
+            margin-bottom: 2px;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── SOURCE BAY ── */
+        #barrel {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #load-target {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            border: 2px solid var(--black);
+            padding: 6px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: var(--white);
+            color: var(--black);
+            transition: background 0.1s, color 0.1s;
+            white-space: nowrap;
+        }
+
+        #load-target:hover {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        #load-target:active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        #load-target input {
+            display: none;
+        }
+
+        #track-info {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.03em;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        #track-info .readiness {
+            font-weight: 700;
+            padding: 2px 8px;
+            border: 2px solid var(--black);
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .readiness.ready {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .readiness.decoding {
+            background: var(--hatch);
+            color: var(--black);
+        }
+
+        .readiness.unsupported {
+            background: var(--hatch);
+            color: var(--black);
+            border-style: dashed;
+        }
+
+        .readiness.empty {
+            background: var(--white);
+            color: var(--black);
+            border-style: dashed;
+        }
+
+        #slice-strip {
+            display: flex;
+            gap: 3px;
+            overflow-x: auto;
+            padding: 4px 0;
+            min-height: 58px;
+            align-items: center;
+            border-top: 1px solid var(--black);
+            flex-shrink: 0;
+        }
+
+        #slice-strip::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        #slice-strip::-webkit-scrollbar-thumb {
+            background: var(--black);
+        }
+
+        #slice-strip::-webkit-scrollbar-track {
+            background: var(--white);
+            border: 1px solid var(--black);
+        }
+
+        .slice-chip {
+            flex-shrink: 0;
+            width: 56px;
+            height: 44px;
+            border: 2px solid var(--black);
+            cursor: grab;
+            background: var(--white);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 8px;
+            letter-spacing: 0.04em;
+            transition: border-width 0.08s;
+            overflow: hidden;
+        }
+
+        .slice-chip:hover {
+            border-width: 3px;
+        }
+
+        .slice-chip:active {
+            cursor: grabbing;
+            border-width: 3px;
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .slice-chip .thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .slice-chip .time-label {
+            position: absolute;
+            bottom: 1px;
+            right: 2px;
+            font-size: 7px;
+            background: var(--white);
+            color: var(--black);
+            padding: 0 2px;
+            pointer-events: none;
+            border: 1px solid var(--black);
+            line-height: 1;
+        }
+
+        .slice-chip.highlight {
+            outline: 3px solid var(--black);
+            outline-offset: 2px;
+            z-index: 10;
+        }
+
+        /* ── SEQUENCE BAY ── */
+        #rail-container {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            position: relative;
+            min-height: 0;
+            background: var(--white);
+        }
+
+        #rail-container::-webkit-scrollbar {
+            height: 6px;
+            width: 4px;
+        }
+
+        #rail-container::-webkit-scrollbar-thumb {
+            background: var(--black);
+        }
+
+        #rail-container::-webkit-scrollbar-track {
+            background: var(--white);
+            border: 1px solid var(--black);
+        }
+
+        #rail-inner {
+            position: relative;
+            min-width: 100%;
+            min-height: 100%;
+        }
+
+        #slot-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .slot-marker {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 1px;
+            background: var(--black);
+            opacity: 0.25;
+        }
+
+        .slot-marker.major {
+            opacity: 0.6;
+            width: 2px;
+        }
+
+        .slot-label {
+            position: absolute;
+            top: 2px;
+            font-family: var(--font-mono);
+            font-size: 7px;
+            letter-spacing: 0.03em;
+            color: var(--black);
+            pointer-events: none;
+            transform: translateX(2px);
+        }
+
+        #layer-lanes {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        .layer-lane {
+            position: relative;
+            height: var(--lane-height);
+            border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+
+        .layer-lane-label {
+            position: absolute;
+            left: -28px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            font-family: var(--font-mono);
+            font-size: 7px;
+            letter-spacing: 0.05em;
+            pointer-events: none;
+            width: 20px;
+            text-align: center;
+            z-index: 2;
+        }
+
+        .clip-block {
+            position: absolute;
+            top: 2px;
+            bottom: 2px;
+            background: var(--black);
+            color: var(--white);
+            border: 2px solid var(--black);
+            cursor: grab;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 8px;
+            letter-spacing: 0.03em;
+            transition: top 0.05s, left 0.05s, width 0.05s;
+            min-width: 20px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 4px;
+        }
+
+        .clip-block:hover {
+            outline: 3px solid var(--black);
+            outline-offset: 1px;
+            z-index: 8;
+        }
+
+        .clip-block:active {
+            cursor: grabbing;
+            z-index: 9;
+        }
+
+        .clip-block.highlight {
+            outline: 4px solid var(--black);
+            outline-offset: 2px;
+            z-index: 10;
+            animation: pulse-outline 0.6s ease-in-out 3;
+        }
+
+        @keyframes pulse-outline {
+
+            0%,
+            100% {
+                outline-width: 4px;
+            }
+
+            50% {
+                outline-width: 6px;
+            }
+        }
+
+        .trim-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 10px;
+            cursor: ew-resize;
+            z-index: 5;
+            background: transparent;
+        }
+
+        .trim-handle.left {
+            left: -6px;
+        }
+
+        .trim-handle.right {
+            right: -6px;
+        }
+
+        .trim-handle:hover {
+            background: var(--hatch);
+            width: 12px;
+        }
+
+        .trim-handle:active {
+            background: var(--black);
+            width: 14px;
+        }
+
+        #playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--black);
+            z-index: 6;
+            pointer-events: none;
+            transition: left 0.04s linear;
+        }
+
+        #playhead-handle {
+            position: absolute;
+            top: -4px;
+            width: 14px;
+            height: 14px;
+            background: var(--black);
+            z-index: 7;
+            cursor: col-resize;
+            pointer-events: all;
+            transform: translateX(-50%);
+            border: 2px solid var(--white);
+            outline: 2px solid var(--black);
+        }
+
+        #playhead-handle:hover {
+            width: 18px;
+            height: 18px;
+            top: -6px;
+        }
+
+        #playhead-handle:active {
+            background: var(--white);
+            border-color: var(--black);
+        }
+
+        /* ── MONITOR BAY ── */
+        #monitor-frame {
+            width: 140px;
+            height: 90px;
+            border: 2px solid var(--black);
+            background: var(--black);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #monitor-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            background: var(--black);
+        }
+
+        #monitor-video.show {
+            display: block;
+        }
+
+        #monitor-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--white);
+            background: var(--black);
+            text-align: center;
+            padding: 4px;
+        }
+
+        #monitor-placeholder.hatch-bg {
+            background: var(--hatch);
+            color: var(--black);
+            font-weight: 700;
+        }
+
+        #monitor-info {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.03em;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        #monitor-info .tc {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── STATUS BAY ── */
+        #status-bay span {
+            white-space: nowrap;
+        }
+
+        #status-bay .stat-val {
+            font-weight: 700;
+        }
+
+        /* ── LOGIC PANEL ── */
+        .logic-line {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            padding: 6px 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background: var(--white);
+            color: var(--black);
+            transition: border-color 0.08s, background 0.08s;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .logic-line:hover {
+            border-color: var(--black);
+        }
+
+        .logic-line.highlight {
+            background: var(--black);
+            color: var(--white);
+            border-color: var(--black);
+            animation: flash-logic 0.5s ease-in-out 2;
+        }
+
+        @keyframes flash-logic {
+
+            0%,
+            100% {
+                background: var(--black);
+                color: var(--white);
+            }
+
+            50% {
+                background: var(--white);
+                color: var(--black);
+            }
+        }
+
+        .logic-line .obj-name {
+            font-weight: 700;
+            font-size: 11px;
+            display: block;
+            letter-spacing: 0.06em;
+        }
+
+        /* ── BUTTONS ── */
+        .cmd-btn {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border: 2px solid var(--black);
+            background: var(--white);
+            color: var(--black);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.1s, color 0.1s;
+        }
+
+        .cmd-btn:hover {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .cmd-btn:active {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .cmd-btn.primary {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .cmd-btn.primary:hover {
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .cmd-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        /* ── GHOST CLIP (drag preview) ── */
+        #ghost-clip {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+            background: var(--black);
+            color: var(--white);
+            border: 3px solid var(--black);
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.85;
+            display: none;
+            height: 28px;
+            min-width: 30px;
+            padding: 0 6px;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            #app {
+                grid-template-columns: 1fr 130px;
+                grid-template-rows: auto 1fr auto auto;
+            }
+
+            :root {
+                --slot-width: 36px;
+                --lane-height: 30px;
+            }
+
+            #monitor-frame {
+                width: 100px;
+                height: 64px;
+            }
+
+            .slice-chip {
+                width: 40px;
+                height: 32px;
+            }
+
+            .clip-block {
+                font-size: 7px;
+                padding: 0 2px;
+            }
+
+            #load-target {
+                padding: 4px 10px;
+                font-size: 9px;
+            }
+
+            .cmd-btn {
+                font-size: 8px;
+                padding: 3px 8px;
+            }
+
+            .logic-line {
+                font-size: 7px;
+                padding: 4px 5px;
+            }
+
+            .logic-line .obj-name {
+                font-size: 9px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #app {
+                grid-template-columns: 1fr 100px;
+                grid-template-rows: auto 1fr auto auto;
+            }
+
+            :root {
+                --slot-width: 28px;
+                --lane-height: 26px;
+            }
+
+            #monitor-frame {
+                width: 72px;
+                height: 48px;
+            }
+
+            .slice-chip {
+                width: 32px;
+                height: 26px;
+            }
+
+            #status-bay {
+                font-size: 7px;
+                gap: 8px;
+                padding: 2px 6px;
+            }
+
+            .logic-line {
+                font-size: 6px;
+                padding: 3px 4px;
+            }
+
+            .logic-line .obj-name {
+                font-size: 7px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <!-- SOURCE BAY -->
+        <div id="source-bay">
+            <span class="bay-label">Source Bay — Barrel &amp; Slice Strip</span>
+            <div id="barrel">
+                <label id="load-target" title="Load video file">
+                    <input type="file" id="file-input" accept="video/*"> + LOAD VIDEO
+                </label>
+                <div id="track-info">
+                    <span class="readiness empty" id="readiness-stamp">NO TRACK</span>
+                    <span class="mono" id="track-name">—</span>
+                    <span class="mono" id="track-dur">0.0s</span>
+                    <span class="mono" id="slice-count">0 slices</span>
+                </div>
+            </div>
+            <div id="slice-strip" title="Drag slices to the sequence rail below"></div>
+        </div>
+
+        <!-- SEQUENCE BAY -->
+        <div id="sequence-bay">
+            <span class="bay-label" style="padding:4px 12px;">Sequence Bay — Magnetic Rail</span>
+            <div id="rail-container">
+                <div id="rail-inner">
+                    <div id="slot-markers"></div>
+                    <div id="layer-lanes"></div>
+                    <div id="playhead">
+                        <div id="playhead-handle" title="Scrub playhead"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONITOR BAY -->
+        <div id="monitor-bay">
+            <span class="bay-label" style="position:absolute;top:2px;left:12px;">Monitor</span>
+            <div id="monitor-frame" style="margin-top:10px;">
+                <video id="monitor-video" muted playsinline></video>
+                <div id="monitor-placeholder">NO SOURCE</div>
+            </div>
+            <div id="monitor-info">
+                <span class="tc" id="timecode-display">00:00.0</span>
+                <span class="mono" id="active-clip-info">No active clip</span>
+                <span class="mono" id="render-source-label"></span>
+            </div>
+        </div>
+
+        <!-- STATUS BAY -->
+        <div id="status-bay">
+            <span>TIME: <span class="stat-val" id="stat-time">00:00.0</span></span>
+            <span>MODE: <span class="stat-val" id="stat-mode">IDLE</span></span>
+            <span>VIDEO: <span class="stat-val" id="stat-video">NO TRACK</span></span>
+            <span>SPLICES: <span class="stat-val" id="stat-splices">0</span></span>
+        </div>
+
+        <!-- LOGIC PANEL -->
+        <div id="logic-panel">
+            <span class="bay-label">Logic Lines</span>
+            <div class="logic-line" data-bind="track">
+                <span class="obj-name">TRACK</span>Click to bind barrel &amp; load target
+            </div>
+            <div class="logic-line" data-bind="slice">
+                <span class="obj-name">SLICE</span>Click to bind source chip
+            </div>
+            <div class="logic-line" data-bind="clip">
+                <span class="obj-name">CLIP</span>Click to bind timeline block
+            </div>
+            <div class="logic-line" data-bind="transport">
+                <span class="obj-name">TRANSPORT</span>Click to bind playhead &amp; monitor
+            </div>
+            <hr style="border:1px solid var(--black);margin:4px 0;">
+            <button class="cmd-btn" id="btn-play" title="Play / Pause">▶ PLAY</button>
+            <button class="cmd-btn" id="btn-export" title="Export EDL">⬇ EXPORT</button>
+            <button class="cmd-btn" id="btn-clear" title="Clear sequence">✕ CLEAR</button>
+            <span class="mono" style="font-size:7px;margin-top:4px;line-height:1.3;">All cuts are slot-snapped.<br>1
+                slot = 1 second.</span>
+        </div>
+    </div>
+
+    <!-- GHOST CLIP (drag preview) -->
+    <div id="ghost-clip"></div>
+
+    <script>
+        (function () {
+            // ──────────────────────────────────────
+            // ARC SPLICE OPERATOR — CORE ENGINE
+            // ──────────────────────────────────────
+
+            const SLOT_WIDTH = () => {
+                const w = window.innerWidth;
+                if (w <= 480) return 28;
+                if (w <= 768) return 36;
+                return 52;
+            };
+            const LANE_HEIGHT = () => {
+                const w = window.innerWidth;
+                if (w <= 480) return 26;
+                if (w <= 768) return 30;
+                return 38;
+            };
+            const NUM_LAYERS = 4;
+            const MAX_SLOTS = 120;
+
+            // ── STATE ──
+            const state = {
+                tracks: [], // {id, name, source_file, video_element, readiness, duration, slice_count}
+                slices: [], // {track_id, source_start, source_duration}
+                clips: [], // {id, track_id, source_start, sequence_slot, layer, duration}
+                transport: {
+                    time: 0, // current sequence time in seconds
+                    playing: false,
+                    active_clip_id: null,
+                },
+                mode: 'idle', // idle|loading_video|dragging_slice|dragging_clip|trimming_clip|scrubbing|playing
+                next_clip_id: 1,
+                next_track_id: 1,
+                highlight_target: null,
+                animFrameId: null,
+                playbackStartReal: 0,
+                playbackStartSeq: 0,
+            };
+
+            // ── DOM REFS ──
+            const $ = (sel) => document.querySelector(sel);
+            const $$ = (sel) => document.querySelectorAll(sel);
+
+            const dom = {
+                app: $('#app'),
+                fileInput: $('#file-input'),
+                loadTarget: $('#load-target'),
+                readinessStamp: $('#readiness-stamp'),
+                trackName: $('#track-name'),
+                trackDur: $('#track-dur'),
+                sliceCount: $('#slice-count'),
+                sliceStrip: $('#slice-strip'),
+                railContainer: $('#rail-container'),
+                railInner: $('#rail-inner'),
+                slotMarkers: $('#slot-markers'),
+                layerLanes: $('#layer-lanes'),
+                playhead: $('#playhead'),
+                playheadHandle: $('#playhead-handle'),
+                monitorVideo: $('#monitor-video'),
+                monitorPlaceholder: $('#monitor-placeholder'),
+                timecodeDisplay: $('#timecode-display'),
+                activeClipInfo: $('#active-clip-info'),
+                renderSourceLabel: $('#render-source-label'),
+                statTime: $('#stat-time'),
+                statMode: $('#stat-mode'),
+                statVideo: $('#stat-video'),
+                statSplices: $('#stat-splices'),
+                ghostClip: $('#ghost-clip'),
+                btnPlay: $('#btn-play'),
+                btnExport: $('#btn-export'),
+                btnClear: $('#btn-clear'),
+                logicLines: $$('.logic-line'),
+            };
+
+            // ── UTILITY ──
+            function fmtTime(sec) {
+                const s = Math.max(0, sec);
+                const m = Math.floor(s / 60);
+                const ss = (s % 60).toFixed(1);
+                return `${String(m).padStart(2, '0')}:${String(parseFloat(ss).toFixed(1)).padStart(4, '0')}`;
+            }
+
+            function getSlotWidth() { return SLOT_WIDTH(); }
+
+            function getLaneHeight() { return LANE_HEIGHT(); }
+
+            function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+            // ── TRACK ──
+            function createTrack(file, videoEl) {
+                const track = {
+                    id: state.next_track_id++,
+                    name: file.name,
+                    source_file: file.name,
+                    video_element: videoEl,
+                    readiness: 'decoding',
+                    duration: 0,
+                    slice_count: 0,
+                };
+                state.tracks.push(track);
+                return track;
+            }
+
+            function getTrackById(id) {
+                return state.tracks.find(t => t.id === id);
+            }
+
+            // ── SLICE ──
+            function generateSlices(track) {
+                const dur = track.duration;
+                const count = Math.floor(dur);
+                state.slices = state.slices.filter(s => s.track_id !== track.id);
+                for (let i = 0; i < count; i++) {
+                    state.slices.push({
+                        track_id: track.id,
+                        source_start: i,
+                        source_duration: 1,
+                    });
+                }
+                track.slice_count = count;
+            }
+
+            // ── CLIP ──
+            function createClip(trackId, sourceStart, sequenceSlot, layer) {
+                const clip = {
+                    id: state.next_clip_id++,
+                    track_id: trackId,
+                    source_start: sourceStart,
+                    sequence_slot: sequenceSlot,
+                    layer: layer,
+                    duration: 1,
+                };
+                state.clips.push(clip);
+                return clip;
+            }
+
+            function getClipById(id) {
+                return state.clips.find(c => c.id === id);
+            }
+
+            function getActiveClipAtSlot(slot) {
+                let best = null;
+                for (const c of state.clips) {
+                    if (slot >= c.sequence_slot && slot < c.sequence_slot + c.duration) {
+                        if (!best || c.layer > best.layer) {
+                            best = c;
+                        }
+                    }
+                }
+                return best;
+            }
+
+            function getActiveClipAtTime(time) {
+                const slot = Math.floor(time);
+                const frac = time - slot;
+                const clip = getActiveClipAtSlot(slot);
+                if (!clip) {
+                    // check if time falls within any clip's span
+                    for (const c of state.clips) {
+                        if (time >= c.sequence_slot && time < c.sequence_slot + c.duration) {
+                            if (!clip || c.layer > clip.layer) return c;
+                            clip = c;
+                        }
+                    }
+                }
+                return clip;
+            }
+
+            // ── RENDER TIMELINE ──
+            function buildTimeline() {
+                const sw = getSlotWidth();
+                const lh = getLaneHeight();
+                const totalWidth = MAX_SLOTS * sw;
+                const totalHeight = NUM_LAYERS * lh;
+
+                dom.railInner.style.width = totalWidth + 'px';
+                dom.railInner.style.height = totalHeight + 'px';
+
+                // Slot markers
+                dom.slotMarkers.innerHTML = '';
+                dom.slotMarkers.style.width = totalWidth + 'px';
+                dom.slotMarkers.style.height = totalHeight + 'px';
+                for (let i = 0; i <= MAX_SLOTS; i++) {
+                    const marker = document.createElement('div');
+                    marker.className = 'slot-marker' + (i % 5 === 0 ? ' major' : '');
+                    marker.style.left = (i * sw) + 'px';
+                    marker.style.height = totalHeight + 'px';
+                    dom.slotMarkers.appendChild(marker);
+                    if (i % 5 === 0 && i < MAX_SLOTS) {
+                        const label = document.createElement('span');
+                        label.className = 'slot-label';
+                        label.style.left = (i * sw) + 'px';
+                        label.textContent = i;
+                        dom.slotMarkers.appendChild(label);
+                    }
+                }
+
+                // Layer lanes
+                dom.layerLanes.innerHTML = '';
+                dom.layerLanes.style.width = totalWidth + 'px';
+                dom.layerLanes.style.height = totalHeight + 'px';
+                for (let l = 0; l < NUM_LAYERS; l++) {
+                    const lane = document.createElement('div');
+                    lane.className = 'layer-lane';
+                    lane.style.height = lh + 'px';
+                    lane.style.width = totalWidth + 'px';
+                    lane.dataset.layer = l;
+                    const label = document.createElement('span');
+                    label.className = 'layer-lane-label';
+                    label.textContent = 'L' + l;
+                    lane.appendChild(label);
+                    dom.layerLanes.appendChild(lane);
+                }
+
+                // Clips
+                renderClips();
+                updatePlayheadPosition();
+            }
+
+            function renderClips() {
+                // Remove existing clip blocks
+                dom.layerLanes.querySelectorAll('.clip-block').forEach(el => el.remove());
+                const sw = getSlotWidth();
+                const lh = getLaneHeight();
+
+                for (const clip of state.clips) {
+                    const lane = dom.layerLanes.querySelector(`.layer-lane[data-layer="${clip.layer}"]`);
+                    if (!lane) continue;
+                    const block = document.createElement('div');
+                    block.className = 'clip-block';
+                    block.dataset.clipId = clip.id;
+                    block.style.left = (clip.sequence_slot * sw) + 'px';
+                    block.style.width = (clip.duration * sw - 4) + 'px';
+                    block.style.top = '2px';
+                    block.style.height = (lh - 4) + 'px';
+                    block.textContent =
+                        `T${clip.track_id} @${clip.source_start}s [${clip.duration}s]`;
+                    block.title =
+                        `Clip #${clip.id} | Track ${clip.track_id} | Source ${clip.source_start}s | Slot ${clip.sequence_slot} | Layer ${clip.layer} | Dur ${clip.duration}s`;
+
+                    // Trim handles
+                    const leftHandle = document.createElement('div');
+                    leftHandle.className = 'trim-handle left';
+                    leftHandle.dataset.clipId = clip.id;
+                    leftHandle.dataset.side = 'left';
+                    const rightHandle = document.createElement('div');
+                    rightHandle.className = 'trim-handle right';
+                    rightHandle.dataset.clipId = clip.id;
+                    rightHandle.dataset.side = 'right';
+
+                    block.appendChild(leftHandle);
+                    block.appendChild(rightHandle);
+                    lane.appendChild(block);
+
+                    // Click on clip → highlight logic line
+                    block.addEventListener('pointerdown', (e) => {
+                        if (e.target.classList.contains('trim-handle')) return;
+                        highlightLogicLine('clip');
+                        highlightClipBlock(clip.id);
+                        state.transport.active_clip_id = clip.id;
+                        updateMonitorForClip(clip);
+                        updateStatus();
+                    });
+                }
+            }
+
+            function updatePlayheadPosition() {
+                const sw = getSlotWidth();
+                const lh = getLaneHeight();
+                const totalHeight = NUM_LAYERS * lh;
+                const left = state.transport.time * sw;
+                dom.playhead.style.left = left + 'px';
+                dom.playhead.style.height = totalHeight + 'px';
+                dom.playheadHandle.style.top = '-4px';
+                dom.playheadHandle.style.left = left + 'px';
+            }
+
+            function highlightClipBlock(clipId) {
+                dom.layerLanes.querySelectorAll('.clip-block.highlight').forEach(el => el.classList.remove(
+                    'highlight'));
+                const block = dom.layerLanes.querySelector(`.clip-block[data-clip-id="${clipId}"]`);
+                if (block) {
+                    block.classList.add('highlight');
+                    setTimeout(() => block.classList.remove('highlight'), 2000);
+                }
+            }
+
+            function highlightSliceChip(trackId, sourceStart) {
+                dom.sliceStrip.querySelectorAll('.slice-chip.highlight').forEach(el => el.classList.remove('highlight'));
+                const chip = dom.sliceStrip.querySelector(`.slice-chip[data-track="${trackId}"][data-start="${sourceStart}"]`);
+                if (chip) {
+                    chip.classList.add('highlight');
+                    chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    setTimeout(() => chip.classList.remove('highlight'), 2000);
+                }
+            }
+
+            // ── MONITOR ──
+            function updateMonitorForClip(clip) {
+                if (!clip) {
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'NO ACTIVE CLIP';
+                    dom.monitorPlaceholder.classList.remove('hatch-bg');
+                    dom.activeClipInfo.textContent = 'No active clip';
+                    dom.renderSourceLabel.textContent = '';
+                    return;
+                }
+                const track = getTrackById(clip.track_id);
+                if (!track) {
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'TRACK MISSING';
+                    dom.monitorPlaceholder.classList.add('hatch-bg');
+                    dom.activeClipInfo.textContent = 'Track not found';
+                    dom.renderSourceLabel.textContent = '';
+                    return;
+                }
+                if (track.readiness === 'ready') {
+                    const sourceTime = clip.source_start;
+                    const video = track.video_element;
+                    video.currentTime = sourceTime;
+                    dom.monitorVideo.classList.add('show');
+                    dom.monitorPlaceholder.textContent = '';
+                    dom.monitorPlaceholder.classList.remove('hatch-bg');
+                    dom.activeClipInfo.textContent =
+                        `Clip #${clip.id} | Track ${clip.track_id} | Src ${clip.source_start}s | Slot ${clip.sequence_slot}`;
+                    dom.renderSourceLabel.textContent = `Source: ${track.name} @ ${fmtTime(sourceTime)}`;
+                } else if (track.readiness === 'decoding') {
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'DECODING';
+                    dom.monitorPlaceholder.classList.add('hatch-bg');
+                    dom.activeClipInfo.textContent = 'Video decoding...';
+                    dom.renderSourceLabel.textContent = track.name;
+                } else if (track.readiness === 'unsupported') {
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'UNSUPPORTED';
+                    dom.monitorPlaceholder.classList.add('hatch-bg');
+                    dom.activeClipInfo.textContent = 'Codec unsupported';
+                    dom.renderSourceLabel.textContent = track.name;
+                }
+            }
+
+            function seekMonitorToTime(seqTime) {
+                const clip = getActiveClipAtTime(seqTime);
+                if (clip) {
+                    state.transport.active_clip_id = clip.id;
+                    const track = getTrackById(clip.track_id);
+                    if (track && track.readiness === 'ready') {
+                        const offset = seqTime - clip.sequence_slot;
+                        const sourceTime = clip.source_start + offset;
+                        const video = track.video_element;
+                        video.currentTime = clamp(sourceTime, 0, track.duration - 0.01);
+                        dom.monitorVideo.classList.add('show');
+                        dom.monitorPlaceholder.textContent = '';
+                        dom.monitorPlaceholder.classList.remove('hatch-bg');
+                        dom.activeClipInfo.textContent =
+                            `Clip #${clip.id} | Track ${clip.track_id} | Src ${fmtTime(sourceTime)}`;
+                        dom.renderSourceLabel.textContent = `Source: ${track.name} @ ${fmtTime(sourceTime)}`;
+                    } else {
+                        updateMonitorForClip(clip);
+                    }
+                } else {
+                    state.transport.active_clip_id = null;
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'NO CLIP HERE';
+                    dom.monitorPlaceholder.classList.remove('hatch-bg');
+                    dom.activeClipInfo.textContent = 'No active clip at this time';
+                    dom.renderSourceLabel.textContent = '';
+                }
+                dom.timecodeDisplay.textContent = fmtTime(seqTime);
+                updatePlayheadPosition();
+            }
+
+            // ── STATUS ──
+            function updateStatus() {
+                dom.statTime.textContent = fmtTime(state.transport.time);
+                dom.statMode.textContent = state.mode.toUpperCase();
+                const activeTrack = state.tracks.length > 0 ? state.tracks[state.tracks.length - 1] : null;
+                if (activeTrack) {
+                    dom.statVideo.textContent = activeTrack.readiness.toUpperCase();
+                } else {
+                    dom.statVideo.textContent = 'NO TRACK';
+                }
+                dom.statSplices.textContent = state.clips.length;
+                if (activeTrack) {
+                    dom.readinessStamp.textContent = activeTrack.readiness.toUpperCase();
+                    dom.readinessStamp.className = 'readiness ' + activeTrack.readiness;
+                    dom.trackName.textContent = activeTrack.name;
+                    dom.trackDur.textContent = activeTrack.duration.toFixed(1) + 's';
+                    dom.sliceCount.textContent = activeTrack.slice_count + ' slices';
+                } else {
+                    dom.readinessStamp.textContent = 'NO TRACK';
+                    dom.readinessStamp.className = 'readiness empty';
+                    dom.trackName.textContent = '—';
+                    dom.trackDur.textContent = '0.0s';
+                    dom.sliceCount.textContent = '0 slices';
+                }
+            }
+
+            // ── SLICE STRIP ──
+            function buildSliceStrip(track) {
+                dom.sliceStrip.innerHTML = '';
+                if (!track || track.readiness !== 'ready') {
+                    const msg = document.createElement('span');
+                    msg.className = 'mono';
+                    msg.style.cssText = 'font-size:9px;padding:8px;';
+                    msg.textContent = track ? `Track status: ${track.readiness}` : 'No track loaded';
+                    dom.sliceStrip.appendChild(msg);
+                    return;
+                }
+                const slices = state.slices.filter(s => s.track_id === track.id);
+                if (slices.length === 0) {
+                    const msg = document.createElement('span');
+                    msg.className = 'mono';
+                    msg.style.cssText = 'font-size:9px;padding:8px;';
+                    msg.textContent = 'Video too short for slices (<1s)';
+                    dom.sliceStrip.appendChild(msg);
+                    return;
+                }
+                const video = track.video_element;
+                for (const slice of slices) {
+                    const chip = document.createElement('div');
+                    chip.className = 'slice-chip';
+                    chip.dataset.track = track.id;
+                    chip.dataset.start = slice.source_start;
+                    chip.title = `Track ${track.id} | Source ${slice.source_start}s | Dur 1s`;
+                    chip.setAttribute('draggable', 'false');
+
+                    // Thumbnail canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'thumb';
+                    canvas.width = 56;
+                    canvas.height = 44;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 56, 44);
+                    ctx.fillStyle = '#000000';
+                    ctx.font = '7px monospace';
+                    ctx.fillText('...', 20, 26);
+                    chip.appendChild(canvas);
+
+                    const timeLabel = document.createElement('span');
+                    timeLabel.className = 'time-label';
+                    timeLabel.textContent = slice.source_start + 's';
+                    chip.appendChild(timeLabel);
+
+                    // Extract frame asynchronously
+                    extractFrameToCanvas(video, slice.source_start, canvas);
+
+                    // Pointer events for drag
+                    chip.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        startDragSlice(e, slice, chip);
+                    });
+
+                    // Click to highlight
+                    chip.addEventListener('click', (e) => {
+                        if (state.mode === 'dragging_slice') return;
+                        highlightLogicLine('slice');
+                        highlightSliceChip(track.id, slice.source_start);
+                    });
+
+                    dom.sliceStrip.appendChild(chip);
+                }
+            }
+
+            async function extractFrameToCanvas(video, time, canvas) {
+                try {
+                    const v = video;
+                    const origTime = v.currentTime;
+                    v.currentTime = clamp(time, 0, (v.duration || 1) - 0.05);
+                    await new Promise((resolve) => {
+                        const onSeek = () => {
+                            v.removeEventListener('seeked', onSeek);
+                            resolve();
+                        };
+                        v.addEventListener('seeked', onSeek, { once: true });
+                    });
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+                    // Restore original time
+                    v.currentTime = origTime;
+                } catch (e) {
+                    // Frame extraction failed; leave placeholder
+                }
+            }
+
+            // ── DRAG: SLICE → CLIP ──
+            let dragData = null;
+
+            function startDragSlice(e, slice, chipEl) {
+                state.mode = 'dragging_slice';
+                updateStatus();
+                dragData = {
+                    type: 'slice',
+                    slice: slice,
+                    chipEl: chipEl,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    origTrackId: slice.track_id,
+                    origSourceStart: slice.source_start,
+                };
+                dom.ghostClip.style.display = 'flex';
+                dom.ghostClip.textContent = '1s';
+                dom.ghostClip.style.width = getSlotWidth() + 'px';
+                dom.ghostClip.style.height = (getLaneHeight() - 4) + 'px';
+                updateGhostPosition(e);
+                document.addEventListener('pointermove', onDragMove);
+                document.addEventListener('pointerup', onDragUp);
+                document.addEventListener('pointercancel', onDragUp);
+                e.stopPropagation();
+            }
+
+            function startDragClip(e, clipId) {
+                const clip = getClipById(clipId);
+                if (!clip) return;
+                state.mode = 'dragging_clip';
+                updateStatus();
+                dragData = {
+                    type: 'clip',
+                    clip: clip,
+                    origSlot: clip.sequence_slot,
+                    origLayer: clip.layer,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                };
+                dom.ghostClip.style.display = 'flex';
+                dom.ghostClip.textContent = clip.duration + 's';
+                dom.ghostClip.style.width = (clip.duration * getSlotWidth()) + 'px';
+                dom.ghostClip.style.height = (getLaneHeight() - 4) + 'px';
+                updateGhostPosition(e);
+                document.addEventListener('pointermove', onDragMove);
+                document.addEventListener('pointerup', onDragUp);
+                document.addEventListener('pointercancel', onDragUp);
+                e.stopPropagation();
+            }
+
+            function updateGhostPosition(e) {
+                dom.ghostClip.style.left = (e.clientX - getSlotWidth() / 2) + 'px';
+                dom.ghostClip.style.top = (e.clientY - getLaneHeight() / 2) + 'px';
+            }
+
+            function onDragMove(e) {
+                if (!dragData) return;
+                updateGhostPosition(e);
+                // Highlight potential drop slot on timeline
+                const railRect = dom.railContainer.getBoundingClientRect();
+                if (e.clientX >= railRect.left && e.clientX <= railRect.right &&
+                    e.clientY >= railRect.top && e.clientY <= railRect.bottom) {
+                    const relX = e.clientX - railRect.left + dom.railContainer.scrollLeft;
+                    const relY = e.clientY - railRect.top + dom.railContainer.scrollTop;
+                    const sw = getSlotWidth();
+                    const lh = getLaneHeight();
+                    const targetSlot = Math.round(relX / sw);
+                    const targetLayer = clamp(Math.floor(relY / lh), 0, NUM_LAYERS - 1);
+                    // Show snap indicator
+                    dom.ghostClip.style.borderStyle = 'solid';
+                    dom.ghostClip.style.opacity = '0.85';
+                } else {
+                    dom.ghostClip.style.borderStyle = 'dashed';
+                    dom.ghostClip.style.opacity = '0.5';
+                }
+            }
+
+            function onDragUp(e) {
+                document.removeEventListener('pointermove', onDragMove);
+                document.removeEventListener('pointerup', onDragUp);
+                document.removeEventListener('pointercancel', onDragUp);
+                dom.ghostClip.style.display = 'none';
+                dom.ghostClip.style.borderStyle = 'solid';
+                dom.ghostClip.style.opacity = '0.85';
+
+                if (!dragData) return;
+
+                const railRect = dom.railContainer.getBoundingClientRect();
+                const inRail = e.clientX >= railRect.left && e.clientX <= railRect.right &&
+                    e.clientY >= railRect.top && e.clientY <= railRect.bottom;
+
+                if (inRail && dragData.type === 'slice') {
+                    const relX = e.clientX - railRect.left + dom.railContainer.scrollLeft;
+                    const relY = e.clientY - railRect.top + dom.railContainer.scrollTop;
+                    const sw = getSlotWidth();
+                    const lh = getLaneHeight();
+                    const targetSlot = clamp(Math.round(relX / sw), 0, MAX_SLOTS - 1);
+                    const targetLayer = clamp(Math.floor(relY / lh), 0, NUM_LAYERS - 1);
+                    const clip = createClip(dragData.origTrackId, dragData.origSourceStart, targetSlot, targetLayer);
+                    state.mode = 'idle';
+                    buildTimeline();
+                    updateStatus();
+                    highlightClipBlock(clip.id);
+                    highlightLogicLine('clip');
+                } else if (inRail && dragData.type === 'clip') {
+                    const relX = e.clientX - railRect.left + dom.railContainer.scrollLeft;
+                    const relY = e.clientY - railRect.top + dom.railContainer.scrollTop;
+                    const sw = getSlotWidth();
+                    const lh = getLaneHeight();
+                    const targetSlot = clamp(Math.round(relX / sw), 0, MAX_SLOTS - dragData.clip.duration);
+                    const targetLayer = clamp(Math.floor(relY / lh), 0, NUM_LAYERS - 1);
+                    dragData.clip.sequence_slot = targetSlot;
+                    dragData.clip.layer = targetLayer;
+                    state.mode = 'idle';
+                    buildTimeline();
+                    updateStatus();
+                } else if (dragData.type === 'clip') {
+                    // Restore original position
+                    dragData.clip.sequence_slot = dragData.origSlot;
+                    dragData.clip.layer = dragData.origLayer;
+                    state.mode = 'idle';
+                    buildTimeline();
+                    updateStatus();
+                } else {
+                    state.mode = 'idle';
+                    updateStatus();
+                }
+                dragData = null;
+            }
+
+            // ── TRIM ──
+            let trimData = null;
+
+            function startTrim(e, clipId, side) {
+                const clip = getClipById(clipId);
+                if (!clip) return;
+                state.mode = 'trimming_clip';
+                updateStatus();
+                trimData = {
+                    clip, side, startX: e.clientX, origSlot: clip.sequence_slot, origDur: clip.duration,
+                    origSourceStart: clip.source_start
+                };
+                document.addEventListener('pointermove', onTrimMove);
+                document.addEventListener('pointerup', onTrimUp);
+                document.addEventListener('pointercancel', onTrimUp);
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
+            function onTrimMove(e) {
+                if (!trimData) return;
+                const dx = e.clientX - trimData.startX;
+                const sw = getSlotWidth();
+                const slotDelta = Math.round(dx / sw);
+                if (trimData.side === 'right') {
+                    const newDur = clamp(trimData.origDur + slotDelta, 1, MAX_SLOTS - trimData.clip.sequence_slot);
+                    trimData.clip.duration = newDur;
+                } else if (trimData.side === 'left') {
+                    const delta = clamp(slotDelta, -trimData.origSourceStart, trimData.origDur - 1);
+                    trimData.clip.source_start = trimData.origSourceStart + delta;
+                    trimData.clip.sequence_slot = trimData.origSlot + delta;
+                    trimData.clip.duration = trimData.origDur - delta;
+                }
+                buildTimeline();
+                updateStatus();
+            }
+
+            function onTrimUp(e) {
+                document.removeEventListener('pointermove', onTrimMove);
+                document.removeEventListener('pointerup', onTrimUp);
+                document.removeEventListener('pointercancel', onTrimUp);
+                trimData = null;
+                state.mode = 'idle';
+                buildTimeline();
+                updateStatus();
+            }
+
+            // ── SCRUB ──
+            let scrubData = null;
+
+            function startScrub(e) {
+                state.mode = 'scrubbing';
+                updateStatus();
+                scrubData = { startX: e.clientX, startTime: state.transport.time };
+                document.addEventListener('pointermove', onScrubMove);
+                document.addEventListener('pointerup', onScrubUp);
+                document.addEventListener('pointercancel', onScrubUp);
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
+            function onScrubMove(e) {
+                if (!scrubData) return;
+                const railRect = dom.railContainer.getBoundingClientRect();
+                const relX = e.clientX - railRect.left + dom.railContainer.scrollLeft;
+                const sw = getSlotWidth();
+                const targetTime = clamp(relX / sw, 0, MAX_SLOTS);
+                state.transport.time = targetTime;
+                seekMonitorToTime(targetTime);
+                updateStatus();
+            }
+
+            function onScrubUp(e) {
+                document.removeEventListener('pointermove', onScrubMove);
+                document.removeEventListener('pointerup', onScrubUp);
+                document.removeEventListener('pointercancel', onScrubUp);
+                scrubData = null;
+                state.mode = 'idle';
+                updateStatus();
+            }
+
+            // ── PLAYBACK ──
+            function togglePlay() {
+                if (state.transport.playing) {
+                    pausePlayback();
+                } else {
+                    startPlayback();
+                }
+            }
+
+            function startPlayback() {
+                state.transport.playing = true;
+                state.mode = 'playing';
+                state.playbackStartReal = performance.now() / 1000;
+                state.playbackStartSeq = state.transport.time;
+                dom.btnPlay.textContent = '⏸ PAUSE';
+                updateStatus();
+                animatePlayback();
+            }
+
+            function pausePlayback() {
+                state.transport.playing = false;
+                state.mode = 'idle';
+                dom.btnPlay.textContent = '▶ PLAY';
+                if (state.animFrameId) {
+                    cancelAnimationFrame(state.animFrameId);
+                    state.animFrameId = null;
+                }
+                updateStatus();
+            }
+
+            function animatePlayback() {
+                if (!state.transport.playing) return;
+                const now = performance.now() / 1000;
+                const elapsed = now - state.playbackStartReal;
+                const seqTime = state.playbackStartSeq + elapsed;
+                if (seqTime > MAX_SLOTS) {
+                    state.transport.time = MAX_SLOTS;
+                    seekMonitorToTime(MAX_SLOTS);
+                    pausePlayback();
+                    return;
+                }
+                state.transport.time = seqTime;
+                seekMonitorToTime(seqTime);
+                updateStatus();
+                state.animFrameId = requestAnimationFrame(animatePlayback);
+            }
+
+            // ── EXPORT ──
+            function exportEDL() {
+                const edl = state.clips.map(c => {
+                    const track = getTrackById(c.track_id);
+                    return {
+                        event: 'cut',
+                        track: c.track_id,
+                        source_file: track ? track.source_file : 'unknown',
+                        layer: c.layer,
+                        source_in: c.source_start,
+                        source_out: c.source_start + c.duration,
+                        sequence_in: c.sequence_slot,
+                        sequence_out: c.sequence_slot + c.duration,
+                        source_start_sec: c.source_start,
+                        sequence_start_sec: c.sequence_slot,
+                        duration_sec: c.duration,
+                    };
+                });
+                const blob = new Blob([JSON.stringify(edl, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'arc_splice_edl.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function clearSequence() {
+                state.clips = [];
+                state.transport.time = 0;
+                state.transport.active_clip_id = null;
+                state.transport.playing = false;
+                state.mode = 'idle';
+                dom.btnPlay.textContent = '▶ PLAY';
+                if (state.animFrameId) {
+                    cancelAnimationFrame(state.animFrameId);
+                    state.animFrameId = null;
+                }
+                dom.monitorVideo.classList.remove('show');
+                dom.monitorPlaceholder.textContent = 'NO SOURCE';
+                dom.monitorPlaceholder.classList.remove('hatch-bg');
+                dom.activeClipInfo.textContent = 'No active clip';
+                dom.renderSourceLabel.textContent = '';
+                dom.timecodeDisplay.textContent = '00:00.0';
+                buildTimeline();
+                updateStatus();
+            }
+
+            // ── BIDIRECTIONAL BINDING ──
+            function highlightLogicLine(bindName) {
+                dom.logicLines.forEach(line => {
+                    line.classList.remove('highlight');
+                    if (line.dataset.bind === bindName) {
+                        line.classList.add('highlight');
+                        setTimeout(() => line.classList.remove('highlight'), 1500);
+                    }
+                });
+            }
+
+            function highlightViewportObject(bindName) {
+                // Remove existing highlights
+                dom.sliceStrip.querySelectorAll('.slice-chip.highlight').forEach(el => el.classList.remove(
+                    'highlight'));
+                dom.layerLanes.querySelectorAll('.clip-block.highlight').forEach(el => el.classList.remove('highlight'));
+                dom.loadTarget.style.outline = '';
+                dom.playheadHandle.style.outline = '';
+
+                switch (bindName) {
+                    case 'track':
+                        dom.loadTarget.style.outline = '4px solid black';
+                        dom.loadTarget.style.outlineOffset = '3px';
+                        setTimeout(() => {
+                            dom.loadTarget.style.outline = '';
+                            dom.loadTarget.style.outlineOffset = '';
+                        }, 2000);
+                        dom.loadTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        break;
+                    case 'slice':
+                        const firstChip = dom.sliceStrip.querySelector('.slice-chip');
+                        if (firstChip) {
+                            firstChip.classList.add('highlight');
+                            firstChip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                            setTimeout(() => firstChip.classList.remove('highlight'), 2000);
+                        }
+                        break;
+                    case 'clip':
+                        const firstClip = dom.layerLanes.querySelector('.clip-block');
+                        if (firstClip) {
+                            firstClip.classList.add('highlight');
+                            firstClip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            setTimeout(() => firstClip.classList.remove('highlight'), 2000);
+                        }
+                        break;
+                    case 'transport':
+                        dom.playheadHandle.style.outline = '4px solid black';
+                        dom.playheadHandle.style.outlineOffset = '3px';
+                        dom.monitorFrame.style.outline = '4px solid black';
+                        dom.monitorFrame.style.outlineOffset = '2px';
+                        setTimeout(() => {
+                            dom.playheadHandle.style.outline = '';
+                            dom.playheadHandle.style.outlineOffset = '';
+                            dom.monitorFrame.style.outline = '';
+                            dom.monitorFrame.style.outlineOffset = '';
+                        }, 2000);
+                        dom.playheadHandle.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        break;
+                }
+            }
+
+            // ── EVENT DELEGATION ──
+            dom.railContainer.addEventListener('pointerdown', (e) => {
+                // Check if clicking on a clip block
+                const clipBlock = e.target.closest('.clip-block');
+                if (clipBlock && !e.target.classList.contains('trim-handle')) {
+                    const clipId = parseInt(clipBlock.dataset.clipId);
+                    if (clipId && !isNaN(clipId)) {
+                        highlightLogicLine('clip');
+                        highlightClipBlock(clipId);
+                        const clip = getClipById(clipId);
+                        if (clip) {
+                            state.transport.active_clip_id = clip.id;
+                            updateMonitorForClip(clip);
+                            updateStatus();
+                        }
+                        startDragClip(e, clipId);
+                        return;
+                    }
+                }
+                // Check trim handle
+                if (e.target.classList.contains('trim-handle')) {
+                    const clipId = parseInt(e.target.dataset.clipId);
+                    const side = e.target.dataset.side;
+                    if (clipId && !isNaN(clipId) && side) {
+                        startTrim(e, clipId, side);
+                        return;
+                    }
+                }
+                // Check playhead handle
+                if (e.target === dom.playheadHandle || e.target.closest('#playhead-handle')) {
+                    startScrub(e);
+                    return;
+                }
+                // Click on empty rail area → scrub to that position
+                const railRect = dom.railContainer.getBoundingClientRect();
+                const relX = e.clientX - railRect.left + dom.railContainer.scrollLeft;
+                const sw = getSlotWidth();
+                const targetTime = clamp(relX / sw, 0, MAX_SLOTS);
+                state.transport.time = targetTime;
+                seekMonitorToTime(targetTime);
+                updateStatus();
+                highlightLogicLine('transport');
+            });
+
+            // Rail container scroll sync
+            dom.railContainer.addEventListener('scroll', () => {
+                updatePlayheadPosition();
+            });
+
+            // Logic line clicks
+            dom.logicLines.forEach(line => {
+                line.addEventListener('click', () => {
+                    const bindName = line.dataset.bind;
+                    highlightLogicLine(bindName);
+                    highlightViewportObject(bindName);
+                });
+            });
+
+            // Monitor frame click → highlight transport
+            dom.monitorFrame.addEventListener('click', () => {
+                highlightLogicLine('transport');
+                highlightViewportObject('transport');
+            });
+
+            // Load target click → highlight track
+            dom.loadTarget.addEventListener('click', (e) => {
+                if (e.target === dom.fileInput) return;
+                highlightLogicLine('track');
+                highlightViewportObject('track');
+            });
+
+            // Buttons
+            dom.btnPlay.addEventListener('click', togglePlay);
+            dom.btnExport.addEventListener('click', exportEDL);
+            dom.btnClear.addEventListener('click', clearSequence);
+
+            // File input
+            dom.fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                state.mode = 'loading_video';
+                updateStatus();
+
+                const video = document.createElement('video');
+                video.preload = 'auto';
+                video.muted = true;
+                video.playsInline = true;
+                const url = URL.createObjectURL(file);
+                video.src = url;
+
+                const track = createTrack(file, video);
+                track.readiness = 'decoding';
+                updateStatus();
+
+                video.addEventListener('loadedmetadata', () => {
+                    track.duration = video.duration;
+                    if (video.duration > 0 && video.videoWidth > 0 && video.videoHeight > 0) {
+                        track.readiness = 'ready';
+                        generateSlices(track);
+                        buildSliceStrip(track);
+                        state.mode = 'idle';
+                        updateStatus();
+                        buildTimeline();
+                        // Seek to first frame
+                        video.currentTime = 0;
+                        dom.monitorVideo.src = url;
+                        dom.monitorVideo.load();
+                        dom.monitorVideo.classList.add('show');
+                        dom.monitorPlaceholder.textContent = '';
+                        dom.monitorPlaceholder.classList.remove('hatch-bg');
+                        dom.activeClipInfo.textContent = 'Track loaded. Drag slices to timeline.';
+                        dom.renderSourceLabel.textContent = track.name;
+                        highlightLogicLine('track');
+                    } else {
+                        track.readiness = 'unsupported';
+                        state.mode = 'idle';
+                        updateStatus();
+                        buildSliceStrip(track);
+                        dom.monitorVideo.classList.remove('show');
+                        dom.monitorPlaceholder.textContent = 'UNSUPPORTED';
+                        dom.monitorPlaceholder.classList.add('hatch-bg');
+                    }
+                });
+
+                video.addEventListener('error', () => {
+                    track.readiness = 'unsupported';
+                    state.mode = 'idle';
+                    updateStatus();
+                    buildSliceStrip(track);
+                    dom.monitorVideo.classList.remove('show');
+                    dom.monitorPlaceholder.textContent = 'UNSUPPORTED';
+                    dom.monitorPlaceholder.classList.add('hatch-bg');
+                });
+
+                // Start loading
+                video.load();
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                switch (e.key.toLowerCase()) {
+                    case ' ':
+                        e.preventDefault();
+                        togglePlay();
+                        break;
+                    case 'arrowleft':
+                        e.preventDefault();
+                        state.transport.time = clamp(state.transport.time - 1, 0, MAX_SLOTS);
+                        seekMonitorToTime(state.transport.time);
+                        updateStatus();
+                        break;
+                    case 'arrowright':
+                        e.preventDefault();
+                        state.transport.time = clamp(state.transport.time + 1, 0, MAX_SLOTS);
+                        seekMonitorToTime(state.transport.time);
+                        updateStatus();
+                        break;
+                    case 'e':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            exportEDL();
+                        }
+                        break;
+                }
+            });
+
+            // Resize handler
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    buildTimeline();
+                    const activeTrack = state.tracks.length > 0 ? state.tracks[state.tracks.length - 1] : null;
+                    if (activeTrack && activeTrack.readiness === 'ready') {
+                        buildSliceStrip(activeTrack);
+                    }
+                }, 200);
+            });
+
+            // ── INIT ──
+            function init() {
+                buildTimeline();
+                updateStatus();
+                dom.monitorPlaceholder.textContent = 'NO SOURCE';
+                dom.monitorPlaceholder.classList.remove('hatch-bg');
+                dom.timecodeDisplay.textContent = '00:00.0';
+                dom.activeClipInfo.textContent = 'Load a video to begin';
+                dom.renderSourceLabel.textContent = '';
+                dom.statTime.textContent = '00:00.0';
+                dom.statMode.textContent = 'IDLE';
+                dom.statVideo.textContent = 'NO TRACK';
+                dom.statSplices.textContent = '0';
+                dom.btnPlay.textContent = '▶ PLAY';
+                dom.sliceStrip.innerHTML =
+                    '<span class="mono" style="font-size:9px;padding:8px;">Load video to see source slices</span>';
+            }
+
+            init();
+            console.log('ARC SPLICE OPERATOR — Ready. Load a video to begin.');
+            console.log('Objects: Track | Slice | Clip | Transport');
+            console.log('1 slot = 1 second. All cuts are slot-snapped.');
+            console.log('Click logic lines to bind viewport objects. Click viewport objects to bind logic lines.');
+        })();
+    </script>
+</body>
+
+</html>

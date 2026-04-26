@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NSDS RL · BEFLIX Code Generator · Code That Writes Code</title>
+<style>
+:root{--bg:#efeee8;--ink:#080808;--mut:#6c6a62;--paper:#fffdf3;--line:#080808;--red:#d71920;--blue:#0057c2;--gold:#d5a900;--green:#14824c;--bar:42px;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;border-radius:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Helvetica,Arial,sans-serif;user-select:none}
+button,input,select,textarea{font:inherit}input[type="file"]{display:none}
+button,.fileBtn{border:2px solid var(--line);background:var(--paper);color:var(--ink);font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;min-height:34px;padding:0 8px;box-shadow:2px 2px 0 var(--line);display:flex;align-items:center;justify-content:center;font-size:10px}
+button:active,.fileBtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--line)}
+button.on{background:var(--ink);color:var(--paper)}button.pri{background:var(--red);color:#fff}
+.bl{background:var(--blue)!important;color:#fff!important}.gd{background:var(--gold)!important;color:var(--ink)!important}.gn{background:var(--green)!important;color:#fff!important}
+#app{height:100dvh;display:grid;grid-template-rows:var(--bar) minmax(0,1fr) auto}
+header{height:var(--bar);display:grid;grid-template-columns:1fr auto;align-items:center;background:var(--ink);color:#fff;border-bottom:3px solid var(--line);overflow:hidden}
+.title{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{height:100%;display:flex;align-items:center;border-left:1px solid #333}
+.st{height:100%;display:flex;align-items:center;gap:4px;padding:0 8px;border-right:1px solid #333;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.st b{color:var(--gold);font-variant-numeric:tabular-nums}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 300px;overflow:hidden}
+#stage{position:relative;min-width:0;min-height:0;display:grid;grid-template-rows:1fr 1fr;gap:3px;padding:8px;background:#dedbd1;overflow:hidden}
+.cvBox{position:relative;min-height:0;display:flex;align-items:center;justify-content:center;background:var(--paper);border:2px solid var(--line)}
+.cvBox canvas{display:block;max-width:100%;max-height:100%;touch-action:none;image-rendering:pixelated}
+.cvLabel{position:absolute;left:6px;top:6px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;background:rgba(255,253,243,.85);border:2px solid var(--line);padding:3px 6px;pointer-events:none;z-index:2}
+#side{border-left:3px solid var(--line);background:var(--paper);min-width:0;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+.pnl{border:2px solid var(--line)}.pnl h2{margin:0;padding:6px 8px;background:var(--ink);color:#fff;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.bd{padding:7px;display:grid;gap:6px}
+.rw{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+label{display:grid;gap:3px;font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+input[type="range"]{width:100%;accent-color:var(--ink)}
+select{width:100%;background:var(--paper);border:2px solid var(--line);min-height:32px;font-weight:900;text-transform:uppercase;padding:0 6px;font-size:10px}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.25;white-space:pre-wrap;color:#111;background:#f9f7ed;border:2px solid var(--line);padding:6px;min-height:60px;max-height:220px;overflow:auto;word-break:break-all}
+.code .cmd{color:var(--red);font-weight:900}.code .num{color:var(--blue)}.code .ink{color:var(--green)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.3;white-space:pre-wrap;color:#111;background:#f4f2e8;border:2px solid var(--line);padding:6px;min-height:40px;max-height:120px;overflow:auto}
+video{display:none}footer{display:none}
+@media(max-width:860px){
+:root{--bar:38px}header{grid-template-columns:1fr}.stats{display:none}
+main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+#stage{grid-template-rows:1fr;grid-template-columns:1fr 1fr}
+#side{border-left:0;border-top:3px solid var(--line);max-height:38dvh;padding:6px}
+.pnl{display:none}.pnl.hot{display:block}
+footer{display:grid;grid-template-columns:repeat(4,1fr);border-top:3px solid var(--line);padding-bottom:var(--safe);background:var(--paper)}
+footer button{border:0;border-right:2px solid var(--line);box-shadow:none;min-height:42px;background:var(--paper)}
+footer button.on{background:var(--ink);color:#fff}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="title">NSDS · BEFLIX Code-Gen RL · Code That Writes Code</div>
+  <div class="stats">
+    <div class="st">TICK <b id="sTick">0</b></div>
+    <div class="st">TOKENS <b id="sTok">0</b></div>
+    <div class="st">MSE <b id="sMse">1.000</b></div>
+    <div class="st">MATCH <b id="sMatch">0%</b></div>
+    <div class="st">COMP <b id="sComp">--</b></div>
+    <div class="st">CMD <b id="sCmd">--</b></div>
+  </div>
+</header>
+<main>
+  <section id="stage">
+    <div class="cvBox">
+      <span class="cvLabel">TARGET</span>
+      <canvas id="cTarget"></canvas>
+    </div>
+    <div class="cvBox">
+      <span class="cvLabel">CANVAS (BEFLIX OUTPUT)</span>
+      <canvas id="cCanvas"></canvas>
+    </div>
+  </section>
+  <aside id="side">
+    <section class="pnl hot" data-tab="run">
+      <h2>Run</h2>
+      <div class="bd">
+        <div class="rw"><label class="fileBtn bl">Load Video<input id="videoFile" type="file" accept="video/*"></label><label class="fileBtn gn">Load .bfx<input id="loadBfx" type="file" accept="*"></label></div>
+        <div class="rw"><button id="btnGen" class="pri">Generate</button><button id="btnStep">Step</button></div>
+        <div class="rw"><button id="btnPlay">Video</button><button id="btnClear">Clear</button></div>
+        <label>Speed <input id="speed" type="range" min="1" max="500" value="80"></label>
+        <div class="mono" id="readout"></div>
+      </div>
+    </section>
+    <section class="pnl" data-tab="code">
+      <h2>Generated BEFLIX</h2>
+      <div class="bd">
+        <div class="code" id="codeOut"></div>
+        <div class="rw">
+          <button id="btnCopy" class="gd">Copy Code</button>
+          <button id="btnExport">Export .bfx</button>
+        </div>
+        <div class="mono">This RL agent writes BEFLIX code.
+Each step: agent picks a command
+(CLR, PNT, FILL, SHIFT), parameters
+(x, y, w, h, ink), and emits a token.
+
+Reward = MSE reduction after executing
+the command on the canvas.
+
+The output IS the program.</div>
+      </div>
+    </section>
+    <section class="pnl" data-tab="learn">
+      <h2>Code-Gen RL</h2>
+      <div class="bd">
+        <label>Block size <select id="blockSz">
+          <option value="16" selected>16x16 macroblocks</option>
+          <option value="8">8x8 macroblocks</option>
+          <option value="4">4x4 microblocks</option>
+        </select></label>
+        <label>Alpha <input id="alpha" type="range" min=".01" max="1" step=".01" value=".30"></label>
+        <label>Gamma <input id="gamma" type="range" min="0" max=".99" step=".01" value=".85"></label>
+        <label>Epsilon <input id="epsilon" type="range" min="0" max="1" step=".01" value=".25"></label>
+        <label>Threshold <input id="threshold" type="range" min="0" max="1" step=".01" value=".22"></label>
+        <label>Contrast <input id="contrast" type="range" min=".3" max="3" step=".1" value="1.4"></label>
+        <label>Scrub <input id="scrub" type="range" min="0" max="1" step=".001" value="0"></label>
+      </div>
+    </section>
+    <section class="pnl" data-tab="llm">
+      <h2>LLM / Prompt</h2>
+      <div class="bd">
+        <button id="btnPrompt" class="gn">Generate LLM Prompt</button>
+        <div class="code" id="llmOut" style="max-height:260px"></div>
+        <div class="mono">The system can format the current
+target + canvas state as a prompt
+for an LLM. The LLM would return
+BEFLIX tokens to paint the next
+frame. This is the bridge between
+vision-based RL and code-based
+generation.
+
+Prompt format:
+  GRID 128x96 INK 0-7
+  TARGET [base64 grid]
+  CURRENT [base64 grid]
+  EMIT BEFLIX TOKENS TO MATCH TARGET</div>
+      </div>
+    </section>
+  </aside>
+</main>
+<footer>
+  <button class="tab on" data-tab="run">Run</button>
+  <button class="tab" data-tab="code">Code</button>
+  <button class="tab" data-tab="learn">Learn</button>
+  <button class="tab" data-tab="llm">LLM</button>
+</footer>
+</div>
+<video id="vid" muted loop playsinline></video>
+<canvas id="smp" style="display:none"></canvas>
+<script>
+(() => {
+  // ═══ NSDS OPERATOR COMPLIANCE: 128×96 GRID, 8 INKS, B_SZ=5 ═══
+  const G=128,R=96,N=G*R,B_SZ=5;
+  const INK_COUNT=8;
+  const INK_ALPHA=[0,40,80,120,160,200,230,255];
+
+  const cTarget=document.getElementById('cTarget'),ctxT=cTarget.getContext('2d');
+  const cCanvas=document.getElementById('cCanvas'),ctxC=cCanvas.getContext('2d');
+  const smp=document.getElementById('smp');smp.width=G;smp.height=R;
+  const sc=smp.getContext('2d',{willReadFrequently:true});
+  const vid=document.getElementById('vid');
+  const $=id=>document.getElementById(id);
+
+  cTarget.width=G*B_SZ;cTarget.height=R*B_SZ;cCanvas.width=G*B_SZ;cCanvas.height=R*B_SZ;
+  cTarget.style.width=(G*B_SZ/2)+'px';cTarget.style.height=(R*B_SZ/2)+'px';
+  cCanvas.style.width=(G*B_SZ/2)+'px';cCanvas.style.height=(R*B_SZ/2)+'px';
+  ctxT.setTransform(B_SZ/2,0,0,B_SZ/2,0,0);ctxC.setTransform(B_SZ/2,0,0,B_SZ/2,0,0);
+
+  // ── State ──
+  let target=new Uint8Array(N);  // 0-7 ink levels
+  let canvas=new Uint8Array(N);  // 0-7 ink levels (BEFLIX canvas)
+  let program=[];  // list of BEFLIX tokens
+  let running=false,videoLoaded=false,videoPlaying=false;
+  let frame=0,demoT=0,raf=0,lt=0;
+  let cursorX=0,cursorY=0; // scan cursor position in blocks
+
+  // ── Block-based RL ──
+  // State = (block_target_ink, block_canvas_ink, position_bucket)
+  // Actions = set ink 0-7 for this block (8 actions)
+  let blockSz=16;
+  let bCols,bRows,bCount;
+  const BLOCK_ACTIONS=INK_COUNT; // 0-7: paint block with this ink
+  // State: target_ink(0-7) * canvas_ink(0-7) * position_bucket(4) = 256 states
+  const STATE_DIM=256;
+  let Q=new Float32Array(STATE_DIM*BLOCK_ACTIONS);
+
+  function recomputeBlockGrid(){
+    blockSz=+$('blockSz').value;
+    bCols=Math.ceil(G/blockSz);
+    bRows=Math.ceil(R/blockSz);
+    bCount=bCols*bRows;
+    cursorX=0;cursorY=0;
+  }
+
+  function blockState(bx,by){
+    // Average target ink in this block
+    let sumT=0,sumC=0,cnt=0;
+    for(let dy=0;dy<blockSz;dy++)for(let dx=0;dx<blockSz;dx++){
+      const gx=bx*blockSz+dx,gy=by*blockSz+dy;
+      if(gx<G&&gy<R){sumT+=target[gy*G+gx];sumC+=canvas[gy*G+gx];cnt++;}
+    }
+    const avgT=cnt>0?Math.round(sumT/cnt):0;
+    const avgC=cnt>0?Math.round(sumC/cnt):0;
+    const posBucket=Math.min(3,Math.floor((bx/bCols+by/bRows)*2));
+    return clamp(avgT,0,7)*32+clamp(avgC,0,7)*4+posBucket;
+  }
+
+  function bestAction(s){
+    const o=s*BLOCK_ACTIONS;let b=0,v=Q[o];
+    for(let a=1;a<BLOCK_ACTIONS;a++)if(Q[o+a]>v){v=Q[o+a];b=a;}
+    return b;
+  }
+  function maxQVal(s){const o=s*BLOCK_ACTIONS;let m=Q[o];for(let a=1;a<BLOCK_ACTIONS;a++)if(Q[o+a]>m)m=Q[o+a];return m;}
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+  // ── Target from video or demo ──
+  function updateTarget(){
+    const th=+$('threshold').value,cn=+$('contrast').value;
+    if(videoLoaded&&vid.readyState>=2){
+      sc.drawImage(vid,0,0,G,R);
+      const d=sc.getImageData(0,0,G,R).data;
+      for(let i=0;i<N;i++){
+        let v=(0.2126*d[i*4]+0.7152*d[i*4+1]+0.0722*d[i*4+2])/255;
+        v=Math.pow(clamp((v-th)/Math.max(.001,1-th),0,1),cn);
+        target[i]=Math.round(v*7);
+      }
+      if(vid.duration)$('scrub').value=String(vid.currentTime/vid.duration);
+    } else {
+      demoT+=.025;
+      for(let y=0;y<R;y++)for(let x=0;x<G;x++){
+        const cx=G*(.5+.3*Math.sin(demoT*.6)),cy=R*(.5+.25*Math.cos(demoT*.5));
+        const dx=x-cx,dy=y-cy;
+        const e=Math.exp(-(dx*dx+dy*dy)/(G*1.8));
+        const w=.5+.5*Math.sin(x*.35+y*.28+demoT*2.2);
+        const r=.5+.5*Math.sin(Math.sqrt(dx*dx+dy*dy)*.7-demoT*3);
+        const v=Math.pow(clamp(e*.7+w*r*.4-.1,0,1),1.2);
+        target[y*G+x]=Math.round(v*7);
+      }
+    }
+  }
+
+  // ── BEFLIX Execution ──
+  function execBEFLIX(tok){
+    if(tok.cmd==='CLR'){
+      for(let y=tok.y;y<tok.y+tok.h&&y<R;y++)
+        for(let x=tok.x;x<tok.x+tok.w&&x<G;x++)
+          canvas[y*G+x]=tok.ink;
+    } else if(tok.cmd==='PNT'){
+      for(let y=tok.y;y<tok.y+tok.h&&y<R;y++)
+        for(let x=tok.x;x<tok.x+tok.w&&x<G;x++)
+          canvas[y*G+x]=tok.ink;
+    } else if(tok.cmd==='SHIFT'){
+      const tmp=new Uint8Array(N);
+      for(let y=0;y<R;y++)for(let x=0;x<G;x++){
+        const sx=x-tok.dx,sy=y-tok.dy;
+        tmp[y*G+x]=(sx>=0&&sx<G&&sy>=0&&sy<R)?canvas[sy*G+sx]:0;
+      }
+      canvas.set(tmp);
+    }
+  }
+
+  function computeMSE(){
+    let s=0;for(let i=0;i<N;i++){const d=target[i]-canvas[i];s+=d*d;}
+    return s/N;
+  }
+
+  function computeMatch(){
+    let hit=0,mass=0;
+    for(let i=0;i<N;i++){
+      hit+=Math.min(target[i],canvas[i]);
+      mass+=target[i];
+    }
+    return mass>0?clamp(hit/mass,0,1):0;
+  }
+
+  // ── Code-Gen RL Step ──
+  function genStep(){
+    const eps=+$('epsilon').value,alpha=+$('alpha').value,gamma=+$('gamma').value;
+
+    // Current block
+    const bx=cursorX,by=cursorY;
+    const s=blockState(bx,by);
+
+    // Choose action (which ink to paint this block)
+    const a=Math.random()<eps?Math.floor(Math.random()*BLOCK_ACTIONS):bestAction(s);
+
+    // Measure MSE before
+    const mseBefore=computeMSE();
+
+    // Build and execute BEFLIX token
+    const tok={
+      cmd:'PNT',
+      x:bx*blockSz, y:by*blockSz,
+      w:Math.min(blockSz,G-bx*blockSz),
+      h:Math.min(blockSz,R-by*blockSz),
+      ink:a
+    };
+
+    // Check if this actually changes anything
+    let allSame=true;
+    for(let dy=0;dy<tok.h;dy++)for(let dx=0;dx<tok.w;dx++){
+      const idx=(tok.y+dy)*G+(tok.x+dx);
+      if(idx<N&&canvas[idx]!==a){allSame=false;break;}
+      if(!allSame)break;
+    }
+
+    execBEFLIX(tok);
+
+    // MSE after
+    const mseAfter=computeMSE();
+
+    // Reward = MSE reduction + target match bonus
+    const reduction=mseBefore-mseAfter;
+    const localMatch=computeBlockMatch(bx,by,a);
+    const r=reduction*50+localMatch*0.5-(allSame?0.02:0);
+
+    // Only add to program if it changes something
+    if(!allSame){
+      program.push(tok);
+    }
+
+    // Advance cursor
+    cursorX++;
+    if(cursorX>=bCols){cursorX=0;cursorY++;}
+    if(cursorY>=bRows){cursorY=0;}
+
+    // TD update
+    const ns=blockState(cursorX,cursorY);
+    const old=Q[s*BLOCK_ACTIONS+a];
+    const td=r+gamma*maxQVal(ns)-old;
+    Q[s*BLOCK_ACTIONS+a]=old+alpha*td;
+
+    frame++;
+  }
+
+  function computeBlockMatch(bx,by,ink){
+    let match=0,cnt=0;
+    for(let dy=0;dy<blockSz;dy++)for(let dx=0;dx<blockSz;dx++){
+      const gx=bx*blockSz+dx,gy=by*blockSz+dy;
+      if(gx<G&&gy<R){
+        if(target[gy*G+gx]===ink)match++;
+        cnt++;
+      }
+    }
+    return cnt>0?match/cnt:0;
+  }
+
+  function genBatch(){
+    const spd=+$('speed').value;
+    const batchSz=Math.max(1,Math.min(bCount,Math.floor(spd/4)));
+    for(let i=0;i<batchSz;i++)genStep();
+  }
+
+  // ── Rendering ──
+  const INK_COLORS=['#ffffff','#dddddd','#bbbbbb','#999999','#777777','#555555','#333333','#000000'];
+
+  function drawGrid(cvEl,ctx2d,data,w,h){
+    const cw2=parseFloat(cvEl.style.width)||cvEl.offsetWidth||640;
+    const ch2=parseFloat(cvEl.style.height)||cvEl.offsetHeight||480;
+    const cellW=cw2/G,cellH=ch2/R;
+    const maxR=Math.min(cellW,cellH)*0.45;
+    ctx2d.clearRect(0,0,cw2,ch2);
+    ctx2d.fillStyle='#f4f4f0';ctx2d.fillRect(0,0,cw2,ch2);
+    // Dot-matrix rendering (NSDS-compliant)
+    for(let y=0;y<R;y++)for(let x=0;x<G;x++){
+      const ink=data[y*G+x];
+      if(ink>0){
+        const alpha=INK_ALPHA[ink]/255;
+        const r=maxR*(ink/7);
+        ctx2d.fillStyle=`rgba(0,0,0,${alpha})`;
+        ctx2d.beginPath();
+        ctx2d.arc(x*cellW+cellW/2,y*cellH+cellH/2,Math.max(.4,r),0,Math.PI*2);
+        ctx2d.fill();
+      }
+    }
+    // Block cursor on canvas
+    if(ctx2d===ctxC){
+      ctx2d.strokeStyle='rgba(215,25,32,.8)';ctx2d.lineWidth=1.5;
+      ctx2d.strokeRect(cursorX*blockSz*cellW/1,cursorY*blockSz*cellH/1,
+        Math.min(blockSz,G-cursorX*blockSz)*cellW,Math.min(blockSz,R-cursorY*blockSz)*cellH);
+    }
+  }
+
+  function draw(){
+    drawGrid(cTarget,ctxT,target,G,R);
+    drawGrid(cCanvas,ctxC,canvas,G,R);
+  }
+
+  function formatToken(tok){
+    if(tok.cmd==='CLR')return `<span class="cmd">CLR</span> <span class="ink">${tok.ink}</span>`;
+    if(tok.cmd==='PNT')return `<span class="cmd">PNT</span> <span class="num">${tok.x},${tok.y}</span> <span class="num">${tok.w}x${tok.h}</span> <span class="ink">${tok.ink}</span>`;
+    if(tok.cmd==='SHIFT')return `<span class="cmd">SHIFT</span> <span class="num">${tok.dx},${tok.dy}</span>`;
+    return JSON.stringify(tok);
+  }
+
+  function updateCode(){
+    const last20=program.slice(-30);
+    const html=last20.map((t,i)=>`${String(program.length-30+i).padStart(4,' ')}  ${formatToken(t)}`).join('\n');
+    $('codeOut').innerHTML=html||'<span style="color:#999">// no tokens yet</span>';
+    $('codeOut').scrollTop=$('codeOut').scrollHeight;
+  }
+
+  function updateReadout(){
+    const mse=computeMSE();
+    const match=computeMatch();
+    const comp=N>0?(program.length/N*100).toFixed(1):0;
+    $('sTick').textContent=frame;
+    $('sTok').textContent=program.length;
+    $('sMse').textContent=mse.toFixed(3);
+    $('sMatch').textContent=Math.round(match*100)+'%';
+    $('sComp').textContent=comp+'%';
+    $('sCmd').textContent=program.length>0?program[program.length-1].cmd:'--';
+    $('readout').textContent=
+`grid: ${G}x${R} (NSDS-128) B_SZ: ${B_SZ}
+block: ${blockSz}x${blockSz}
+blocks: ${bCols}x${bRows} = ${bCount}
+tokens: ${program.length}  MSE: ${mse.toFixed(4)}
+match: ${Math.round(match*100)}%
+compression: ${comp}%
+cursor: (${cursorX},${cursorY})
+Q states: ${STATE_DIM}  actions: ${BLOCK_ACTIONS}`;
+  }
+
+  // ── LLM Prompt Generation ──
+  function generatePrompt(){
+    // Encode grids as compact string
+    const encodeGrid=(data)=>{
+      let s='';
+      for(let y=0;y<R;y++){
+        for(let x=0;x<G;x++)s+=data[y*G+x];
+        s+='\n';
+      }
+      return s;
+    };
+
+    // Error regions
+    const errorBlocks=[];
+    for(let by=0;by<bRows;by++)for(let bx=0;bx<bCols;bx++){
+      let err=0,cnt=0;
+      for(let dy=0;dy<blockSz;dy++)for(let dx=0;dx<blockSz;dx++){
+        const gx=bx*blockSz+dx,gy=by*blockSz+dy;
+        if(gx<G&&gy<R){err+=Math.abs(target[gy*G+gx]-canvas[gy*G+gx]);cnt++;}
+      }
+      if(cnt>0&&err/cnt>1.5)errorBlocks.push({bx,by,err:(err/cnt).toFixed(1)});
+    }
+
+    const prompt=`You are a BEFLIX animation engine. Your job is to write BEFLIX tokens to make the CANVAS match the TARGET.
+
+SYSTEM: BEFLIX-128 DOT-MATRIX
+GRID: ${G} cols x ${R} rows
+INK LEVELS: 0 (white) through 7 (black)
+
+COMMANDS:
+  CLR ink                    — Fill entire canvas with ink level
+  PNT x,y w,h ink           — Paint rectangle at (x,y) size (w,h) with ink
+  SHIFT dx,dy                — Shift all content by (dx,dy) pixels
+
+CURRENT STATE:
+  Tokens emitted: ${program.length}
+  MSE: ${computeMSE().toFixed(4)}
+  Match: ${Math.round(computeMatch()*100)}%
+
+HIGH-ERROR BLOCKS (need attention):
+${errorBlocks.slice(0,15).map(b=>`  block(${b.bx},${b.by}) → x=${b.bx*blockSz},y=${b.by*blockSz} err=${b.err}`).join('\n')}
+
+TARGET GRID (first 24 rows, ink 0-7 per cell):
+${encodeGrid(target).split('\n').slice(0,24).join('\n')}
+
+CANVAS GRID (first 24 rows):
+${encodeGrid(canvas).split('\n').slice(0,24).join('\n')}
+
+Emit the next 10 BEFLIX tokens to reduce MSE. One token per line. Format:
+PNT x,y w,h ink`;
+
+    $('llmOut').textContent=prompt;
+  }
+
+  // ── Main Loop ──
+  function tick(t){
+    updateTarget();
+    if(running){
+      const interval=1000/(+$('speed').value);
+      if(t-lt>interval){genBatch();lt=t;}
+    }
+    draw();updateCode();updateReadout();
+    raf=requestAnimationFrame(tick);
+  }
+
+  function setRun(v){running=v;$('btnGen').textContent=v?'Pause':'Generate';$('btnGen').classList.toggle('on',v);$('btnGen').classList.toggle('pri',!v);}
+
+  // ── Events ──
+  $('videoFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;vid.src=URL.createObjectURL(f);vid.load();videoLoaded=true;vid.onloadeddata=()=>{vid.currentTime=0;updateTarget();draw();};};
+  $('btnPlay').onclick=async()=>{if(!videoLoaded)return;try{if(videoPlaying){vid.pause();videoPlaying=false;$('btnPlay').textContent='Video';}else{await vid.play();videoPlaying=true;$('btnPlay').textContent='Pause';}}catch(e){}};
+  $('scrub').oninput=()=>{if(videoLoaded&&vid.duration){vid.currentTime=+$('scrub').value*vid.duration;updateTarget();draw();}};
+  $('btnGen').onclick=()=>setRun(!running);
+  $('btnStep').onclick=()=>{updateTarget();genStep();draw();updateCode();updateReadout();};
+  $('btnClear').onclick=()=>{canvas.fill(0);program=[];frame=0;cursorX=0;cursorY=0;Q.fill(0);draw();updateCode();updateReadout();};
+  $('btnCopy').onclick=()=>{
+    const text=program.map(t=>{
+      if(t.cmd==='CLR')return `CLR ${t.ink}`;
+      if(t.cmd==='PNT')return `PNT ${t.x},${t.y} ${t.w}x${t.h} ${t.ink}`;
+      if(t.cmd==='SHIFT')return `SHIFT ${t.dx},${t.dy}`;
+      return '';
+    }).join('\n');
+    navigator.clipboard.writeText(text).catch(()=>{});
+  };
+  $('btnExport').onclick=()=>{
+    const text=`; BEFLIX-128 GENERATED CODE\n; Grid: ${G}x${R}\n; Tokens: ${program.length}\n; MSE: ${computeMSE().toFixed(4)}\n; Match: ${Math.round(computeMatch()*100)}%\n;\n`+
+      program.map(t=>{
+        if(t.cmd==='CLR')return `CLR ${t.ink}`;
+        if(t.cmd==='PNT')return `PNT ${t.x},${t.y} ${t.w}x${t.h} ${t.ink}`;
+        return '';
+      }).join('\n');
+    const b=new Blob([text],{type:'text/plain'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='generated.bfx';a.click();
+  };
+  $('btnPrompt').onclick=generatePrompt;
+  $('blockSz').onchange=()=>{recomputeBlockGrid();Q=new Float32Array(STATE_DIM*BLOCK_ACTIONS);cursorX=0;cursorY=0;};
+  ['threshold','contrast','alpha','gamma','epsilon','speed'].forEach(id=>
+    $(id).addEventListener('input',()=>{updateTarget();draw();updateReadout();}));
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    document.querySelectorAll('.pnl').forEach(p=>p.classList.toggle('hot',p.dataset.tab===b.dataset.tab));
+  });
+
+  // Load .bfx file and replay on canvas
+  $('loadBfx').onchange=e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const reader=new FileReader();reader.onload=ev=>{
+      const text=ev.target.result;
+      const lines=text.split(/\r?\n/).filter(l=>l.trim()&&!l.startsWith(';'));
+      canvas.fill(0);program=[];
+      for(const line of lines){
+        const p=line.trim().split(/\s+/);
+        if(p[0]==='PNT'&&p.length>=4){
+          const [xs,ys]=p[1].split(',').map(Number);
+          const [ws,hs]=p[2].split('x').map(Number);
+          const ink=parseInt(p[3]);
+          if(!isNaN(xs)){const tok={cmd:'PNT',x:xs,y:ys,w:ws,h:hs,ink};execBEFLIX(tok);program.push(tok);}
+        }
+      }
+      draw();updateCode();updateReadout();
+    };reader.readAsText(f);
+  };
+  window.addEventListener('resize',()=>{draw();});
+  recomputeBlockGrid();updateTarget();draw();raf=requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

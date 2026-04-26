@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Operational Pragmatist Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #FFFFFF;
+            color: #000000;
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            touch-action: none;
+            user-select: none;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 10;
+        }
+
+        /* ─── Operational Control Surface ─── */
+        #monitor {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            background: #FFFFFF;
+            border: 2px solid #000000;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            padding: 8px 12px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px #000000;
+            transition: transform 0.1s ease-out, opacity 0.2s;
+            opacity: 0;
+            pointer-events: none;
+            /* Enabled via JS when active */
+        }
+
+        #monitor:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000000;
+        }
+
+        #mon-id {
+            font-size: 24px;
+            font-weight: 800;
+            color: #000000;
+            text-transform: uppercase;
+        }
+
+        #mon-data {
+            font-size: 12px;
+            color: #000000;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        /* ─── Static HUD elements ─── */
+        #hud-top {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: #FFFFFF;
+            border-bottom: 2px solid #000000;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 50;
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="hud-top">
+        NSDS-CORE v2: TACTILE OPERATIONS
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <!-- Bidirectional Control Surface -->
+    <div id="monitor">
+        <div id="mon-id">NO-SIGNAL</div>
+        <div id="mon-data">0 Z-UNITS</div>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('c');
+            const ctx = canvas.getContext('2d');
+            const monitor = document.getElementById('monitor');
+            const monId = document.getElementById('mon-id');
+            const monData = document.getElementById('mon-data');
+
+            // Helper Math
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+            // App State
+            const state = {
+                cameraZ: 0,
+                speed: 0,
+
+                // Interactions
+                hoverPoly: null, hoverType: 'none',
+                dragClip: null, dragType: 'none',
+                scrubbing: false,
+
+                dragStartX: 0, dragStartY: 0, dragStartDur: 0,
+                scrubStartY: 0, scrubStartZ: 0,
+                lastClickTime: 0, lastClickClip: null,
+
+                selectedClip: null,
+
+                W: 0, H: 0, CX: 0, CY: 0
+            };
+
+            let actx, master, oscTick, gainTick, oscSnap, gainSnap;
+
+            // Spatial Perspective Configuration (Stage 2)
+            const FOV = 800;
+            const FAR_PLANE = 6000;
+            const TUBE_R = 300;
+            const GAP_ANGLE = 0.05;
+
+            const tracks = [[], [], [], []];
+            let nextId = 1;
+
+            // Pre-rendered Stipple/Hatch Patterns (Stage 1)
+            const PATTERNS = [];
+
+            function initPatterns() {
+                const createPat = (drawFn) => {
+                    const c = document.createElement('canvas');
+                    c.width = 16; c.height = 16;
+                    const x = c.getContext('2d');
+                    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, 16, 16);
+                    x.fillStyle = '#000000'; x.strokeStyle = '#000000'; x.lineWidth = 2;
+                    drawFn(x);
+                    return ctx.createPattern(c, 'repeat');
+                };
+
+                // T0: Solid White (Handled dynamically to allow inversion)
+                PATTERNS[0] = '#FFFFFF';
+
+                // T1: Horizontal Hatch
+                PATTERNS[1] = createPat(x => {
+                    x.beginPath(); x.moveTo(0, 8); x.lineTo(16, 8); x.stroke();
+                });
+
+                // T2: Solid Black (Handled dynamically)
+                PATTERNS[2] = '#000000';
+
+                // T3: Diagonal Crosshatch
+                PATTERNS[3] = createPat(x => {
+                    x.beginPath();
+                    x.moveTo(0, 0); x.lineTo(16, 16);
+                    x.moveTo(16, 0); x.lineTo(0, 16);
+                    x.stroke();
+                });
+            }
+
+            // ──── DATA INITIALIZATION ────
+            function initTracks() {
+                for (let i = 0; i < 4; i++) {
+                    let z = 0;
+                    while (z < 10000) {
+                        const dur = Math.floor((20 + Math.random() * 40) * 10);
+                        tracks[i].push({ id: `OP-${String(nextId++).padStart(3, '0')}`, dur: dur, zStart: z });
+                        z += dur;
+                    }
+                }
+            }
+
+            function resize() {
+                state.W = canvas.width = window.innerWidth;
+                state.H = canvas.height = window.innerHeight;
+                state.CX = state.W / 2;
+                // STAGE 2: Camera anchored at foot/base where stack meets ground.
+                state.CY = state.H;
+            }
+            window.addEventListener('resize', resize);
+
+            // ──── MATHEMATICAL PROJECTION ────
+            function project3D(px, py, pz) {
+                const D = 600;
+                const focalZ = state.cameraZ - D;
+
+                // STAGE 2: camY locked to TUBE_R so bottom track (py = TUBE_R) has vy = 0.
+                // Projected Y for bottom track = CY + (0) * scale = H. (Anchored to ground).
+                const camX = 0;
+                const camY = TUBE_R;
+
+                const vx = px - camX;
+                const vy = py - camY;
+                const vz = pz - focalZ;
+
+                if (vz < 10) return null;
+
+                const scale = FOV / vz;
+                return {
+                    x: state.CX + vx * scale,
+                    y: state.CY + vy * scale,
+                    s: scale,
+                    depth: vz
+                };
+            }
+
+            function getClipGeometry(clip, tIdx) {
+                // Tracks: 0=Top, 1=Right, 2=Bottom, 3=Left
+                const baseAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+                const baseAngle = baseAngles[tIdx];
+
+                const a1 = baseAngle - Math.PI / 4 + GAP_ANGLE;
+                const a2 = baseAngle + Math.PI / 4 - GAP_ANGLE;
+
+                const z1 = clip.zStart;
+                const z2 = clip.zStart + clip.dur;
+
+                const pts3D = [
+                    { x: TUBE_R * Math.cos(a1), y: TUBE_R * Math.sin(a1), z: z1 },
+                    { x: TUBE_R * Math.cos(a2), y: TUBE_R * Math.sin(a2), z: z1 },
+                    { x: TUBE_R * Math.cos(a2), y: TUBE_R * Math.sin(a2), z: z2 },
+                    { x: TUBE_R * Math.cos(a1), y: TUBE_R * Math.sin(a1), z: z2 }
+                ];
+
+                const pts2D = pts3D.map(p => project3D(p.x, p.y, p.z));
+                if (pts2D.includes(null)) return null;
+
+                const backCenter3D = { x: TUBE_R * Math.cos((a1 + a2) / 2), y: TUBE_R * Math.sin((a1 + a2) / 2), z: z2 };
+                const backCenter2D = project3D(backCenter3D.x, backCenter3D.y, backCenter3D.z);
+
+                const frontCenter3D = { x: TUBE_R * Math.cos((a1 + a2) / 2), y: TUBE_R * Math.sin((a1 + a2) / 2), z: z1 };
+                const frontCenter2D = project3D(frontCenter3D.x, frontCenter3D.y, frontCenter3D.z);
+
+                const path = new Path2D();
+                path.moveTo(pts2D[0].x, pts2D[0].y);
+                path.lineTo(pts2D[1].x, pts2D[1].y);
+                path.lineTo(pts2D[2].x, pts2D[2].y);
+                path.lineTo(pts2D[3].x, pts2D[3].y);
+                path.closePath();
+
+                return { pts2D, path, backCenter: backCenter2D, frontCenter: frontCenter2D, zDist: pts2D[0].depth };
+            }
+
+            // ──── RENDERING ────
+            function drawClip(geom, clip, tIdx, isHover, isDrag, isSelected) {
+                ctx.save();
+
+                // STAGE 1: Absolute Contrast
+                // Invert colors if selected or dragged
+                const isTarget = isSelected || isDrag;
+
+                if (isTarget) {
+                    ctx.fillStyle = '#000000';
+                } else {
+                    ctx.fillStyle = PATTERNS[tIdx];
+                }
+
+                ctx.fill(geom.path);
+
+                ctx.lineWidth = isTarget ? 4 : 2;
+                ctx.strokeStyle = isTarget ? '#000000' : '#000000';
+
+                if (tIdx === 2 && !isTarget) {
+                    // If solid black pattern, stroke must be white to be visible against itself if overlapping,
+                    // but since global bg is white, black stroke on black fill is fine. 
+                    // Let's force an inner stroke concept by drawing a slightly smaller path, 
+                    // or just rely on the stark black.
+                    ctx.strokeStyle = '#FFFFFF';
+                }
+
+                ctx.stroke(geom.path);
+
+                // Draw Operational Handle (Dilate)
+                if (geom.backCenter) {
+                    ctx.beginPath();
+                    // Scale handle size based on projection
+                    const hr = Math.max(6, Math.min(24, 16 * geom.backCenter.s));
+                    ctx.rect(geom.backCenter.x - hr / 2, geom.backCenter.y - hr / 2, hr, hr);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#000000';
+                    ctx.stroke();
+
+                    // Hover indicator on handle
+                    if (isHover && state.hoverType === 'handle') {
+                        ctx.beginPath();
+                        ctx.rect(geom.backCenter.x - hr, geom.backCenter.y - hr, hr * 2, hr * 2);
+                        ctx.strokeStyle = '#000000';
+                        ctx.setLineDash([4, 4]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+
+                // Draw Text ID
+                if (geom.frontCenter && geom.frontCenter.s > 0.1) {
+                    // If solid black or target (which turns black), text is white
+                    const textColor = (isTarget || tIdx === 2) ? '#FFFFFF' : '#000000';
+                    ctx.fillStyle = textColor;
+
+                    const fontSize = Math.max(10, 32 * geom.frontCenter.s);
+                    ctx.font = `800 ${fontSize}px 'JetBrains Mono', monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    // Flat unrotated text enforces the non-metaphorical, literal data payload
+                    ctx.fillText(clip.id, geom.frontCenter.x, geom.frontCenter.y);
+                }
+
+                ctx.restore();
+            }
+
+            // ──── AUDIO (Mechanical Feedback) ────
+            function setupAudio() {
+                if (actx) return;
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                master = actx.createGain();
+                master.gain.value = 0.4;
+                master.connect(actx.destination);
+
+                const setupOsc = (type) => {
+                    const gain = actx.createGain(); gain.gain.value = 0;
+                    const osc = actx.createOscillator(); osc.type = type;
+                    osc.connect(gain).connect(master); osc.start();
+                    return { osc, gain };
+                };
+
+                const t = setupOsc('square'); oscTick = t.osc; gainTick = t.gain;
+                const s = setupOsc('sawtooth'); oscSnap = s.osc; gainSnap = s.gain;
+            }
+
+            function playTick() {
+                if (!actx) return;
+                const now = actx.currentTime;
+                oscTick.frequency.setValueAtTime(800, now);
+                oscTick.frequency.exponentialRampToValueAtTime(100, now + 0.02);
+                gainTick.gain.cancelScheduledValues(now);
+                gainTick.gain.setValueAtTime(0.2, now);
+                gainTick.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            }
+
+            function playSnap() {
+                if (!actx) return;
+                const now = actx.currentTime;
+                oscSnap.frequency.setValueAtTime(400, now);
+                oscSnap.frequency.exponentialRampToValueAtTime(50, now + 0.05);
+                gainSnap.gain.cancelScheduledValues(now);
+                gainSnap.gain.setValueAtTime(0.5, now);
+                gainSnap.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            }
+
+            // ──── INTERACTION ENGINE (Stage 3 & 4) ────
+            let renderedPolys = [];
+
+            function getHit(clientX, clientY) {
+                for (let i = renderedPolys.length - 1; i >= 0; i--) {
+                    const poly = renderedPolys[i];
+                    if (!poly.geom) continue;
+
+                    // Handle Hit (Dilate)
+                    if (poly.geom.backCenter) {
+                        const hr = Math.max(12, 16 * poly.geom.backCenter.s); // Generous hit area
+                        if (Math.abs(clientX - poly.geom.backCenter.x) < hr && Math.abs(clientY - poly.geom.backCenter.y) < hr) {
+                            return { poly, type: 'handle' };
+                        }
+                    }
+
+                    // Body Hit
+                    if (ctx.isPointInPath(poly.geom.path, clientX, clientY)) {
+                        return { poly, type: 'body' };
+                    }
+                }
+                return null;
+            }
+
+            // STAGE 3: Bidirectional Binding - Text Control Surface
+            monitor.addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); // Prevent scrub trigger
+                if (state.selectedClip) {
+                    // Teleport camera
+                    state.cameraZ = state.selectedClip.zStart;
+                    state.speed = 0;
+                    playSnap();
+                }
+            });
+
+            function handlePointerDown(e) {
+                const hit = getHit(e.clientX, e.clientY);
+
+                if (hit) {
+                    const now = performance.now();
+
+                    // STAGE 4: Cleave (Double Click)
+                    if (state.lastClickClip === hit.poly.clip && (now - state.lastClickTime) < 300 && hit.type === 'body') {
+                        const tIdx = hit.poly.tIdx;
+                        const cIdx = hit.poly.clipIdx;
+                        const clip = tracks[tIdx][cIdx];
+
+                        if (clip.dur > 20) {
+                            const dur1 = Math.round((clip.dur / 2) / 10) * 10;
+                            const dur2 = clip.dur - dur1;
+                            tracks[tIdx].splice(cIdx, 1,
+                                { id: `${clip.id}-A`, dur: dur1 },
+                                { id: `${clip.id}-B`, dur: dur2 }
+                            );
+                            recalculateZOffsets();
+                            playSnap();
+                        }
+                        state.lastClickClip = null;
+                        return;
+                    }
+
+                    // Setup Drag / Select
+                    state.dragClip = hit.poly.clip;
+                    state.dragType = hit.type;
+                    state.dragStartX = e.clientX;
+                    state.dragStartY = e.clientY;
+                    state.dragStartDur = hit.poly.clip.dur;
+
+                    state.lastClickClip = hit.poly.clip;
+                    state.lastClickTime = now;
+
+                    // STAGE 3: Bidirectional Binding - Update UI Box
+                    state.selectedClip = hit.poly.clip;
+                    monitor.style.opacity = '1';
+                    monitor.style.pointerEvents = 'auto';
+                    monitor.style.transform = `translate(${e.clientX + 20}px, ${e.clientY - 20}px)`;
+                    monId.innerText = hit.poly.clip.id;
+                    monData.innerText = `${hit.poly.clip.dur} Z-UNITS`;
+
+                    playTick();
+                    canvas.setPointerCapture(e.pointerId);
+                    state.speed = 0;
+                    return;
+                }
+
+                // STAGE 4: Scrub (Drag empty substrate)
+                state.scrubbing = true;
+                state.scrubStartY = e.clientY;
+                state.scrubStartZ = state.cameraZ;
+
+                // Deselect
+                state.selectedClip = null;
+                monitor.style.opacity = '0';
+                monitor.style.pointerEvents = 'none';
+
+                canvas.setPointerCapture(e.pointerId);
+                state.speed = 0;
+            }
+
+            let scrubAccumulator = 0;
+
+            function handlePointerMove(e) {
+                // 1. Scrubbing
+                if (state.scrubbing) {
+                    const deltaY = e.clientY - state.scrubStartY;
+                    state.cameraZ = state.scrubStartZ + (deltaY * 6); // scalar incrementing
+                    state.speed = deltaY * 0.5; // Momentum
+
+                    scrubAccumulator += Math.abs(state.speed);
+                    if (scrubAccumulator > 50) {
+                        playTick();
+                        scrubAccumulator = 0;
+                    }
+                    return;
+                }
+
+                // 2. Manipulating a Clip
+                if (state.dragClip) {
+                    const deltaX = e.clientX - state.dragStartX;
+                    const deltaY = e.clientY - state.dragStartY;
+
+                    if (state.dragType === 'handle') {
+                        // STAGE 4: Dilate
+                        const newDur = Math.max(10, state.dragStartDur - deltaX * 2);
+                        const snappedDur = Math.round(newDur / 10) * 10;
+
+                        if (snappedDur !== state.dragClip.dur) {
+                            state.dragClip.dur = snappedDur;
+                            recalculateZOffsets(); // Implicitly shifts adjacent clip boundaries
+                            monData.innerText = `${snappedDur} Z-UNITS`;
+                            playTick();
+                        }
+                    } else if (state.dragType === 'body') {
+                        // STAGE 4: Port
+                        // Determine track by X coordinate mapping (lateral axis)
+                        const screenSegment = state.W / 4;
+                        const targetIdx = Math.floor(e.clientX / screenSegment);
+                        const boundedTargetIdx = clamp(targetIdx, 0, 3);
+
+                        let oldIdx = -1;
+                        for (let i = 0; i < 4; i++) if (tracks[i].includes(state.dragClip)) oldIdx = i;
+
+                        if (oldIdx !== -1 && oldIdx !== boundedTargetIdx) {
+                            tracks[oldIdx] = tracks[oldIdx].filter(c => c !== state.dragClip);
+
+                            // Splice into new track (Find correct Z insertion to prevent gaps)
+                            let insertIdx = 0;
+                            let runZ = 0;
+                            for (let i = 0; i < tracks[boundedTargetIdx].length; i++) {
+                                if (runZ >= state.dragClip.zStart) { insertIdx = i; break; }
+                                runZ += tracks[boundedTargetIdx][i].dur;
+                                insertIdx = i + 1;
+                            }
+
+                            tracks[boundedTargetIdx].splice(insertIdx, 0, state.dragClip);
+                            recalculateZOffsets();
+                            playSnap();
+                        }
+                    }
+
+                    // Update floating UI pos
+                    if (monitor.style.opacity === '1') {
+                        monitor.style.transform = `translate(${e.clientX + 20}px, ${e.clientY - 20}px)`;
+                    }
+                    return;
+                }
+
+                // 3. Hover Detection
+                const hit = getHit(e.clientX, e.clientY);
+                if (hit) {
+                    state.hoverPoly = hit.poly;
+                    state.hoverType = hit.type;
+                    canvas.style.cursor = hit.type === 'handle' ? 'ew-resize' : 'crosshair';
+                } else {
+                    state.hoverPoly = null;
+                    state.hoverType = 'none';
+                    canvas.style.cursor = 'crosshair';
+                }
+            }
+
+            function handlePointerUp(e) {
+                if (state.dragClip) playSnap();
+                state.scrubbing = false;
+                state.dragClip = null;
+
+                // Natural friction decay applied in draw loop
+                try { canvas.releasePointerCapture(e.pointerId); } catch (err) { }
+            }
+
+            canvas.addEventListener('pointerdown', handlePointerDown);
+            canvas.addEventListener('pointermove', handlePointerMove);
+            canvas.addEventListener('pointerup', handlePointerUp);
+            canvas.addEventListener('pointercancel', handlePointerUp);
+
+            // ──── LOGIC & UPDATES ────
+            function recalculateZOffsets() {
+                for (let i = 0; i < 4; i++) {
+                    let runZ = 0;
+                    tracks[i].forEach(clip => {
+                        clip.zStart = runZ;
+                        runZ += clip.dur;
+                    });
+                }
+            }
+
+            function ensureContiguity() {
+                // Generate clips ahead if needed
+                for (let i = 0; i < 4; i++) {
+                    if (tracks[i].length === 0) continue;
+                    const first = tracks[i][0];
+                    const last = tracks[i][tracks[i].length - 1];
+
+                    // Pop and push to maintain infinite illusion without memory leak
+                    if (first.zStart + first.dur < state.cameraZ - 1000) {
+                        tracks[i].push(tracks[i].shift());
+                        recalculateZOffsets();
+                    }
+                    if (state.cameraZ < first.zStart) {
+                        tracks[i].unshift(tracks[i].pop());
+                        recalculateZOffsets();
+                    }
+                }
+            }
+
+            // ──── MAIN LOOP ────
+            function draw() {
+                // STAGE 1: Absolute White Background
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, state.W, state.H);
+
+                // Momentum / Friction
+                if (!state.scrubbing) {
+                    state.speed *= 0.85;
+                    state.cameraZ += state.speed;
+                }
+
+                ensureContiguity();
+
+                // Build Render Data
+                const renderQueue = [];
+                for (let tIdx = 0; tIdx < 4; tIdx++) {
+                    tracks[tIdx].forEach((clip, cIdx) => {
+                        // Strict frustum cull
+                        if (clip.zStart + clip.dur < state.cameraZ || clip.zStart > state.cameraZ + FAR_PLANE) return;
+
+                        const geom = getClipGeometry(clip, tIdx);
+                        if (geom) {
+                            const isDrag = state.dragClip === clip;
+                            const isHover = state.hoverPoly && state.hoverPoly.clip === clip;
+                            const isSelected = state.selectedClip === clip;
+                            renderQueue.push({ geom, clip, tIdx, cIdx, isHover, isDrag, isSelected });
+                        }
+                    });
+                }
+
+                // Sort: Painter's Algorithm (Furthest first)
+                renderQueue.sort((a, b) => b.geom.zDist - a.geom.zDist);
+
+                renderedPolys = [];
+                let dragRenderCall = null;
+
+                renderQueue.forEach(item => {
+                    if (item.isDrag) dragRenderCall = item;
+                    else {
+                        drawClip(item.geom, item.clip, item.tIdx, item.isHover, false, item.isSelected);
+                        renderedPolys.push(item);
+                    }
+                });
+
+                if (dragRenderCall) {
+                    drawClip(dragRenderCall.geom, dragRenderCall.clip, dragRenderCall.tIdx, dragRenderCall.isHover, true, dragRenderCall.isSelected);
+                    renderedPolys.push(dragRenderCall); // Allow hit testing on dragged element
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            // Boot
+            document.body.addEventListener('pointerdown', () => {
+                if (!actx) { setupAudio(); actx.resume(); }
+            }, { once: true });
+
+            resize();
+            initPatterns();
+            initTracks();
+            recalculateZOffsets();
+            requestAnimationFrame(draw);
+        })();
+    </script>
+</body>
+
+</html>

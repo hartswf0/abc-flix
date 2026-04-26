@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Sensorama Futures Projector · Operational Build</title>
+<style>
+:root{
+  --bg:#08080a;
+  --panel:#101112;
+  --panel2:#151712;
+  --line:rgba(210,205,170,.18);
+  --ink:#d8d1b2;
+  --muted:rgba(216,209,178,.58);
+  --faint:rgba(216,209,178,.30);
+  --gold:#e6bd32;
+  --hot:#ff5b2a;
+  --green:#aee92d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100vw;height:100dvh;display:block;background:var(--bg);cursor:grab}
+canvas:active{cursor:grabbing}
+button{font-family:inherit;background:transparent;color:inherit;-webkit-tap-highlight-color:transparent;cursor:pointer}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+#top{position:absolute;left:20px;right:20px;top:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+#brand b{display:block;color:var(--gold);font-size:14px;letter-spacing:.15em;text-transform:uppercase;line-height:1.1}
+#brand span{display:block;margin-top:6px;color:var(--faint);font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+#layerControls{pointer-events:auto;display:flex;gap:6px;padding:5px;border:1px solid var(--line);background:rgba(10,11,12,.76);box-shadow:0 12px 36px rgba(0,0,0,.35)}
+.layerBtn{width:40px;height:34px;border:1px solid rgba(230,189,50,.42);color:var(--gold);font-weight:900;font-size:13px;letter-spacing:.08em}
+.layerBtn[aria-pressed="false"]{color:rgba(216,209,178,.34);border-color:rgba(216,209,178,.18)}
+#guide{position:absolute;left:20px;top:76px;width:260px;border:1px solid rgba(230,189,50,.20);background:rgba(10,11,12,.78);padding:12px 13px;box-shadow:0 14px 40px rgba(0,0,0,.34)}
+#guide .title{color:var(--gold);font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;margin-bottom:10px}
+.step{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;padding:6px 0;border-top:1px solid rgba(216,209,178,.08)}
+.step:first-of-type{border-top:0}.step b{color:var(--hot);font-size:12px}.step span{color:var(--ink);font-size:10px;line-height:1.35}.step em{font-style:normal;color:var(--faint)}
+#inspector{position:absolute;right:20px;top:104px;width:330px;pointer-events:auto;border:1px solid var(--line);background:rgba(10,11,12,.82);box-shadow:0 18px 48px rgba(0,0,0,.45);padding:16px}
+.kicker{font-size:9px;color:var(--faint);font-weight:900;letter-spacing:.14em;text-transform:uppercase}.itemName{margin-top:8px;color:var(--hot);font-size:23px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;line-height:1}.zoneLine{margin-top:8px;color:var(--gold);font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}.ruleLine{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,91,42,.55);color:var(--muted);font-size:10px;line-height:1.45}
+.rows{margin-top:12px;display:grid;gap:8px}.row{position:relative;display:grid;grid-template-columns:26px 1fr 44px;gap:8px;align-items:center;min-height:38px;padding:7px 8px;border:1px solid rgba(216,209,178,.12);background:rgba(255,255,255,.018);touch-action:none}.row[data-active="true"]{border-color:rgba(255,91,42,.78);background:rgba(255,91,42,.07)}.row b{font-size:14px;color:var(--gold)}.row[data-active="true"] b{color:var(--hot)}.row .value{font-size:12px;line-height:1.25;color:var(--ink);overflow:hidden;text-overflow:ellipsis}.row .source{display:block;color:var(--faint);font-size:8px;text-transform:uppercase;margin-bottom:2px;letter-spacing:.06em}.row .arrows{color:var(--faint);font-size:10px;text-align:right;line-height:1.2}.row[data-active="true"] .arrows{color:var(--hot)}
+#result{margin-top:12px;padding:10px;border:1px solid rgba(230,189,50,.18);background:rgba(230,189,50,.055);font-size:10px;line-height:1.45;color:var(--ink)}#result b{color:var(--gold)}
+#play{position:absolute;right:24px;bottom:22px;width:72px;height:72px;border-radius:999px;border:2px solid var(--gold);background:rgba(10,11,12,.78);pointer-events:auto;display:grid;place-items:center;box-shadow:0 12px 40px rgba(0,0,0,.42)}#play:before{content:"";display:block;margin-left:5px;width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-left:23px solid var(--gold)}#play[data-playing="true"]:before{width:18px;height:25px;margin-left:0;border:0;border-left:6px solid var(--gold);border-right:6px solid var(--gold)}#play span{position:absolute;left:0;right:0;bottom:9px;text-align:center;color:var(--gold);font-weight:900;font-size:9px;letter-spacing:.10em;text-transform:uppercase}
+#footer{position:absolute;left:20px;right:112px;bottom:24px;display:flex;justify-content:space-between;gap:16px;color:var(--faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase}.hot{color:var(--hot)}
+@media(max-width:860px){
+  #guide{display:none}
+  #top{left:12px;right:12px;top:10px;align-items:center}
+  #brand b{font-size:10px;letter-spacing:.11em;max-width:50vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #brand span{display:none}
+  #layerControls{gap:3px;padding:3px;background:rgba(10,11,12,.82)}
+  .layerBtn{width:34px;height:30px;font-size:12px}
+
+  #inspector{
+    left:12px;right:12px;top:52px;width:auto;padding:12px;
+    border-color:rgba(230,189,50,.20);background:rgba(10,11,12,.88);
+    box-shadow:0 10px 34px rgba(0,0,0,.38)
+  }
+  .kicker{display:none}
+  .itemName{margin-top:0;font-size:18px;letter-spacing:.06em}
+  .zoneLine{margin-top:6px;font-size:11px;letter-spacing:.05em}
+  .ruleLine,#result{display:none}
+  .rows{margin-top:10px;grid-template-columns:1fr;gap:6px}
+  .row{grid-template-columns:28px 1fr 26px;min-height:42px;padding:8px 9px;background:rgba(255,255,255,.02)}
+  .row b{font-size:14px}
+  .row .source{display:none}
+  .row .value{font-size:12px;line-height:1.22;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(216,209,178,.90)}
+  .row .arrows{font-size:10px;line-height:1.05}
+
+  #play{width:60px;height:60px;right:12px;bottom:12px}
+  #play:before{border-top-width:12px;border-bottom-width:12px;border-left-width:19px}
+  #play span{font-size:8px;bottom:7px}
+  #footer{left:12px;right:84px;bottom:18px;font-size:8px;letter-spacing:.06em}
+  .hideMobile{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="Sensorama futures projection canvas"></canvas>
+<div id="hud">
+  <div id="top">
+    <div id="brand"><b>Sensorama Futures Projector</b><span>Choose a slice. Scrub a row. Watch the projection move.</span></div>
+    <div id="layerControls" aria-label="Layer visibility controls">
+      <button class="layerBtn" data-layer="P" aria-pressed="true">P</button>
+      <button class="layerBtn" data-layer="S" aria-pressed="true">S</button>
+      <button class="layerBtn" data-layer="F" aria-pressed="true">F</button>
+      <button class="layerBtn" data-layer="M" aria-pressed="true">M</button>
+    </div>
+  </div>
+
+  <div id="guide">
+    <div class="title">Start Here</div>
+    <div class="step"><b>1</b><span><strong>Drag the wheel.</strong><br><em>Select one artifact slice.</em></span></div>
+    <div class="step"><b>2</b><span><strong>Tap P/S/F/M.</strong><br><em>Choose the row you want to change.</em></span></div>
+    <div class="step"><b>3</b><span><strong>Swipe that row up/down.</strong><br><em>Borrow another artifact's rule.</em></span></div>
+    <div class="step"><b>4</b><span><strong>Press Play.</strong><br><em>Step through slices automatically.</em></span></div>
+  </div>
+
+  <section id="inspector" aria-label="Element inspector">
+    <div class="kicker">Element</div>
+    <div class="itemName" id="itemName">SECOND LIFE</div>
+    <div class="zoneLine" id="zoneLine">-PLAUSIBLE · AVATAR</div>
+    <div class="ruleLine" id="ruleLine">USE: each row is a lever. Swipe the active row to replace that rule and redraw the cone.</div>
+    <div class="rows" id="rows">
+      <div class="row" data-layer="P" data-active="true"><b>P</b><div><span class="source" id="srcP">own source</span><span class="value" id="valP">social world</span></div><span class="arrows">▲<br>▼</span></div>
+      <div class="row" data-layer="S"><b>S</b><div><span class="source" id="srcS">own source</span><span class="value" id="valS">network identity</span></div><span class="arrows">▲<br>▼</span></div>
+      <div class="row" data-layer="F"><b>F</b><div><span class="source" id="srcF">own source</span><span class="value" id="valF">inhabit avatar</span></div><span class="arrows">▲<br>▼</span></div>
+      <div class="row" data-layer="M"><b>M</b><div><span class="source" id="srcM">own source</span><span class="value" id="valM">platform space</span></div><span class="arrows">▲<br>▼</span></div>
+    </div>
+    <div id="result"><b>Result:</b> <span id="resultText">P controls the active future lane.</span></div>
+  </section>
+
+  <button id="play" aria-label="Play projection sequence"><span>PLAY</span></button>
+  <div id="footer"><span>PLAY / DRAG WHEEL / SWIPE ROWS</span><span class="hideMobile" id="frameText">P/S/F/M · FRAME 0001</span></div>
+</div>
+
+<script>
+(()=>{'use strict';
+const canvas=document.getElementById('stage'),ctx=canvas.getContext('2d',{alpha:false});
+const playBtn=document.getElementById('play'),playLabel=playBtn.querySelector('span');
+const layerButtons=[...document.querySelectorAll('.layerBtn')],rowEls=[...document.querySelectorAll('.row')];
+const itemName=document.getElementById('itemName'),zoneLine=document.getElementById('zoneLine'),resultText=document.getElementById('resultText'),frameText=document.getElementById('frameText');
+const valEls={P:document.getElementById('valP'),S:document.getElementById('valS'),F:document.getElementById('valF'),M:document.getElementById('valM')};
+const srcEls={P:document.getElementById('srcP'),S:document.getElementById('srcS'),F:document.getElementById('srcF'),M:document.getElementById('srcM')};
+const PI=Math.PI,TAU=PI*2,LAYERS=['P','S','F','M'],selected=new Set(LAYERS);
+const C={bg:'#08080a',ink:'#d8d1b2',muted:'rgba(216,209,178,.55)',faint:'rgba(216,209,178,.25)',gold:'#e6bd32',hot:'#ff5b2a'};
+const Z={Possible:{scale:1,mag:.82,fill:'rgba(178,200,180,.28)',stroke:'rgba(178,200,180,.32)',beam:'178,200,180'},Plausible:{scale:.68,mag:.55,fill:'rgba(139,188,131,.34)',stroke:'rgba(139,188,131,.36)',beam:'139,188,131'},Probable:{scale:.40,mag:.30,fill:'rgba(101,198,72,.42)',stroke:'rgba(101,198,72,.42)',beam:'101,198,72'},Preferable:{scale:.18,mag:.10,fill:'rgba(183,238,44,.65)',stroke:'rgba(230,189,50,.54)',beam:'183,238,44'}};
+const zones=['Possible','Plausible','Probable','Preferable'];
+const data=[['PANORAMA','public spectacle','painted city','surround gaze','cylindrical image'],['STEREOSCOPE','private wonder','paired photograph','depth illusion','binocular card'],['CINERAMA','mass immersion','wide film','wrap attention','curved screen'],['SENSORAMA','embodied cinema','multisensory booth','stimulate body','cabinet machine'],['TELESphere','head capture','miniature screens','portable surround','helmet display'],['SWORD OF DAMOCLES','tracking problem','computer graphics','couple head/world','ceiling rig'],['VIDEOPLACE','gesture interface','camera silhouette','enter image','responsive room'],['ASPEN MAP','navigable memory','street imagery','move through archive','laserdisc city'],['DATA GLOVE','hand agency','sensor fabric','grasp virtual','wired glove'],['VIEW-MASTER','toy transport','stereo reels','miniature travel','red viewer'],['VIRTUALITY','arcade futurism','networked pods','play immersion','standing rig'],['CAVE','shared laboratory','projection walls','walk inside data','room cube'],['QUICKTIME VR','desktop access','stitched photos','pan scene','software window'],['VIRTUAL BOY','consumer failure','red LED optics','sell 3D play','table headset'],['SECOND LIFE','social world','network identity','inhabit avatar','platform space'],['KINECT','body controller','depth camera','make body input','sensor bar'],['OCULUS DK1','maker restart','phone panels','low-cost presence','dev headset'],['CARDBOARD','cheap access','smartphone','fold VR down','paper viewer'],['VIVE','room scale','lighthouse tracking','walk/play/paint','tracked kit'],['QUEST','standalone habit','inside-out cameras','untether VR','mobile headset'],['BEAT SABER','kinetic proof','rhythm game','make VR legible','sword music'],['VISION PRO','spatial computing','passthrough stack','overlay work/life','face computer'],['NEURAL RENDER','scene synthesis','generative models','dream environment','latent volume'],['HAPTIC SKIN','tactile trust','actuator mesh','feel remote matter','worn surface'],['SENSORAMA 2','return of body','odor/wind/vibration','restore senses','booth-cloud'],['CIVIC SIM','public rehearsal','city model','test futures','forum theater'],['THERAPY WORLD','care protocol','guided exposure','repattern fear','clinical headset'],['TRAINING TWIN','risk rehearsal','industrial sim','practice danger','procedure world'],['MIXED STREET','daily overlay','phone/glasses','annotate city','thin lens'],['MEMORY CONE','archive desire','lifelog capture','revisit time','personal dome'],['DREAM ENGINE','prompt world','latent video','summon scene','generative cone'],['PREFERRED VR','chosen settlement','social practice','make humane worlds','persistent cone']];
+const glyphs='rings eyes fan booth helmet rig body map hand reel pod cube nodes scan avatar depth hmd fold stars cams beat pass fog skin wind city care danger street memory dream settle'.split(' ');
+const lens='CYLINDRICAL BINOCULAR WIDE-CURVE SENSORY-BOOTH HELMET CEILING-RIG SILHOUETTE STREET-MAP HAND REEL POD ROOM-CUBE PAN-NODE RED-LED AVATAR DEPTH-BAR DEV-HMD FOLDED LIGHTHOUSE INSIDE-OUT RHYTHM PASSTHROUGH LATENT TACTILE-SKIN ODOR-WIND CIVIC-MODEL CARE-LOOP RISK-TWIN URBAN-GLASS MEMORY-DOME PROMPT-FOG SETTLEMENT'.split(' ');
+const A=data.map((d,i)=>({i,name:d[0],P:d[1],S:d[2],F:d[3],M:d[4],glyph:glyphs[i],lens:lens[i],category:i<8?'Possible':i<16?'Plausible':i<24?'Probable':'Preferable',polarity:((i*7)%10<5)?1:-1,spread:.72+((i*37)%100)/100*.55,bend:(((i*19)%100)/100-.5)*.62,density:5+(i%7),tone:120+i*11,mix:{P:i,S:i,F:i,M:i}}));
+const S={W:1,H:1,DPR:1,cx:0,cy:0,R:190,r0:30,tipX:0,tipY:0,endX:0,angle:-14*TAU/A.length,target:-14*TAU/A.length,vel:0,active:14,prev:-1,drag:false,moved:false,lastA:0,lastT:0,lastAngle:0,scrub:false,scrubLayer:'P',scrubY:0,playing:false,next:0,t:0,frame:1,pulse:0,flash:0,glow:0,zoneFlash:0,audio:null,audioReady:false};
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function lerp(a,b,t){return a+(b-a)*t}function norm(a){while(a>PI)a-=TAU;while(a<-PI)a+=TAU;return a}
+function polar(x,y,r,a){return{x:x+Math.cos(a)*r,y:y+Math.sin(a)*r}}
+function px(v){return Math.round(v)+.5}function rgba(rgb,a){return`rgba(${rgb},${a})`}
+function resize(){S.DPR=Math.max(1,Math.min(2,devicePixelRatio||1));S.W=innerWidth|0;S.H=innerHeight|0;canvas.width=(S.W*S.DPR)|0;canvas.height=(S.H*S.DPR)|0;canvas.style.width=S.W+'px';canvas.style.height=S.H+'px';ctx.setTransform(S.DPR,0,0,S.DPR,0,0);if(S.W<860){S.R=Math.max(78,Math.min(S.H*.18,S.W*.25));S.cx=S.W*.27;S.cy=S.H*.74;S.endX=S.W-18}else{S.R=Math.max(132,Math.min(S.H*.31,S.W*.205));S.cx=S.W*.255;S.cy=S.H*.54;S.endX=S.W*.755}S.r0=Math.max(24,S.R*.13);S.tipX=S.cx+S.R*.92;S.tipY=S.cy}
+function raw(){return A[S.active]}function source(base,L){return A[base.mix[L]]||base}function active(){const b=raw(),src=source(b,S.scrubLayer);return{...b,category:src.category,polarity:src.polarity,spread:(b.spread+src.spread)/2,bend:(b.bend+src.bend)/2,density:src.density,tone:src.tone,glyph:src.glyph,lens:src.lens}}
+function z(item){return Z[item.category]}function span(){return Math.max(78,Math.min(S.H*(S.W<860?.26:.36),S.R*1.46))}function progress(x){return clamp((x-S.tipX)/(S.endX-S.tipX),0,1)}function yOn(x,item,e=0){const t=progress(x);return S.tipY-span()*z(item).mag*item.polarity*t+Math.sin(t*PI)*item.bend*S.R*.13+e}function half(x,item){const t=progress(x);return span()*(.10+t*.90)*z(item).scale*item.spread}function activeAngle(){return S.angle+S.active*TAU/A.length}function slice(){const sl=TAU/A.length;return((Math.round(norm(-S.angle)/sl)%A.length)+A.length)%A.length}function snap(i){S.target=-i*TAU/A.length}function value(base,L){return source(base,L)[L]||''}
+function wake(){if(S.audioReady)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;S.audio=new AC();S.audioReady=true}function tone(f=220,d=.05,g=.02,type='sine',bend=0){if(!S.audioReady||!S.audio)return;const t=S.audio.currentTime,o=S.audio.createOscillator(),gain=S.audio.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(bend)o.frequency.exponentialRampToValueAtTime(Math.max(38,f+bend),t+d);gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(g,t+.006);gain.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(gain).connect(S.audio.destination);o.start(t);o.stop(t+d+.02)}function click(item){tone(item.tone,.035,.018,'triangle',35+item.bend*50)}function vib(p){if(navigator.vibrate)navigator.vibrate(p)}
+function setPlay(v){S.playing=v;playBtn.dataset.playing=String(v);playLabel.textContent=v?'PAUSE':'PLAY';S.next=performance.now()+320;S.flash=1;S.glow=1;if(v){tone(72,.035,.018,'square',-8);vib([8,18,6])}}function advance(d=1){S.active=(S.active+d+A.length)%A.length;snap(S.active);S.pulse=1;S.flash=1;S.glow=1;S.zoneFlash=1;click(active());vib([5,16,5])}
+function setScrub(L){if(!LAYERS.includes(L))return;S.scrubLayer=L;rowEls.forEach(r=>r.dataset.active=String(r.dataset.layer===L));S.pulse=1;S.glow=1;S.zoneFlash=1;updateUI()}function scrub(delta){const b=raw(),L=S.scrubLayer;b.mix[L]=(b.mix[L]+delta+A.length)%A.length;S.pulse=1;S.glow=1;S.zoneFlash=1;S.flash=.6;click(source(b,L));vib(delta>0?[4,12,4]:[8]);updateUI()}
+playBtn.addEventListener('pointerdown',e=>e.stopPropagation());playBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();wake();if(S.audio&&S.audio.state==='suspended')S.audio.resume();setPlay(!S.playing)});
+layerButtons.forEach(btn=>{btn.addEventListener('click',e=>{e.preventDefault();wake();const L=btn.dataset.layer;if(selected.has(L)&&selected.size>1)selected.delete(L);else selected.add(L);btn.setAttribute('aria-pressed',selected.has(L));S.pulse=1;S.glow=1;tone(180+LAYERS.indexOf(L)*90,.04,.02,'triangle',selected.has(L)?60:-40);updateUI()})});
+rowEls.forEach(row=>{row.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();wake();if(S.audio&&S.audio.state==='suspended')S.audio.resume();setPlay(false);setScrub(row.dataset.layer);S.scrub=true;S.scrubY=e.clientY;row.setPointerCapture?.(e.pointerId)},{passive:false});row.addEventListener('pointermove',e=>{if(!S.scrub||S.scrubLayer!==row.dataset.layer)return;e.preventDefault();const dy=e.clientY-S.scrubY,step=S.W<860?28:34;if(Math.abs(dy)>=step){scrub(dy<0?1:-1);S.scrubY=e.clientY}},{passive:false});row.addEventListener('pointerup',e=>{S.scrub=false;row.releasePointerCapture?.(e.pointerId)},{passive:false});row.addEventListener('click',e=>{e.preventDefault();setScrub(row.dataset.layer)})});
+function point(e){return{x:e.clientX,y:e.clientY}}function pAngle(e){const p=point(e);return Math.atan2(p.y-S.cy,p.x-S.cx)}canvas.addEventListener('pointerdown',e=>{e.preventDefault();wake();if(S.audio&&S.audio.state==='suspended')S.audio.resume();setPlay(false);canvas.setPointerCapture?.(e.pointerId);S.drag=true;S.moved=false;S.lastA=pAngle(e);S.lastT=performance.now();S.lastAngle=S.angle;S.vel=0;tone(140,.035,.016,'triangle',40);vib(8)},{passive:false});window.addEventListener('pointermove',e=>{if(!S.drag)return;e.preventDefault();const now=performance.now(),a=pAngle(e),da=norm(a-S.lastA);if(Math.abs(da)>.002)S.moved=true;S.angle+=da;S.target=S.angle;const dt=Math.max(8,now-S.lastT)/1000;S.vel=(S.angle-S.lastAngle)/dt;S.lastA=a;S.lastT=now;S.lastAngle=S.angle},{passive:false});window.addEventListener('pointerup',e=>{if(!S.drag)return;e.preventDefault();S.drag=false;canvas.releasePointerCapture?.(e.pointerId);S.active=slice();snap(S.active);S.pulse=1;S.zoneFlash=1;S.glow=1;click(active());vib([6,18,6])},{passive:false});canvas.addEventListener('click',e=>{if(S.moved)return;const p=point(e),dx=p.x-S.cx,dy=p.y-S.cy,r=Math.hypot(dx,dy);if(r>S.r0&&r<S.R*1.06){const a=Math.atan2(dy,dx),sl=TAU/A.length,i=((Math.floor(norm(a-S.angle+sl/2)/sl)%A.length)+A.length)%A.length;S.active=i;snap(i);S.pulse=1;S.zoneFlash=1;S.flash=.8;S.glow=1;click(active());vib([8,22,7])}});window.addEventListener('resize',resize);window.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();wake();setPlay(!S.playing)}if(e.key==='ArrowRight')advance(1);if(e.key==='ArrowLeft')advance(-1);if('psfm'.includes(e.key.toLowerCase()))setScrub(e.key.toUpperCase())});
+function line(x1,y1,x2,y2,stroke='rgba(216,209,178,.16)',w=1){ctx.strokeStyle=stroke;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(px(x1),px(y1));ctx.lineTo(px(x2),px(y2));ctx.stroke()}function text(s,x,y,size=12,color=C.ink,align='left',weight='700'){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';ctx.font=`${weight} ${size}px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;ctx.fillText(s,Math.round(x),Math.round(y))}function band(cx,cy,r0,r1,a0,a1,fill,stroke='rgba(216,209,178,.12)',w=.8){ctx.beginPath();ctx.arc(cx,cy,r1,a0,a1,false);ctx.arc(cx,cy,r0,a1,a0,true);ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=w;ctx.stroke()}
+function drawBackground(){ctx.fillStyle=C.bg;ctx.fillRect(0,0,S.W,S.H);const grad=ctx.createRadialGradient(S.tipX,S.tipY,0,S.tipX,S.tipY,Math.min(S.W,S.H)*.55);grad.addColorStop(0,'rgba(230,189,50,.035)');grad.addColorStop(1,'rgba(230,189,50,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,S.W,S.H);line(0,58,S.W,58,'rgba(216,209,178,.06)',1);line(0,S.H-62,S.W,S.H-62,'rgba(216,209,178,.045)',1)}
+function drawCone(){const sp=span(),x0=S.tipX,y0=S.tipY,x1=S.endX,item=active(),zz=z(item);[['Possible',sp],['Plausible',sp*.68],['Probable',sp*.38],['Preferable',sp*.13]].forEach(([name,h])=>{ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y0-h);ctx.lineTo(x1,y0+h);ctx.closePath();ctx.fillStyle=Z[name].fill;ctx.fill();ctx.strokeStyle=Z[name].stroke;ctx.lineWidth=1;ctx.stroke()});line(x0-8,y0,x1+10,y0,'rgba(216,209,178,.13)',1);const yc=y0-sp*zz.mag*item.polarity,hh=sp*zz.scale*.11+8+S.zoneFlash*5;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,yc-hh);ctx.lineTo(x1,yc+hh);ctx.closePath();ctx.fillStyle=zz.fill;ctx.fill();ctx.strokeStyle='rgba(255,91,42,.82)';ctx.lineWidth=1.8+S.zoneFlash*.7;ctx.stroke();if(S.W>860){text((item.polarity<0?'−':'')+item.category,x1-10,yc,13,item.category==='Preferable'?'#101112':C.ink,'right','900');const labelX=x1-10;[['Possible',y0-sp*.90],['Plausible',y0-sp*.56],['Probable',y0-sp*.25],['Preferable',y0-sp*.08],['−Preferable',y0+sp*.08],['−Probable',y0+sp*.25],['−Plausible',y0+sp*.56],['−Possible',y0+sp*.90]].forEach(([lab,yy])=>{if(Math.abs(yy-yc)>14)text(lab,labelX,yy,11,'rgba(216,209,178,.46)','right','800')})}}
+function glyph(kind,x,y,s,color){ctx.save();ctx.translate(x,y);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=Math.max(1.4,s*.06);ctx.lineCap='round';ctx.lineJoin='round';if(kind==='avatar'||kind==='rings'||kind==='settle'){ctx.beginPath();ctx.arc(0,0,s*.36,0,TAU);ctx.stroke();line(-s*.42,0,s*.42,0,color,ctx.lineWidth);line(0,-s*.42,0,s*.42,color,ctx.lineWidth)}else if(kind==='cube'||kind==='city'){ctx.strokeRect(-s*.30,-s*.30,s*.50,s*.50);ctx.strokeRect(-s*.08,-s*.10,s*.50,s*.50)}else if(kind==='hand'){ctx.beginPath();ctx.moveTo(-s*.18,s*.25);ctx.lineTo(-s*.16,-s*.08);ctx.lineTo(-s*.06,-s*.24);ctx.lineTo(.02,-s*.04);ctx.lineTo(.10,-s*.24);ctx.lineTo(.18,.18);ctx.quadraticCurveTo(.04*s,.30*s,-s*.18,s*.25);ctx.stroke()}else{ctx.beginPath();ctx.arc(0,0,s*.34,0,TAU);ctx.stroke();line(-s*.34,0,s*.34,0,color,ctx.lineWidth);line(0,-s*.34,0,s*.34,color,ctx.lineWidth)}ctx.restore()}
+function drawLens(x,y,h,label,item){const w=Math.max(9,S.R*.025),hh=Math.max(34,Math.min(S.R*.46,h*1.75));ctx.save();ctx.translate(x,y);ctx.fillStyle='rgba(10,11,12,.34)';ctx.strokeStyle=selected.has(label)?C.hot:'rgba(216,209,178,.26)';ctx.lineWidth=selected.has(label)?1.8:1;ctx.beginPath();ctx.ellipse(0,0,w,hh*.5,0,0,TAU);ctx.fill();ctx.stroke();text(label,0,0,10,selected.has(label)?C.hot:C.muted,'center','900');ctx.restore()}
+function drawPlate(item){const x=lerp(S.tipX,S.endX,S.W<860?.92:.91),y=yOn(x,item),hh=Math.max(36,half(x,item)*.44),w=Math.max(52,Math.min(S.W*(S.W<860?.18:.10),S.R*.42));ctx.save();ctx.translate(x,y);ctx.fillStyle='rgba(10,11,12,.72)';ctx.strokeStyle=C.hot;ctx.lineWidth=1.8;ctx.beginPath();ctx.rect(-w*.5,-hh,w,hh*2);ctx.fill();ctx.stroke();glyph(item.glyph,0,0,Math.min(w,hh*1.4)*.42,'rgba(216,209,178,.78)');text((item.polarity<0?'−':'')+item.category.toUpperCase(),0,-hh+12,8,C.hot,'center','900');text(item.lens,0,hh-12,8,C.muted,'center','800');ctx.restore()}
+function drawBeam(){const item=active(),zz=z(item),a=activeAngle(),sl=TAU/A.length,ap=sl*(.33+item.spread*.11),pL=polar(S.cx,S.cy,S.R*.93,a-ap),pR=polar(S.cx,S.cy,S.R*.93,a+ap),xs=[.20,.42,.62,.80].map(t=>lerp(S.tipX,S.endX,t));for(let b=0;b<2;b++){const al=[.18,.10][b]*(1+S.glow*.20),off=(b?1:-1)*item.bend*S.R*.010;ctx.beginPath();ctx.moveTo(pL.x,pL.y);for(const x of xs)ctx.lineTo(x,yOn(x,item,off)-half(x,item)*.22);ctx.lineTo(S.endX,yOn(S.endX,item,off)-half(S.endX,item)*.42);ctx.lineTo(S.endX,yOn(S.endX,item,off)+half(S.endX,item)*.42);for(let k=xs.length-1;k>=0;k--){const x=xs[k];ctx.lineTo(x,yOn(x,item,off)+half(x,item)*.22)}ctx.lineTo(pR.x,pR.y);ctx.closePath();ctx.fillStyle=rgba(zz.beam,al);ctx.fill()}ctx.save();ctx.lineCap='round';for(let r=0;r<5;r++){const q=r/4,st=polar(S.cx,S.cy,S.R*(.50+q*.38),a+(q-.5)*ap*1.55);ctx.beginPath();ctx.moveTo(st.x,st.y);for(const x of xs)ctx.lineTo(x,yOn(x,item)+(q-.5)*half(x,item)*.52);ctx.lineTo(S.endX,yOn(S.endX,item)+(q-.5)*half(S.endX,item)*.68);ctx.strokeStyle=r===2?'rgba(255,91,42,.66)':'rgba(255,91,42,.18)';ctx.lineWidth=r===2?1.8:1;ctx.stroke()}ctx.restore();xs.forEach((x,k)=>drawLens(x,yOn(x,item),half(x,item)*(.32+k*.035),LAYERS[k],item));drawPlate(item)}
+function drawWheel(){const N=A.length,sl=TAU/N,rings=[[S.r0,S.R*.34,'rgba(183,238,44,.18)'],[S.R*.34,S.R*.62,'rgba(139,188,131,.14)'],[S.R*.62,S.R*.90,'rgba(178,200,180,.12)']];for(let i=0;i<N;i++){const item=A[i],a0=S.angle+i*sl-sl*.49,a1=S.angle+i*sl+sl*.49,on=i===S.active;rings.forEach(r=>band(S.cx,S.cy,r[0],r[1],a0,a1,on?z(item).fill:r[2],on?'rgba(255,91,42,.26)':'rgba(216,209,178,.07)',on?1:.55));if(on||i%4===0){const mid=S.angle+i*sl,pos=polar(S.cx,S.cy,S.R*.77,mid);ctx.save();ctx.translate(pos.x,pos.y);ctx.rotate(mid+PI/2);ctx.globalAlpha=on?.92:.16;glyph(item.glyph,0,0,on?S.R*.062:S.R*.034,on?C.hot:'rgba(216,209,178,.34)');ctx.restore()}}for(let i=0;i<N;i+=2){const a=S.angle+i*sl,p0=polar(S.cx,S.cy,S.r0*.8,a),p1=polar(S.cx,S.cy,S.R*.92,a);line(p0.x,p0.y,p1.x,p1.y,'rgba(216,209,178,.07)',.8)}for(let k=1;k<4;k++){ctx.beginPath();ctx.arc(S.cx,S.cy,lerp(S.r0,S.R*.92,k/4),0,TAU);ctx.strokeStyle='rgba(216,209,178,.08)';ctx.lineWidth=.8;ctx.stroke()}const a0=S.angle+S.active*sl-sl*.50,a1=S.angle+S.active*sl+sl*.50;ctx.strokeStyle=C.hot;ctx.lineWidth=Math.max(2.5,S.R*.010);ctx.beginPath();ctx.arc(S.cx,S.cy,S.R*.90,a0,a1,false);ctx.arc(S.cx,S.cy,S.R*.42,a1,a0,true);ctx.closePath();ctx.stroke();glyph('rings',S.cx,S.cy,S.R*.15,'rgba(230,189,50,.82)');text('COMPOSITE VR WHEEL',S.cx,S.cy+S.R*1.12,S.W<860?9:12,C.faint,'center','900')}
+function reticle(){const x=S.tipX,y=S.tipY;ctx.strokeStyle='rgba(255,91,42,.78)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,8+S.pulse*8,0,TAU);ctx.stroke();line(x-17,y,x-5,y,'rgba(255,91,42,.70)',1.2);line(x+5,y,x+17,y,'rgba(255,91,42,.70)',1.2)}
+function overlays(){if(S.flash>.01){ctx.fillStyle=`rgba(255,242,170,${S.flash*.02})`;ctx.fillRect(0,0,S.W,S.H)}}
+function updateUI(){const b=raw(),it=active(),sign=it.polarity<0?'−':'+';itemName.textContent=b.name;zoneLine.textContent=sign+it.category.toUpperCase()+' · '+it.lens;resultText.textContent=`${S.scrubLayer} now uses ${source(b,S.scrubLayer).name}. The cone redraws from that row.`;LAYERS.forEach(L=>{const src=source(b,L);srcEls[L].textContent=src.name===b.name?'own source':src.name;valEls[L].textContent=value(b,L)});frameText.textContent=[...selected].join('/')+' · FRAME '+String(S.frame%9999).padStart(4,'0')}
+function update(dt,now){S.t=now*.001;S.frame=(S.frame+1)%9999;if(S.playing&&now>S.next){advance(1);S.next=now+1400;S.vel+=.10}if(!S.drag){S.angle+=S.vel*dt;S.vel*=Math.pow(.036,dt);const diff=norm(S.target-S.angle);S.vel+=(diff*32-S.vel*8.2)*dt;if(Math.abs(S.vel)<.006&&Math.abs(diff)<.002){S.angle=S.target;S.vel=0}}const si=slice();if(Math.abs(norm(S.target-S.angle))<.08)S.active=si;if(S.active!==S.prev){S.pulse=1;S.zoneFlash=1;S.flash=Math.max(S.flash,.55);S.glow=1;S.prev=S.active;if(S.audioReady)click(active())}S.pulse*=Math.pow(.012,dt);S.flash*=Math.pow(.025,dt);S.glow*=Math.pow(.10,dt);S.zoneFlash*=Math.pow(.025,dt);updateUI()}
+function draw(){drawBackground();drawCone();drawBeam();drawWheel();reticle();overlays()}
+window.addEventListener('error',e=>{
+  console.error('Sensorama runtime error:',e.message,e.error||'');
+});
+let last=performance.now();function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt,now);draw();requestAnimationFrame(frame)}resize();snap(S.active);S.angle=S.target;updateUI();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

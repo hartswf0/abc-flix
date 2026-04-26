@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operational Engine - Real Media</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* STRICT BLACK & WHITE DIRECTIVE */
+        :root {
+            --px-per-sec: 100;
+            --snap-grid: 10;
+            /* 0.1 seconds */
+            --lane-height: 80px;
+        }
+
+        body {
+            background-color: #FFFFFF;
+            color: #000000;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* SVG Channel Semantics */
+        .ch-0 {
+            background-color: #000000;
+            color: #FFFFFF;
+        }
+
+        .ch-1 {
+            background-image: repeating-linear-gradient(0deg, #000 0px, #000 2px, #FFF 2px, #FFF 8px);
+        }
+
+        .ch-2 {
+            background-image: repeating-linear-gradient(45deg, #000 0px, #000 2px, #FFF 2px, #FFF 8px);
+        }
+
+        .ch-3 {
+            background-image: radial-gradient(circle, #000 2px, #FFF 2px);
+            background-size: 8px 8px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+            border: 2px solid #000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #000;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #FFF;
+        }
+
+        /* Input Resets */
+        input[type="number"],
+        select {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #000;
+            outline: none;
+            font-family: inherit;
+            color: inherit;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Video forced to Black and White */
+        video {
+            filter: grayscale(100%) contrast(150%);
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            opacity: 0.5;
+            /* Mix with pattern */
+        }
+
+        /* Grid Background */
+        #canvas-bg {
+            background-image: linear-gradient(to right, #e5e5e5 1px, transparent 1px);
+            background-size: var(--snap-grid) 100%;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen font-mono text-sm">
+
+    <!-- LEFT: ALPHANUMERIC CONTROL SURFACE -->
+    <div class="w-1/3 flex flex-col border-r-2 border-black bg-white z-20">
+        <div
+            class="p-4 border-b-2 border-black font-bold uppercase tracking-widest flex justify-between items-center bg-black text-white">
+            <span>Real Media Nodes</span>
+            <span id="node-count">0 Nodes</span>
+        </div>
+
+        <!-- Table Header -->
+        <div class="grid grid-cols-12 gap-2 p-2 border-b-2 border-black font-bold text-xs bg-white text-black">
+            <div class="col-span-3">ID</div>
+            <div class="col-span-3">START(s)</div>
+            <div class="col-span-3">DUR(s)</div>
+            <div class="col-span-2">CH</div>
+            <div class="col-span-1 text-center">X</div>
+        </div>
+
+        <!-- Textual Lines Container -->
+        <div id="logic-panel" class="flex-1 overflow-y-auto"></div>
+
+        <!-- Terminal & Transport Controls -->
+        <div class="p-4 border-t-2 border-black text-xs space-y-3 bg-white">
+            <div class="flex justify-between font-bold">
+                <span>NEEDLE: <span id="needle-readout">0.00</span>s</span>
+                <span>STATE: <span id="playback-state">IDLE</span></span>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btn-play"
+                    class="flex-1 border-2 border-black p-2 hover:bg-black hover:text-white font-bold transition-none">[
+                    SPACE ] PLAY/PAUSE</button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('file-input').click()"
+                    class="flex-1 border-2 border-black p-2 bg-black text-white hover:bg-white hover:text-black font-bold transition-none">
+                    + IMPORT MEDIA
+                </button>
+                <button id="btn-export"
+                    class="flex-1 border-2 border-black p-2 hover:bg-black hover:text-white font-bold transition-none">
+                    EXPORT JSON
+                </button>
+                <!-- Hidden File Input -->
+                <input type="file" id="file-input" accept="audio/*,video/*" multiple class="hidden">
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: SPATIAL CANVAS -->
+    <div id="canvas-container" class="w-2/3 relative overflow-x-auto overflow-y-hidden bg-white">
+        <div id="canvas-bg" class="absolute inset-0 pointer-events-none w-[10000px]"></div>
+
+        <!-- Flat Lanes -->
+        <div class="absolute left-0 right-0 border-b border-black flex items-center px-2 font-bold text-xs"
+            style="top: 0px; height: 80px;">CH-P (Solid)</div>
+        <div class="absolute left-0 right-0 border-b border-black flex items-center px-2 font-bold text-xs"
+            style="top: 80px; height: 80px;">CH-L (Stripe)</div>
+        <div class="absolute left-0 right-0 border-b border-black flex items-center px-2 font-bold text-xs"
+            style="top: 160px; height: 80px;">CH-B (Hatch)</div>
+        <div class="absolute left-0 right-0 border-b border-black flex items-center px-2 font-bold text-xs"
+            style="top: 240px; height: 80px;">CH-F (Dot)</div>
+
+        <!-- Clip Container -->
+        <div id="spatial-clips" class="absolute top-0 left-0 bottom-0 w-[10000px]"></div>
+
+        <!-- Base Needle -->
+        <div id="needle" class="absolute top-0 bottom-0 w-0.5 bg-black z-30 pointer-events-none" style="left: 0px;">
+            <div class="absolute top-0 -left-1.5 w-3 h-3 bg-black"></div>
+            <div class="absolute bottom-0 -left-1.5 w-3 h-3 bg-black"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE ARCHITECTURE ---
+        const ENGINE = {
+            pxPerSec: 100,
+            laneHeight: 80,
+            snapGrid: 10, // 0.1s steps
+            clips: new Map(), // Use Map for reference handling
+            needleTime: 0,
+            isPlaying: false,
+            lastFrameTime: 0,
+            selectedId: null
+        };
+
+        // --- UTILITIES ---
+        const generateId = () => 'RM-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const snap = (val) => Math.max(0, Math.round(val / ENGINE.snapGrid) * ENGINE.snapGrid);
+        const snapTime = (time) => Math.max(0, Math.round(time * 10) / 10);
+
+        // --- DOM REFERENCES ---
+        const DOM = {
+            logicPanel: document.getElementById('logic-panel'),
+            spatialClips: document.getElementById('spatial-clips'),
+            canvasContainer: document.getElementById('canvas-container'),
+            needle: document.getElementById('needle'),
+            needleReadout: document.getElementById('needle-readout'),
+            playbackState: document.getElementById('playback-state'),
+            fileInput: document.getElementById('file-input'),
+            nodeCount: document.getElementById('node-count')
+        };
+
+        // --- INGRESS: REAL MEDIA PARSING ---
+        DOM.fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                const isVideo = file.type.startsWith('video');
+                const media = document.createElement(isVideo ? 'video' : 'audio');
+                media.src = URL.createObjectURL(file);
+                media.preload = 'metadata';
+
+                // Wait for metadata to grab real intrinsic duration
+                media.onloadedmetadata = () => {
+                    const clip = {
+                        id: generateId(),
+                        file: file,
+                        media: media,
+                        isVideo: isVideo,
+                        start: snapTime(ENGINE.needleTime),
+                        duration: media.duration,
+                        channel: 0,
+                        ui: {} // Store DOM node references here for bidirectional binding
+                    };
+
+                    ENGINE.clips.set(clip.id, clip);
+                    buildClipUI(clip);
+                    updateGlobalReadout();
+                };
+            });
+            e.target.value = ''; // Reset input
+        });
+
+        // --- BIDIRECTIONAL UI CONSTRUCTION ---
+        function buildClipUI(clip) {
+            // 1. Build Left Panel Text Record
+            const line = document.createElement('div');
+            line.className = 'grid grid-cols-12 gap-2 p-2 border-b border-black items-center cursor-pointer hover:bg-black hover:text-white group transition-none';
+            line.id = `logic-${clip.id}`;
+
+            line.innerHTML = `
+        <div class="col-span-3 font-bold truncate" title="${clip.file.name}">${clip.id}</div>
+        <div class="col-span-3">
+          <input type="number" step="0.1" min="0" value="${clip.start}" class="w-full font-mono group-hover:text-white" data-target="start">
+        </div>
+        <div class="col-span-3 text-gray-500 font-bold" title="Intrinsic Media Duration">
+          ${clip.duration.toFixed(2)}
+        </div>
+        <div class="col-span-2">
+          <select class="w-full font-mono cursor-pointer appearance-none group-hover:text-white group-hover:bg-black group-hover:border-white" data-target="channel">
+            <option value="0" ${clip.channel === 0 ? 'selected' : ''} class="text-black bg-white">P</option>
+            <option value="1" ${clip.channel === 1 ? 'selected' : ''} class="text-black bg-white">L</option>
+            <option value="2" ${clip.channel === 2 ? 'selected' : ''} class="text-black bg-white">B</option>
+            <option value="3" ${clip.channel === 3 ? 'selected' : ''} class="text-black bg-white">F</option>
+          </select>
+        </div>
+        <div class="col-span-1 text-center">
+          <button class="font-bold hover:text-red-500" data-target="delete">[x]</button>
+        </div>
+      `;
+            DOM.logicPanel.appendChild(line);
+            clip.ui.line = line;
+
+            // 2. Build Right Panel Spatial Block
+            const block = document.createElement('div');
+            block.className = `absolute border-2 border-black cursor-grab z-10 ch-${clip.channel} flex flex-col justify-between overflow-hidden group`;
+            block.id = `spatial-${clip.id}`;
+
+            // If video, insert the actual video element
+            if (clip.isVideo) {
+                clip.media.className = "absolute inset-0 pointer-events-none";
+                block.appendChild(clip.media);
+            }
+
+            // Overlay label
+            const label = document.createElement('div');
+            label.className = "absolute top-0 left-0 bg-white text-black font-bold text-xs border-r border-b border-black px-1 pointer-events-none z-10";
+            label.innerText = clip.id;
+            block.appendChild(label);
+
+            DOM.spatialClips.appendChild(block);
+            clip.ui.block = block;
+
+            // Bind Second-Order Controls (Text Inputs)
+            const inputStart = line.querySelector('[data-target="start"]');
+            const inputChannel = line.querySelector('[data-target="channel"]');
+            const btnDelete = line.querySelector('[data-target="delete"]');
+
+            inputStart.addEventListener('input', (e) => {
+                clip.start = Math.max(0, parseFloat(e.target.value) || 0);
+                syncClipUI(clip);
+                seekEngine(ENGINE.needleTime); // Resync audio
+            });
+
+            inputChannel.addEventListener('change', (e) => {
+                clip.channel = parseInt(e.target.value);
+                syncClipUI(clip);
+            });
+
+            btnDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteClip(clip.id);
+            });
+
+            line.addEventListener('click', () => selectClip(clip.id));
+            block.addEventListener('mousedown', (e) => handleSpatialDrag(e, clip));
+
+            // Initial Sync
+            syncClipUI(clip);
+        }
+
+        // --- SYNCHRONIZATION ENGINE ---
+        function syncClipUI(clip) {
+            if (!clip.ui.block || !clip.ui.line) return;
+
+            // Update Spatial Bounds
+            const leftPx = clip.start * ENGINE.pxPerSec;
+            const widthPx = clip.duration * ENGINE.pxPerSec;
+            const topPx = (clip.channel * ENGINE.laneHeight) + 10;
+
+            clip.ui.block.style.left = `${leftPx}px`;
+            clip.ui.block.style.width = `${widthPx}px`;
+            clip.ui.block.style.top = `${topPx}px`;
+            clip.ui.block.style.height = `${ENGINE.laneHeight - 20}px`;
+
+            // Update Semantic Channel Pattern
+            clip.ui.block.className = `absolute border-2 border-black cursor-grab z-10 ch-${clip.channel} overflow-hidden group ${ENGINE.selectedId === clip.id ? 'ring-2 ring-black ring-offset-2' : ''}`;
+
+            // Update Text Fields safely
+            const startInput = clip.ui.line.querySelector('[data-target="start"]');
+            if (document.activeElement !== startInput) startInput.value = clip.start.toFixed(1);
+            clip.ui.line.querySelector('[data-target="channel"]').value = clip.channel;
+
+            // Highlight selection logic
+            if (ENGINE.selectedId === clip.id) {
+                clip.ui.line.classList.add('bg-black', 'text-white');
+            } else {
+                clip.ui.line.classList.remove('bg-black', 'text-white');
+            }
+        }
+
+        function updateGlobalReadout() {
+            DOM.nodeCount.innerText = `${ENGINE.clips.size} Nodes`;
+        }
+
+        // --- FIRST ORDER CONTROLS (DRAG) ---
+        function handleSpatialDrag(e, clip) {
+            if (e.target.tagName === 'BUTTON') return; // Ignore deletes
+            e.stopPropagation();
+            selectClip(clip.id);
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const initialStartPx = clip.start * ENGINE.pxPerSec;
+            const initialChannel = clip.channel;
+
+            function onMouseMove(moveEvent) {
+                const deltaX = moveEvent.clientX - startX;
+                const deltaY = moveEvent.clientY - startY;
+
+                // Snap X to logic grid
+                const newLeftPx = Math.max(0, snap(initialStartPx + deltaX));
+                clip.start = snapTime(newLeftPx / ENGINE.pxPerSec);
+
+                // Snap Y to channel lanes
+                const laneOffset = Math.floor(deltaY / ENGINE.laneHeight);
+                clip.channel = Math.max(0, Math.min(3, initialChannel + laneOffset));
+
+                syncClipUI(clip);
+            }
+
+            function onMouseUp() {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                seekEngine(ENGINE.needleTime); // Resync audio position after drag
+            }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        // --- MEDIA PLAYBACK LOOP ---
+        function togglePlayback() {
+            ENGINE.isPlaying = !ENGINE.isPlaying;
+            DOM.playbackState.innerText = ENGINE.isPlaying ? 'PLAYING' : 'IDLE';
+            DOM.playbackState.className = ENGINE.isPlaying ? 'text-green-600' : 'text-black';
+
+            if (ENGINE.isPlaying) {
+                ENGINE.lastFrameTime = performance.now();
+                requestAnimationFrame(playbackLoop);
+            } else {
+                // Pause all
+                ENGINE.clips.forEach(c => c.media.pause());
+            }
+        }
+
+        function playbackLoop(currentTime) {
+            if (!ENGINE.isPlaying) return;
+
+            const deltaSec = (currentTime - ENGINE.lastFrameTime) / 1000;
+            ENGINE.lastFrameTime = currentTime;
+            ENGINE.needleTime += deltaSec;
+
+            updateNeedleUI();
+
+            // Audio/Video Scheduler
+            ENGINE.clips.forEach(clip => {
+                const localTime = ENGINE.needleTime - clip.start;
+
+                // If needle is inside clip boundaries
+                if (localTime >= 0 && localTime <= clip.duration) {
+                    if (clip.media.paused) {
+                        clip.media.currentTime = localTime;
+                        clip.media.play().catch(e => console.log("Autoplay prevented waiting for interaction"));
+                    }
+                } else {
+                    // Needle left boundary
+                    if (!clip.media.paused) {
+                        clip.media.pause();
+                    }
+                }
+            });
+
+            requestAnimationFrame(playbackLoop);
+        }
+
+        function seekEngine(time) {
+            ENGINE.needleTime = Math.max(0, time);
+            updateNeedleUI();
+
+            // Resync all media
+            ENGINE.clips.forEach(clip => {
+                const localTime = ENGINE.needleTime - clip.start;
+                if (localTime >= 0 && localTime <= clip.duration) {
+                    clip.media.currentTime = localTime;
+                    if (ENGINE.isPlaying && clip.media.paused) clip.media.play();
+                } else {
+                    clip.media.pause();
+                    clip.media.currentTime = 0;
+                }
+            });
+        }
+
+        function updateNeedleUI() {
+            DOM.needleReadout.innerText = ENGINE.needleTime.toFixed(2);
+            const px = ENGINE.needleTime * ENGINE.pxPerSec;
+            DOM.needle.style.transform = `translateX(${px}px)`;
+
+            // Auto-scroll logic if needle leaves viewport
+            const containerRect = DOM.canvasContainer.getBoundingClientRect();
+            const scrollLeft = DOM.canvasContainer.scrollLeft;
+            if (px > scrollLeft + containerRect.width - 100) {
+                DOM.canvasContainer.scrollLeft = px - containerRect.width + 100;
+            } else if (px < scrollLeft) {
+                DOM.canvasContainer.scrollLeft = Math.max(0, px - 100);
+            }
+        }
+
+        // --- CANVAS INTERACTION ---
+        DOM.canvasContainer.addEventListener('mousedown', (e) => {
+            if (e.target !== DOM.canvasContainer && e.target.id !== 'canvas-bg') return;
+
+            // Calculate time from click X + scroll
+            const rect = DOM.canvasContainer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left + DOM.canvasContainer.scrollLeft;
+            const clickedTime = snapTime(snap(clickX) / ENGINE.pxPerSec);
+
+            selectClip(null);
+            seekEngine(clickedTime);
+        });
+
+        // --- STATE MANAGEMENT ---
+        function selectClip(id) {
+            ENGINE.selectedId = id;
+            ENGINE.clips.forEach(c => syncClipUI(c));
+        }
+
+        function deleteClip(id) {
+            const clip = ENGINE.clips.get(id);
+            if (clip) {
+                clip.media.pause();
+                clip.media.removeAttribute('src'); // Free memory
+                clip.ui.line.remove();
+                clip.ui.block.remove();
+                ENGINE.clips.delete(id);
+                if (ENGINE.selectedId === id) selectClip(null);
+                updateGlobalReadout();
+            }
+        }
+
+        // Global Keybinds
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+                e.preventDefault();
+                togglePlayback();
+            }
+        });
+
+        document.getElementById('btn-play').addEventListener('click', togglePlayback);
+
+        // JSON Export (Metadata only, we don't serialize raw media blobs for JSON)
+        document.getElementById('btn-export').addEventListener('click', () => {
+            const payload = Array.from(ENGINE.clips.values()).map(c => ({
+                id: c.id,
+                filename: c.file.name,
+                type: c.file.type,
+                start: c.start,
+                duration: c.duration,
+                channel: c.channel
+            }));
+
+            const blob = new Blob([JSON.stringify({ state: 'OPERATIONAL_DUMP', clips: payload }, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'operational_media_state.json';
+            a.click();
+        });
+
+    </script>
+</body>
+
+</html>
