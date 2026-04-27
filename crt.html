@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <title>Arc-Tunnel Operator — Real Media Pipeline & HUD</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --ink: #000000;
+            --left: 56px;
+            --right: 360px;
+            --bottom: 56px;
+            --top: 48px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            touch-action: none;
+            user-select: none;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            display: block;
+            z-index: 1;
+        }
+
+        button {
+            font: inherit;
+            background: var(--bg);
+            color: var(--ink);
+            border: 2px solid var(--ink);
+            border-radius: 0;
+            height: 32px;
+            padding: 0 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        button.on,
+        button:active {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        #rail {
+            position: fixed;
+            z-index: 20;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--left);
+            border-right: 3px solid var(--ink);
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 6px;
+            pointer-events: auto;
+        }
+
+        #rail b {
+            height: 38px;
+            border: 2px solid var(--ink);
+            display: grid;
+            place-items: center;
+            font-size: 13px;
+        }
+
+        #rail button {
+            width: 41px;
+            height: 38px;
+            font-size: 10px;
+            padding: 0;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        #top {
+            position: fixed;
+            z-index: 18;
+            left: var(--left);
+            right: var(--right);
+            top: 0;
+            height: var(--top);
+            border-bottom: 3px solid var(--ink);
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            pointer-events: auto;
+        }
+
+        #brand {
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mode {
+            margin-left: auto;
+            border: 2px solid var(--ink);
+            padding: 5px 9px;
+            font-weight: 900;
+        }
+
+        .mode b {
+            background: var(--ink);
+            color: var(--bg);
+            padding: 2px 6px;
+            margin-left: 5px;
+        }
+
+        #ops {
+            position: fixed;
+            z-index: 16;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--right);
+            border-left: 3px solid var(--ink);
+            background: var(--bg);
+            overflow: auto;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* NEW DOM-BASED PIPELINE MONITOR */
+        #monitorBox {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--bg);
+            border-bottom: 3px solid var(--ink);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .monHeader {
+            display: flex;
+            border-bottom: 3px solid var(--ink);
+        }
+
+        .monHeader button {
+            flex: 1;
+            border: none;
+            border-right: 3px solid var(--ink);
+            height: 36px;
+            font-size: 14px;
+        }
+
+        .monHeader button:last-child {
+            border-right: none;
+        }
+
+        #monScreen {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--ink);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg);
+        }
+
+        #monMedia {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 24px;
+            text-align: center;
+            padding: 10px;
+            flex-direction: column;
+        }
+
+        #monMedia video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        #monBadge,
+        #monTime {
+            position: absolute;
+            bottom: 12px;
+            padding: 4px 8px;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        #monBadge {
+            left: 12px;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        #monTime {
+            right: 12px;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        #monFilmstrip {
+            display: flex;
+            border-top: 3px solid var(--ink);
+            height: 80px;
+            background: var(--ink);
+        }
+
+        .monFrame {
+            flex: 1;
+            border-right: 3px solid var(--ink);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            opacity: 0.7;
+        }
+
+        .monFrame:last-child {
+            border-right: none;
+        }
+
+        .monFrame span {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: var(--bg);
+            color: var(--ink);
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 4px;
+        }
+
+        .opHead {
+            position: sticky;
+            top: 0;
+            background: var(--ink);
+            color: var(--bg);
+            padding: 12px 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            z-index: 2;
+            border-bottom: 3px solid var(--ink);
+        }
+
+        .op {
+            display: grid;
+            grid-template-columns: 32px 72px 1fr 28px;
+            border-bottom: 2px solid var(--ink);
+            padding: 8px 10px;
+            gap: 10px;
+            cursor: pointer;
+            position: relative;
+            /* REQUIRED FOR PROGRESS BAR */
+        }
+
+        .op:hover,
+        .op.on {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        /* THE ACTIVE ROW HIGHLIGHTS */
+        .op.playing {
+            background: #f0f0f0;
+            border-left: 6px solid var(--ink);
+            padding-left: 4px;
+        }
+
+        .op.playing.on {
+            background: var(--ink);
+            border-left: 6px solid var(--bg);
+        }
+
+        .opProgress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+
+        .op.on .opProgress {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .opProgressBar {
+            height: 100%;
+            background: var(--ink);
+            width: 0%;
+        }
+
+        .op.on .opProgressBar {
+            background: var(--bg);
+        }
+
+        .op code {
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            border: 2px solid currentColor;
+        }
+
+        .opThumb {
+            width: 100%;
+            height: 40px;
+            background-size: cover;
+            background-position: center;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background-color: var(--bg);
+            color: var(--ink);
+            overflow: hidden;
+        }
+
+        .opThumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .op:hover .opThumb,
+        .op.on .opThumb {
+            border-color: var(--bg);
+        }
+
+        .opInfo {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .opInfo span {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .opInfo small {
+            display: block;
+            font-size: 10px;
+            margin-top: 2px;
+            font-weight: 600;
+            opacity: 1;
+        }
+
+        .opAddRow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            border-bottom: 2px solid var(--ink);
+            cursor: pointer;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        .opAddRow:hover {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        .opDel {
+            background: transparent;
+            color: currentColor;
+            border: none;
+            font-size: 24px;
+            font-weight: 900;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.3;
+        }
+
+        .opDel:hover {
+            opacity: 1;
+            color: #ff0000;
+        }
+
+        #bottom {
+            position: fixed;
+            z-index: 18;
+            left: var(--left);
+            right: var(--right);
+            bottom: 0;
+            height: var(--bottom);
+            border-top: 3px solid var(--ink);
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            pointer-events: auto;
+        }
+
+        .trk {
+            height: 38px;
+            min-width: 38px;
+            font-size: 12px;
+        }
+
+        .trk.on {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        #status {
+            margin-left: auto;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .read {
+            border-left: 3px solid var(--ink);
+            padding-left: 10px;
+            min-width: 180px;
+            text-align: right;
+            font-weight: 900;
+            cursor: ew-resize;
+            /* Scrubbing indicator */
+        }
+
+        .read:hover {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        #dock {
+            position: fixed;
+            z-index: 22;
+            left: 50%;
+            bottom: calc(var(--bottom) + 12px);
+            transform: translateX(-50%);
+            display: flex;
+            border: 3px solid var(--ink);
+            background: var(--bg);
+            pointer-events: auto;
+            box-shadow: 4px 4px 0 var(--ink);
+        }
+
+        #dock button {
+            border: 0;
+            border-right: 2px solid var(--ink);
+            height: 40px;
+            font-size: 12px;
+            padding: 0 16px;
+        }
+
+        #dock button:last-child {
+            border-right: 0;
+        }
+
+        #badge {
+            position: fixed;
+            z-index: 22;
+            left: calc(var(--left) + 16px);
+            top: calc(var(--top) + 16px);
+            border: 3px solid var(--ink);
+            background: var(--bg);
+            padding: 10px 14px;
+            font-weight: 900;
+            text-transform: uppercase;
+            box-shadow: 6px 6px 0 var(--ink);
+            pointer-events: none;
+            min-width: 240px;
+        }
+
+        #badge .big {
+            font-size: 22px;
+            line-height: 22px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .meta {
+            font-size: 11px;
+            margin-top: 6px;
+        }
+
+        #toast {
+            position: fixed;
+            z-index: 70;
+            left: 50%;
+            bottom: 80px;
+            transform: translateX(-50%);
+            border: 4px solid var(--ink);
+            background: var(--bg);
+            color: var(--ink);
+            padding: 12px 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 16px;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 6px 6px 0 var(--ink);
+            transition: opacity 0.1s;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        /* RENDER OVERLAY */
+        #renderOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--ink);
+            color: var(--bg);
+            z-index: 999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #renderOverlay h1 {
+            font-size: 48px;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            margin-bottom: 20px;
+        }
+
+        #renderBarBorder {
+            width: 60%;
+            height: 24px;
+            border: 4px solid var(--bg);
+        }
+
+        #renderProgress {
+            width: 0%;
+            height: 100%;
+            background: var(--bg);
+        }
+
+        /* INSPECTOR MODAL */
+        #inspector {
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg);
+            border: 4px solid var(--ink);
+            box-shadow: 8px 8px 0 var(--ink);
+            padding: 24px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            width: 360px;
+            pointer-events: auto;
+        }
+
+        #inspector.show {
+            display: flex;
+        }
+
+        #inspector h2 {
+            font-size: 18px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--ink);
+            padding-bottom: 8px;
+            margin: 0;
+        }
+
+        #inspector label {
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #inspector input,
+        #inspector select,
+        #inspector textarea {
+            font: inherit;
+            padding: 8px;
+            border: 2px solid var(--ink);
+            width: 100%;
+            font-weight: 600;
+            background: var(--bg);
+            color: var(--ink);
+            border-radius: 0;
+        }
+
+        #inspector textarea {
+            resize: none;
+            height: 80px;
+        }
+
+        #inspector .row {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        #inspector .row button {
+            flex: 1;
+            height: 40px;
+            font-size: 14px;
+        }
+
+        #menu {
+            position: fixed;
+            z-index: 60;
+            display: none;
+            border: 2px solid var(--ink);
+            background: var(--bg);
+            min-width: 220px;
+            pointer-events: auto;
+        }
+
+        .mi {
+            height: 34px;
+            border-bottom: 1px solid var(--ink);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .mi:hover,
+        .mi.title {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        .mi:last-child {
+            border-bottom: 0;
+        }
+
+        #menu.show {
+            display: block;
+        }
+
+        @media(max-width:900px) {
+            :root {
+                --left: 44px;
+                --right: 220px;
+                --bottom: 46px;
+                --top: 44px;
+            }
+
+            #top {
+                right: var(--right);
+                height: 44px;
+                padding: 0 6px;
+            }
+
+            #brand {
+                max-width: 28vw;
+                font-size: 11px;
+            }
+
+            #top button {
+                height: 30px;
+                font-size: 9px;
+                padding: 0 6px;
+            }
+
+            .mode {
+                font-size: 10px;
+                padding: 4px 5px;
+            }
+
+            #rail {
+                width: var(--left);
+                gap: 4px;
+                padding: 6px 5px;
+            }
+
+            #rail b {
+                height: 32px;
+                font-size: 9px;
+            }
+
+            #rail button {
+                width: 32px;
+                height: 32px;
+                font-size: 7px;
+            }
+
+            #ops {
+                top: 44px;
+                bottom: 46px;
+                width: var(--right);
+            }
+
+            #bottom {
+                right: var(--right);
+                height: 46px;
+                padding: 5px 6px;
+            }
+
+            .trk {
+                width: 30px;
+                font-size: 0;
+                padding: 0;
+            }
+
+            .trk:after {
+                content: attr(data-s);
+                font-size: 12px;
+            }
+
+            .read {
+                min-width: 120px;
+                font-size: 10px;
+            }
+
+            #status {
+                font-size: 10px;
+            }
+
+            #dock {
+                left: calc(var(--left) + 6px);
+                right: calc(var(--right) + 6px);
+                bottom: 54px;
+                transform: none;
+                overflow-x: auto;
+                border-width: 2px;
+            }
+
+            #dock button {
+                height: 36px;
+                min-width: 54px;
+                font-size: 10px;
+                padding: 0 6px;
+                border-width: 1px;
+            }
+
+            #badge {
+                left: calc(var(--left) + 6px);
+                right: calc(var(--right) + 6px);
+                top: 54px;
+                min-width: 0;
+                padding: 6px 7px;
+                border-width: 2px;
+                box-shadow: 4px 4px 0 #000;
+            }
+
+            .big {
+                font-size: 16px !important;
+            }
+
+            .meta {
+                font-size: 9px;
+            }
+
+            #toast {
+                bottom: 100px;
+                font-size: 12px;
+                border-width: 2px;
+            }
+
+            #inspector {
+                width: 90vw;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="stage"></canvas>
+    <nav id="rail">
+        <b>ATO</b>
+        <button id="viewBtn">VIEW</button>
+        <button id="addBtn">ADD</button>
+        <button id="cutBtn">CUT</button>
+        <button id="edlBtn">EDL</button>
+        <button id="importBtn">IMP</button>
+        <button id="exportBtn">OUT</button>
+        <!-- NEW INGEST BUTTON -->
+        <button id="ingestBtn" style="background:#000;color:#fff;border-color:#000;">INGEST</button>
+        <button id="renderBtn" style="margin-top:6px;">RENDER</button>
+        <div class="spacer"></div>
+        <button id="resetBtn">RST</button>
+    </nav>
+    <header id="top">
+        <div id="brand">ARC-TUNNEL OPERATOR</div>
+        <button id="playBtn">PLAY</button>
+        <button id="snapBtn" class="on">SNAP</button>
+        <div class="mode">VIEW <b id="modeName">BARREL</b></div>
+    </header>
+    <aside id="ops">
+        <div id="monitorBox">
+            <div class="monHeader">
+                <button id="monSeqBtn" class="on">PROGRAM (SEQ)</button>
+                <button id="monClipBtn">SOURCE (CLIP)</button>
+            </div>
+            <div id="monScreen">
+                <div id="monMedia">
+                    <!-- Hardware accelerated video player for the pipeline -->
+                    <video id="activeVideoPlayer" muted playsinline preload="auto"></video>
+                </div>
+                <div id="monBadge" style="display:none;">V1</div>
+                <div id="monTime" style="display:none;">00:00</div>
+            </div>
+            <div id="monFilmstrip" style="display:none;">
+                <div class="monFrame" id="headFrame"><span>HEAD [IN]</span></div>
+                <div class="monFrame" id="tailFrame"><span>TAIL [OUT]</span></div>
+            </div>
+        </div>
+
+        <div class="opHead">Timeline Assets</div>
+        <div id="opList"></div>
+    </aside>
+
+    <section id="badge">
+        <div class="big" id="selBig">NO CLIP</div>
+        <div class="meta" id="selMeta">DOUBLE-CLICK TO ADD</div>
+    </section>
+    <section id="dock">
+        <button data-tool="MOVE" class="on">MOVE</button>
+        <button data-tool="TRIM">TRIM</button>
+        <button data-tool="ROLL">ROLL</button>
+        <button data-tool="LIFT">LIFT</button>
+        <button data-tool="SPLIT">SPLIT</button>
+        <button data-tool="ROUTE">ROUTE</button>
+    </section>
+    <footer id="bottom">
+        <div id="tracks"></div>
+        <button id="backBtn">|‹</button>
+        <button id="fwdBtn">›|</button>
+        <button id="zoomOutBtn">−</button>
+        <button id="zoomInBtn">+</button>
+        <div id="status">IDLE</div>
+        <div class="read" id="readout" title="Drag to Scrub">TIME 00:00</div>
+    </footer>
+
+    <div id="renderOverlay">
+        <h1>RENDERING PIPELINE...</h1>
+        <div id="renderBarBorder">
+            <div id="renderProgress"></div>
+        </div>
+    </div>
+
+    <div id="inspector">
+        <h2>INSPECT ASSET</h2>
+        <label>TITLE <input id="clipTitle" type="text" placeholder="SHOT-01"></label>
+        <label>MEDIA TYPE
+            <select id="clipType">
+                <option value="text">TEXT STRING</option>
+                <option value="image">IMAGE (URL)</option>
+                <option value="video">VIDEO KEYFRAME</option>
+            </select>
+        </label>
+        <label>PAYLOAD DATA <textarea id="clipSrc" placeholder="Enter text or URL..."></textarea></label>
+        <div class="row">
+            <button id="saveClipBtn" class="on">SAVE</button>
+            <button id="closeClipBtn">CLOSE</button>
+        </div>
+    </div>
+
+    <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+    <input id="mediaIngest" type="file" accept="video/*,image/*" multiple style="display:none" />
+    <div id="menu"></div>
+    <div id="toast"></div>
+
+    <script>
+        (() => {
+            'use strict';
+            const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d');
+            const modeName = document.getElementById('modeName'), statusEl = document.getElementById('status'), readout = document.getElementById('readout'), opList = document.getElementById('opList'), tracksEl = document.getElementById('tracks'), menu = document.getElementById('menu'), toastEl = document.getElementById('toast'), selBig = document.getElementById('selBig'), selMeta = document.getElementById('selMeta'), dock = document.getElementById('dock'), importFile = document.getElementById('importFile');
+            const inspector = document.getElementById('inspector'), clipTitleInput = document.getElementById('clipTitle'), clipTypeInput = document.getElementById('clipType'), clipSrcInput = document.getElementById('clipSrc');
+            const renderBtn = document.getElementById('renderBtn'), renderOverlay = document.getElementById('renderOverlay'), renderProgress = document.getElementById('renderProgress');
+            const monSeqBtn = document.getElementById('monSeqBtn'), monClipBtn = document.getElementById('monClipBtn'), monMedia = document.getElementById('monMedia'), monBadge = document.getElementById('monBadge'), monTime = document.getElementById('monTime'), monFilmstrip = document.getElementById('monFilmstrip'), headFrame = document.getElementById('headFrame'), tailFrame = document.getElementById('tailFrame');
+            const ingestBtn = document.getElementById('ingestBtn'), mediaIngest = document.getElementById('mediaIngest'), activeVideoPlayer = document.getElementById('activeVideoPlayer');
+
+            const VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
+            const TOOLS = ['MOVE', 'TRIM', 'ROLL', 'LIFT', 'SPLIT', 'ROUTE'];
+
+            const NAMES = ['V1 BASE', 'V2 OVERLAY', 'V3 EFFECTS', 'V4 MASTER'], SHORT = ['V1', 'V2', 'V3', 'V4'];
+            const STYLES = [{ dash: [1, 6], hatch: 0 }, { dash: [8, 6], hatch: 1 }, { dash: [], hatch: 2 }, { dash: [12, 4, 2, 4], hatch: 3 }];
+            const UNITS = ['CLIP', 'BEAT', 'CELL', 'EDGE'], UNIT_STEP = { CLIP: 60, BEAT: 30, CELL: 15, EDGE: 5 };
+            const SNAP = 60, R = 160, FAR = 8000, SAVE = 'ato-tube-native-v13';
+
+            let DPR = 1, W = 0, H = 0, last = 0, nextId = 1, rendered = [], timer = 0;
+            const clips = [], routes = [], mediaCache = {};
+            const S = {
+                view: 0, tool: 'MOVE', unit: 'CLIP', cam: 420, zoom: .52, roll: -.25, active: 2,
+                selected: null, hover: null, drag: null, scrub: null, timeScrub: null, play: false, snap: true,
+                probe: { x: 0, y: 0, z: 0, track: 0, valid: false }, snapForce: null,
+                isRendering: false, renderStart: 0, renderEnd: 0, renderRecorder: null, renderChunks: [], renderCanvas: null, renderCtx: null
+            };
+            const F = { ctx: null, master: null, lastSlot: null, lastTrack: null, lastRot: null, lastAt: 0 };
+            let inspectingClip = null;
+            let monMode = 'SEQ';
+
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const norm = t => ((Math.round(t) % 4) + 4) % 4;
+            const step = () => UNIT_STEP[S.unit] || SNAP;
+            const qsnap = v => S.snap ? Math.round(v / step()) * step() : Math.round(v);
+
+            function isClip(c) { return !!c && typeof c === 'object' && Number.isFinite(c.start) && Number.isFinite(c.dur) && Number.isFinite(c.track); }
+
+            function audio() {
+                if (!F.ctx) {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (!AC) return null;
+                    F.ctx = new AC(); F.master = F.ctx.createGain(); F.master.gain.value = .055; F.master.connect(F.ctx.destination);
+                }
+                if (F.ctx.state === 'suspended') F.ctx.resume(); return F.ctx;
+            }
+            function haptic(p) { try { navigator.vibrate && navigator.vibrate(p) } catch (e) { } }
+            function tone(f = 600, d = .012, g = .006, type = 'sine') {
+                let ac = audio(); if (!ac) return;
+                let o = ac.createOscillator(), gain = ac.createGain(), t = ac.currentTime;
+                o.type = type; o.frequency.value = f;
+                gain.gain.setValueAtTime(.0001, t); gain.gain.linearRampToValueAtTime(g, t + .001); gain.gain.exponentialRampToValueAtTime(.0001, t + d + .025);
+                o.connect(gain); gain.connect(F.master); o.start(t); o.stop(t + d + .04);
+            }
+            function tick(kind = 'snap') {
+                let now = performance.now(); if (now - F.lastAt < 18) return; F.lastAt = now;
+                if (kind === 'wall') { tone(640, .018, .005); haptic([4, 10, 4]) }
+                else if (kind === 'rot') { tone(900, .01, .004, 'square'); haptic(5) }
+                else if (kind === 'drop') { tone(520, .016, .006, 'triangle'); setTimeout(() => tone(780, .014, .005, 'triangle'), 25); haptic([6, 16, 8]) }
+                else if (kind === 'export') { tone(740, .012, .004, 'triangle'); setTimeout(() => tone(980, .018, .004, 'triangle'), 30); haptic([4, 18, 5]) }
+                else if (kind === 'invalid') { tone(170, .035, .007, 'sawtooth'); haptic([12, 30, 12]) }
+                else { tone(1120, .008, S.unit === 'EDGE' ? .0025 : .0045, 'triangle'); haptic(S.unit === 'EDGE' ? 2 : 4) }
+            }
+            window.addEventListener('pointerdown', audio, { once: true });
+
+            function toast(x) { clearTimeout(timer); toastEl.textContent = x; toastEl.classList.add('show'); timer = setTimeout(() => toastEl.classList.remove('show'), 900) }
+            function setStatus(x) { statusEl.textContent = x; }
+            function fmt(z) { let u = Math.max(0, Math.round((Number.isFinite(z) ? z : 0) / SNAP)); return String(Math.floor(u / 60)).padStart(2, '0') + ':' + String(u % 60).padStart(2, '0') }
+            function id() { return 'SC-' + String(nextId++).padStart(3, '0') }
+
+            function mk(start, dur, track) {
+                let cid = id();
+                return { id: cid, title: cid, mediaType: 'text', mediaSrc: '', start: qsnap(start), dur: Math.max(SNAP, qsnap(dur)), track: norm(track), rot: 0, lift: 0, locked: false };
+            }
+
+            function normClip(c) {
+                c.start = Number.isFinite(+c.start) ? +c.start : 0;
+                c.dur = Math.max(SNAP, Number.isFinite(+c.dur) ? +c.dur : SNAP);
+                c.track = norm(+c.track || 0); c.rot = +c.rot || 0; c.lift = +c.lift || 0; c.locked = !!c.locked;
+                c.id = String(c.id || id());
+                c.title = String(c.title || c.id);
+                c.mediaType = ['text', 'image', 'video'].includes(c.mediaType) ? c.mediaType : 'text';
+                c.mediaSrc = c.mediaSrc || '';
+                return c;
+            }
+
+            // HYBRID CACHE FOR LOCAL BLOBS AND REAL VIDEOS
+            function preloadMedia() {
+                clips.forEach(c => {
+                    if (!c.mediaSrc) return;
+                    if (!mediaCache[c.mediaSrc]) {
+                        if (c.mediaType === 'image') {
+                            let img = new Image(); img.crossOrigin = "Anonymous"; img.src = c.mediaSrc; mediaCache[c.mediaSrc] = img;
+                        } else if (c.mediaType === 'video') {
+                            let vid = document.createElement('video');
+                            vid.crossOrigin = "Anonymous"; vid.src = c.mediaSrc; vid.muted = true; vid.playsInline = true; vid.preload = 'auto';
+                            mediaCache[c.mediaSrc] = vid;
+                        }
+                    }
+                });
+            }
+
+            // LOCAL FILE INGESTION LOGIC
+            ingestBtn.onclick = () => mediaIngest.click();
+            mediaIngest.onchange = (e) => {
+                if (!e.target.files.length) return;
+                let timeCursor = S.cam;
+                Array.from(e.target.files).forEach((file, i) => {
+                    let localUrl = URL.createObjectURL(file);
+                    let isVideo = file.type.startsWith('video/');
+                    let newClip = mk(timeCursor, 480, S.active); // Default length 8 sec
+                    newClip.title = file.name.substring(0, 15);
+                    newClip.mediaType = isVideo ? 'video' : 'image';
+                    newClip.mediaSrc = localUrl;
+
+                    if (isVideo) {
+                        let vid = document.createElement('video');
+                        vid.src = localUrl; vid.muted = true; vid.playsInline = true;
+                        vid.onloadedmetadata = () => { newClip.dur = qsnap(vid.duration * 60); save(); updateOpsList(); };
+                        mediaCache[localUrl] = vid;
+                    } else {
+                        let img = new Image(); img.src = localUrl; mediaCache[localUrl] = img;
+                    }
+                    clips.push(newClip);
+                    timeCursor += newClip.dur + SNAP; // Stagger them
+                });
+                tick('import'); toast('MEDIA INGESTED'); save(); updateOpsList();
+            };
+
+            function seed() {
+                clips.length = 0; nextId = 1; routes.length = 0;
+                for (let t = 0; t < 4; t++) {
+                    let z = -900 + t * 160;
+                    while (z < 16000) {
+                        let d = qsnap(260 + Math.random() * 720);
+                        let c = mk(z, d, t);
+                        c.mediaType = Math.random() > 0.5 ? 'video' : 'image';
+                        c.mediaSrc = 'https://picsum.photos/seed/' + Math.floor(Math.random() * 1000) + '/400/225';
+                        c.title = (c.mediaType === 'video' ? 'VID-' : 'IMG-') + c.id;
+                        clips.push(c);
+                        z += d + (Math.random() > .84 ? SNAP : 0);
+                    }
+                }
+                preloadMedia();
+            }
+
+            function projectPayload() {
+                return {
+                    app: 'Arc-Tunnel Operator', version: 13, exportedAt: new Date().toISOString(),
+                    state: { view: S.view, tool: S.tool, unit: S.unit, cam: S.cam, zoom: S.zoom, roll: S.roll, active: S.active, snap: S.snap },
+                    nextId, clips: clips.map(c => Object.assign({}, c)), routes: routes.map(r => Object.assign({}, r))
+                }
+            }
+
+            function applyProjectPayload(d) {
+                if (!d || !Array.isArray(d.clips)) throw new Error('Invalid Arc-Tunnel project JSON');
+                clips.splice(0, clips.length, ...d.clips.map(normClip));
+                routes.splice(0, routes.length, ...(Array.isArray(d.routes) ? d.routes : []));
+                nextId = Number.isFinite(+d.nextId) ? +d.nextId : Math.max(1, ...clips.map(c => parseInt(String(c.id).replace(/[^0-9]/g, ''), 10) || 0)) + 1;
+                let st = d.state || {};
+                S.view = Number.isFinite(+st.view) ? clamp(+st.view, 0, VIEWS.length - 1) : S.view;
+                S.tool = TOOLS.includes(st.tool) ? st.tool : S.tool; S.unit = UNITS.includes(st.unit) ? st.unit : S.unit;
+                S.cam = Number.isFinite(+st.cam) ? +st.cam : S.cam; S.zoom = Number.isFinite(+st.zoom) ? +st.zoom : S.zoom;
+                S.roll = Number.isFinite(+st.roll) ? +st.roll : S.roll; S.active = Number.isFinite(+st.active) ? norm(+st.active) : S.active;
+                S.snap = typeof st.snap === 'boolean' ? st.snap : S.snap;
+                preloadMedia();
+                select(clips[0] || null, 'import'); drawTracks(); updateOpsList(); save();
+            }
+
+            function save() { try { localStorage.setItem(SAVE, JSON.stringify(projectPayload())) } catch (e) { } }
+
+            function downloadText(text, name, type = 'text/plain') {
+                let blob = new Blob([text], { type }); let a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500);
+            }
+
+            function safeClipboardWrite(text) {
+                try {
+                    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') return Promise.resolve(false);
+                    return navigator.clipboard.writeText(text).then(() => true).catch(err => false);
+                } catch (err) { return Promise.resolve(false); }
+            }
+
+            function exportProject() {
+                downloadText(JSON.stringify(projectPayload(), null, 2), 'arc_tunnel_project_' + Date.now() + '.json', 'application/json');
+                tick('export'); toast('PROJECT EXPORTED');
+            }
+
+            function exportEDL() {
+                let lines = ['TITLE: ARC-TUNNEL OPERATOR', ''];
+                clips.slice().sort((a, b) => a.start - b.start).forEach((c, i) => lines.push(`${String(i + 1).padStart(3, '0')} [${c.title}] TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur} TYPE:${c.mediaType} SRC:${c.mediaSrc}`));
+                let edl = lines.join(String.fromCharCode(10));
+                safeClipboardWrite(edl).then(ok => { downloadText(edl, 'arc_tunnel_edl_' + Date.now() + '.txt', 'text/plain'); tick('export'); toast(ok ? 'EDL COPIED + DOWNLOADED' : 'EDL DOWNLOADED'); });
+            }
+
+            function requestImport() { importFile.value = ''; importFile.click(); }
+            function importProjectFile(file) {
+                if (!file) return;
+                let r = new FileReader();
+                r.onload = () => { try { applyProjectPayload(JSON.parse(String(r.result || ''))); tick('import'); toast('PROJECT IMPORTED'); } catch (err) { console.error(err); toast('IMPORT FAILED'); tick('invalid'); } };
+                r.onerror = () => { toast('IMPORT READ FAILED'); tick('invalid'); }; r.readAsText(file);
+            }
+
+            function load() {
+                try {
+                    let d = JSON.parse(localStorage.getItem(SAVE) || 'null'); if (!d || !d.clips || !d.clips.length) return false;
+                    clips.splice(0, clips.length, ...d.clips.map(normClip));
+                    routes.splice(0, routes.length, ...(d.routes || [])); nextId = d.nextId || 1; let st = d.state || {};
+                    S.cam = Number.isFinite(+st.cam) ? +st.cam : (d.cam || 420); S.roll = Number.isFinite(+st.roll) ? +st.roll : (d.roll ?? -.25);
+                    if (TOOLS.includes(st.tool)) S.tool = st.tool; if (UNITS.includes(st.unit)) S.unit = st.unit;
+                    if (Number.isFinite(+st.view)) S.view = clamp(+st.view, 0, VIEWS.length - 1);
+                    preloadMedia();
+                    return true;
+                } catch (e) { return false; }
+            }
+
+            function resize() {
+                DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+                canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+
+            function area() {
+                let left = W < 900 ? 46 : 56, right = W < 900 ? 220 : 360, top = W < 900 ? 44 : 48, bottom = W < 900 ? 46 : 56;
+                return { x: left, y: top, w: W - left - right, h: H - top - bottom, cx: left + (W - left - right) * .52, cy: top + (H - top - bottom) * .52 };
+            }
+
+            // --- PERFECT REVERSIBLE MATHEMATICAL TOPOLOGY ---
+            function project(x, y, z) {
+                let A = area();
+                let dz = z - S.cam;
+                if (S.view === 0) dz += 900;
+                if (dz < 10) return null;
+                let s = (S.view === 1 ? 400 : 720) / dz;
+                return { x: A.cx + x * s, y: A.cy + y * s, s, d: dz };
+            }
+
+            function getPhysical(x, y, clipLift = 0) {
+                let A = area();
+                if (S.view === 4) return { z: benchTime(x), track: pointTrack(y), valid: true, angle: 0, dz: 0 };
+                if (S.view === 3) {
+                    let z = benchTime(x), physY = (y - A.cy) / S.zoom, track = S.active;
+                    if (physY < -R / 2) track = 0; else if (physY > R / 2) track = 2; else track = 1;
+                    return { z, track, valid: true, angle: 0, dz: 0 };
+                }
+                if (S.view === 2) {
+                    let P = outsideP(), s = clamp((x - P.cx0) / (P.cx1 - P.cx0), 0, 1), cy = lerp(P.cy0, P.cy1, s), dy = y - cy, track = S.active;
+                    if (dy < -40) track = 2; else if (dy > 40) track = 0;
+                    return { z: P.front + s * P.span, track, valid: true, angle: 0, dz: 0 };
+                }
+
+                let dx = x - A.cx, dy = y - A.cy, dr = Math.hypot(dx, dy), rr = R + clipLift * 36;
+                if (dr < 1) dr = 1;
+                let s = dr / rr, dz = (S.view === 1 ? 400 : 720) / s;
+                if (dz > FAR * 1.5) dz = FAR * 1.5;
+                let z = dz + S.cam - (S.view === 0 ? 900 : 0);
+                let angle = Math.atan2(dy, dx), rawTrack = (angle - S.roll + Math.PI / 2) / (Math.PI / 2), track = ((Math.round(rawTrack) % 4) + 4) % 4;
+                return { z, track, dz, angle, valid: dr > 10 };
+            }
+
+            function angle(c, track = isClip(c) ? c.track : S.active) { return track * Math.PI / 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0); }
+            function trackAngle(track) { return track * Math.PI / 2 - Math.PI / 2 + S.roll; }
+
+            function tubeGeom(c) {
+                if (!isClip(c)) return { cells: [], hull: [], mid: null, depth: 1e9, a0: 0, a1: 0, z0: 0, z1: 0, rr: R };
+                let rr = R + (c.lift || 0) * 36, base = angle(c), a0 = base - Math.PI / 4 + .05, a1 = base + Math.PI / 4 - .05;
+                let z0 = c.start, z1 = c.start + c.dur, zSteps = clamp(Math.ceil((z1 - z0) / SNAP), 2, 34), cells = [], hull = [], depth = 1e9;
+                for (let zi = 0; zi < zSteps; zi++) {
+                    let za = lerp(z0, z1, zi / zSteps), zb = lerp(z0, z1, (zi + 1) / zSteps);
+                    for (let ai = 0; ai < 6; ai++) {
+                        let aa = lerp(a0, a1, ai / 6), ab = lerp(a0, a1, (ai + 1) / 6), raw = [[Math.cos(aa) * rr, Math.sin(aa) * rr, za], [Math.cos(ab) * rr, Math.sin(ab) * rr, za], [Math.cos(ab) * rr, Math.sin(ab) * rr, zb], [Math.cos(aa) * rr, Math.sin(aa) * rr, zb]], pts = [], ok = true, cd = 1e9;
+                        for (const p of raw) { let q = project(p[0], p[1], p[2]); if (!q) { ok = false; break; } pts.push(q); cd = Math.min(cd, q.d); depth = Math.min(depth, q.d); }
+                        if (ok) cells.push({ pts, d: cd });
+                    }
+                }
+                for (let i = 0; i <= 8; i++) { let a = lerp(a0, a1, i / 8), q = project(Math.cos(a) * rr, Math.sin(a) * rr, z0); if (q) hull.push(q); }
+                for (let i = 8; i >= 0; i--) { let a = lerp(a0, a1, i / 8), q = project(Math.cos(a) * rr, Math.sin(a) * rr, z1); if (q) hull.push(q); }
+                let mid = project(Math.cos((a0 + a1) / 2) * rr, Math.sin((a0 + a1) / 2) * rr, (z0 + z1) / 2);
+                return { cells, hull, mid, depth, a0, a1, z0, z1, rr };
+            }
+
+            function bounds(pts) {
+                if (!pts || !pts.length) return { x: 0, y: 0, w: 0, h: 0 };
+                let xs = pts.map(p => p.x), ys = pts.map(p => p.y); return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+            }
+
+            function path(pts) { let p = new Path2D(); p.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++)p.lineTo(pts[i].x, pts[i].y); p.closePath(); return p; }
+
+            function hatch(p, kind, b) {
+                ctx.save(); ctx.clip(p); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; let st = kind === 3 ? 8 : 10;
+                if (kind === 0) { for (let x = b.x; x < b.x + b.w; x += st) { ctx.beginPath(); ctx.moveTo(x, b.y); ctx.lineTo(x, b.y + b.h); ctx.stroke(); } }
+                else if (kind === 1) { for (let y = b.y; y < b.y + b.h; y += st) { ctx.beginPath(); ctx.moveTo(b.x, y); ctx.lineTo(b.x + b.w, y); ctx.stroke(); } }
+                else if (kind === 2) { for (let x = b.x - b.h; x < b.x + b.w; x += st) { ctx.beginPath(); ctx.moveTo(x, b.y + b.h); ctx.lineTo(x + b.h, b.y); ctx.stroke(); } }
+                else { for (let x = b.x - b.h; x < b.x + b.w; x += st) { ctx.beginPath(); ctx.moveTo(x, b.y); ctx.lineTo(x + b.h, b.y + b.h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, b.y + b.h); ctx.lineTo(x + b.h, b.y); ctx.stroke(); } }
+                ctx.restore();
+            }
+
+            // --- REAL VIDEO AND IMAGE CANVAS COMPOSITOR ---
+            function drawContent(c, p, b, alpha = 0.9) {
+                if (!c.mediaSrc) return false;
+                let asset = mediaCache[c.mediaSrc];
+                if (!asset) return false;
+
+                if (c.mediaType === 'image' && asset.complete) {
+                    ctx.save(); ctx.clip(p); ctx.globalAlpha = alpha;
+                    let r = Math.max(b.w / asset.width, b.h / asset.height);
+                    ctx.drawImage(asset, b.x + (b.w - asset.width * r) / 2, b.y + (b.h - asset.height * r) / 2, asset.width * r, asset.height * r);
+                    ctx.restore(); return true;
+                }
+
+                if (c.mediaType === 'video' && asset.readyState >= 2) {
+                    // Sync physical video time to timeline!
+                    let localTime = (S.cam - c.start) / 60; // 60 units = 1 sec
+                    if (localTime >= 0 && localTime <= c.dur / 60) {
+                        if (Math.abs(asset.currentTime - localTime) > 0.1) asset.currentTime = localTime;
+                    }
+                    ctx.save(); ctx.clip(p); ctx.globalAlpha = alpha;
+                    let r = Math.max(b.w / asset.videoWidth, b.h / asset.videoHeight);
+                    ctx.drawImage(asset, b.x + (b.w - asset.videoWidth * r) / 2, b.y + (b.h - asset.videoHeight * r) / 2, asset.videoWidth * r, asset.videoHeight * r);
+                    ctx.restore(); return true;
+                }
+
+                if (c.mediaType === 'text') {
+                    ctx.save(); ctx.clip(p); ctx.fillStyle = '#000'; ctx.globalAlpha = 0.8;
+                    ctx.font = '900 14px ui-monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                    ctx.fillText(c.mediaSrc.substring(0, 60), b.x + 8, b.y + 8);
+                    ctx.restore(); return false; // allow hatch underneath text
+                }
+                return false;
+            }
+
+            // DOM PIPELINE MONITOR
+            monSeqBtn.onclick = () => { monMode = 'SEQ'; monSeqBtn.classList.add('on'); monClipBtn.classList.remove('on'); render(); };
+            monClipBtn.onclick = () => { monMode = 'CLIP'; monClipBtn.classList.add('on'); monSeqBtn.classList.remove('on'); render(); };
+
+            function updateDOMMonitor() {
+                let targetClip = null;
+                if (monMode === 'SEQ') {
+                    let activeClips = clips.filter(c => S.cam >= c.start && S.cam <= c.start + c.dur);
+                    activeClips.sort((a, b) => b.track - a.track); // Highest track wins compositing
+                    targetClip = activeClips.length > 0 ? activeClips[0] : null;
+                    monFilmstrip.style.display = 'none';
+                } else {
+                    targetClip = S.selected;
+                    if (targetClip && (targetClip.mediaType === 'video' || targetClip.mediaType === 'image')) {
+                        monFilmstrip.style.display = 'flex';
+                        let bg = targetClip.mediaSrc ? `url('${targetClip.mediaSrc}')` : 'none';
+                        headFrame.style.backgroundImage = bg;
+                        tailFrame.style.backgroundImage = bg;
+                        tailFrame.style.filter = 'contrast(0.7) brightness(1.2)';
+                    } else {
+                        monFilmstrip.style.display = 'none';
+                    }
+                }
+
+                if (targetClip) {
+                    monBadge.textContent = SHORT[targetClip.track];
+                    monBadge.style.display = 'block';
+                    monTime.textContent = fmt(monMode === 'SEQ' ? S.cam : targetClip.start);
+                    monTime.style.display = 'block';
+
+                    if (targetClip.mediaType === 'image' && targetClip.mediaSrc) {
+                        activeVideoPlayer.style.display = 'none';
+                        monMedia.style.backgroundImage = `url('${targetClip.mediaSrc}')`;
+                        monMedia.innerHTML = '';
+                    } else if (targetClip.mediaType === 'video' && targetClip.mediaSrc) {
+                        monMedia.style.backgroundImage = 'none';
+                        activeVideoPlayer.style.display = 'block';
+                        if (activeVideoPlayer.src !== targetClip.mediaSrc) activeVideoPlayer.src = targetClip.mediaSrc;
+
+                        let localTime = ((monMode === 'SEQ' ? S.cam : targetClip.start) - targetClip.start) / 60;
+                        if (Math.abs(activeVideoPlayer.currentTime - localTime) > 0.1) activeVideoPlayer.currentTime = localTime;
+
+                        monMedia.innerHTML = '';
+                        monMedia.appendChild(activeVideoPlayer);
+                    } else {
+                        activeVideoPlayer.style.display = 'none';
+                        monMedia.style.backgroundImage = 'none';
+                        monMedia.textContent = targetClip.mediaSrc || targetClip.title;
+                    }
+                } else {
+                    activeVideoPlayer.style.display = 'none';
+                    monMedia.style.backgroundImage = 'none';
+                    monMedia.innerHTML = '<span style="color:#555">NO SIGNAL</span>';
+                    monBadge.style.display = 'none';
+                    monTime.style.display = 'none';
+                }
+            }
+
+            function drawSpatialRails(c, g, activeMode) {
+                if (!g || !g.hull || !g.hull.length) return; ctx.save();
+                if (activeMode === 'move') {
+                    let z_back = Math.max(-900, c.start - 1200); let z_front = Math.min(FAR + S.cam, c.start + c.dur + 1200);
+                    let a = angle(c), rr = g.rr; let pt1 = project(Math.cos(a) * rr, Math.sin(a) * rr, z_back), pt2 = project(Math.cos(a) * rr, Math.sin(a) * rr, z_front);
+                    if (pt1 && pt2) { ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.moveTo(pt1.x, pt1.y); ctx.lineTo(pt2.x, pt2.y); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pt1.x, pt1.y); ctx.lineTo(pt2.x, pt2.y); ctx.stroke(); }
+                } else if (activeMode === 'trim-start' || activeMode === 'trim-end') {
+                    let zTarget = (activeMode === 'trim-start') ? c.start : c.start + c.dur; let rr = g.rr; ctx.beginPath();
+                    for (let i = 0; i <= 8; i++) { let a = lerp(g.a0, g.a1, i / 8), q = project(Math.cos(a) * rr, Math.sin(a) * rr, zTarget); if (q) i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+                    ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+                } else if (activeMode === 'roll') {
+                    let z = c.start + c.dur / 2, rr = g.rr; ctx.beginPath();
+                    for (let i = 0; i <= 64; i++) { let a = i / 64 * Math.PI * 2, q = project(Math.cos(a) * rr, Math.sin(a) * rr, z); if (q) i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+                    ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.setLineDash([8, 8]); ctx.stroke(); ctx.setLineDash([]);
+                } else if (activeMode === 'lift') {
+                    let z = c.start + c.dur / 2, a = angle(c); let pOrigin = project(0, 0, z), pOut = project(Math.cos(a) * (R * 2.5), Math.sin(a) * (R * 2.5), z);
+                    if (pOrigin && pOut) { ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.moveTo(pOrigin.x, pOrigin.y); ctx.lineTo(pOut.x, pOut.y); ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(pOrigin.x, pOrigin.y); ctx.lineTo(pOut.x, pOut.y); ctx.stroke(); }
+                } ctx.restore();
+            }
+
+            function tag(x, y, text, active = false) {
+                let A = area(), fs = W < 900 ? 11 : 12, w = Math.max(54, String(text).length * 7.2 + 14), h = fs + 10;
+                x = clamp(x - w / 2, A.x + 4, A.x + A.w - w - 4); y = clamp(y - h / 2, A.y + 4, A.y + A.h - h - 4);
+                ctx.fillStyle = active ? '#000' : '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = active ? 3 : 2; ctx.beginPath(); ctx.rect(x, y, w, h); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = `900 ${fs}px ui-monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(text), x + w / 2, y + h / 2); return { x, y, w, h };
+            }
+
+            function clear() {
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); let A = area(); ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = '#000';
+                for (let x = A.x; x < A.x + A.w; x += 40) { ctx.beginPath(); ctx.moveTo(x, A.y); ctx.lineTo(x, A.y + A.h); ctx.stroke(); }
+                for (let y = A.y; y < A.y + A.h; y += 40) { ctx.beginPath(); ctx.moveTo(A.x, y); ctx.lineTo(A.x + A.w, y); ctx.stroke(); } ctx.restore();
+            }
+
+            function railLines() {
+                ctx.save();
+                for (let t = 0; t < 4; t++) {
+                    let a = trackAngle(t); ctx.setLineDash(STYLES[t].dash); ctx.lineWidth = (t === S.active ? 4 : 2);
+                    ctx.strokeStyle = '#000'; ctx.globalAlpha = t === S.active || S.selected ? 1 : 0.4; ctx.beginPath();
+                    for (let i = 0; i <= 50; i++) { let z = S.cam - 900 + i * (FAR / 50), q = project(Math.cos(a) * R, Math.sin(a) * R, z); if (q) i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+                    ctx.stroke();
+                } ctx.restore();
+            }
+
+            function drawSnapForces() {
+                if (!S.snapForce) return; ctx.save(); let z = S.snapForce.z, t = S.snapForce.track;
+                if (S.view === 4) {
+                    let x = benchX(z), y = laneY(t), h = laneH(); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - h / 2 - 10, 8, h + 20); ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - h / 2 - 8, 2, h + 16);
+                } else if (S.view === 3) {
+                    let x = benchX(z); ctx.fillStyle = '#000'; ctx.fillRect(x - 4, area().y, 8, area().h); ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, area().y, 2, area().h);
+                } else if (S.view === 0 || S.view === 1) {
+                    let a0 = trackAngle(t) - Math.PI / 4, a1 = trackAngle(t) + Math.PI / 4; ctx.beginPath();
+                    for (let i = 0; i <= 8; i++) { let q = project(Math.cos(lerp(a0, a1, i / 8)) * R, Math.sin(lerp(a0, a1, i / 8)) * R, z); if (q) i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+                    ctx.lineWidth = 14; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.stroke();
+                } ctx.restore();
+            }
+
+            function drawHolographicProbe() {
+                if (!S.probe.valid) return; ctx.save();
+                if (S.view === 0 || S.view === 1) {
+                    let q = project(0, 0, S.probe.z);
+                    if (q && q.s > 0.05) {
+                        ctx.beginPath(); ctx.arc(q.x, q.y, R * q.s, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.setLineDash([4, 4]); ctx.stroke();
+                        let px = q.x + Math.cos(S.probe.angle) * (R * q.s * 1.2), py = q.y + Math.sin(S.probe.angle) * (R * q.s * 1.2);
+                        ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(px, py); ctx.setLineDash([]); ctx.lineWidth = 3; ctx.stroke();
+                    }
+                } else if (S.view === 4) {
+                    let x = benchX(S.probe.z), y = laneY(S.probe.track), A = area(); ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.strokeStyle = '#000';
+                    ctx.beginPath(); ctx.moveTo(x, A.y); ctx.lineTo(x, A.y + A.h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(A.x, y); ctx.lineTo(A.x + A.w, y); ctx.stroke();
+                } else if (S.view === 3) {
+                    let x = benchX(S.probe.z), A = area(); ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.strokeStyle = '#000';
+                    ctx.beginPath(); ctx.moveTo(x, A.y); ctx.lineTo(x, A.y + A.h); ctx.stroke();
+                } ctx.restore();
+            }
+
+            function drawClip(c) {
+                if (!isClip(c)) return;
+                let g = tubeGeom(c), sel = S.selected === c, hov = S.hover && S.hover.clip === c, st = STYLES[c.track];
+                let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+                for (const cell of g.cells.sort((a, b) => b.d - a.d)) {
+                    let p = path(cell.pts), b = bounds(cell.pts); ctx.save();
+                    minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h);
+                    let alpha = clamp(1 - cell.d / 7200, .08, 1);
+
+                    let drew = false;
+                    if (c.mediaSrc) drew = drawContent(c, p, b, alpha);
+                    if (!drew) {
+                        ctx.globalAlpha = alpha; ctx.fillStyle = sel ? 'rgba(0,0,0,0.5)' : '#fff'; ctx.fill(p);
+                        if (!sel) hatch(p, st.hatch, b);
+                    } else if (sel) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill(p);
+                    }
+
+                    ctx.globalAlpha = alpha;
+                    ctx.setLineDash(sel ? [] : st.dash); ctx.lineWidth = sel ? 6 : hov ? 4 : 2; ctx.strokeStyle = '#000'; ctx.stroke(p);
+                    if (sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(p); } ctx.restore();
+                }
+                if (g.mid && (sel || hov || (W > 900 && g.depth < 1100))) {
+                    let tBox = tag(g.mid.x, g.mid.y, c.title, sel);
+                    rendered.push({ type: 'tag', clip: c, rect: tBox });
+                }
+                if (sel || hov) drawSpatialRails(c, g, hov ? S.hover.mode : S.tool.toLowerCase());
+                if (minX !== 1e9) rendered.push({ type: 'clip', clip: c, cells: g.cells, pts: g.hull, rect: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } });
+            }
+
+            function drawTimeHead() {
+                let A = area(), x = A.cx; ctx.save(); ctx.lineWidth = 3; ctx.strokeStyle = '#000';
+                ctx.beginPath(); ctx.moveTo(x, A.y + 8); ctx.lineTo(x, A.y + A.h - 8); ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.fillRect(x - 34, A.y + 14, 68, 22); ctx.strokeRect(x - 34, A.y + 14, 68, 22);
+                ctx.fillStyle = '#000'; ctx.font = '900 12px ui-monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(fmt(S.cam), x, A.y + 25); ctx.restore(); rendered.push({ type: 'lathe', x: x - 38, y: A.y + 8, w: 76, h: A.h - 16 });
+            }
+
+            function drawTubeView() {
+                clear(); rendered = []; railLines(); ctx.save(); ctx.strokeStyle = '#000'; ctx.globalAlpha = .35;
+                let cZ = (S.view === 1) ? S.cam : S.cam - 900;
+                for (let z = qsnap(cZ); z < S.cam + FAR; z += SNAP * 2) {
+                    let q = project(0, 0, z); if (q && q.s > .04) { ctx.beginPath(); ctx.arc(q.x, q.y, R * q.s, 0, Math.PI * 2); ctx.stroke(); }
+                }
+                ctx.restore(); let arr = [];
+                for (const c of clips) { if (c.start + c.dur < S.cam - 1300 || c.start > S.cam + FAR) continue; let g = tubeGeom(c); if (g.cells.length) arr.push({ c, d: g.depth }); }
+                arr.sort((a, b) => b.d - a.d).forEach(o => drawClip(o.c)); drawRoutes(); drawTimeHead();
+            }
+
+            function benchX(z) { let A = area(); return A.x + A.w * .5 + (z - S.cam) * S.zoom; }
+            function benchTime(x) { let A = area(); return qsnap(S.cam + (x - (A.x + A.w * .5)) / S.zoom); }
+            function laneY(t) { let A = area(); return A.y + 70 + (A.h - 140) * (t + .5) / 4; }
+            function laneH() { let A = area(); return clamp((A.h - 140) / 4 * .55, 30, 72); }
+            function pointTrack(y) { let best = S.active, bd = 1e9; for (let t = 0; t < 4; t++) { let d = Math.abs(y - laneY(t)); if (d < bd) { bd = d; best = t; } } return best; }
+
+            function drawBench() {
+                clear(); rendered = []; let A = area();
+                for (let t = 0; t < 4; t++) {
+                    let y = laneY(t), h = laneH(); ctx.setLineDash(STYLES[t].dash); ctx.lineWidth = t === S.active ? 4 : 2;
+                    ctx.beginPath(); ctx.moveTo(A.x + 12, y); ctx.lineTo(A.x + A.w - 12, y); ctx.stroke(); ctx.setLineDash([]);
+                    if (W > 900) { ctx.font = '900 12px ui-monospace'; ctx.fillText(NAMES[t], A.x + 18, y - h * .62); }
+                }
+                for (const c of clips) {
+                    let x0 = benchX(c.start), x1 = benchX(c.start + c.dur), w = x1 - x0;
+                    if (x1 < A.x - 90 || x0 > A.x + A.w + 90) continue;
+                    let y = laneY(c.track), h = laneH(), top = y - h / 2, p = new Path2D(); p.rect(x0, top, Math.max(5, w), h);
+                    let sel = S.selected === c, hov = S.hover && S.hover.clip === c, b = { x: x0, y: top, w: Math.max(5, w), h };
+
+                    ctx.fillStyle = sel ? 'rgba(0,0,0,0.5)' : '#fff'; ctx.fill(p);
+
+                    let drew = false; if (c.mediaSrc) drew = drawContent(c, p, b);
+                    if (!drew) { ctx.fillStyle = sel ? 'rgba(0,0,0,0.5)' : '#fff'; ctx.fill(p); if (!sel) hatch(p, STYLES[c.track].hatch, b); }
+                    else if (sel) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill(p); }
+
+                    ctx.setLineDash(sel ? [] : STYLES[c.track].dash); ctx.lineWidth = sel ? 6 : 3; ctx.strokeStyle = '#000'; ctx.stroke(p);
+                    if (sel || hov) {
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(p); let activeMode = hov ? S.hover.mode : S.tool.toLowerCase();
+                        if (activeMode === 'move') { ctx.fillStyle = '#000'; ctx.fillRect(x0, y - 2, w, 4); }
+                        else if (activeMode === 'trim-start') { ctx.fillStyle = '#000'; ctx.fillRect(x0 - 4, top - 4, 8, h + 8); }
+                        else if (activeMode === 'trim-end') { ctx.fillStyle = '#000'; ctx.fillRect(x1 - 4, top - 4, 8, h + 8); }
+                    }
+                    ctx.setLineDash([]);
+                    if (sel || hov || w > 88) {
+                        let tBox = tag((x0 + x1) / 2, y, c.title, sel);
+                        rendered.push({ type: 'tag', clip: c, rect: tBox });
+                    }
+                    rendered.push({ type: 'bench', clip: c, x0, x1, y, top, h, rect: { x: x0, y: top, w: Math.max(5, w), h } });
+                }
+                drawBenchTimeHead();
+            }
+
+            function drawBenchTimeHead() { let A = area(), x = benchX(S.cam); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, A.y + 8); ctx.lineTo(x, A.y + A.h - 8); ctx.stroke(); tag(x, A.y + 25, fmt(S.cam), false); }
+
+            function outsideP() { let A = area(), m = W < 900; return { cx0: A.x + (m ? 88 : 185), cy0: A.y + A.h * .56, cx1: A.x + A.w - (m ? 36 : 90), cy1: A.y + A.h * .43, rx0: m ? 58 : 112, ry0: m ? 126 : 220, rx1: m ? 18 : 40, ry1: m ? 60 : 112, front: S.cam - 900, span: FAR + 1800 }; }
+            function oc(s, P) { return { x: lerp(P.cx0, P.cx1, s), y: lerp(P.cy0, P.cy1, s) }; }
+            function orad(s, P) { return { rx: lerp(P.rx0, P.rx1, s), ry: lerp(P.ry0, P.ry1, s) }; }
+            function opoint(s, a, P) { let c = oc(s, P), r = orad(s, P); return { x: c.x + Math.cos(a) * r.rx, y: c.y + Math.sin(a) * r.ry }; }
+            function os(z, P) { return clamp((z - P.front) / P.span, 0, 1); }
+            function strip(s0, s1, a0, a1, P) { let pts = []; for (let i = 0; i <= 14; i++) pts.push(opoint(lerp(s0, s1, i / 14), a0, P)); for (let j = 1; j <= 6; j++) pts.push(opoint(s1, lerp(a0, a1, j / 6), P)); for (let i = 13; i >= 0; i--) pts.push(opoint(lerp(s0, s1, i / 14), a1, P)); for (let j = 5; j > 0; j--) pts.push(opoint(s0, lerp(a0, a1, j / 6), P)); return pts; }
+
+            function drawOutside() {
+                clear(); rendered = []; let P = outsideP(); ctx.strokeStyle = '#000';
+                for (let i = 0; i <= 18; i++) { let c = oc(i / 18, P), r = orad(i / 18, P); ctx.lineWidth = i === 0 ? 4 : 2; ctx.beginPath(); ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2); ctx.stroke(); }
+                [-1.22, -.92, -.52, -.08, .34, .72, 1.08].forEach(a => { ctx.beginPath(); for (let i = 0; i <= 36; i++) { let q = opoint(i / 36, a, P); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.stroke(); });
+                let arr = []; for (const c of clips) { let s0 = os(c.start, P), s1 = os(c.start + c.dur, P); if (s1 <= 0 || s0 >= 1) continue; arr.push({ c, s0: clamp(s0, 0, .995), s1: clamp(Math.max(s1, s0 + .012), 0, .995), m: (s0 + s1) / 2 }); }
+                arr.sort((a, b) => b.m - a.m).forEach(o => {
+                    let c = o.c, a0 = angle(c) - Math.PI / 4 + .05, a1 = angle(c) + Math.PI / 4 - .05;
+                    let pts = strip(o.s0, o.s1, a0, a1, P), pp = path(pts), b = bounds(pts), sel = S.selected === c, hov = S.hover && S.hover.clip === c;
+
+                    let alpha = 1;
+                    let drew = false; if (c.mediaSrc) drew = drawContent(c, pp, b, alpha);
+                    if (!drew) { ctx.fillStyle = sel ? '#000' : '#fff'; ctx.fill(pp); if (!sel) hatch(pp, STYLES[c.track].hatch, b); }
+                    else if (sel) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill(pp); }
+
+                    ctx.setLineDash(sel ? [] : STYLES[c.track].dash); ctx.lineWidth = sel ? 6 : 3; ctx.strokeStyle = '#000'; ctx.stroke(pp);
+                    if (sel || hov) {
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(pp); let activeMode = hov ? S.hover.mode : S.tool.toLowerCase();
+                        if (activeMode === 'move') { let m0 = opoint(Math.max(0, o.s0 - .1), (a0 + a1) / 2, P), m1 = opoint(Math.min(1, o.s1 + .1), (a0 + a1) / 2, P); ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.moveTo(m0.x, m0.y); ctx.lineTo(m1.x, m1.y); ctx.stroke(); }
+                        else if (activeMode === 'trim-start') { let pF = path(strip(o.s0, o.s0 + .02, a0, a1, P)); ctx.fillStyle = '#000'; ctx.fill(pF); }
+                        else if (activeMode === 'trim-end') { let pB = path(strip(o.s1 - .02, o.s1, a0, a1, P)); ctx.fillStyle = '#000'; ctx.fill(pB); }
+                    }
+                    ctx.setLineDash([]);
+                    if (sel || hov) {
+                        let tBox = tag(opoint((o.s0 + o.s1) / 2, (a0 + a1) / 2, P).x, opoint((o.s0 + o.s1) / 2, (a0 + a1) / 2, P).y, c.title, sel);
+                        rendered.push({ type: 'tag', clip: c, rect: tBox });
+                    }
+                    rendered.push({ type: 'clip', clip: c, pts, rect: b });
+                });
+                let s = os(S.cam, P), cc = oc(s, P); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cc.x, area().y + 6); ctx.lineTo(cc.x, area().y + area().h - 6); ctx.stroke(); tag(cc.x, area().y + 24, fmt(S.cam)); drawRoutes();
+            }
+
+            function drawSide() {
+                clear(); rendered = []; let A = area();
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath();
+                ctx.moveTo(A.x, A.cy - R * S.zoom); ctx.lineTo(A.x + A.w, A.cy - R * S.zoom); // Ceiling
+                ctx.moveTo(A.x, A.cy + R * S.zoom); ctx.lineTo(A.x + A.w, A.cy + R * S.zoom); // Floor
+                ctx.stroke();
+
+                ctx.setLineDash([8, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath(); ctx.moveTo(A.x, A.cy); ctx.lineTo(A.x + A.w, A.cy); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = '#000';
+
+                for (const c of clips) {
+                    let x0 = benchX(c.start), x1 = benchX(c.start + c.dur), w = x1 - x0;
+                    if (x1 < A.x - 90 || x0 > A.x + A.w + 90) continue;
+
+                    let a = angle(c); let physY = Math.sin(a) * (R + (c.lift || 0) * 36);
+                    let cy = A.cy + physY * S.zoom;
+
+                    let h = 40 * S.zoom, top = cy - h / 2;
+                    let p = new Path2D(); p.rect(x0, top, Math.max(5, w), h);
+                    let sel = S.selected === c, hov = S.hover && S.hover.clip === c, b = { x: x0, y: top, w: Math.max(5, w), h };
+
+                    ctx.fillStyle = sel ? 'rgba(0,0,0,0.5)' : '#fff'; ctx.fill(p);
+                    let drew = false; if (c.mediaSrc) drew = drawContent(c, p, b);
+                    if (!drew) { ctx.fillStyle = sel ? 'rgba(0,0,0,0.5)' : '#fff'; ctx.fill(p); if (!sel) hatch(p, STYLES[c.track].hatch, b); }
+                    else if (sel) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill(p); }
+
+                    ctx.setLineDash(sel ? [] : STYLES[c.track].dash); ctx.lineWidth = sel ? 6 : 3; ctx.strokeStyle = '#000'; ctx.stroke(p);
+                    if (sel || hov) {
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(p); let activeMode = hov ? S.hover.mode : S.tool.toLowerCase();
+                        if (activeMode === 'move') { ctx.fillStyle = '#000'; ctx.fillRect(x0, cy - 2, w, 4); }
+                        else if (activeMode === 'trim-start') { ctx.fillStyle = '#000'; ctx.fillRect(x0 - 4, top - 4, 8, h + 8); }
+                        else if (activeMode === 'trim-end') { ctx.fillStyle = '#000'; ctx.fillRect(x1 - 4, top - 4, 8, h + 8); }
+                    }
+                    ctx.setLineDash([]);
+                    if (sel || hov || w > 88) {
+                        let tBox = tag((x0 + x1) / 2, cy, c.title, sel);
+                        rendered.push({ type: 'tag', clip: c, rect: tBox });
+                    }
+                    rendered.push({ type: 'bench', clip: c, x0, x1, y: cy, top, h, rect: { x: x0, y: top, w: Math.max(5, w), h } }); // Valid for hit-tests
+                }
+                let cx = benchX(S.cam); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, A.y + 8); ctx.lineTo(cx, A.y + A.h - 8); ctx.stroke(); tag(cx, A.y + 25, fmt(S.cam), false);
+            }
+
+            function drawRoutes() {
+                ctx.save(); ctx.lineWidth = 4; ctx.setLineDash([]); ctx.strokeStyle = '#000';
+                for (const r of routes) {
+                    let a = clips.find(c => c.id === r.from), b = clips.find(c => c.id === r.to); if (!a || !b) continue;
+                    let ga = tubeGeom(a).mid, gb = tubeGeom(b).mid; if (ga && gb) { ctx.beginPath(); ctx.moveTo(ga.x, ga.y); ctx.lineTo(gb.x, gb.y); ctx.stroke(); tag((ga.x + gb.x) / 2, (ga.y + gb.y) / 2, r.type || 'ROUTE'); }
+                }
+                if (S.drag && S.drag.mode === 'route' && S.drag.clip) { ctx.beginPath(); ctx.moveTo(S.drag.x, S.drag.y); ctx.lineTo(S.drag.mx || S.drag.x, S.drag.my || S.drag.y); ctx.stroke(); tag(S.drag.mx || S.drag.x, S.drag.my || S.drag.y, 'ROUTE'); } ctx.restore();
+            }
+
+            function hitPoly(pt, pts) { let h = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { let xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y; if (((yi > pt.y) != (yj > pt.y)) && pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || 1e-6) + xi) h = !h; } return h; }
+
+            function hit(x, y) {
+                if (inspector.classList.contains('show')) return null; // block hits when inspecting
+
+                let readoutEl = document.getElementById('readout');
+                let rRect = readoutEl.getBoundingClientRect();
+                if (x >= rRect.left && x <= rRect.right && y >= rRect.top && y <= rRect.bottom) {
+                    return { clip: null, mode: 'time-scrub' };
+                }
+
+                let bestHit = null;
+                let bestDist = 24; // MASSIVE 24px forgiveness halo for physical touch
+
+                for (let i = rendered.length - 1; i >= 0; i--) {
+                    let r = rendered[i];
+                    if (r.type === 'lathe') {
+                        if (x >= r.x - 12 && x <= r.x + r.w + 12 && y >= r.y - 12 && y <= r.y + r.h + 12) return { clip: null, mode: 'lathe' };
+                        continue;
+                    }
+
+                    let b = r.rect;
+                    if (!b) continue;
+
+                    if (r.type === 'tag') {
+                        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+                            let mode = S.tool.toLowerCase();
+                            if (mode === 'trim') { let phys = getPhysical(x, y, r.clip.lift); mode = phys.z < (r.clip.start + r.clip.dur / 2) ? 'trim-start' : 'trim-end'; }
+                            return { clip: r.clip, mode };
+                        }
+                        continue;
+                    }
+
+                    let dx = Math.max(b.x - x, 0, x - (b.x + b.w));
+                    let dy = Math.max(b.y - y, 0, y - (b.y + b.h));
+                    let dist = Math.hypot(dx, dy);
+
+                    if (dist === 0) {
+                        let hitInside = true;
+                        // Deep iteration of drawn cells to ensure geometric accuracy regardless of camera-plane clipping
+                        if (r.cells && r.cells.length > 0) {
+                            hitInside = false;
+                            for (let cell of r.cells) {
+                                if (hitPoly({ x, y }, cell.pts)) { hitInside = true; break; }
+                            }
+                        } else if (r.pts && r.pts.length > 4) {
+                            hitInside = hitPoly({ x, y }, r.pts);
+                        }
+
+                        if (!hitInside) {
+                            dist = 12; // Inside AABB bounding box but outside drawn polys -> Soft hit fallback
+                        }
+                    }
+
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        let mode = S.tool.toLowerCase();
+                        if (mode === 'trim') {
+                            let phys = getPhysical(x, y, r.clip.lift);
+                            mode = phys.z < (r.clip.start + r.clip.dur / 2) ? 'trim-start' : 'trim-end';
+                        }
+                        bestHit = { clip: r.clip, mode };
+                        if (dist === 0) return bestHit; // Absolute hit on drawn pixel wins instantly
+                    }
+                }
+                return bestHit;
+            }
+
+            function render() {
+                modeName.textContent = VIEWS[S.view]; S.snapForce = null;
+                if (S.view === 4) drawBench(); else if (S.view === 2) drawOutside(); else if (S.view === 3) drawSide(); else drawTubeView();
+                drawSnapForces(); drawHolographicProbe();
+
+                updateDOMMonitor(); // NEW Pipeline monitor
+
+                let p = S.probe;
+                readout.textContent = `TIME ${fmt(S.cam)}`;
+
+                if (S.hover && S.hover.clip) { selBig.textContent = S.hover.clip.title; selMeta.textContent = `TARGET | ${S.hover.mode.toUpperCase()}`; }
+                else if (S.selected) { selBig.textContent = S.selected.title; selMeta.textContent = `${S.tool} ${S.unit} | DUR ${fmt(S.selected.dur)}`; }
+                else { selBig.textContent = 'NO CLIP'; selMeta.textContent = 'DOUBLE-CLICK TO ADD'; }
+
+                // UPDATE ACTIVE ROW PROGRESS & HIGHLIGHTS
+                clips.forEach(c => {
+                    let row = document.getElementById('op-' + c.id);
+                    let pBar = document.getElementById('pb-' + c.id);
+                    if (row && pBar) {
+                        let isPlaying = S.cam >= c.start && S.cam <= c.start + c.dur;
+                        if (isPlaying) {
+                            row.classList.add('playing');
+                            let pct = ((S.cam - c.start) / c.dur) * 100;
+                            pBar.style.width = clamp(pct, 0, 100) + '%';
+                        } else {
+                            row.classList.remove('playing');
+                            pBar.style.width = (S.cam > c.start + c.dur) ? '100%' : '0%';
+                        }
+                    }
+                });
+            }
+
+            function loop(ts) {
+                let dt = Math.min(33, ts - last || 16); last = ts;
+
+                if (S.isRendering) {
+                    S.cam += dt * .16;
+
+                    let activeClips = clips.filter(c => S.cam >= c.start && S.cam <= c.start + c.dur);
+                    activeClips.sort((a, b) => b.track - a.track);
+                    let topClip = activeClips.length > 0 ? activeClips[0] : null;
+
+                    let ctx = S.renderCtx;
+                    let w = 1280, h = 720;
+                    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+
+                    if (topClip) {
+                        let asset = mediaCache[topClip.mediaSrc];
+                        if (topClip.mediaType === 'image' && asset && asset.complete) {
+                            let r = Math.max(w / asset.width, h / asset.height);
+                            ctx.drawImage(asset, (w - asset.width * r) / 2, (h - asset.height * r) / 2, asset.width * r, asset.height * r);
+                        } else if (topClip.mediaType === 'video' && asset && asset.readyState >= 2) {
+                            // Sync video to render time
+                            let localTime = (S.cam - topClip.start) / 60;
+                            if (Math.abs(asset.currentTime - localTime) > 0.1) asset.currentTime = localTime;
+
+                            let r = Math.max(w / asset.videoWidth, h / asset.videoHeight);
+                            ctx.drawImage(asset, (w - asset.videoWidth * r) / 2, (h - asset.videoHeight * r) / 2, asset.videoWidth * r, asset.videoHeight * r);
+                        } else {
+                            ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w, h);
+                            ctx.fillStyle = '#fff'; ctx.font = '900 48px ui-monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillText(topClip.title, w / 2, h / 2);
+                        }
+                        ctx.fillStyle = '#000'; ctx.fillRect(40, h - 80, 200, 40);
+                        ctx.fillStyle = '#fff'; ctx.font = '900 24px ui-monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                        ctx.fillText(fmt(S.cam), 60, h - 60);
+                    } else {
+                        ctx.fillStyle = '#000'; ctx.font = '900 48px ui-monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText('NO SIGNAL', w / 2, h / 2);
+                    }
+
+                    let pct = ((S.cam - S.renderStart) / (S.renderEnd - S.renderStart)) * 100;
+                    renderProgress.style.width = clamp(pct, 0, 100) + '%';
+
+                    if (S.cam > S.renderEnd) {
+                        S.isRendering = false;
+                        S.renderRecorder.stop();
+                    }
+                } else if (S.play) {
+                    S.cam += dt * .16;
+                }
+
+                render();
+                requestAnimationFrame(loop);
+            }
+
+            function select(c, src = 'object') {
+                let old = S.selected; if (!isClip(c)) { S.selected = null; drawTracks(); updateOpsList(); return; }
+                S.selected = c; S.active = c.track; drawTracks(); if (src === 'object' && c !== old) { tick('snap'); resetFeel(c); }
+                updateOpsList(); let el = document.getElementById('op-' + c.id); if (el && src !== 'list') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+
+            function resetFeel(c) { if (!isClip(c)) { F.lastSlot = null; F.lastTrack = null; F.lastRot = null; return; } F.lastSlot = Math.round(c.start / step()); F.lastTrack = c.track; F.lastRot = Math.round((c.rot || 0) / (Math.PI / 2)); }
+            function placementFeel(c) { if (!isClip(c)) return; let slot = Math.round(c.start / step()); if (c.track !== F.lastTrack) { tick('wall'); } else if (slot !== F.lastSlot) { tick('snap'); } F.lastSlot = slot; F.lastTrack = c.track; }
+            function rotFeel(c) { if (!isClip(c)) return; let r = Math.round((c.rot || 0) / (Math.PI / 2)); if (r !== F.lastRot) { tick('rot'); F.lastRot = r; } }
+
+            function addClip(z = qsnap(S.cam), tr = S.active) { let c = mk(z, 360, tr); clips.push(c); select(c, 'add'); save(); toast('ADDED ' + c.id); }
+            function cutClip(c, z = qsnap(S.cam)) { if (!isClip(c)) return tone(180, .025, .008, 'sawtooth'); if (z <= c.start + step() || z >= c.start + c.dur - step()) { toast('CUT OUTSIDE'); return; } let n = { ...c, id: id(), title: c.title + "-B", mediaType: c.mediaType, mediaSrc: c.mediaSrc, start: z, dur: c.start + c.dur - z }; c.dur = z - c.start; c.title = c.title + "-A"; clips.push(n); select(n, 'cut'); tick('drop'); save(); }
+            function remove(c) { if (!isClip(c)) return; let i = clips.indexOf(c); if (i >= 0) clips.splice(i, 1); select(null); save(); toast('DELETED'); }
+            function moveClip(c, dt = 0, dtr = 0) { if (!isClip(c) || c.locked) return; c.track = norm(c.track + dtr); c.start = getValidStart(c, c.track, qsnap(c.start + dt)); S.active = c.track; placementFeel(c); select(c, 'key'); save(); }
+
+            // RENDER LOGIC
+            renderBtn.onclick = () => {
+                if (clips.length === 0) { toast('NO CLIPS TO RENDER'); return; }
+                let minZ = Math.min(...clips.map(c => c.start));
+                let maxZ = Math.max(...clips.map(c => c.start + c.dur));
+
+                S.cam = minZ;
+                S.renderStart = minZ;
+                S.renderEnd = maxZ;
+                S.isRendering = true;
+                S.renderChunks = [];
+
+                renderOverlay.style.display = 'flex';
+                renderProgress.style.width = '0%';
+
+                // Set up offscreen canvas
+                S.renderCanvas = document.createElement('canvas');
+                S.renderCanvas.width = 1280;
+                S.renderCanvas.height = 720;
+                S.renderCtx = S.renderCanvas.getContext('2d');
+
+                // Set up recorder
+                let stream = S.renderCanvas.captureStream(30);
+                S.renderRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                S.renderRecorder.ondataavailable = e => { if (e.data.size > 0) S.renderChunks.push(e.data); };
+                S.renderRecorder.onstop = () => {
+                    let blob = new Blob(S.renderChunks, { type: 'video/webm' });
+                    let url = URL.createObjectURL(blob);
+                    let a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'arc_tunnel_render_' + Date.now() + '.webm';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    toast('RENDER COMPLETE');
+                    renderOverlay.style.display = 'none';
+                };
+
+                S.renderRecorder.start();
+            };
+
+            // INSPECTOR LOGIC
+            function openInspector(c) {
+                if (!c) return; inspectingClip = c;
+                clipTitleInput.value = c.title || c.id; clipTypeInput.value = c.mediaType || 'text'; clipSrcInput.value = c.mediaSrc || '';
+                inspector.classList.add('show');
+            }
+            function closeInspector() { inspector.classList.remove('show'); inspectingClip = null; }
+            document.getElementById('saveClipBtn').onclick = () => {
+                if (inspectingClip) {
+                    inspectingClip.title = clipTitleInput.value || inspectingClip.id;
+                    inspectingClip.mediaType = clipTypeInput.value;
+                    inspectingClip.mediaSrc = clipSrcInput.value;
+                    preloadMedia(); // Re-trigger load if changed
+                    save(); updateOpsList(); tick('save');
+                } closeInspector();
+            };
+            document.getElementById('closeClipBtn').onclick = closeInspector;
+
+            function drawTracks() { tracksEl.innerHTML = ''; NAMES.forEach((n, i) => { let b = document.createElement('button'); b.className = 'trk' + (S.active === i ? ' on' : ''); b.dataset.s = SHORT[i]; b.textContent = n; b.onclick = () => { S.active = i; toast(n); drawTracks(); }; tracksEl.appendChild(b); }); }
+
+            function updateOpsList() {
+                opList.innerHTML = '';
+
+                let addBtn = document.createElement('div');
+                addBtn.className = 'opAddRow';
+                addBtn.innerHTML = `<span>+ ADD NEW CLIP</span>`;
+                addBtn.onclick = () => addClip(S.cam, S.active);
+                opList.appendChild(addBtn);
+
+                let sorted = clips.slice().sort((a, b) => a.start - b.start);
+                sorted.forEach(c => {
+                    let d = document.createElement('div'); d.className = 'op' + (S.selected === c ? ' on' : ''); d.id = 'op-' + c.id;
+                    let thumbHTML = '';
+                    if (c.mediaType === 'image' && c.mediaSrc) {
+                        thumbHTML = `<div class="opThumb" style="background-image: url('${c.mediaSrc}')"></div>`;
+                    } else if (c.mediaType === 'video') {
+                        thumbHTML = `<div class="opThumb">🎬</div>`;
+                    } else {
+                        thumbHTML = `<div class="opThumb">📝</div>`;
+                    }
+                    d.innerHTML = `<code>${NAMES[c.track].substring(0, 2)}</code>${thumbHTML}<div class="opInfo"><span>${c.title}</span><small>${fmt(c.start)} DUR ${fmt(c.dur)}</small></div><button class="opDel" title="Delete Clip">×</button><div class="opProgress"><div class="opProgressBar" id="pb-${c.id}"></div></div>`;
+
+                    // TRANSFORM ROW INTO DIRECT SPATIAL SCRUBBER
+                    d.onpointerdown = (e) => {
+                        if (e.target.closest('.opDel')) return;
+                        select(c, 'list');
+
+                        let scrubList = (ev) => {
+                            let rect = d.getBoundingClientRect();
+                            let clickPct = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
+                            S.cam = qsnap(c.start + c.dur * clickPct);
+                            render(); // Force instant feedback
+                        };
+                        scrubList(e); // Instant jump
+
+                        let up = () => {
+                            window.removeEventListener('pointermove', scrubList);
+                            window.removeEventListener('pointerup', up);
+                            save(); // commit state when released
+                        };
+                        window.addEventListener('pointermove', scrubList);
+                        window.addEventListener('pointerup', up);
+                    };
+
+                    let delBtn = d.querySelector('.opDel');
+                    delBtn.onpointerdown = (e) => { e.stopPropagation(); remove(c); };
+
+                    opList.appendChild(d);
+                });
+            }
+
+            function setTool(t) { S.tool = t;[...dock.querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.tool === t)); toast(t); if (S.selected) select(S.selected, 'tool'); S.hover = null; }
+            function cycleUnit() { let i = UNITS.indexOf(S.unit); S.unit = UNITS[(i + 1) % UNITS.length]; toast('UNIT ' + S.unit); if (S.selected) select(S.selected, 'unit'); }
+            function setView(v) { S.view = v; toast(VIEWS[v]); }
+
+            function getValidStart(c, track, desiredStart) {
+                let sibs = clips.filter(x => x !== c && x.track === track), dur = c.dur, magDist = SNAP * 2.5, magStart = desiredStart, bestDist = magDist;
+                for (let s of sibs) {
+                    let d1 = Math.abs(desiredStart - (s.start + s.dur)), d2 = Math.abs((desiredStart + dur) - s.start);
+                    if (d1 < bestDist) { magStart = s.start + s.dur; bestDist = d1; } if (d2 < bestDist) { magStart = s.start - dur; bestDist = d2; }
+                }
+                let candidates = [magStart, desiredStart]; for (let s of sibs) { candidates.push(s.start - dur); candidates.push(s.start + s.dur); }
+                let validCandidates = candidates.filter(cand => { for (let s of sibs) { if (cand < s.start + s.dur && cand + dur > s.start) return false; } return true; });
+                validCandidates.sort((a, b) => Math.abs(a - desiredStart) - Math.abs(b - desiredStart));
+                let finalStart = validCandidates.length > 0 ? validCandidates[0] : desiredStart; S.snapForce = null;
+                for (let s of sibs) { if (finalStart === s.start + s.dur) S.snapForce = { z: s.start + s.dur, track: track }; if (finalStart + dur === s.start) S.snapForce = { z: s.start, track: track }; }
+                return finalStart;
+            }
+            function hardWallTrimStart(c, propStart) { let maxStart = c.start + c.dur - step(), minStart = -9000, sibs = clips.filter(x => x !== c && x.track === c.track && x.start <= c.start); if (sibs.length) minStart = Math.max(...sibs.map(s => s.start + s.dur)); if (Math.abs(propStart - minStart) < SNAP * 2.5) { propStart = minStart; S.snapForce = { z: minStart, track: c.track }; } return clamp(propStart, minStart, maxStart); }
+            function hardWallTrimEnd(c, propEnd) { let minEnd = c.start + step(), maxEnd = 99999, sibs = clips.filter(x => x !== c && x.track === c.track && x.start >= c.start + c.dur); if (sibs.length) maxEnd = Math.min(...sibs.map(s => s.start)); if (Math.abs(propEnd - maxEnd) < SNAP * 2.5) { propEnd = maxEnd; S.snapForce = { z: maxEnd, track: c.track }; } return clamp(propEnd, minEnd, maxEnd); }
+
+            function beginDrag(h, x, y) {
+                if (!h) return; let phys = getPhysical(x, y, h.clip ? h.clip.lift : 0);
+                if (h.mode === 'time-scrub') { S.timeScrub = { x, cam: S.cam }; setStatus('SCRUB'); return; }
+                if (h.mode === 'lathe') { S.scrub = { x, y, cam: S.cam, dz: phys.dz, z: phys.z }; setStatus('LATHE'); return; }
+                let c = h.clip; if (!isClip(c)) { S.scrub = { x, y, cam: S.cam, dz: phys.dz, z: phys.z }; setStatus('PAN'); return; }
+                select(c, 'object');
+                let A = area();
+                S.drag = {
+                    mode: h.mode, clip: c, startZ: c.start, dur: c.dur, pointerZ: phys.z,
+                    mx: x, my: y, target: null,
+                    startTrack: c.track, startAngle: Math.atan2(y - A.cy, x - A.cx)
+                };
+                setStatus(String(h.mode).toUpperCase());
+            }
+
+            canvas.addEventListener('pointerdown', e => {
+                if (inspector.classList.contains('show')) return;
+                menu.classList.remove('show'); let h = hit(e.clientX, e.clientY); if (h) { if (h.clip && S.selected === h.clip && e.detail >= 2) cycleUnit(); beginDrag(h, e.clientX, e.clientY); } else { let p = getPhysical(e.clientX, e.clientY); S.scrub = { x: e.clientX, y: e.clientY, cam: S.cam, dz: p.dz, z: p.z }; setStatus('PAN'); }
+            });
+            canvas.addEventListener('dblclick', e => {
+                if (inspector.classList.contains('show')) return;
+                let h = hit(e.clientX, e.clientY); if (h && h.clip) { openInspector(h.clip); } else if (h && h.mode !== 'time-scrub') { addClip(getPhysical(e.clientX, e.clientY).z, S.active); }
+            });
+
+            canvas.addEventListener('pointermove', e => {
+                if (inspector.classList.contains('show')) return;
+                let x = e.clientX, y = e.clientY, phys = getPhysical(x, y, S.drag?.clip?.lift || 0); S.probe = phys;
+
+                if (S.timeScrub) {
+                    let delta = (x - S.timeScrub.x) * 10;
+                    S.cam = qsnap(S.timeScrub.cam + delta);
+                    canvas.style.cursor = 'ew-resize'; return;
+                }
+
+                if (S.drag && isClip(S.drag.clip)) {
+                    let d = S.drag, c = d.clip; if (c.locked) { setStatus('LOCKED'); return; } let deltaZ = phys.z - d.pointerZ;
+                    if (d.mode === 'move') { c.track = phys.track; c.start = getValidStart(c, c.track, qsnap(d.startZ + deltaZ)); placementFeel(c); }
+                    else if (d.mode === 'trim-start') { c.start = hardWallTrimStart(c, qsnap(d.startZ + deltaZ)); c.dur = (d.startZ + d.dur) - c.start; placementFeel(c); }
+                    else if (d.mode === 'trim-end') { let propEnd = qsnap(d.startZ + d.dur + deltaZ); c.dur = hardWallTrimEnd(c, propEnd) - c.start; placementFeel(c); }
+                    else if (d.mode === 'roll') {
+                        let newTrack = c.track;
+                        if (S.view >= 3) {
+                            let trackShift = Math.round((d.my - y) / 40);
+                            newTrack = norm(d.startTrack + trackShift);
+                        } else {
+                            let currentAngle = Math.atan2(y - area().cy, x - area().cx);
+                            let deltaAngle = currentAngle - d.startAngle;
+                            if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
+                            if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
+                            newTrack = norm(d.startTrack + Math.round(deltaAngle / (Math.PI / 2)));
+                        }
+                        if (c.track !== newTrack) {
+                            c.track = newTrack;
+                            c.start = getValidStart(c, c.track, c.start);
+                            rotFeel(c);
+                        }
+                    }
+                    else if (d.mode === 'lift') { let currentDist = Math.hypot(x - area().cx, y - area().cy), startDist = Math.hypot(d.mx - area().cx, d.my - area().cy), newLift = clamp(c.lift + (currentDist - startDist) / 50, -1, 1); if (Math.abs(c.lift - newLift) > 0.05) { c.lift = newLift; tick('wall'); } d.mx = x; d.my = y; }
+                    else if (d.mode === 'route') { d.mx = x; d.my = y; let hh = hit(x, y); if (hh && hh.clip && hh.clip !== c) { d.target = hh.clip; setStatus('TARGET ' + hh.clip.id); } }
+                    if (d.mode === 'move') canvas.style.cursor = 'grabbing'; else if (d.mode.includes('trim')) canvas.style.cursor = 'ew-resize'; else if (d.mode === 'roll') canvas.style.cursor = 'alias'; else if (d.mode === 'lift') canvas.style.cursor = 'ns-resize'; return;
+                }
+                if (S.scrub) { if (S.view === 4 || S.view === 3) S.cam = S.scrub.cam - (x - S.scrub.x) / S.zoom; else if (S.view === 0 || S.view === 1) S.cam = S.scrub.z - phys.dz + (S.view === 0 ? 900 : 0); else { let P = outsideP(), sOld = clamp((S.scrub.x - P.cx0) / (P.cx1 - P.cx0), 0, 1), sNew = clamp((x - P.cx0) / (P.cx1 - P.cx0), 0, 1); S.cam = S.scrub.cam - (sNew - sOld) * P.span; } canvas.style.cursor = 'grabbing'; return; }
+
+                S.hover = hit(x, y); let cursor = 'crosshair';
+                if (S.hover) { let m = S.hover.mode; if (m === 'time-scrub') cursor = 'ew-resize'; else if (m === 'move') cursor = 'grab'; else if (m === 'trim-start' || m === 'trim-end') cursor = 'ew-resize'; else if (m === 'roll') cursor = 'alias'; else if (m === 'lift') cursor = 'ns-resize'; else if (m === 'split') cursor = 'cell'; else cursor = 'pointer'; } canvas.style.cursor = cursor; setStatus(S.hover ? 'HOVER' : 'IDLE');
+            });
+
+            canvas.addEventListener('pointerup', e => {
+                if (S.drag) {
+                    let moved = Math.hypot(S.drag.x - e.clientX, S.drag.y - e.clientY) > 5, c = S.drag.clip;
+                    if (!moved && S.drag.mode === 'split') cutClip(c, getPhysical(e.clientX, e.clientY, c.lift).z);
+                    if (S.drag.mode === 'move' || S.drag.mode === 'trim-start' || S.drag.mode === 'trim-end' || S.drag.mode === 'roll') { tick('drop'); updateOpsList(); }
+                    if (S.drag.mode === 'route' && S.drag.target) { routes.push({ from: c.id, to: S.drag.target.id, type: 'ROUTE' }); tick('drop'); toast('ROUTED'); } S.drag = null;
+                }
+                S.scrub = null; S.timeScrub = null;
+                canvas.style.cursor = 'crosshair'; save(); S.snapForce = null;
+            });
+
+            canvas.addEventListener('contextmenu', e => {
+                if (inspector.classList.contains('show')) return;
+                e.preventDefault(); let h = hit(e.clientX, e.clientY); menu.innerHTML = '';
+                let title = document.createElement('div'); title.className = 'mi title'; title.textContent = h && h.clip ? h.clip.title : 'EMPTY'; menu.appendChild(title);
+                function mi(t, fn) { let d = document.createElement('div'); d.className = 'mi'; d.textContent = t; d.onclick = () => { menu.classList.remove('show'); fn(); }; menu.appendChild(d); }
+                if (h && h.clip) { mi('EDIT CLIP', () => openInspector(h.clip)); mi('CUT', () => cutClip(h.clip, getPhysical(e.clientX, e.clientY).z)); mi('DELETE', () => remove(h.clip)); mi('EXPORT PROJECT', exportProject); }
+                else if (h && h.mode !== 'time-scrub') { mi('ADD CLIP', () => addClip(getPhysical(e.clientX, e.clientY).z, S.active)); mi('EXPORT EDL', exportEDL); mi('EXPORT PROJECT', exportProject); }
+                menu.style.left = clamp(e.clientX, 4, W - 230) + 'px'; menu.style.top = clamp(e.clientY, 4, H - 220) + 'px'; menu.classList.add('show');
+            });
+
+            canvas.addEventListener('wheel', e => { if (inspector.classList.contains('show')) return; e.preventDefault(); if (e.ctrlKey || e.metaKey) S.zoom = clamp(S.zoom - e.deltaY * .001, .22, 1.3); else if (e.altKey) S.roll += e.deltaY * .006; else S.cam += e.deltaY * 1.5; }, { passive: false });
+            window.addEventListener('keydown', e => {
+                if (inspector.classList.contains('show')) return;
+                if (e.key === ' ') { e.preventDefault(); S.play = !S.play; playBtn.classList.toggle('on', S.play); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); moveClip(S.selected, -step() * (e.shiftKey ? 4 : 1), 0); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); moveClip(S.selected, step() * (e.shiftKey ? 4 : 1), 0); }
+                if (e.key === 'ArrowUp') { e.preventDefault(); moveClip(S.selected, 0, -1); }
+                if (e.key === 'ArrowDown') { e.preventDefault(); moveClip(S.selected, 0, 1); }
+                if (e.key === '[') { if (S.selected) { S.selected.rot -= Math.PI / 2; rotFeel(S.selected); save(); } }
+                if (e.key === ']') { if (S.selected) { S.selected.rot += Math.PI / 2; rotFeel(S.selected); save(); } }
+                if (e.key === '.' || e.key === ',') cycleUnit(); if (e.key.toLowerCase() === 'v') setView((S.view + 1) % VIEWS.length);
+                if (e.key.toLowerCase() === 'a') addClip(); if (e.key.toLowerCase() === 'x') cutClip(S.selected);
+                if (e.key.toLowerCase() === 'e') exportEDL();
+                if (e.key === 'Delete' || e.key === 'Backspace') remove(S.selected);
+            });
+            window.addEventListener('resize', resize);
+            viewBtn.onclick = () => setView((S.view + 1) % VIEWS.length); addBtn.onclick = () => addClip(); cutBtn.onclick = () => cutClip(S.selected); edlBtn.onclick = exportEDL; importBtn.onclick = requestImport; exportBtn.onclick = exportProject; importFile.onchange = e => importProjectFile(e.target.files && e.target.files[0]); resetBtn.onclick = () => { localStorage.removeItem(SAVE); seed(); select(null); save(); toast('RESET'); }; playBtn.onclick = () => { S.play = !S.play; playBtn.classList.toggle('on', S.play); }; snapBtn.onclick = () => { S.snap = !S.snap; snapBtn.classList.toggle('on', S.snap); }; backBtn.onclick = () => S.cam -= SNAP * 4; fwdBtn.onclick = () => S.cam += SNAP * 4; zoomOutBtn.onclick = () => S.zoom = clamp(S.zoom - .08, .22, 1.3); zoomInBtn.onclick = () => S.zoom = clamp(S.zoom + .08, .22, 1.3); dock.querySelectorAll('button').forEach(b => b.onclick = () => setTool(b.dataset.tool)); document.addEventListener('pointerdown', e => { if (!menu.contains(e.target)) menu.classList.remove('show'); });
+
+            if (!load()) seed(); resize(); drawTracks(); updateOpsList(); select(clips.find(c => c.id === 'SC-034') || clips[0] || null); requestAnimationFrame(loop);
+        })();
+    </script>
+</body>
+
+</html>

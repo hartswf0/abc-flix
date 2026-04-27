@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arc-Operator: Tactile Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            overscroll-behavior: none;
+            user-select: none;
+        }
+
+        .cyber-grid {
+            background-size: 10px 10px;
+            background-image:
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 3px;
+        }
+
+        .glass-panel {
+            background: rgba(9, 9, 11, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(63, 63, 70, 0.5);
+        }
+
+        /* Hazard Stripes for Media Errors */
+        .hazard-pattern {
+            background-image: repeating-linear-gradient(45deg,
+                    rgba(239, 68, 68, 0.2),
+                    rgba(239, 68, 68, 0.2) 10px,
+                    transparent 10px,
+                    transparent 20px);
+        }
+    </style>
+</head>
+
+<body class="bg-zinc-950 text-zinc-300 h-screen w-screen flex overflow-hidden">
+
+    <!-- Sidebar / Data Panel -->
+    <aside
+        class="w-80 h-full border-r border-zinc-800 flex flex-col z-20 bg-zinc-950 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+        <div class="p-4 border-b border-zinc-800">
+            <h1 class="text-xl font-bold tracking-tighter text-white">ARC<span class="text-emerald-500">_OPERATOR</span>
+            </h1>
+            <p class="text-[10px] text-zinc-500 mt-1 uppercase">OTIO Schema / Interval Tree / v17</p>
+        </div>
+
+        <!-- Monitor Box -->
+        <div class="p-4 border-b border-zinc-800 bg-zinc-900/30">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-zinc-400">TRUTH SURFACE <span id="mon-mode"
+                        class="text-emerald-500">LIVE</span></span>
+                <span id="cam-readout" class="text-xs text-zinc-500">T: 00:00:00</span>
+            </div>
+            <div id="monitor-screen"
+                class="w-full aspect-video bg-black rounded border border-zinc-700 relative overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.8)] inset-shadow">
+                <canvas id="mon-canvas" class="w-full h-full object-cover"></canvas>
+                <div id="mon-overlay"
+                    class="absolute bottom-2 left-2 right-2 text-[10px] text-white bg-black/80 p-1.5 hidden border-l-2 border-emerald-500">
+                </div>
+                <!-- Honest Failure Displays -->
+                <div id="mon-error"
+                    class="absolute inset-0 bg-red-950/80 text-red-500 flex flex-col items-center justify-center text-xl font-bold hidden tracking-widest border-4 border-red-900">
+                    <span>&lt;MEDIA_ERROR&gt;</span>
+                    <span class="text-xs text-red-400 mt-2 font-mono">Payload Resolution Failed</span>
+                </div>
+                <div id="mon-no-signal"
+                    class="absolute inset-0 bg-zinc-900 text-zinc-500 flex items-center justify-center text-sm font-bold hidden tracking-widest">
+                    &lt;NO_SIGNAL&gt;
+                </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button id="btn-play"
+                    class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-1.5 rounded text-xs font-bold transition-colors">PLAY</button>
+                <button id="btn-render"
+                    class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded text-xs font-bold transition-colors shadow-[0_0_10px_rgba(16,185,129,0.2)]">RENDER</button>
+            </div>
+        </div>
+
+        <!-- Operator List (OTIO Data Schema View) -->
+        <div
+            class="p-2 border-b border-zinc-800 bg-zinc-900/50 text-[10px] text-zinc-500 tracking-wider flex justify-between items-center">
+            <span>SEQUENCE ITEMS (RationalTime)</span>
+            <button id="btn-export-otio"
+                class="bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 px-2 py-0.5 rounded border border-indigo-600/50 transition-colors">EXPORT
+                .OTIO</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2" id="clip-list">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Project Controls -->
+        <div class="p-3 border-t border-zinc-800 flex justify-between gap-2 bg-zinc-950">
+            <button id="btn-add"
+                class="flex-1 border border-zinc-700 hover:bg-zinc-800 py-1.5 rounded text-xs font-bold transition-colors">+
+                INSERT NODE</button>
+            <button id="btn-clear"
+                class="px-3 border border-red-900/50 hover:bg-red-900/20 text-red-400 py-1.5 rounded text-xs font-bold transition-colors">RESET</button>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 relative flex flex-col min-w-0 bg-[#09090b]">
+
+        <!-- UI Overlay -->
+        <div class="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
+            <div class="glass-panel p-2 rounded flex gap-3 pointer-events-auto items-center">
+                <span class="text-xs font-bold text-zinc-500">TOOL:</span>
+                <div id="tool-container" class="flex gap-1">
+                    <button class="tool-btn px-3 py-1 rounded text-xs font-bold bg-emerald-600 text-white"
+                        data-tool="0">[M] MOVE/TRIM</button>
+                    <button class="tool-btn px-3 py-1 rounded text-xs font-bold text-zinc-400 hover:bg-zinc-800"
+                        data-tool="1">[S] SPLIT</button>
+                </div>
+            </div>
+
+            <div class="glass-panel px-3 py-2 rounded pointer-events-auto text-xs text-zinc-400 text-right">
+                <div>SCROLL TO NAVIGATE TIME</div>
+                <div>HOVER EDGES TO REIFY TRIM INSTRUMENTS</div>
+            </div>
+        </div>
+
+        <!-- 2D Causal Canvas -->
+        <div class="flex-1 relative cyber-grid overflow-hidden" id="canvas-container">
+            <canvas id="timeline-canvas" class="w-full h-full cursor-crosshair"></canvas>
+
+            <!-- Absolute Ruler -->
+            <div
+                class="absolute bottom-0 left-0 right-0 h-8 border-t border-zinc-800 bg-zinc-950/80 pointer-events-none flex items-center px-4">
+                <div class="text-[10px] text-zinc-500 tracking-widest">INVARIANT: Clip_End = Clip_Start + Clip_Duration
+                </div>
+            </div>
+        </div>
+
+        <!-- Inspector Modal (Reified OTIO Metadata) -->
+        <div id="inspector"
+            class="absolute top-4 right-4 w-72 glass-panel rounded-lg p-4 hidden flex-col gap-3 shadow-2xl z-50">
+            <div class="flex justify-between items-center mb-1 pb-2 border-b border-zinc-800">
+                <h3 class="text-xs font-bold text-white tracking-widest">PROPERTIES</h3>
+                <button id="btn-close-insp" class="text-zinc-500 hover:text-white">&times;</button>
+            </div>
+            <label class="flex flex-col gap-1">
+                <span class="text-[10px] text-zinc-400 uppercase">Title</span>
+                <input type="text" id="insp-title"
+                    class="bg-zinc-900 border border-zinc-700 rounded p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </label>
+            <div class="flex gap-2">
+                <label class="flex flex-col gap-1 flex-1">
+                    <span class="text-[10px] text-zinc-400 uppercase">Clip_Start</span>
+                    <input type="number" id="insp-z"
+                        class="bg-zinc-900 border border-zinc-700 rounded p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+                </label>
+                <label class="flex flex-col gap-1 flex-1">
+                    <span class="text-[10px] text-zinc-400 uppercase">Clip_Duration</span>
+                    <input type="number" id="insp-dur"
+                        class="bg-zinc-900 border border-zinc-700 rounded p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+                </label>
+            </div>
+            <label class="flex flex-col gap-1">
+                <span class="text-[10px] text-zinc-400 uppercase">Futures Cone Layer</span>
+                <select id="insp-track"
+                    class="bg-zinc-900 border border-zinc-700 rounded p-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+                    <option value="3">V4 - PREFERABLE</option>
+                    <option value="2">V3 - PROBABLE</option>
+                    <option value="1">V2 - PLAUSIBLE</option>
+                    <option value="0">V1 - POSSIBLE</option>
+                </select>
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="text-[10px] text-zinc-400 uppercase">Gen-Prompt / Media Payload</span>
+                <textarea id="insp-prompt" rows="3"
+                    class="bg-zinc-900 border border-zinc-700 rounded p-1.5 text-[10px] text-white focus:outline-none focus:border-emerald-500 resize-none font-mono"></textarea>
+            </label>
+            <!-- Honest Media Capability Checkbox -->
+            <label
+                class="flex items-center gap-2 mt-1 p-2 bg-zinc-900/50 border border-zinc-800 rounded cursor-pointer hover:bg-zinc-800">
+                <input type="checkbox" id="insp-error" class="w-3 h-3 accent-red-500">
+                <span class="text-[10px] text-red-400 font-bold tracking-widest uppercase">Force Media Error
+                    State</span>
+            </label>
+
+            <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-zinc-800">
+                <button id="btn-delete"
+                    class="px-3 py-1.5 rounded bg-red-900/20 hover:bg-red-900/60 text-red-500 border border-red-900/50 text-[10px] font-bold transition-colors tracking-widest">REMOVE
+                    NODE</button>
+            </div>
+        </div>
+
+        <!-- Render Overlay -->
+        <div id="render-overlay"
+            class="absolute inset-0 bg-zinc-950/95 z-50 hidden flex-col items-center justify-center">
+            <h2 class="text-2xl font-bold mb-2 text-emerald-500 animate-pulse tracking-widest">PIPELINE ACTIVE</h2>
+            <p class="text-xs text-zinc-500 mb-6 font-mono">Encoding hardware validated. Processing chronological
+                buffer.</p>
+            <div class="w-96 h-1 bg-zinc-800 rounded overflow-hidden">
+                <div id="render-progress" class="h-full bg-emerald-500 w-0 transition-all duration-75"></div>
+            </div>
+            <p id="render-status" class="text-zinc-400 mt-4 text-xs font-mono">00:00:00 / 00:00:00</p>
+        </div>
+
+        <!-- Toast Container -->
+        <div id="toast-container" class="absolute bottom-12 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    </main>
+
+    <script>
+        /**
+         * ARC-OPERATOR: OTIO & Interval Tree Edition
+         * Implements Strict 1D Collision Trees, OTIO JSON Truth Surface, and Honest Media States.
+         */
+
+        // --- DOM Elements ---
+        const els = {
+            container: document.getElementById('canvas-container'),
+            canvas: document.getElementById('timeline-canvas'),
+            monCanvas: document.getElementById('mon-canvas'),
+            monOverlay: document.getElementById('mon-overlay'),
+            monError: document.getElementById('mon-error'),
+            monNoSignal: document.getElementById('mon-no-signal'),
+            clipList: document.getElementById('clip-list'),
+            camReadout: document.getElementById('cam-readout'),
+            inspector: document.getElementById('inspector'),
+            renderOverlay: document.getElementById('render-overlay'),
+            renderProgress: document.getElementById('render-progress'),
+            renderStatus: document.getElementById('render-status'),
+            toastContainer: document.getElementById('toast-container'),
+            toolBtns: document.querySelectorAll('.tool-btn')
+        };
+        const ctx = els.canvas.getContext('2d', { alpha: false });
+        const monCtx = els.monCanvas.getContext('2d');
+
+        // --- Semantic Domain Constants ---
+        const TRACK_DEFS = [
+            { id: 0, name: 'V1-POSSIBLE', color: '#52525b', border: '#71717a' },
+            { id: 1, name: 'V2-PLAUSIBLE', color: '#0284c7', border: '#0ea5e9' },
+            { id: 2, name: 'V3-PROBABLE', color: '#d97706', border: '#f59e0b' },
+            { id: 3, name: 'V4-PREFERABLE', color: '#059669', border: '#10b981' }
+        ];
+
+        const FPS = 30;
+        const UNITS_PER_SEC = 60; // Internal RationalTime rate base
+
+        const TRACK_H = 60;
+        const TRACK_GAP = 10;
+        const OFFSET_Y = 50;
+
+        // --- 1D Interval Tree Architecture (Haptic Walls) ---
+        // Provides O(log n) conceptual querying of timeline non-overlap invariants.
+        class IntervalTree {
+            constructor() {
+                this.intervals = [];
+            }
+            build(clipsOnTrack) {
+                this.intervals = clipsOnTrack.map(c => ({ id: c.id, start: c.z, end: c.z + c.dur }));
+                this.intervals.sort((a, b) => a.start - b.start);
+            }
+            getBounds(ignoreId, currentStart) {
+                let minZ = 0;
+                let maxZ = Infinity;
+                for (let i of this.intervals) {
+                    if (i.id === ignoreId) continue;
+                    if (i.end <= currentStart && i.end > minZ) minZ = i.end;
+                    if (i.start >= currentStart && i.start < maxZ) maxZ = i.start;
+                }
+                return { minZ, maxZ };
+            }
+            isOverlap(ignoreId, start, dur) {
+                let end = start + dur;
+                return this.intervals.some(i => i.id !== ignoreId && Math.max(start, i.start) < Math.min(end, i.end));
+            }
+        }
+
+        let trackTrees = [new IntervalTree(), new IntervalTree(), new IntervalTree(), new IntervalTree()];
+
+        function updateTrees() {
+            for (let i = 0; i < 4; i++) {
+                trackTrees[i].build(S.clips.filter(c => c.track === i));
+            }
+        }
+
+        // --- State / Truth Surface ---
+        let S = {
+            clips: [],
+            cam: 0,
+            scale: 2,
+            tool: 0,
+            selectedId: null,
+            isPlaying: false,
+            isRendering: false,
+            step: 10,
+            dragState: null,
+            cw: 0, ch: 0
+        };
+
+        // --- Audio Context ---
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function beep(freq = 440, type = 'sine', vol = 0.1, dur = 0.05) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        }
+
+        // --- Persistence ---
+        const STORAGE_KEY = 'arc-op-otio-v16';
+        function saveProject() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(S.clips));
+            updateTrees();
+            rebuildSidebar();
+        }
+        function loadProject() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try { S.clips = JSON.parse(data); } catch (e) { S.clips = []; }
+            } else {
+                seedDemo();
+            }
+            updateTrees();
+            rebuildSidebar();
+        }
+        function seedDemo() {
+            S.clips = [
+                mkClip(0, 300, 3, "Master Wide", "Primary preferred establishing shot, locked.", false),
+                mkClip(300, 150, 3, "Dialog A", "Character A speaking main line.", false),
+                mkClip(350, 100, 2, "Reaction B", "Probable insert: Character B reaction.", true), // Intentional Error
+                mkClip(0, 120, 0, "Alt Opening", "Possible experimental opening.", false)
+            ];
+            saveProject();
+        }
+
+        // --- OTIO Factory & Constraints ---
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+        function mkClip(z, dur, track, title, prompt, mediaError = false) {
+            return { id: generateId(), z, dur, track, title, prompt, mediaError };
+        }
+
+        function norm(c) {
+            c.track = Math.max(0, Math.min(3, Math.round(c.track)));
+            c.z = Math.round(c.z / S.step) * S.step;
+            c.dur = Math.max(S.step, Math.round(c.dur / S.step) * S.step);
+        }
+
+        function toTC(units) {
+            let s = Math.max(0, Math.floor(units / UNITS_PER_SEC));
+            let f = Math.max(0, Math.floor((units % UNITS_PER_SEC) * (FPS / UNITS_PER_SEC)));
+            let m = Math.floor(s / 60);
+            s = s % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`;
+        }
+
+        // --- OpenTimelineIO Export ---
+        document.getElementById('btn-export-otio').onclick = () => {
+            initAudio(); beep(900, 'sine', 0.1, 0.1);
+
+            // Build strictly serialized OTIO JSON structure
+            const otioTruthRecord = {
+                "OTIO_SCHEMA": "Timeline.1",
+                "name": "Arc-Operator Sequence",
+                "global_start_time": { "OTIO_SCHEMA": "RationalTime.1", "value": 0, "rate": UNITS_PER_SEC },
+                "tracks": {
+                    "OTIO_SCHEMA": "Stack.1",
+                    "children": TRACK_DEFS.map((td, i) => {
+                        let clipsOnTrack = S.clips.filter(c => c.track === i).sort((a, b) => a.z - b.z);
+                        return {
+                            "OTIO_SCHEMA": "Track.1",
+                            "name": td.name,
+                            "kind": "Video",
+                            "children": clipsOnTrack.map(c => ({
+                                "OTIO_SCHEMA": "Clip.1",
+                                "name": c.title,
+                                "source_range": {
+                                    "OTIO_SCHEMA": "TimeRange.1",
+                                    "start_time": { "OTIO_SCHEMA": "RationalTime.1", "value": c.z, "rate": UNITS_PER_SEC },
+                                    "duration": { "OTIO_SCHEMA": "RationalTime.1", "value": c.dur, "rate": UNITS_PER_SEC }
+                                },
+                                "metadata": {
+                                    "arc_operator": { "prompt": c.prompt, "media_error": c.mediaError }
+                                }
+                            }))
+                        };
+                    })
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(otioTruthRecord, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ARC_TRUTH_${Date.now()}.otio.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast("Truth Surface Serialized to OTIO format.");
+        };
+
+        // --- Causal 2D Rendering ---
+        let interactables = [];
+        let hoverState = null;
+
+        function drawHazardStripes(x, y, w, h) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)'; // Red tint
+            ctx.fillRect(x, y, w, h);
+
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+            ctx.lineWidth = 2;
+            for (let i = -h; i < w; i += 10) {
+                ctx.beginPath();
+                ctx.moveTo(x + i, y);
+                ctx.lineTo(x + i + h, y + h);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function renderCanvas() {
+            S.cw = els.canvas.width = els.container.offsetWidth;
+            S.ch = els.canvas.height = els.container.offsetHeight;
+
+            ctx.fillStyle = '#09090b';
+            ctx.fillRect(0, 0, S.cw, S.ch);
+
+            interactables = [];
+
+            for (let t = 3; t >= 0; t--) {
+                let trackDef = TRACK_DEFS[t];
+                let visualTrackIdx = 3 - t;
+                let y = OFFSET_Y + visualTrackIdx * (TRACK_H + TRACK_GAP);
+
+                ctx.fillStyle = '#18181b';
+                ctx.fillRect(0, y, S.cw, TRACK_H);
+
+                ctx.fillStyle = trackDef.border;
+                ctx.font = '10px "JetBrains Mono"';
+                ctx.fillText(trackDef.name, 10, y + 15);
+
+                ctx.strokeStyle = '#27272a';
+                ctx.beginPath();
+                let startSec = Math.floor(S.cam / UNITS_PER_SEC);
+                for (let s = startSec; s < startSec + Math.ceil(S.cw / (S.scale * UNITS_PER_SEC)) + 1; s++) {
+                    let lx = (s * UNITS_PER_SEC - S.cam) * S.scale;
+                    if (lx >= 0 && lx <= S.cw) {
+                        ctx.moveTo(lx, y);
+                        ctx.lineTo(lx, y + TRACK_H);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // Highlight target track during semantic Y-axis shift to reinforce Causal Mapping
+            if (S.dragState && S.dragState.type === 'body') {
+                let dragTrackVisIdx = 3 - S.dragState.clip.track;
+                let hY = OFFSET_Y + dragTrackVisIdx * (TRACK_H + TRACK_GAP);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.05)';
+                ctx.fillRect(0, hY, S.cw, TRACK_H);
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, hY, S.cw, TRACK_H);
+            }
+
+            // Elevation: Ensure selected clip renders LAST to prevent handle occlusion
+            let clipsToRender = S.clips.filter(c => c.id !== S.selectedId);
+            let selClip = S.clips.find(c => c.id === S.selectedId);
+            if (selClip) clipsToRender.push(selClip);
+
+            clipsToRender.forEach(clip => {
+                let visualTrackIdx = 3 - clip.track;
+                let y = OFFSET_Y + visualTrackIdx * (TRACK_H + TRACK_GAP);
+                let x = (clip.z - S.cam) * S.scale;
+                let w = clip.dur * S.scale;
+                let isSelected = clip.id === S.selectedId;
+                let tDef = TRACK_DEFS[clip.track];
+
+                if (x + w < 0 || x > S.cw) return;
+
+                // Generate implied handles for hover reification
+                let hW = 12;
+                let leftHandleHit = { type: 'handle-left', id: clip.id, x: x - hW - 2, y, w: hW, h: TRACK_H, clip };
+                let rightHandleHit = { type: 'handle-right', id: clip.id, x: x + w + 2, y, w: hW, h: TRACK_H, clip };
+
+                interactables.push({ type: 'body', id: clip.id, x, y, w, h: TRACK_H, clip });
+
+                // Add handles to interactables so hover detects them
+                if (S.tool === 0) {
+                    interactables.push(leftHandleHit);
+                    interactables.push(rightHandleHit);
+                }
+
+                // Fill Body
+                ctx.fillStyle = isSelected ? tDef.color : tDef.color + '40';
+                ctx.fillRect(x, y + 2, w, TRACK_H - 4);
+
+                // Hazard mapping for Honest Failure
+                if (clip.mediaError) {
+                    drawHazardStripes(x, y + 2, w, TRACK_H - 4);
+                }
+
+                // Stroke
+                ctx.strokeStyle = clip.mediaError ? '#ef4444' : (isSelected ? '#ffffff' : tDef.border);
+                ctx.lineWidth = isSelected ? 2 : 1;
+                ctx.strokeRect(x, y + 2, w, TRACK_H - 4);
+
+                // Text
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px "JetBrains Mono"';
+                ctx.fillText(clip.title.substring(0, Math.max(0, Math.floor(w / 6))), x + 4, y + 16);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fillText(toTC(clip.dur), x + 4, y + 28);
+
+                // Draw External Handles if selected OR if hovering specifically over them
+                let drawLeftHandle = isSelected || (hoverState && hoverState.type === 'handle-left' && hoverState.id === clip.id);
+                let drawRightHandle = isSelected || (hoverState && hoverState.type === 'handle-right' && hoverState.id === clip.id);
+
+                if (drawLeftHandle && S.tool === 0) {
+                    ctx.fillStyle = '#e4e4e7';
+                    ctx.fillRect(leftHandleHit.x, y + 4, hW, TRACK_H - 8);
+                    ctx.fillStyle = '#52525b';
+                    ctx.fillRect(leftHandleHit.x + 3, y + 12, 2, TRACK_H - 24);
+                    ctx.fillRect(leftHandleHit.x + 7, y + 12, 2, TRACK_H - 24);
+                }
+
+                if (drawRightHandle && S.tool === 0) {
+                    ctx.fillStyle = '#e4e4e7';
+                    ctx.fillRect(rightHandleHit.x, y + 4, hW, TRACK_H - 8);
+                    ctx.fillStyle = '#52525b';
+                    ctx.fillRect(rightHandleHit.x + 3, y + 12, 2, TRACK_H - 24);
+                    ctx.fillRect(rightHandleHit.x + 7, y + 12, 2, TRACK_H - 24);
+                }
+            });
+
+            // Fixed Playhead position
+            let playheadScreenX = 200;
+            S.cam = Math.max(0, S.cam);
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.moveTo(playheadScreenX, 0);
+            ctx.lineTo(playheadScreenX, S.ch);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(playheadScreenX - 30, 10, 60, 20);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px "JetBrains Mono"';
+            ctx.fillText(toTC(S.cam + (playheadScreenX / S.scale)), playheadScreenX - 25, 24);
+
+            updateMonitor(S.cam + (playheadScreenX / S.scale));
+        }
+
+        // --- Monitor Engine (Honest Failure Display) ---
+        function updateMonitor(currentTime) {
+            els.monCanvas.width = 640;
+            els.monCanvas.height = 360;
+
+            let activeClips = S.clips.filter(c => currentTime >= c.z && currentTime < c.z + c.dur);
+            activeClips.sort((a, b) => b.track - a.track);
+
+            let clip = activeClips[0];
+
+            els.monError.classList.add('hidden');
+            els.monNoSignal.classList.add('hidden');
+            els.monOverlay.classList.remove('hidden');
+
+            if (clip) {
+                if (clip.mediaError) {
+                    // Honest Failure override
+                    monCtx.fillStyle = '#000';
+                    monCtx.fillRect(0, 0, 640, 360);
+                    els.monError.classList.remove('hidden');
+                    els.monOverlay.textContent = `OTIO_REF: ${clip.id} | <DATA CORRUPTION>`;
+                } else {
+                    let tDef = TRACK_DEFS[clip.track];
+                    monCtx.fillStyle = tDef.color;
+                    monCtx.fillRect(0, 0, 640, 360);
+
+                    monCtx.fillStyle = 'rgba(0,0,0,0.5)';
+                    let seed = parseInt(clip.id, 36) % 100;
+                    for (let i = 0; i < (clip.track + 1) * 5; i++) {
+                        let rx = ((seed * i * 37) % 640);
+                        let ry = ((seed * i * 17) % 360);
+                        monCtx.fillRect(rx, ry, ((seed * i) % 100) + 50, ((seed * i) % 50) + 20);
+                    }
+
+                    if (clip.prompt) {
+                        monCtx.fillStyle = 'rgba(0,0,0,0.85)';
+                        monCtx.fillRect(0, 300, 640, 60);
+                        monCtx.fillStyle = tDef.border;
+                        monCtx.fillRect(0, 300, 4, 60);
+
+                        monCtx.fillStyle = '#fff';
+                        monCtx.font = '14px "JetBrains Mono"';
+                        monCtx.fillText(`[${tDef.name}] ${clip.title}`, 12, 320);
+                        monCtx.fillStyle = '#999';
+                        monCtx.font = '12px "JetBrains Mono"';
+                        monCtx.fillText(clip.prompt.substring(0, 80) + (clip.prompt.length > 80 ? '...' : ''), 12, 340);
+                    }
+
+                    els.monOverlay.textContent = `OTIO_REF: ${clip.id} | RANGE: ${toTC(currentTime - clip.z)} / ${toTC(clip.dur)}`;
+                }
+            } else {
+                // True Gap
+                monCtx.fillStyle = '#09090b';
+                monCtx.fillRect(0, 0, 640, 360);
+                els.monOverlay.classList.add('hidden');
+                els.monNoSignal.classList.remove('hidden');
+            }
+
+            els.camReadout.textContent = `T: ${toTC(currentTime)}`;
+        }
+
+        // --- Interaction Logic ---
+        function getHit(x, y) {
+            for (let i = interactables.length - 1; i >= 0; i--) {
+                let r = interactables[i];
+                if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r;
+            }
+            return null;
+        }
+
+        els.container.addEventListener('pointerdown', e => {
+            if (S.isRendering) return;
+            initAudio();
+
+            const rect = els.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            let hit = getHit(x, y);
+
+            if (hit) {
+                if (S.tool === 1 && hit.type === 'body') { // SPLIT
+                    let c = hit.clip;
+                    let splitZ = Math.round((x / S.scale) + S.cam);
+                    splitZ = Math.round(splitZ / S.step) * S.step;
+
+                    if (splitZ > c.z + S.step && splitZ < c.z + c.dur - S.step) {
+                        let newDur = (c.z + c.dur) - splitZ;
+                        c.dur = splitZ - c.z;
+                        let c2 = mkClip(splitZ, newDur, c.track, c.title + " (Split)", c.prompt, c.mediaError);
+                        S.clips.push(c2);
+                        saveProject();
+                        beep(600, 'square', 0.1, 0.05);
+                        renderCanvas();
+                    }
+                    return;
+                }
+
+                if (S.tool === 0 || hit.type !== 'body') {
+                    S.selectedId = hit.id;
+                    selectClip(hit.clip);
+                    beep(300, 'triangle', 0.05, 0.05);
+
+                    S.dragState = {
+                        type: hit.type,
+                        clip: hit.clip,
+                        startX: x,
+                        startY: y,
+                        origZ: hit.clip.z,
+                        origDur: hit.clip.dur,
+                        origTrack: hit.clip.track
+                    };
+                }
+            } else {
+                S.selectedId = null;
+                hideInspector();
+                rebuildSidebar();
+            }
+            renderCanvas();
+        });
+
+        window.addEventListener('pointermove', e => {
+            if (S.isRendering) return;
+
+            const rect = els.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (S.dragState) {
+                let dx = x - S.dragState.startX;
+                let dy = y - S.dragState.startY;
+                let c = S.dragState.clip;
+                let dz = Math.round((dx / S.scale) / S.step) * S.step;
+
+                // O(log n) conceptual query mapped to the tree logic
+                let bounds = trackTrees[c.track].getBounds(c.id, c.z);
+
+                if (S.dragState.type === 'body') {
+                    let newTrack = S.dragState.origTrack;
+                    let trackDelta = Math.round(-dy / (TRACK_H + TRACK_GAP));
+                    newTrack = Math.max(0, Math.min(3, newTrack + trackDelta));
+                    let newZ = S.dragState.origZ + dz;
+
+                    if (newTrack !== c.track) {
+                        if (!trackTrees[newTrack].isOverlap(c.id, newZ, c.dur)) {
+                            c.track = newTrack;
+                            c.z = Math.max(0, newZ);
+                            beep(800, 'sine', 0.02, 0.02);
+                        }
+                    } else {
+                        // HAPTIC WALL
+                        c.z = Math.max(bounds.minZ, Math.min(newZ, bounds.maxZ - c.dur));
+                    }
+                }
+                else if (S.dragState.type === 'handle-left') {
+                    let newZ = Math.max(bounds.minZ, S.dragState.origZ + dz);
+                    newZ = Math.min(newZ, S.dragState.origZ + S.dragState.origDur - S.step);
+                    let endZ = S.dragState.origZ + S.dragState.origDur;
+                    c.z = newZ;
+                    c.dur = endZ - c.z; // Invariant recalculation
+                }
+                else if (S.dragState.type === 'handle-right') {
+                    let newEnd = Math.min(bounds.maxZ, S.dragState.origZ + S.dragState.origDur + dz);
+                    newEnd = Math.max(newEnd, S.dragState.origZ + S.step);
+                    c.dur = newEnd - c.z;
+                }
+
+                norm(c);
+                if (S.selectedId === c.id) populateInspector(c);
+                renderCanvas();
+            } else {
+                // Hover Reification logic
+                hoverState = getHit(x, y);
+                if (hoverState) {
+                    if (hoverState.type === 'handle-left' || hoverState.type === 'handle-right') {
+                        els.canvas.style.cursor = 'col-resize';
+                    } else {
+                        els.canvas.style.cursor = 'grab';
+                    }
+                } else {
+                    els.canvas.style.cursor = 'crosshair';
+                }
+                renderCanvas(); // required to draw the temporary hover handles
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            if (S.dragState) {
+                let c = S.dragState.clip;
+                let bounds = trackTrees[c.track].getBounds(c.id, c.z);
+                if (c.z === bounds.minZ || c.z + c.dur === bounds.maxZ) {
+                    beep(150, 'square', 0.1, 0.1); // Haptic block audio feedback
+                } else {
+                    beep(400, 'triangle', 0.05, 0.05);
+                }
+
+                S.dragState = null;
+                saveProject();
+                renderCanvas();
+            }
+        });
+
+        els.container.addEventListener('wheel', e => {
+            e.preventDefault();
+            S.cam += (e.deltaX + e.deltaY) / S.scale;
+            S.cam = Math.max(0, S.cam);
+            renderCanvas();
+        }, { passive: false });
+
+        // --- Main UI Builders ---
+        els.toolBtns.forEach(btn => {
+            btn.onclick = () => {
+                S.tool = parseInt(btn.dataset.tool);
+                els.toolBtns.forEach(b => {
+                    b.classList.remove('bg-emerald-600', 'text-white');
+                    b.classList.add('text-zinc-400');
+                });
+                btn.classList.add('bg-emerald-600', 'text-white');
+                btn.classList.remove('text-zinc-400');
+                initAudio(); beep(800, 'sine', 0.05, 0.05);
+                renderCanvas();
+            };
+        });
+
+        function rebuildSidebar() {
+            els.clipList.innerHTML = '';
+            let sorted = [...S.clips].sort((a, b) => a.z - b.z);
+            sorted.forEach(c => {
+                let el = document.createElement('div');
+                let isSel = c.id === S.selectedId;
+                let tDef = TRACK_DEFS[c.track];
+                let errStyles = c.mediaError ? 'border-red-500 bg-red-950/30 text-red-400' : (isSel ? 'bg-zinc-800 border-emerald-500 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-600');
+                el.className = `p-2 mb-1.5 rounded cursor-pointer border font-mono ${errStyles}`;
+                el.innerHTML = `
+                    <div class="flex justify-between font-bold mb-1 border-b ${c.mediaError ? 'border-red-900' : 'border-zinc-800/50'} pb-1" style="color:${c.mediaError ? '#ef4444' : tDef.color}">
+                        <span>${tDef.name} ${c.mediaError ? '[ERR]' : ''}</span>
+                        <span class="${c.mediaError ? 'text-red-600' : 'text-zinc-400'} font-normal">ID:${c.id.substring(0, 4)}</span>
+                    </div>
+                    <div class="text-xs truncate mb-1">${c.title}</div>
+                    <div class="flex justify-between ${c.mediaError ? 'text-red-500' : 'text-zinc-500'} text-[9px]">
+                        <span>START: ${toTC(c.z)}</span>
+                        <span>DUR: ${toTC(c.dur)}</span>
+                    </div>
+                `;
+                el.onclick = () => { selectClip(c); renderCanvas(); };
+                els.clipList.appendChild(el);
+            });
+        }
+
+        // --- Inspector Modal ---
+        function selectClip(c) {
+            S.selectedId = c.id;
+            rebuildSidebar();
+            populateInspector(c);
+            els.inspector.classList.remove('hidden');
+            els.inspector.classList.add('flex');
+        }
+
+        function hideInspector() {
+            els.inspector.classList.add('hidden');
+            els.inspector.classList.remove('flex');
+        }
+
+        function populateInspector(c) {
+            document.getElementById('insp-title').value = c.title;
+            document.getElementById('insp-z').value = c.z;
+            document.getElementById('insp-dur').value = c.dur;
+            document.getElementById('insp-track').value = c.track;
+            document.getElementById('insp-prompt').value = c.prompt;
+            document.getElementById('insp-error').checked = c.mediaError;
+        }
+
+        function applyInspector() {
+            let c = S.clips.find(x => x.id === S.selectedId);
+            if (!c) return;
+
+            let oldZ = c.z;
+            let oldDur = c.dur;
+            let oldTrack = c.track;
+
+            c.title = document.getElementById('insp-title').value;
+            let newZ = parseFloat(document.getElementById('insp-z').value);
+            let newDur = parseFloat(document.getElementById('insp-dur').value);
+            let newTrack = parseInt(document.getElementById('insp-track').value);
+            c.prompt = document.getElementById('insp-prompt').value;
+            c.mediaError = document.getElementById('insp-error').checked;
+
+            let bounds = trackTrees[newTrack].getBounds(c.id, newZ);
+            if (newZ >= bounds.minZ && newZ + newDur <= bounds.maxZ && !trackTrees[newTrack].isOverlap(c.id, newZ, newDur)) {
+                c.z = newZ;
+                c.dur = newDur;
+                c.track = newTrack;
+            } else {
+                toast("Invalid Metadata: Temporal Collision Detected.");
+                c.z = oldZ; c.dur = oldDur; c.track = oldTrack;
+                populateInspector(c);
+            }
+
+            norm(c);
+            saveProject();
+            renderCanvas();
+        }
+
+        ['insp-title', 'insp-z', 'insp-dur', 'insp-track', 'insp-prompt', 'insp-error'].forEach(id => {
+            document.getElementById(id).addEventListener('change', applyInspector);
+        });
+
+        // --- Render Pipeline ---
+        async function checkMediaCapabilities() {
+            if (!navigator.mediaCapabilities) return true;
+            try {
+                const result = await navigator.mediaCapabilities.encodingInfo({
+                    type: 'record',
+                    video: { contentType: 'video/webm; codecs=vp9', width: 640, height: 360, bitrate: 2500000, framerate: FPS }
+                });
+                return result.supported;
+            } catch (e) { return true; }
+        }
+
+        let systemEncodingSupported = true;
+        async function initCapabilities() {
+            systemEncodingSupported = await checkMediaCapabilities();
+            if (!systemEncodingSupported) {
+                const btn = document.getElementById('btn-render');
+                btn.disabled = true;
+                btn.className = "flex-1 bg-zinc-900 border border-zinc-800 text-zinc-600 py-1.5 rounded text-[10px] font-bold cursor-not-allowed tracking-widest";
+                btn.textContent = "RENDER [BLOCKED]";
+                toast("SYSTEM CAPABILITY CHECK FAILED: Hardware lacks required encoding. UI locked to Truth Surface Export.", 6000);
+            }
+        }
+
+        async function renderPipeline() {
+            if (S.isRendering) return;
+            if (S.clips.length === 0) return toast("No items in sequence.");
+
+            initAudio();
+
+            // Honest check: Do we have unresolved media errors?
+            if (S.clips.some(c => c.mediaError)) {
+                toast("EXPORT BLOCKED: Project contains unresolved MEDIA_ERRORs. Fix assets or rely on OTIO data.", 4000);
+                beep(200, 'square', 0.2, 0.5);
+                return;
+            }
+
+            if (!systemEncodingSupported) {
+                toast("EXPORT BLOCKED: Hardware lacks required encoding capability. Use OTIO Export.");
+                beep(200, 'square', 0.2, 0.5);
+                return;
+            }
+
+            beep(600, 'square', 0.1, 0.1);
+            S.isRendering = true;
+            S.isPlaying = false;
+
+            let minZ = 0;
+            let maxZ = Math.max(...S.clips.map(c => c.z + c.dur), S.step);
+            let renderHead = minZ;
+
+            els.renderOverlay.classList.remove('hidden');
+            els.renderOverlay.style.display = 'flex';
+
+            const stream = els.monCanvas.captureStream(FPS);
+            const options = { mimeType: 'video/webm; codecs=vp9' };
+            const recorder = new MediaRecorder(stream, options);
+            const chunks = [];
+
+            recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: options.mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ARC_OP_EXPORT_${Date.now()}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                S.isRendering = false;
+                els.renderOverlay.classList.add('hidden');
+                toast("Truth Surface Exported Successfully.");
+                beep(800, 'sine', 0.2, 0.3);
+            };
+
+            recorder.start();
+
+            function processFrame() {
+                if (!S.isRendering) return;
+
+                updateMonitor(renderHead);
+
+                let progress = renderHead / maxZ;
+                els.renderProgress.style.width = `${Math.min(100, progress * 100)}%`;
+                els.renderStatus.textContent = `${toTC(renderHead)} / ${toTC(maxZ)}`;
+
+                renderHead += (UNITS_PER_SEC / FPS);
+
+                if (renderHead > maxZ + (UNITS_PER_SEC / 2)) {
+                    recorder.stop();
+                } else {
+                    requestAnimationFrame(processFrame);
+                }
+            }
+
+            processFrame();
+        }
+
+        // --- Toast System ---
+        function toast(msg, time = 3000) {
+            let el = document.createElement('div');
+            el.className = 'glass-panel px-4 py-2 rounded text-xs text-white shadow-lg translate-y-10 opacity-0 transition-all duration-300 font-mono border-l-2 border-emerald-500';
+            if (msg.includes("BLOCKED") || msg.includes("ERROR")) el.classList.replace('border-emerald-500', 'border-red-500');
+            el.textContent = msg;
+            els.toastContainer.appendChild(el);
+
+            requestAnimationFrame(() => el.classList.remove('translate-y-10', 'opacity-0'));
+            setTimeout(() => {
+                el.classList.add('opacity-0');
+                setTimeout(() => el.remove(), 300);
+            }, time);
+        }
+
+        // --- Buttons & Keyboard ---
+        document.getElementById('btn-close-insp').onclick = () => { S.selectedId = null; hideInspector(); renderCanvas(); rebuildSidebar(); };
+        document.getElementById('btn-delete').onclick = () => {
+            S.clips = S.clips.filter(c => c.id !== S.selectedId);
+            S.selectedId = null;
+            hideInspector();
+            saveProject();
+            renderCanvas();
+        };
+
+        document.getElementById('btn-add').onclick = () => {
+            initAudio();
+            let track = 3;
+            let checkZ = S.cam;
+
+            while (trackTrees[track].isOverlap('tmp', checkZ, 100) && checkZ < S.cam + 1000) {
+                track--;
+                if (track < 0) { track = 3; checkZ += S.step; }
+            }
+
+            let c = mkClip(checkZ, 100, track, "New Sequence Node", "Default Prompt");
+            S.clips.push(c);
+            saveProject();
+            selectClip(c);
+            renderCanvas();
+        };
+
+        document.getElementById('btn-clear').onclick = () => {
+            if (confirm("Wipe Truth Surface? This will destroy all temporal invariant data.")) {
+                S.clips = [];
+                S.cam = 0;
+                saveProject();
+                renderCanvas();
+            }
+        };
+
+        document.getElementById('btn-play').onclick = () => {
+            initAudio();
+            S.isPlaying = !S.isPlaying;
+            document.getElementById('btn-play').textContent = S.isPlaying ? 'PAUSE' : 'PLAY';
+            document.getElementById('btn-play').classList.toggle('bg-zinc-800');
+            document.getElementById('btn-play').classList.toggle('bg-emerald-600');
+            document.getElementById('btn-play').classList.toggle('text-white');
+        };
+
+        document.getElementById('btn-render').onclick = renderPipeline;
+
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); }
+            if (e.code === 'KeyM') els.toolBtns[0].click();
+            if (e.code === 'KeyS') els.toolBtns[1].click();
+            if (e.code === 'Backspace' || e.code === 'Delete') {
+                if (S.selectedId) document.getElementById('btn-delete').click();
+            }
+        });
+
+        // --- Core Loop ---
+        function loop() {
+            if (S.isPlaying && !S.isRendering) S.cam += (UNITS_PER_SEC / FPS);
+            if (!S.isRendering) renderCanvas();
+            requestAnimationFrame(loop);
+        }
+
+        window.onload = () => {
+            initCapabilities();
+            loadProject();
+            loop();
+            window.addEventListener('resize', renderCanvas);
+        };
+
+    </script>
+</body>
+
+</html>

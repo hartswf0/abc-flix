@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>Circle Editor</title>
+<style>
+:root{--bg:#fff;--ink:#000;--panel-border:2px solid #000;--font:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--font);user-select:none;touch-action:none}
+canvas{position:absolute;inset:0;width:100vw;height:100vh;z-index:1;display:block}
+header{position:absolute;top:0;left:0;right:0;height:48px;border-bottom:var(--panel-border);background:var(--bg);z-index:10;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-weight:900;text-transform:uppercase}
+.brand{letter-spacing:.08em;font-size:14px}
+.tc-display{font-size:13px;background:var(--ink);color:var(--bg);padding:2px 10px;font-variant-numeric:tabular-nums}
+.info{font-size:10px;opacity:.4;letter-spacing:.06em}
+footer{position:absolute;bottom:0;left:0;right:0;background:var(--bg);border-top:var(--panel-border);z-index:10;display:flex;flex-direction:column}
+.control-row{display:flex;border-bottom:1px solid var(--ink);height:44px}
+.control-row:last-child{border-bottom:none}
+.control-label{width:72px;display:flex;align-items:center;justify-content:center;font-weight:900;border-right:1px solid var(--ink);background:var(--ink);color:var(--bg);text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.control-track{flex:1;display:flex;align-items:center;padding:0 14px;position:relative}
+.val-readout{width:52px;text-align:right;font-weight:900;font-size:11px;border-left:1px solid var(--ink);padding-left:8px;margin-left:8px;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;background:transparent}
+input[type=range]:focus{outline:none}
+input[type=range]::-webkit-slider-runnable-track{width:100%;height:2px;cursor:pointer;background:var(--ink)}
+input[type=range]::-webkit-slider-thumb{height:22px;width:10px;border:2px solid var(--ink);border-radius:0;background:var(--bg);cursor:pointer;-webkit-appearance:none;margin-top:-10px}
+input[type=range]::-moz-range-track{width:100%;height:2px;cursor:pointer;background:var(--ink)}
+input[type=range]::-moz-range-thumb{height:22px;width:10px;border:2px solid var(--ink);border-radius:0;background:var(--bg);cursor:pointer}
+.btn{flex:1;border:none;border-right:1px solid var(--ink);background:var(--bg);color:var(--ink);font-family:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;font-size:12px;transition:background .08s;letter-spacing:.04em}
+.btn:last-child{border-right:none}
+.btn:active,.btn.on{background:var(--ink);color:var(--bg)}
+#toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);background:var(--bg);border:2px solid var(--ink);padding:6px 14px;font-weight:900;text-transform:uppercase;font-size:11px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:50}
+#toast.show{opacity:1}
+@media(max-width:600px){
+.brand{font-size:11px}.tc-display{font-size:11px}
+.control-label{width:56px;font-size:9px}.val-readout{font-size:9px;width:40px}
+.btn{font-size:10px}.info{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">Circle Editor</div>
+<div class="info" id="segInfo">NO SOURCE</div>
+<div class="tc-display" id="tcDisplay">00:00.00</div>
+</header>
+<canvas id="stage"></canvas>
+<video id="video" style="display:none" playsinline webkit-playsinline preload="auto"></video>
+<input type="file" id="fileInput" accept="video/*" style="display:none" multiple>
+<div id="toast"></div>
+<footer>
+<div class="control-row">
+<div class="control-label">Unroll</div>
+<div class="control-track">
+<input type="range" id="unrollSlider" min="0" max="1000" value="0">
+<div class="val-readout" id="unrollReadout">0%</div>
+</div>
+</div>
+<div class="control-row">
+<div class="control-label">Scrub</div>
+<div class="control-track">
+<input type="range" id="scrubSlider" min="0" max="10000" value="0">
+<div class="val-readout" id="scrubReadout">0:00</div>
+</div>
+</div>
+<div class="control-row">
+<button class="btn" id="btnLoad">Load</button>
+<button class="btn" id="btnPlay">Play</button>
+<button class="btn" id="btnLoop">Loop</button>
+<button class="btn" id="btnSplit">Split</button>
+<button class="btn" id="btnExport">Export</button>
+</div>
+</footer>
+<script>
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+const S = {
+  source: null,         // {name, url, duration}
+  segments: [],         // [{id, in, out}]
+  selectedSeg: 0,
+  unroll: 0,            // 0 = circle, 1 = line
+  playing: false,
+  looping: false,
+  audioOn: true,
+  dragging: false
+};
+let segIdCounter = 0;
+function newId(){ return 'S' + String(++segIdCounter).padStart(2,'0') }
+
+// ═══════════════════════════════════
+// ELEMENTS
+// ═══════════════════════════════════
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const video = document.getElementById('video');
+const fileInput = document.getElementById('fileInput');
+const tcDisplay = document.getElementById('tcDisplay');
+const segInfo = document.getElementById('segInfo');
+const toast = document.getElementById('toast');
+const unrollSlider = document.getElementById('unrollSlider');
+const unrollReadout = document.getElementById('unrollReadout');
+const scrubSlider = document.getElementById('scrubSlider');
+const scrubReadout = document.getElementById('scrubReadout');
+const btnLoad = document.getElementById('btnLoad');
+const btnPlay = document.getElementById('btnPlay');
+const btnLoop = document.getElementById('btnLoop');
+const btnSplit = document.getElementById('btnSplit');
+const btnExport = document.getElementById('btnExport');
+
+let W, H, DPR, toastTimer;
+
+// ═══════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════
+const Snd = {
+  ctx: null, master: null,
+  init(){ if(this.ctx)return; const AC=window.AudioContext||window.webkitAudioContext; this.ctx=new AC(); this.master=this.ctx.createGain(); this.master.gain.value=0.12; this.master.connect(this.ctx.destination) },
+  tick(freq){
+    if(!S.audioOn||!this.ctx)return;
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type='triangle'; o.frequency.value=freq||440;
+    o.connect(g); g.connect(this.master);
+    const t=this.ctx.currentTime;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.08,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+.12);
+    o.start(t); o.stop(t+.15);
+  },
+  chord(){
+    if(!S.audioOn||!this.ctx)return;
+    [1,1.25,1.5,2].forEach((m,i)=>{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      o.type='sine'; o.frequency.value=330*m;
+      o.connect(g); g.connect(this.master);
+      const t=this.ctx.currentTime;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.04,t+.08+i*.04); g.gain.exponentialRampToValueAtTime(.001,t+1.2);
+      o.start(t); o.stop(t+1.3);
+    });
+  }
+};
+
+// ═══════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
+function lerp(a,b,t){ return a+(b-a)*t }
+function ease(x){ return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2 }
+function fmt(t){ if(!isFinite(t))t=0; const m=Math.floor(t/60),s=t%60; return String(m).padStart(2,'0')+':'+s.toFixed(2).padStart(5,'0') }
+function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),900) }
+function totalDuration(){ return S.source?S.source.duration:10 }
+function activeSegIndex(){
+  const t=video.currentTime||0;
+  for(let i=0;i<S.segments.length;i++){
+    if(t>=S.segments[i].in && t<S.segments[i].out) return i;
+  }
+  return S.segments.length-1;
+}
+
+// ═══════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+// ═══════════════════════════════════
+// MEDIA PIPELINE
+// ═══════════════════════════════════
+function loadFile(file){
+  Snd.init();
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.load();
+  video.onloadedmetadata = ()=>{
+    S.source = { name: file.name, url, duration: video.duration };
+    S.segments = [{ id: newId(), in: 0, out: video.duration }];
+    S.selectedSeg = 0;
+    S.playing = false;
+    video.currentTime = 0;
+    showToast('LOADED: '+file.name);
+    Snd.tick(550);
+    updateUI(); render();
+  };
+}
+
+// Drag and drop on canvas
+canvas.addEventListener('dragover', e=>{ e.preventDefault(); e.dataTransfer.dropEffect='copy' });
+canvas.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('video/')) loadFile(f);
+});
+fileInput.addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(f) loadFile(f);
+  fileInput.value='';
+});
+
+// ═══════════════════════════════════
+// GEOMETRY CALCULATIONS
+// ═══════════════════════════════════
+function getLayout(){
+  const headerH=48, footerH=132;
+  const areaH = H - headerH - footerH;
+  const cx = W/2;
+  const cy = headerH + areaH/2;
+  const R = Math.min(W*0.28, areaH*0.36);
+  const innerR = R*0.38;
+  const stripH = Math.min(50, areaH*0.1);
+  const stripW = W*0.82;
+  const stripLeft = (W-stripW)/2;
+  return { cx, cy, R, innerR, stripH, stripW, stripLeft, areaH, headerH };
+}
+
+function getSegmentGeo(layout){
+  const { cx, cy, R, innerR, stripH, stripW, stripLeft } = layout;
+  const segs = S.segments;
+  const total = totalDuration();
+  const geo = [];
+  let angleOffset = -Math.PI/2; // 12 o'clock
+  let xOffset = 0;
+
+  for(let i=0;i<segs.length;i++){
+    const seg = segs[i];
+    const dur = seg.out - seg.in;
+    const frac = dur / total;
+    const wedgeAngle = frac * 2 * Math.PI;
+    const midAngle = angleOffset + wedgeAngle/2;
+
+    // Line position
+    const lw = frac * stripW;
+    const lx = stripLeft + xOffset + lw/2;
+
+    geo.push({
+      index: i,
+      seg,
+      wedgeAngle,
+      // Circle state
+      circleAngle: midAngle,
+      startAngle: angleOffset,
+      endAngle: angleOffset + wedgeAngle,
+      // Line state
+      lineX: lx,
+      lineW: lw
+    });
+
+    angleOffset += wedgeAngle;
+    xOffset += lw;
+  }
+  return geo;
+}
+
+// ═══════════════════════════════════
+// RENDER
+// ═══════════════════════════════════
+function drawGrid(ctx){
+  ctx.save(); ctx.strokeStyle='#000'; ctx.globalAlpha=.04; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  ctx.restore();
+}
+
+function render(){
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  drawGrid(ctx);
+
+  const layout = getLayout();
+  const { cx, cy, R, innerR, stripH, stripW, stripLeft } = layout;
+  const t = ease(S.unroll);
+
+  if(!S.source){
+    renderIdle(layout, t);
+  } else {
+    renderEditor(layout, t);
+  }
+}
+
+function renderIdle(layout, t){
+  const { cx, cy, R, innerR } = layout;
+  // Draw demo sectors (8 equal sectors, like original)
+  const N = 8;
+  const wedgeAngle = (2*Math.PI)/N;
+  const currentR = lerp(R, R*0.3, t);
+  const currentInnerR = lerp(innerR, 0, t);
+  const stripW = layout.stripW;
+  const stripLeft = layout.stripLeft;
+
+  for(let i=0;i<N;i++){
+    const midAngle = -Math.PI/2 + (i+0.5)*wedgeAngle;
+    const frac = 1/N;
+    const lw = frac * stripW;
+    const lx = stripLeft + (i+0.5)*lw;
+
+    // Interpolate position
+    const px = lerp(cx, lx, t);
+    const py = lerp(cy, cy, t);
+    const drawR = lerp(R, layout.stripH*3, t);
+    const drawInnerR = lerp(innerR, 0, t);
+
+    // Interpolate rotation
+    let targetAlpha = Math.PI/2;
+    let dAlpha = targetAlpha - midAngle;
+    while(dAlpha>Math.PI) dAlpha-=2*Math.PI;
+    while(dAlpha<-Math.PI) dAlpha+=2*Math.PI;
+    const alpha = midAngle + dAlpha*t;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(alpha);
+
+    ctx.beginPath();
+    ctx.arc(0,0,drawR,-wedgeAngle/2,wedgeAngle/2);
+    if(drawInnerR>1){
+      ctx.arc(0,0,drawInnerR,wedgeAngle/2,-wedgeAngle/2,true);
+    } else {
+      ctx.lineTo(0,0);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = i%2===0?'#000':'#fff';
+    ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle='#000'; ctx.stroke();
+    ctx.restore();
+  }
+
+  // Center prompt
+  if(t<0.5){
+    ctx.save();
+    ctx.globalAlpha = 1-t*2;
+    ctx.font='900 14px '+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#000';
+    ctx.fillText('DROP VIDEO',cx,cy-8);
+    ctx.font='600 10px '+getComputedStyle(document.body).fontFamily;
+    ctx.globalAlpha *= .5;
+    ctx.fillText('or click LOAD',cx,cy+10);
+    ctx.restore();
+  }
+}
+
+function renderEditor(layout, t){
+  const { cx, cy, R, innerR, stripH, stripW, stripLeft } = layout;
+  const geo = getSegmentGeo(layout);
+  const total = totalDuration();
+  const currentTime = video.currentTime||0;
+  const activeSeg = activeSegIndex();
+
+  // ─── Draw Sectors ───
+  for(let i=0;i<geo.length;i++){
+    const g = geo[i];
+    const isActive = i===activeSeg;
+    const isSelected = i===S.selectedSeg;
+
+    // Interpolate position
+    const px = lerp(cx, g.lineX, t);
+    const py = cy;
+    const drawR = lerp(R, stripH*3.5, t);
+    const drawInnerR = lerp(innerR, 0, t);
+
+    // Interpolate rotation
+    let targetAlpha = Math.PI/2;
+    let dAlpha = targetAlpha - g.circleAngle;
+    while(dAlpha>Math.PI) dAlpha-=2*Math.PI;
+    while(dAlpha<-Math.PI) dAlpha+=2*Math.PI;
+    const alpha = g.circleAngle + dAlpha*t;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(alpha);
+
+    // Draw sector shape (donut slice or wedge)
+    ctx.beginPath();
+    ctx.arc(0,0,drawR,-g.wedgeAngle/2,g.wedgeAngle/2);
+    if(drawInnerR>2){
+      ctx.arc(0,0,drawInnerR,g.wedgeAngle/2,-g.wedgeAngle/2,true);
+    } else {
+      ctx.lineTo(0,0);
+    }
+    ctx.closePath();
+
+    // Fill
+    if(isSelected){
+      ctx.fillStyle = '#000';
+    } else {
+      ctx.fillStyle = i%2===0 ? '#1a1a1a' : '#e8e8e8';
+    }
+    ctx.fill();
+
+    // Stroke
+    ctx.lineWidth = isSelected?2.5:1;
+    ctx.strokeStyle = '#000';
+    ctx.stroke();
+
+    // Label
+    const labelR = (drawR+drawInnerR)/2;
+    if(g.wedgeAngle>0.15 && drawR>20){
+      ctx.save();
+      ctx.rotate(0); // labels are already in sector's local space
+      const textColor = (isSelected || i%2===0) ? '#fff' : '#000';
+      ctx.fillStyle = textColor;
+      ctx.font = '700 9px '+getComputedStyle(document.body).fontFamily;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const tx = labelR * 0.7;
+      ctx.fillText(g.seg.id, tx, 0);
+      // Duration
+      ctx.font = '600 7px '+getComputedStyle(document.body).fontFamily;
+      ctx.globalAlpha = .6;
+      ctx.fillText(fmt(g.seg.out-g.seg.in), tx, 10);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // ─── Draw Video Preview ───
+  if(video.readyState>=2){
+    const vw=video.videoWidth, vh=video.videoHeight;
+    if(vw&&vh){
+      const aspect = vw/vh;
+
+      // Circle mode: inside the donut hole
+      const previewR0 = innerR * 0.88;
+      const pw0 = previewR0*2*Math.min(aspect,1);
+      const ph0 = previewR0*2*Math.min(1/aspect,1);
+      const px0 = cx-pw0/2, py0 = cy-ph0/2;
+
+      // Line mode: above the strip
+      const ph1 = Math.min(layout.areaH*0.55, (cy-layout.headerH-30)*1.6);
+      const pw1 = ph1*aspect;
+      const px1 = cx-pw1/2, py1 = cy-ph1/2-stripH*2;
+
+      const px = lerp(px0,px1,t);
+      const py = lerp(py0,py1,t);
+      const pw = lerp(pw0,pw1,t);
+      const ph = lerp(ph0,ph1,t);
+
+      // Clip to circle in circle mode
+      if(t<0.98){
+        ctx.save();
+        if(t<0.5){
+          ctx.beginPath();
+          ctx.arc(cx,cy,lerp(innerR*0.9,Math.max(W,H),t*2),0,Math.PI*2);
+          ctx.clip();
+        }
+        ctx.drawImage(video,px,py,pw,ph);
+        ctx.strokeStyle='#000'; ctx.lineWidth=2;
+        ctx.strokeRect(px,py,pw,ph);
+        ctx.restore();
+      } else {
+        ctx.drawImage(video,px,py,pw,ph);
+        ctx.strokeStyle='#000'; ctx.lineWidth=2;
+        ctx.strokeRect(px,py,pw,ph);
+      }
+    }
+  }
+
+  // ─── Draw Playhead ───
+  drawPlayhead(layout, t, currentTime, total, geo);
+
+  // ─── Segment boundary markers ───
+  drawBoundaryMarkers(layout, t, geo);
+}
+
+function drawPlayhead(layout, t, currentTime, total, geo){
+  const { cx, cy, R, innerR, stripW, stripLeft, stripH } = layout;
+  const timeFrac = total>0 ? currentTime/total : 0;
+  const angle = -Math.PI/2 + timeFrac * 2*Math.PI;
+
+  // Circle state: hand from inner to outer edge
+  const hand0Start = { x: cx+Math.cos(angle)*innerR*0.5, y: cy+Math.sin(angle)*innerR*0.5 };
+  const hand0End = { x: cx+Math.cos(angle)*(R+16), y: cy+Math.sin(angle)*(R+16) };
+
+  // Line state: vertical line
+  const lx = stripLeft + timeFrac*stripW;
+  const hand1Start = { x: lx, y: cy-stripH*5 };
+  const hand1End = { x: lx, y: cy+stripH*5 };
+
+  const sx = lerp(hand0Start.x,hand1Start.x,t);
+  const sy = lerp(hand0Start.y,hand1Start.y,t);
+  const ex = lerp(hand0End.x,hand1End.x,t);
+  const ey = lerp(hand0End.y,hand1End.y,t);
+
+  // Shadow
+  ctx.save();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+
+  // Main line
+  ctx.strokeStyle='#000'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+
+  // Knob at end
+  ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2); ctx.fill();
+
+  // Center dot (circle mode)
+  if(t<0.7){
+    ctx.globalAlpha = 1-t/0.7;
+    ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawBoundaryMarkers(layout, t, geo){
+  const { cx, cy, R, innerR, stripW, stripLeft, stripH } = layout;
+  if(geo.length<2) return;
+
+  ctx.save();
+  ctx.strokeStyle='#000';
+  ctx.lineWidth=1;
+  ctx.setLineDash([3,3]);
+
+  for(let i=1;i<geo.length;i++){
+    const angle = geo[i].startAngle;
+    const frac = (geo[i].seg.in) / totalDuration();
+    const lx = stripLeft + frac * stripW;
+
+    // Circle: radial line
+    const c0s = { x: cx+Math.cos(angle)*(innerR-4), y: cy+Math.sin(angle)*(innerR-4) };
+    const c0e = { x: cx+Math.cos(angle)*(R+8), y: cy+Math.sin(angle)*(R+8) };
+
+    // Line: vertical line
+    const c1s = { x: lx, y: cy-stripH*4 };
+    const c1e = { x: lx, y: cy+stripH*4 };
+
+    const sx = lerp(c0s.x,c1s.x,t);
+    const sy = lerp(c0s.y,c1s.y,t);
+    const ex = lerp(c0e.x,c1e.x,t);
+    const ey = lerp(c0e.y,c1e.y,t);
+
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════
+// POINTER INTERACTION — SCRUB ON CANVAS
+// ═══════════════════════════════════
+function pointerToTime(px,py){
+  const layout = getLayout();
+  const { cx, cy, R, stripW, stripLeft } = layout;
+  const t = ease(S.unroll);
+
+  // Circle: angle from center
+  const angle = Math.atan2(py-cy, px-cx);
+  const normAngle = ((angle+Math.PI/2)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+  const circleT = normAngle/(2*Math.PI);
+
+  // Line: horizontal fraction
+  const lineT = clamp((px-stripLeft)/stripW, 0, 1);
+
+  return lerp(circleT, lineT, t);
+}
+
+function pointerToSegment(px,py){
+  const timeFrac = pointerToTime(px,py);
+  const total = totalDuration();
+  const time = timeFrac * total;
+  for(let i=0;i<S.segments.length;i++){
+    if(time >= S.segments[i].in && time < S.segments[i].out) return i;
+  }
+  return S.segments.length-1;
+}
+
+let pointerDown = false;
+canvas.addEventListener('pointerdown', e=>{
+  if(!S.source) return;
+  Snd.init();
+  pointerDown = true;
+  canvas.setPointerCapture(e.pointerId);
+  const timeFrac = pointerToTime(e.clientX, e.clientY);
+  const total = totalDuration();
+  const newTime = clamp(timeFrac*total, 0, total-.01);
+  video.currentTime = newTime;
+  S.selectedSeg = activeSegIndex();
+  S.playing = false;
+  updateUI(); render();
+  Snd.tick(330+timeFrac*220);
+});
+
+canvas.addEventListener('pointermove', e=>{
+  if(!pointerDown||!S.source) return;
+  const timeFrac = pointerToTime(e.clientX, e.clientY);
+  const total = totalDuration();
+  video.currentTime = clamp(timeFrac*total, 0, total-.01);
+  S.selectedSeg = activeSegIndex();
+  render();
+});
+
+canvas.addEventListener('pointerup', ()=>{ pointerDown=false });
+canvas.addEventListener('pointercancel', ()=>{ pointerDown=false });
+
+// ═══════════════════════════════════
+// EDITING OPERATIONS
+// ═══════════════════════════════════
+function splitAtPlayhead(){
+  if(!S.source) return;
+  const time = video.currentTime||0;
+  const idx = activeSegIndex();
+  const seg = S.segments[idx];
+  if(!seg) return;
+  if(time <= seg.in+0.05 || time >= seg.out-0.05) { showToast('CANNOT SPLIT HERE'); return }
+
+  const newSeg1 = { id: seg.id+'a', in: seg.in, out: time };
+  const newSeg2 = { id: seg.id+'b', in: time, out: seg.out };
+  S.segments.splice(idx, 1, newSeg1, newSeg2);
+  S.selectedSeg = idx+1;
+  showToast('SPLIT → '+S.segments.length+' SEGMENTS');
+  Snd.tick(660);
+  updateUI(); render();
+}
+
+function markIn(){
+  if(!S.source) return;
+  const seg = S.segments[S.selectedSeg];
+  if(!seg) return;
+  const t = video.currentTime||0;
+  if(t >= seg.out-0.05) { showToast('IN MUST BE BEFORE OUT'); return }
+  seg.in = t;
+  showToast('IN: '+fmt(t));
+  Snd.tick(440);
+  render();
+}
+
+function markOut(){
+  if(!S.source) return;
+  const seg = S.segments[S.selectedSeg];
+  if(!seg) return;
+  const t = video.currentTime||0;
+  if(t <= seg.in+0.05) { showToast('OUT MUST BE AFTER IN'); return }
+  seg.out = t;
+  showToast('OUT: '+fmt(t));
+  Snd.tick(550);
+  render();
+}
+
+function deleteSegment(){
+  if(!S.source || S.segments.length<=1) { showToast('CANNOT DELETE LAST'); return }
+  S.segments.splice(S.selectedSeg, 1);
+  S.selectedSeg = clamp(S.selectedSeg, 0, S.segments.length-1);
+  showToast(S.segments.length+' SEGMENTS');
+  Snd.tick(220);
+  updateUI(); render();
+}
+
+function stepFrame(dir){
+  if(!S.source) return;
+  const step = 1/30; // assume 30fps
+  video.currentTime = clamp((video.currentTime||0)+step*dir, 0, totalDuration()-.01);
+  render();
+}
+
+// ═══════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════
+function exportJSON(){
+  if(!S.source) { showToast('NO SOURCE'); return }
+  const data = {
+    source: { name: S.source.name, duration: S.source.duration },
+    segments: S.segments.map(s=>({ id:s.id, in:+s.in.toFixed(3), out:+s.out.toFixed(3), duration:+(s.out-s.in).toFixed(3) })),
+    exported: new Date().toISOString()
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = S.source.name.replace(/\.[^.]+$/,'') + '.circle-edit.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove() },1000);
+  showToast('EXPORTED JSON');
+  Snd.chord();
+}
+
+function exportEDL(){
+  if(!S.source) { showToast('NO SOURCE'); return }
+  let edl = 'TITLE: CIRCLE EDIT — '+S.source.name+'\nFCM: NON-DROP FRAME\n\n';
+  S.segments.forEach((s,i)=>{
+    const num = String(i+1).padStart(3,'0');
+    edl += num+'  AX  V  C  '+fmtTC(s.in)+' '+fmtTC(s.out)+' '+fmtTC(s.in)+' '+fmtTC(s.out)+'\n';
+    edl += '* FROM CLIP NAME: '+S.source.name+'\n\n';
+  });
+  const blob = new Blob([edl], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = S.source.name.replace(/\.[^.]+$/,'') + '.circle-edit.edl';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove() },1000);
+  showToast('EXPORTED EDL');
+}
+
+function fmtTC(t){
+  if(!isFinite(t))t=0;
+  const h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=Math.floor(t%60), f=Math.floor((t%1)*30);
+  return [h,m,s,f].map(v=>String(v).padStart(2,'0')).join(':');
+}
+
+// ═══════════════════════════════════
+// TRANSPORT
+// ═══════════════════════════════════
+function togglePlay(){
+  if(!S.source) return;
+  Snd.init();
+  if(S.playing){
+    video.pause();
+    S.playing=false;
+  } else {
+    // If at end, restart
+    if(video.currentTime >= totalDuration()-0.1) video.currentTime=0;
+    video.play();
+    S.playing=true;
+  }
+  updateUI();
+}
+
+function toggleLoop(){
+  S.looping = !S.looping;
+  video.loop = S.looping;
+  showToast(S.looping?'LOOP ON':'LOOP OFF');
+  updateUI();
+}
+
+// Video time update
+video.addEventListener('timeupdate', ()=>{
+  if(!S.source) return;
+  // Segment-aware looping
+  if(S.looping && S.playing){
+    const seg = S.segments[S.selectedSeg];
+    if(seg && video.currentTime >= seg.out){
+      video.currentTime = seg.in;
+    }
+  }
+  updateUI(); render();
+});
+
+video.addEventListener('ended', ()=>{
+  S.playing=false;
+  updateUI(); render();
+});
+
+// ═══════════════════════════════════
+// UI SYNC
+// ═══════════════════════════════════
+function updateUI(){
+  const t = video.currentTime||0;
+  const total = totalDuration();
+
+  tcDisplay.textContent = fmt(t);
+
+  if(S.source){
+    segInfo.textContent = S.segments.length+' SEG · '+fmt(total)+' · '+S.source.name;
+  } else {
+    segInfo.textContent = 'NO SOURCE';
+  }
+
+  unrollSlider.value = Math.round(S.unroll*1000);
+  unrollReadout.textContent = Math.round(S.unroll*100)+'%';
+
+  if(total>0){
+    scrubSlider.value = Math.round(t/total*10000);
+    scrubReadout.textContent = fmt(t);
+  }
+
+  btnPlay.textContent = S.playing?'Pause':'Play';
+  btnPlay.classList.toggle('on', S.playing);
+  btnLoop.classList.toggle('on', S.looping);
+}
+
+// ═══════════════════════════════════
+// EVENTS — SLIDERS
+// ═══════════════════════════════════
+unrollSlider.addEventListener('input', e=>{
+  S.unroll = parseInt(e.target.value)/1000;
+  updateUI(); render();
+});
+
+scrubSlider.addEventListener('input', e=>{
+  if(!S.source) return;
+  S.playing=false; video.pause();
+  const frac = parseInt(e.target.value)/10000;
+  video.currentTime = frac*totalDuration();
+  S.selectedSeg = activeSegIndex();
+  updateUI(); render();
+});
+
+// ═══════════════════════════════════
+// EVENTS — BUTTONS
+// ═══════════════════════════════════
+btnLoad.addEventListener('click', ()=>{ Snd.init(); fileInput.click() });
+btnPlay.addEventListener('click', togglePlay);
+btnLoop.addEventListener('click', toggleLoop);
+btnSplit.addEventListener('click', splitAtPlayhead);
+btnExport.addEventListener('click', ()=>{
+  // First click = JSON, could add submenu later
+  exportJSON();
+});
+
+// ═══════════════════════════════════
+// EVENTS — KEYBOARD
+// ═══════════════════════════════════
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT') return;
+  const k=e.key.toLowerCase();
+
+  if(k===' '){ e.preventDefault(); togglePlay() }
+  else if(k==='l'){ toggleLoop() }
+  else if(k==='s'){ splitAtPlayhead() }
+  else if(k==='i'){ markIn() }
+  else if(k==='o'){ markOut() }
+  else if(k==='x'||k==='delete'||k==='backspace'){ e.preventDefault(); deleteSegment() }
+  else if(k==='arrowleft'){ e.preventDefault(); stepFrame(-1) }
+  else if(k==='arrowright'){ e.preventDefault(); stepFrame(1) }
+  else if(k==='j'){ e.preventDefault(); stepFrame(-5) }
+  else if(k==='k'){ togglePlay() }
+  else if(k==='e'){ exportJSON() }
+  else if(k==='arrowup'){ e.preventDefault(); S.selectedSeg=clamp(S.selectedSeg-1,0,S.segments.length-1); render() }
+  else if(k==='arrowdown'){ e.preventDefault(); S.selectedSeg=clamp(S.selectedSeg+1,0,S.segments.length-1); render() }
+  else if(k==='['){ // trim in -1 frame
+    const seg=S.segments[S.selectedSeg]; if(seg){seg.in=clamp(seg.in-1/30,0,seg.out-.05); Snd.tick(400); render()}
+  }
+  else if(k===']'){ // trim out +1 frame
+    const seg=S.segments[S.selectedSeg]; if(seg){seg.out=clamp(seg.out+1/30,seg.in+.05,totalDuration()); Snd.tick(500); render()}
+  }
+});
+
+// ═══════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════
+function loop(){
+  if(S.playing) render();
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+window.addEventListener('resize', ()=>{ resize(); render() });
+document.addEventListener('pointerdown', ()=>Snd.init(), {once:true});
+resize();
+updateUI();
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
