@@ -1,48 +1,123 @@
-# ABC FLIX
+# ABC FLIX — ATO-BUS Production Harness
 
-**ABC FLIX** is an operative index of BEFLIX-128 animation tools, conceptual renderings, and generative film infrastructures. It explores the intersections of low-level graphical computation, operative ekphrasis, and mythic architectures in non-linear editing.
+A high-performance operative editing workbench combining the **ICARO-PRO** pixel engine with the **ARC-TUNNEL** spatial clip editor, connected via a real-time message bus.
 
-The repository stands as an exploration into the nature of sequential media, operating across multiple modes of video manipulation and conceptual editing environments powered by a custom dot-matrix film engine. 
+## Quick Start
 
-## The BEFLIX-128 Dot-Matrix Engine
+```bash
+# Serve locally (any static server)
+python3 -m http.server 8888
 
-The core graphical bedrock of the suite is built on a 128x96 monochrome dot-matrix canvas. All standard editing features operate within this extremely limited scale, offering constrained affordances that naturally evoke early digital and computational systems.
+# Open in browser
+open http://localhost:8888/
+```
 
-## Primary Tools
+Entry point: `index.html` (alias of `harness.html`)
 
-### ICARO-PORT
-A monochrome **dot-matrix animation machine** for making films on a 128×96 grid.
-* **Ingest:** Video, photograph, or hand-drawn frame-by-frame animations.
-* **Operate:** Write **BEFLIX-128 scripts** or prompt generative AI text agents to create graphical scripts.
-* **Export:** Process directly via browser to WebM, MP4, GIF, or as contact sheets with perfectly synchronized audio capabilities.
+## Architecture
 
-### ICARO-PRO (BEFLIX Presentation Engine)
-A robust **ABCD video editor** and **Text Presentation Engine** built from 4 letters.
-* **Structure:** A fully featured Multi-clip NLE environment featuring dynamic memory gauges, clip bin ingestion, and a timeline layout.
-* **WorldText Assembler:** The system functions as a high-fidelity 'PowerPoint-killer', transforming large text documents (.txt/.md) into auto-paginated slides rendered natively on the BEFLIX dot-matrix canvas.
-* **Cinematic Generators:** Features 5 core text transitions (Cut, Ripple Reveal, Fade In, Typewriter, Scroll Up) alongside dedicated **Star Wars Crawl** (perspective-scrolled) and **Credits Roll** generators.
-* **Design Philosophy:** Everything operates securely through the strictly enforced **A (Add) · B (Build) · C (Color) · D (Project)** editing pipeline.
+```
+┌──────────────────────────────────────┐
+│           index.html / harness.html  │  ← Router + Bus Strip
+├──────────────────────────────────────┤
+│           icaro-pro-bus.html         │  ← Engine (BEFLIX pixel editor + timeline)
+├──────── bus-strip (18px) ────────────┤
+│           c-bus.html                 │  ← Tunnel (ARC barrel + 4 spatial views)
+└──────────────────────────────────────┘
+```
 
-### ICARO-SPIRAL (The Shield / Film Forge)
-A **mythic NLE** evaluating how temporal arrays structure memory, directly modeling time across the spatial geometry of the **Shield of Achilles**.
-* **Space as Time:** Frame sequences map non-linearly across 5 spatial and conceptually bound rings (Cosmos, Cities, Agriculture, Pastoral, Oceanus).
-* **Clock Dynamics:** Procedural Unspooling transforms radial layout structures into linear timelines evaluated off experimental frame rates (Symbolic Weight, Hexameter Cadence, Cosmic Ring speed mapping).
+### Message Bus Protocol
 
-### ICARO-SPO (EDL Forge Engine)
-An industrial, terminal-based **media ripping engine**. 
-* Extracts continuous time blocks and organizes them directly into spatially arranged registers representing cut physical film strips. 
-* Incorporates haptic UX and an animated extraction spool for physically weighted interaction models.
+| Message | Direction | Purpose |
+|---|---|---|
+| `FRAMES_SYNC` | Engine → Tunnel | Full frame grid data for clip thumbnails |
+| `CURSOR_MOVE` | Engine → Tunnel | Playhead position sync |
+| `PLAY_SYNC` | Bidirectional | Play/stop state sync |
+| `GOTO_FRAME` | Tunnel → Engine | Navigate to selected clip's frame |
+| `RIP_PROGRESS` | Engine → Tunnel | Loading state (START/CHUNK/DONE) |
+| `VIEW_CYCLE` | Harness → Tunnel | Cycle between barrel/inside/outside/side/bench |
+| `CLIP_SELECT` | Tunnel → Harness | Selected clip name for bus strip display |
+| `REQUEST_SYNC` | Harness → Engine | Request full re-sync (tab switch, reconnect) |
 
-## Concept Frameworks & Infrastructures
+### Files
 
-* **Colosseum Conceptual Renderings:** Four conceptual lenses rendered in native geospatial formats (WKT, GeoJSON, CityGML 3D, styled KML) across an exhaustive 123-KB spatial dataset. 
-* **AETHEL Infrastructure:** Built-in dashboard and ambient interface layers specifically dedicated to runtime observation and infrastructure monitoring.
-* **WHO-FEED Sources:** Assorted markdown raw material logs feeding external generative processing arrays.
+| File | Size | Purpose |
+|---|---|---|
+| `index.html` | 14KB | Entry point (harness router + bus strip UI) |
+| `harness.html` | 14KB | Same as index.html |
+| `icaro-pro-bus.html` | 148KB | ICARO-PRO engine with bus bridge emitter |
+| `c-bus.html` | 130KB | ARC-TUNNEL operator with bus receiver |
 
-## Operative Logics
-**The shield is space.**
-**Film is time.**
-**But film itself is space wrapped into time.**
-Therefore the shield is a **topological film reel**. And ekphrasis is the projection apparatus that unspools it. 
+## Features
 
-*Code as Image. Memory as Machine. Built natively for browser execution.*
+### ICARO-PRO Engine (Top)
+- **BEFLIX pixel editor** — 7-level grayscale matrix drawing
+- **Frame timeline** — scrub, navigate, duplicate, delete frames
+- **Video import** — load MP4/WebM, rip frames at 12fps (max 12 seconds / 144 frames)
+- **Film Leader** — generate 5-second test countdown
+- **BEFLIX scripting** — programmatic pixel animation via CLR/PNT/LIN/REC/SHF commands
+- **Drawing tools** — pen, rectangle, eraser with size control
+
+### ARC-TUNNEL Operator (Bottom)
+- **5 spatial views**: Barrel (3D cylinder), Inside, Outside, Side, Bench (flat timeline)
+- **Clip management** — move, trim, roll, lift, split, route, store
+- **4 probability tracks** — POSSIBLE, PLAUSIBLE, PROBABLE, PREFERRED
+- **Frame thumbnails** — engine frames rendered as textures on clip faces
+- **LOD rendering** — adaptive geometry detail based on depth
+
+### Bus Strip (Middle)
+- Real-time sync indicator (green dot = live, red pulse = sync)
+- Frame count, cursor position, clip name display
+- Progress bar during frame ripping
+- View cycle button
+- Draggable divider for resize
+
+## Performance
+
+Optimizations applied (V3+):
+
+| Technique | Impact |
+|---|---|
+| LOD geometry | Far clips: 16 cells instead of 204 (−92%) |
+| Thumbnail throttle | 1 drawImage/clip instead of 204 (−99.5%) |
+| Far-cell stroke skip | No outline on depth > 4500 |
+| CanvasPattern hatch | Pre-rendered pattern tiles, no ctx.clip() |
+| Lazy layer allocation | scriptLayer/handLayer = null until drawn |
+| Demand-driven render | Loop sleeps after 500ms idle |
+| Realtime rAF capture | Non-blocking video frame extraction |
+| Throttled bus sync | Progress messages every 2s, not per-frame |
+
+### Performance HUD
+
+Press **`` ` ``** (backtick) while the tunnel is focused to toggle live metrics:
+
+```
+24.0 fps · 3.2ms/f · idle 83% · bus 0.5/s · SLEEP · 106 clips · DPR 1.5
+```
+
+## Loading Workflow
+
+1. Open `http://localhost:8888/`
+2. Click **A** tab → **FILM LEADER** (generates 60-frame test sequence)
+3. Or click **A** tab → **LOAD CLIPS** to import video (MP4/WebM, max 12 seconds)
+4. Tunnel auto-populates with clips distributed across 4 probability tracks
+5. Use tunnel tools (MOVE, TRIM, ROLL, LIFT, SPLIT) to arrange clips
+6. Navigate with arrow keys, jog wheel, or back/forward buttons
+
+## Loading States
+
+During frame ripping or Film Leader generation:
+- **Engine** (top): Dark overlay with spinning film reel + frame counter
+- **Tunnel** (bottom): Dark overlay with spinning film reel + progress bar
+- **Bus strip** (middle): Red progress bar + "RIP N/M" status
+
+## Mobile
+
+- Single-instrument view (toggle ENGINE/TUNNEL via bus strip button)
+- Reduced DPR (1.0) for performance
+- Fewer cells per clip (mobile LOD)
+- Touch-friendly dock buttons
+
+## License
+
+Operative instrument. All rights reserved.
