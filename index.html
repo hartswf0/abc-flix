@@ -93,41 +93,45 @@
         .bus-toggle:active { color: #22c55e; border-color: #22c55e; }
         .bus-toggle.active { background: #22c55e; color: #000; border-color: #22c55e; }
 
-        /* ── MOBILE: stacked single-instrument view ── */
+        /* ── MOBILE: both instruments visible in vertical split ── */
         @media (max-width: 767px) {
             #harness {
-                position: relative;
-                display: block;
+                display: flex;
+                flex-direction: column;
                 width: 100%;
                 height: 100dvh;
+                overflow: hidden;
             }
 
-            /* Both iframes get explicit height — iframes CANNOT use height:auto */
-            #engine-frame, #tunnel-frame {
-                position: absolute !important;
-                top: 0; left: 0;
-                width: 100% !important;
-                height: calc(100dvh - 28px) !important;
+            /* Engine: top half — explicit height, not flex */
+            #engine-frame {
                 flex: none !important;
+                width: 100%;
+                height: calc(50dvh - 14px); /* half viewport minus half bus strip */
                 border: none;
             }
 
-            /* Default: engine on top, tunnel behind */
-            #engine-frame { z-index: 2; }
-            #tunnel-frame { z-index: 1; visibility: hidden; }
-
-            /* Toggle: swap which is visible */
-            #harness.show-tunnel #engine-frame { z-index: 1; visibility: hidden; }
-            #harness.show-tunnel #tunnel-frame { z-index: 2; visibility: visible; }
-
-            /* Bus strip pinned to bottom */
+            /* Bus strip between the two */
             #bus-strip {
-                position: absolute !important;
-                bottom: 0; left: 0; right: 0;
-                z-index: 10; height: 28px;
+                flex-shrink: 0;
+                height: 28px;
                 font-size: 10px;
-                cursor: default; /* no resize on mobile */
+                cursor: default;
             }
+
+            /* Tunnel: bottom half — explicit height */
+            #tunnel-frame {
+                flex: none !important;
+                width: 100%;
+                height: calc(50dvh - 14px); /* half viewport minus half bus strip */
+                border: none;
+            }
+
+            /* Toggle: maximize one instrument to full height */
+            #harness.max-engine #engine-frame { height: calc(100dvh - 28px); }
+            #harness.max-engine #tunnel-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #engine-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #tunnel-frame { height: calc(100dvh - 28px); }
 
             .bus-toggle { display: inline-block; }
             .bus-btn { height: 18px; font-size: 9px; padding: 0 8px; }
@@ -148,7 +152,7 @@
             <span id="bus-cursor">CUR 0</span>
             <div class="bus-spacer"></div>
             <button class="bus-btn" id="bus-view">BARREL</button>
-            <button class="bus-toggle" id="bus-toggle">TUNNEL</button>
+            <button class="bus-toggle" id="bus-toggle">SPLIT</button>
             <div id="sync-bar"></div>
         </div>
         <iframe id="tunnel-frame" loading="lazy"></iframe>
@@ -226,16 +230,21 @@
             safeSend(tunnel, { type: 'VIEW_CYCLE', view: currentView });
         };
 
-        // ── MOBILE TOGGLE ──
+        // ── MOBILE TOGGLE (3 modes: SPLIT → MAX ENGINE → MAX TUNNEL) ──
         const harness = document.getElementById('harness');
         const busToggle = document.getElementById('bus-toggle');
-        let mobileShowTunnel = false;
+        const MODES = ['split', 'max-engine', 'max-tunnel'];
+        let mobileMode = 0; // 0=split, 1=max-engine, 2=max-tunnel
 
         busToggle.onclick = () => {
-            mobileShowTunnel = !mobileShowTunnel;
-            harness.classList.toggle('show-tunnel', mobileShowTunnel);
-            busToggle.textContent = mobileShowTunnel ? 'ENGINE' : 'TUNNEL';
-            busToggle.classList.toggle('active', mobileShowTunnel);
+            mobileMode = (mobileMode + 1) % MODES.length;
+            harness.classList.remove('max-engine', 'max-tunnel');
+            if (MODES[mobileMode] !== 'split') {
+                harness.classList.add(MODES[mobileMode]);
+            }
+            const labels = ['SPLIT', 'ENGINE ▣', 'TUNNEL ▣'];
+            busToggle.textContent = labels[mobileMode];
+            busToggle.classList.toggle('active', mobileMode !== 0);
         };
 
         // ── SAFE SEND — wraps postMessage with error boundary ──
