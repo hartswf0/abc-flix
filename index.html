@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>ICARO HARNESS — Unified Production Bus</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230a0a0a'/><circle cx='16' cy='16' r='8' fill='none' stroke='%2322c55e' stroke-width='2.5'/><circle cx='16' cy='16' r='2.5' fill='%23ef4444'/></svg>" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { width: 100%; height: 100%; height: 100dvh; overflow: hidden; background: #0a0a0a; font-family: ui-monospace, monospace; }
@@ -44,9 +45,12 @@
         .bus-dot.live { background: #22c55e; }
         .bus-dot.sync {
             background: #ef4444;
-            animation: busPulse 0.3s ease-out;
         }
         @keyframes busPulse {
+            0% { transform: scale(1.8); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes busPulse2 {
             0% { transform: scale(1.8); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
@@ -197,12 +201,12 @@
         let framesSynced = 0;
         let syncPulseTimer = null;
 
-        // ── BUS ACTIVITY ANIMATION ──
+        // ── BUS ACTIVITY ANIMATION (no forced reflow) ──
+        let _pulseFrame = 0;
         function pulseSync(direction, type) {
-            // Dot flash
-            busDot.classList.remove('sync');
-            void busDot.offsetWidth; // force reflow
-            busDot.classList.add('sync');
+            // Animation restart via name swap — no forced reflow
+            _pulseFrame++;
+            busDot.style.animationName = (_pulseFrame % 2) ? 'busPulse' : 'busPulse2';
             busDot.classList.add('live');
 
             // Sync bar animation for FRAMES_SYNC
@@ -263,7 +267,41 @@
             return false;
         }
 
-        // ── MESSAGE ROUTER ──
+        // ── rAF MESSAGE DEDUPLICATION ──
+        // Pool CURSOR_MOVE and GOTO_FRAME — only forward latest per render frame
+        let _pendingCursorToTunnel = null;
+        let _pendingGotoToEngine = null;
+        let _rafPooled = false;
+
+        function _flushPooledMessages() {
+            _rafPooled = false;
+            if (_pendingCursorToTunnel) {
+                safeSend(tunnel, _pendingCursorToTunnel);
+                _pendingCursorToTunnel = null;
+            }
+            if (_pendingGotoToEngine) {
+                safeSend(engine, _pendingGotoToEngine);
+                _pendingGotoToEngine = null;
+            }
+        }
+
+        function poolMessage(target, data) {
+            if (target === 'tunnel' && data.type === 'CURSOR_MOVE') {
+                _pendingCursorToTunnel = data;
+            } else if (target === 'engine' && data.type === 'GOTO_FRAME') {
+                _pendingGotoToEngine = data;
+            } else {
+                // Non-poolable: send immediately
+                safeSend(target === 'tunnel' ? tunnel : engine, data);
+                return;
+            }
+            if (!_rafPooled) {
+                _rafPooled = true;
+                requestAnimationFrame(_flushPooledMessages);
+            }
+        }
+
+        // ── MESSAGE ROUTER (with rAF pooling for cursor messages) ──
         window.addEventListener('message', e => {
             const d = e.data;
             if (!d || !d.type) return;
@@ -274,7 +312,13 @@
                 // ENGINE → TUNNEL
                 lastEngineMsg = Date.now();
                 engineReady = true;
-                safeSend(tunnel, d);
+
+                // Pool high-frequency cursor messages, send others immediately
+                if (d.type === 'CURSOR_MOVE') {
+                    poolMessage('tunnel', d);
+                } else {
+                    safeSend(tunnel, d);
+                }
                 pulseSync('down', d.type);
 
                 // Update status
@@ -288,6 +332,9 @@
                 }
                 if (d.type === 'CURSOR_MOVE') {
                     busMsg.textContent = 'CUR ' + (d.cursor + 1);
+                }
+                if (d.type === 'FRAME_PATCH') {
+                    busMsg.textContent = 'PATCH F' + (d.index + 1);
                 }
                 // Route loading progress to tunnel + show in bus strip
                 if (d.type === 'RIP_PROGRESS') {
@@ -314,7 +361,13 @@
                 // TUNNEL → ENGINE
                 lastTunnelMsg = Date.now();
                 tunnelReady = true;
-                safeSend(engine, d);
+
+                // Pool high-frequency goto messages
+                if (d.type === 'GOTO_FRAME') {
+                    poolMessage('engine', d);
+                } else {
+                    safeSend(engine, d);
+                }
                 pulseSync('up', d.type);
 
                 if (d.type === 'GOTO_FRAME') {
