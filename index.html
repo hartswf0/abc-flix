@@ -93,18 +93,38 @@
         .bus-toggle:active { color: #22c55e; border-color: #22c55e; }
         .bus-toggle.active { background: #22c55e; color: #000; border-color: #22c55e; }
 
-        /* ── MOBILE: single-instrument view ── */
+        /* ── MOBILE: absolute-stacked single-instrument view ── */
         @media (max-width: 767px) {
-            /* Default: engine gets full viewport minus strip */
-            #engine-frame { flex: 1 1 100%; }
-            #tunnel-frame { flex: 0 0 0; height: 0; overflow: hidden; visibility: hidden; }
+            /* Kill flex layout — use absolute positioning for iframes */
+            #harness { position: relative; display: block; }
 
-            /* Toggle to tunnel: engine collapses, tunnel expands */
-            #harness.show-tunnel #engine-frame { flex: 0 0 0; height: 0; overflow: hidden; visibility: hidden; }
-            #harness.show-tunnel #tunnel-frame { flex: 1 1 100%; height: auto; overflow: visible; visibility: visible; }
+            /* Both iframes fill the same space, stacked on top of each other */
+            #engine-frame, #tunnel-frame {
+                position: absolute !important;
+                top: 0; left: 0; right: 0;
+                bottom: 28px; /* space for bus strip */
+                width: 100% !important;
+                height: auto !important;
+                flex: none !important;
+            }
+
+            /* Default: engine on top, tunnel behind */
+            #engine-frame { z-index: 2; visibility: visible; }
+            #tunnel-frame { z-index: 1; visibility: hidden; }
+
+            /* Toggle: swap which is visible */
+            #harness.show-tunnel #engine-frame { z-index: 1; visibility: hidden; }
+            #harness.show-tunnel #tunnel-frame { z-index: 2; visibility: visible; }
+
+            /* Bus strip pinned to bottom */
+            #bus-strip {
+                position: absolute !important;
+                bottom: 0; left: 0; right: 0;
+                z-index: 10; height: 28px;
+                font-size: 10px;
+            }
 
             .bus-toggle { display: inline-block; }
-            #bus-strip { height: 28px; font-size: 10px; }
             .bus-btn { height: 18px; font-size: 9px; padding: 0 8px; }
 
             /* Hide non-essential bus info on mobile to save space */
