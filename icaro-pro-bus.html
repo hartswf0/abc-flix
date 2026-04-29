@@ -2793,12 +2793,18 @@ SHF 2 1 24</textarea>
     }
 
     // Monkey-patch hooks — run AFTER the original functions
+    let _busInboundGoto = false; // Guard: suppress CURSOR_MOVE when handling GOTO_FRAME
+
     if (_ATOBUS_ACTIVE) {
         const _origRebuild = rebuildTrack;
         rebuildTrack = function() { _origRebuild.apply(this, arguments); _atoBusEmitSync(); };
 
         const _origRenderOutput = renderOutput;
-        renderOutput = function() { _origRenderOutput.apply(this, arguments); _atoBusEmitCursor(); };
+        renderOutput = function() {
+            _origRenderOutput.apply(this, arguments);
+            // Only emit CURSOR_MOVE if this wasn't triggered by an incoming GOTO_FRAME
+            if (!_busInboundGoto) _atoBusEmitCursor();
+        };
 
         // Patch engageSequence to broadcast play state
         const _origEngage = engageSequence;
@@ -2812,8 +2818,19 @@ SHF 2 1 24</textarea>
             const d = e.data;
             if (!d || !d.type) return;
             if (d.type === 'GOTO_FRAME' && typeof d.cursor === 'number') {
-                state.cur = Math.max(0, Math.min(state.frames.length - 1, d.cursor));
-                renderOutput(); rebuildTrack(); updateStatusBar();
+                const newCur = Math.max(0, Math.min(state.frames.length - 1, d.cursor));
+                if (newCur !== state.cur) {
+                    state.cur = newCur;
+                    _busInboundGoto = true; // Prevent feedback loop
+                    renderOutput(); updateStatusBar();
+                    _busInboundGoto = false;
+                    // Scroll timeline strip to show active frame
+                    const strip = document.getElementById('tl-strip');
+                    const activeThumb = strip && strip.children[state.cur];
+                    if (activeThumb) {
+                        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+                }
             }
             if (d.type === 'PLAY_SYNC') {
                 // Tunnel requested play/stop — sync icaro-pro playback

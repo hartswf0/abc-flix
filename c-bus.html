@@ -2193,6 +2193,26 @@
                     _perf.renderMs += performance.now() - t0;
                     _perf.frames++;
 
+                    // ── CONTINUOUS CAMERA→FRAME SYNC ──
+                    // When camera moves (scrub, scroll, inertia, playback),
+                    // derive which frame we're over and tell the engine
+                    if (_BUSRX_ACTIVE && _busFrameTotal > 0) {
+                        const frameIdx = Math.max(0, Math.min(
+                            _busFrameTotal - 1,
+                            Math.round(S.cam / (SNAP * 2))
+                        ));
+                        const now = performance.now();
+                        if (frameIdx !== _busCamLastFrame && now - _busCamLastEmit > 60) {
+                            _busCamLastFrame = frameIdx;
+                            _busCamLastEmit = now;
+                            window.parent.postMessage({
+                                type: 'GOTO_FRAME',
+                                cursor: frameIdx,
+                                source: 'camera'
+                            }, '*');
+                        }
+                    }
+
                     _dirty = false;
                     _idleFrames = 0;
                     _perfReport();
@@ -2896,6 +2916,8 @@
                 const _busFrameCache = new Map(); // index → { grid, canvas, version }
                 let _busGridW = 128, _busGridH = 96;
                 let _busFrameTotal = 0;
+                let _busCamLastFrame = -1;  // Last frame index emitted via camera sync
+                let _busCamLastEmit = 0;    // Timestamp of last camera sync emit
 
                 // Shade palette matching icaro-pro BEFLIX engine
                 const _BUS_SHADES = [
@@ -3009,12 +3031,14 @@
                         // Navigate camera to cursor position
                         if (typeof d.cursor === 'number') {
                             S.cam = d.cursor * SNAP * 2;
+                            _busCamLastFrame = d.cursor; // Prevent echo back
                         }
                     }
 
                     if (d.type === 'CURSOR_MOVE') {
                         if (typeof d.cursor === 'number') {
                             S.cam = d.cursor * SNAP * 2;
+                            _busCamLastFrame = d.cursor; // Prevent echo back
                         }
                     }
 
