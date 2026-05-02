@@ -1,0 +1,3247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>ICARO · NAURIAN LOOP — CAUSAL PATCH CONSOLE</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            /* PAPER INSTRUMENT — white ground, black structure, red for danger only */
+            --w: #ffffff;
+            --paper: #f6f4f0;
+            --paper2: #eeece8;
+            --ink: #090909;
+            --ink2: #222;
+            --ink3: #555;
+            --ink4: #888;
+            --bdr: #c4c1bb;
+            --bdr2: #090909;
+            --red: #c41010;
+            --red-bg: #fff5f5;
+            --field: #000;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--w);
+            color: var(--ink);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            height: 100vh;
+            overflow: hidden
+        }
+
+        /* ── STATE STRIP ── always visible, shows machine state */
+        #sstrip {
+            flex-shrink: 0;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            background: var(--w);
+            border-bottom: 1px solid var(--bdr2);
+            font-size: 9px;
+            letter-spacing: .08em;
+            position: relative;
+            z-index: 10;
+        }
+
+        #ss-state {
+            font-weight: 500;
+            letter-spacing: .14em;
+            font-size: 9px;
+            padding: 1px 7px;
+            border: 1px solid var(--ink);
+            color: var(--ink);
+        }
+
+        #ss-state.fail {
+            border-color: var(--red);
+            color: var(--red);
+            background: var(--red-bg)
+        }
+
+        #ss-state.rec {
+            border-color: var(--red);
+            color: var(--red);
+            animation: sblink .7s ease-in-out infinite
+        }
+
+        #ss-state.run {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        @keyframes sblink {
+
+            0%,
+            100% {
+                opacity: .35
+            }
+
+            50% {
+                opacity: 1
+            }
+        }
+
+        #ss-t {
+            color: var(--ink3);
+            font-variant-numeric: tabular-nums
+        }
+
+        #ss-t b {
+            color: var(--ink);
+            font-weight: 400
+        }
+
+        #ss-u {
+            color: var(--ink3);
+            font-variant-numeric: tabular-nums
+        }
+
+        #ss-u b {
+            color: var(--ink);
+            font-weight: 400
+        }
+
+        #ss-seed {
+            color: var(--ink4);
+            font-size: 8.5px
+        }
+
+        #ss-rec-cap {
+            margin-left: auto;
+            font-size: 8px;
+            letter-spacing: .1em;
+            color: var(--ink4);
+        }
+
+        #ss-rec-cap.ok {
+            color: var(--ink3)
+        }
+
+        #ss-rec-cap.no {
+            color: var(--red)
+        }
+
+        #ss-director {
+            font-size: 8px;
+            color: var(--ink4);
+            letter-spacing: .08em
+        }
+
+        #ss-director.ok {
+            color: var(--ink3)
+        }
+
+        #ss-director.busy {
+            color: var(--ink);
+            animation: sblink .5s infinite
+        }
+
+        #ss-director.fail {
+            color: var(--red)
+        }
+
+        .sep {
+            width: 1px;
+            height: 14px;
+            background: var(--bdr);
+            flex-shrink: 0
+        }
+
+        /* ── FIELD PLANE ── dark canvas, always dominant */
+        #cwrap {
+            flex-shrink: 0;
+            position: relative;
+            height: calc(50vh - 15px);
+            min-height: 160px;
+            background: var(--field);
+            border-bottom: 1px solid var(--bdr2);
+            overflow: hidden;
+        }
+
+        #c {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: crosshair
+        }
+
+        #c.drag {
+            cursor: grabbing
+        }
+
+        /* Diagnostic overlay label */
+        #overlay-lbl {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            font-size: 7.5px;
+            letter-spacing: .12em;
+            color: rgba(255, 255, 255, .35);
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        /* Node hover hint */
+        #nodehint {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            padding: 3px 8px;
+            background: rgba(0, 0, 0, .85);
+            border: 1px solid rgba(255, 255, 255, .15);
+            font-size: 8px;
+            color: rgba(255, 255, 255, .7);
+            letter-spacing: .07em;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .1s;
+        }
+
+        #nodehint.v {
+            opacity: 1
+        }
+
+        /* Energy bar */
+        #ebar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px
+        }
+
+        #efill {
+            height: 100%;
+            width: 50%;
+            background: rgba(255, 255, 255, .3);
+            transition: width .4s, background .4s
+        }
+
+        /* ── NODE INSPECTOR STRIP ── slides down when node selected */
+        #inspector {
+            flex-shrink: 0;
+            height: 0;
+            overflow: hidden;
+            border-bottom: 1px solid var(--bdr);
+            background: var(--paper);
+            transition: height .18s ease;
+            display: flex;
+            align-items: stretch;
+        }
+
+        #inspector.open {
+            height: 44px
+        }
+
+        #ins-type {
+            width: 34px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--bdr);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            color: var(--ink3);
+        }
+
+        #ins-body {
+            flex: 1;
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            overflow: hidden
+        }
+
+        #ins-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--ink);
+            letter-spacing: .06em
+        }
+
+        #ins-params {
+            font-size: 8.5px;
+            color: var(--ink3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        #ins-line {
+            font-size: 7.5px;
+            color: var(--ink4);
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .ins-actions {
+            flex-shrink: 0;
+            display: flex;
+            align-items: stretch;
+            border-left: 1px solid var(--bdr)
+        }
+
+        .ia {
+            padding: 0 11px;
+            background: transparent;
+            border: none;
+            border-right: 1px solid var(--bdr);
+            font-family: inherit;
+            font-size: 7.5px;
+            letter-spacing: .09em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .ia:last-child {
+            border-right: none
+        }
+
+        .ia:hover {
+            background: var(--paper2);
+            color: var(--ink)
+        }
+
+        /* ── MODE BAR ── OPERATE / READ / PATCH + SCRIPT */
+        #modebar {
+            flex-shrink: 0;
+            height: 30px;
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--bdr);
+            background: var(--w);
+        }
+
+        .mbt {
+            flex: 1;
+            border: none;
+            border-right: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .14em;
+            color: var(--ink4);
+            cursor: pointer;
+            transition: all .1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .mbt:hover:not(.active) {
+            background: var(--paper);
+            color: var(--ink3)
+        }
+
+        .mbt.active {
+            color: var(--ink);
+            border-bottom-color: var(--ink);
+            background: var(--paper);
+            font-weight: 500
+        }
+
+        .mbt.patch-active {
+            color: var(--ink);
+            border-bottom-color: var(--ink)
+        }
+
+        #script-btn {
+            flex-shrink: 0;
+            padding: 0 12px;
+            border: none;
+            border-left: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            cursor: pointer;
+        }
+
+        #script-btn:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        #script-btn.open {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        /* ── MODE PANEL ── scrollable content below mode bar */
+        #modepanel {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: var(--w);
+        }
+
+        .mpanel {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            flex-direction: column;
+            scrollbar-width: thin;
+            scrollbar-color: var(--bdr) transparent;
+        }
+
+        .mpanel.active {
+            display: flex
+        }
+
+        /* Scrollbar */
+        .mpanel::-webkit-scrollbar {
+            width: 3px
+        }
+
+        .mpanel::-webkit-scrollbar-thumb {
+            background: var(--bdr)
+        }
+
+        /* ── OPERATE MODE ── */
+        #op-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 20px;
+            color: var(--ink4);
+            font-size: 9px;
+            letter-spacing: .1em;
+            text-align: center;
+        }
+
+        .op-hint {
+            font-size: 8.5px;
+            color: var(--ink4);
+            padding: 0 14px;
+            margin-bottom: 6px
+        }
+
+        #op-metrics-row {
+            display: flex;
+            border-top: 1px solid var(--bdr);
+            border-bottom: 1px solid var(--bdr);
+            flex-shrink: 0;
+        }
+
+        .omc {
+            flex: 1;
+            padding: 5px 8px;
+            border-right: 1px solid var(--bdr);
+            cursor: pointer;
+            transition: background .1s;
+        }
+
+        .omc:last-child {
+            border-right: none
+        }
+
+        .omc:hover {
+            background: var(--paper)
+        }
+
+        .omc.overlay-active {
+            background: var(--paper2);
+            box-shadow: inset 0 2px 0 var(--ink)
+        }
+
+        .oml {
+            font-size: 7px;
+            letter-spacing: .1em;
+            color: var(--ink4);
+            margin-bottom: 1px
+        }
+
+        .omv {
+            font-size: 14px;
+            font-variant-numeric: tabular-nums;
+            color: var(--ink)
+        }
+
+        .oms {
+            display: block;
+            width: 100%;
+            height: 12px;
+            margin-top: 2px
+        }
+
+        #op-regime {
+            padding: 6px 10px;
+            font-size: 8px;
+            letter-spacing: .1em;
+            color: var(--ink3);
+            border-bottom: 1px solid var(--bdr);
+        }
+
+        #op-regime b {
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        #op-nodes-list {
+            padding: 6px 0;
+            flex: 1
+        }
+
+        .onl-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 5px 10px;
+            border-bottom: 1px solid var(--bdr);
+            cursor: pointer;
+            transition: background .1s;
+        }
+
+        .onl-row:hover {
+            background: var(--paper)
+        }
+
+        .onl-row.selected {
+            background: var(--paper2);
+            box-shadow: inset 3px 0 0 var(--ink)
+        }
+
+        .onl-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-right: 8px;
+            background: var(--ink)
+        }
+
+        .onl-dot.src {
+            background: var(--red)
+        }
+
+        .onl-dot.att {
+            background: var(--ink)
+        }
+
+        .onl-dot.drv {
+            background: var(--ink3)
+        }
+
+        .onl-name {
+            font-weight: 500;
+            font-size: 10px;
+            width: 26px;
+            flex-shrink: 0
+        }
+
+        .onl-type {
+            font-size: 8px;
+            color: var(--ink4);
+            letter-spacing: .1em;
+            width: 58px;
+            flex-shrink: 0
+        }
+
+        .onl-param {
+            font-size: 8.5px;
+            color: var(--ink3);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .onl-pos {
+            font-size: 8px;
+            color: var(--ink4);
+            text-align: right;
+            flex-shrink: 0
+        }
+
+        /* ── READ MODE ── */
+        #read-metrics {
+            padding: 8px 0;
+            flex-shrink: 0
+        }
+
+        .rmc {
+            border-bottom: 1px solid var(--bdr);
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: background .1s;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .rmc:hover {
+            background: var(--paper)
+        }
+
+        .rmc.overlay-active {
+            background: var(--paper2);
+            border-left: 3px solid var(--ink)
+        }
+
+        .rmc-left {
+            width: 80px;
+            flex-shrink: 0
+        }
+
+        .rmc-name {
+            font-size: 8px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            margin-bottom: 2px
+        }
+
+        .rmc-val {
+            font-size: 18px;
+            font-variant-numeric: tabular-nums;
+            color: var(--ink);
+            line-height: 1
+        }
+
+        .rmc-spark {
+            display: block;
+            width: 80px;
+            height: 14px;
+            margin-top: 3px
+        }
+
+        .rmc-right {
+            flex: 1
+        }
+
+        .rmc-means {
+            font-size: 8.5px;
+            color: var(--ink3);
+            line-height: 1.4;
+            margin-bottom: 3px
+        }
+
+        .rmc-action {
+            font-size: 8px;
+            color: var(--ink4);
+            line-height: 1.4
+        }
+
+        .rmc-action b {
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        #read-regime {
+            margin: 8px 10px;
+            padding: 8px 10px;
+            border: 1px solid var(--bdr);
+            font-size: 8.5px;
+            color: var(--ink3);
+            line-height: 1.6;
+            flex-shrink: 0;
+        }
+
+        #read-regime strong {
+            color: var(--ink);
+            display: block;
+            font-size: 9px;
+            letter-spacing: .1em;
+            margin-bottom: 3px
+        }
+
+        #read-overlays {
+            padding: 8px 10px;
+            border-top: 1px solid var(--bdr);
+            flex-shrink: 0;
+        }
+
+        .ro-title {
+            font-size: 8px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            margin-bottom: 6px
+        }
+
+        .ro-btns {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap
+        }
+
+        .rob {
+            padding: 3px 9px;
+            border: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .08em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .rob:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        .rob.on {
+            border-color: var(--ink);
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        #read-media {
+            padding: 8px 10px;
+            border-top: 1px solid var(--bdr);
+            flex-shrink: 0
+        }
+
+        .rm-title {
+            font-size: 8px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            margin-bottom: 6px
+        }
+
+        .rm-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px
+        }
+
+        .rmb {
+            padding: 2px 8px;
+            border: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .08em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .rmb:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        .rmb.on {
+            border-color: var(--ink2);
+            background: var(--paper2);
+            color: var(--ink)
+        }
+
+        #inf-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 1px;
+            background: var(--bdr);
+            outline: none;
+            cursor: pointer;
+        }
+
+        #inf-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--ink);
+            cursor: pointer;
+        }
+
+        #inf-val {
+            font-size: 8px;
+            color: var(--ink3);
+            width: 28px;
+            text-align: right
+        }
+
+        /* ── PATCH MODE ── */
+        #patch-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--bdr);
+        }
+
+        .pb {
+            padding: 2px 9px;
+            border: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7.5px;
+            letter-spacing: .09em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .pb:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        .pb.primary {
+            border-color: var(--ink);
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        .pb.primary:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        #pt-auto {
+            font-size: 8px;
+            color: var(--ink4);
+            cursor: pointer;
+            letter-spacing: .08em;
+            margin-left: auto
+        }
+
+        #pt-auto:hover {
+            color: var(--ink)
+        }
+
+        #pt-st {
+            font-size: 8px;
+            color: var(--ink4);
+            letter-spacing: .07em
+        }
+
+        #pt-st.busy {
+            color: var(--ink);
+            animation: sblink .5s infinite
+        }
+
+        #pt-st.fail {
+            color: var(--red)
+        }
+
+        /* Undo bar */
+        #undo-bar {
+            padding: 5px 10px;
+            border-bottom: 1px solid var(--bdr);
+            background: var(--paper);
+            font-size: 8px;
+            color: var(--ink4);
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        #undo-bar.v {
+            display: flex
+        }
+
+        #undo-info {
+            flex: 1;
+            letter-spacing: .06em
+        }
+
+        #undo-btn {
+            padding: 1px 8px;
+            border: 1px solid var(--bdr2);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7.5px;
+            letter-spacing: .09em;
+            cursor: pointer;
+            color: var(--ink);
+        }
+
+        #undo-btn:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        /* Director entries */
+        #dirlog {
+            flex: 1;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px
+        }
+
+        .de {
+            border: 1px solid var(--bdr);
+            background: var(--w)
+        }
+
+        .de.fresh {
+            border-color: var(--ink2)
+        }
+
+        .de.has-patch {
+            border-left: 3px solid var(--ink)
+        }
+
+        .de.discarded {
+            opacity: .45
+        }
+
+        .de-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            border-bottom: 1px solid var(--bdr);
+            background: var(--paper);
+        }
+
+        .de-time {
+            font-size: 7.5px;
+            color: var(--ink4);
+            letter-spacing: .06em
+        }
+
+        .de-conf {
+            font-size: 7.5px;
+            color: var(--ink3)
+        }
+
+        .de-acts {
+            display: flex;
+            gap: 4px
+        }
+
+        .da {
+            padding: 1px 7px;
+            border: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7px;
+            letter-spacing: .09em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .da:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        .da.apply {
+            border-color: var(--ink2);
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        .da.apply:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        .da.discard:hover {
+            border-color: var(--red);
+            color: var(--red)
+        }
+
+        .de-body {
+            padding: 7px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px
+        }
+
+        .de-row {
+            display: flex;
+            gap: 5px;
+            align-items: baseline
+        }
+
+        .de-k {
+            font-size: 7px;
+            letter-spacing: .1em;
+            color: var(--ink4);
+            width: 58px;
+            flex-shrink: 0
+        }
+
+        .de-v {
+            font-size: 8.5px;
+            color: var(--ink2);
+            flex: 1;
+            line-height: 1.35
+        }
+
+        .de-v.pattern {
+            font-size: 10px;
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        .de-v.resembles {
+            color: var(--ink3);
+            font-style: italic
+        }
+
+        .de-v.target {
+            color: var(--ink2)
+        }
+
+        .de-v.pathway {
+            font-size: 8px;
+            color: var(--ink4)
+        }
+
+        /* Patch diff block */
+        .de-diff {
+            margin-top: 5px;
+            border: 1px solid var(--bdr);
+            background: var(--paper);
+            font-size: 8.5px;
+        }
+
+        .de-diff-head {
+            padding: 3px 7px;
+            font-size: 7.5px;
+            letter-spacing: .1em;
+            color: var(--ink4);
+            border-bottom: 1px solid var(--bdr);
+            background: var(--paper2);
+        }
+
+        .diff-old {
+            padding: 3px 7px;
+            color: var(--red);
+            background: #fff8f8;
+            font-family: 'IBM Plex Mono', monospace
+        }
+
+        .diff-old::before {
+            content: '− ';
+            color: var(--red);
+            opacity: .6
+        }
+
+        .diff-new {
+            padding: 3px 7px;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: 'IBM Plex Mono', monospace
+        }
+
+        .diff-new::before {
+            content: '+ ';
+            color: var(--ink);
+            opacity: .6
+        }
+
+        .diff-null {
+            padding: 3px 7px;
+            color: var(--ink4);
+            font-style: italic
+        }
+
+        /* Before/after snapshot comparison */
+        .de-compare {
+            margin-top: 5px;
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--bdr);
+        }
+
+        .dc-before,
+        .dc-after {
+            flex: 1;
+            padding: 5px 7px;
+            font-size: 8px;
+            color: var(--ink4)
+        }
+
+        .dc-before {
+            border-right: 1px solid var(--bdr)
+        }
+
+        .dc-label {
+            font-size: 7px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            margin-bottom: 2px
+        }
+
+        .dc-val {
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            color: var(--ink)
+        }
+
+        /* Conjure */
+        #cbar {
+            flex-shrink: 0;
+            border-top: 1px solid var(--bdr);
+            display: flex
+        }
+
+        #cinp {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 8px 10px;
+            background: transparent;
+            font-family: inherit;
+            font-size: 9.5px;
+            color: var(--ink);
+            caret-color: var(--ink);
+        }
+
+        #cinp::placeholder {
+            color: var(--ink4)
+        }
+
+        #cbtn {
+            flex-shrink: 0;
+            padding: 0 12px;
+            border: none;
+            border-left: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .1em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        #cbtn:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        #cbtn:disabled {
+            color: var(--ink4);
+            cursor: default
+        }
+
+        #cloading {
+            display: none;
+            padding: 4px 10px;
+            font-size: 8px;
+            color: var(--ink3);
+            letter-spacing: .08em;
+            animation: sblink .6s infinite;
+            border-top: 1px solid var(--bdr);
+            flex-shrink: 0;
+        }
+
+        #cloading.on {
+            display: block
+        }
+
+        /* ── SCRIPT SHEET ── slides up from bottom */
+        #script-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 44px;
+            height: 0;
+            overflow: hidden;
+            background: var(--w);
+            border-top: 1px solid var(--bdr2);
+            z-index: 50;
+            transition: height .2s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #script-sheet.open {
+            height: 58vh
+        }
+
+        #ss-top {
+            flex-shrink: 0;
+            height: 28px;
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--bdr);
+            background: var(--paper);
+        }
+
+        .ssa {
+            padding: 0 10px;
+            border: none;
+            border-right: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7.5px;
+            letter-spacing: .09em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        .ssa:hover {
+            background: var(--paper2);
+            color: var(--ink)
+        }
+
+        #ss-lbl {
+            margin-left: auto;
+            padding: 0 10px;
+            font-size: 7.5px;
+            color: var(--ink4);
+            display: flex;
+            align-items: center
+        }
+
+        #ss-close {
+            padding: 0 12px;
+            border: none;
+            border-left: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: .1em;
+            cursor: pointer;
+            color: var(--ink3);
+        }
+
+        #ss-close:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        #ss-err {
+            display: none;
+            padding: 4px 10px;
+            font-size: 8.5px;
+            color: var(--red);
+            border-bottom: 1px solid var(--bdr);
+            background: var(--red-bg);
+            flex-shrink: 0;
+        }
+
+        #ss-editor {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        #lnums {
+            flex-shrink: 0;
+            width: 26px;
+            background: var(--paper);
+            border-right: 1px solid var(--bdr);
+            padding: 7px 0;
+            font-size: 9.5px;
+            color: var(--ink4);
+            line-height: 16.5px;
+            overflow: hidden;
+            text-align: right;
+            padding-right: 4px;
+            user-select: none;
+        }
+
+        #lnums .le {
+            color: var(--red);
+            background: var(--red-bg)
+        }
+
+        #lnums .la {
+            color: var(--ink);
+            background: var(--paper2);
+            font-weight: 700
+        }
+
+        #lnums .lh {
+            color: var(--ink2);
+            background: var(--paper)
+        }
+
+        #se {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            line-height: 16.5px;
+            color: var(--ink2);
+            padding: 7px 10px;
+            resize: none;
+            tab-size: 2;
+            white-space: pre;
+            overflow: auto;
+            caret-color: var(--ink);
+            scrollbar-width: thin;
+            scrollbar-color: var(--bdr) transparent;
+        }
+
+        #se::selection {
+            background: rgba(0, 0, 0, .08)
+        }
+
+        /* ── ACTION RAIL ── */
+        #rail {
+            flex-shrink: 0;
+            height: 44px;
+            display: flex;
+            border-top: 1px solid var(--bdr2);
+            background: var(--w);
+        }
+
+        .rb {
+            flex: 1;
+            border: none;
+            border-right: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7px;
+            letter-spacing: .12em;
+            color: var(--ink4);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            transition: all .08s;
+            padding: 0;
+        }
+
+        .rb:last-child {
+            border-right: none
+        }
+
+        .rb:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        .rb.run {
+            color: var(--ink2);
+            font-weight: 500
+        }
+
+        .rb.run:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        .rb.active-run {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        .rb.active-run:hover {
+            background: var(--ink2)
+        }
+
+        .rb.rec-on {
+            color: var(--red);
+            animation: sblink .8s infinite
+        }
+
+        .rb.disabled {
+            color: var(--ink4);
+            cursor: default;
+            opacity: .4
+        }
+
+        .rb-i {
+            font-size: 13px;
+            line-height: 1
+        }
+
+        .rb.active-run .rb-i {
+            animation: pulse 1s ease-in-out infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: .7
+            }
+
+            50% {
+                opacity: 1
+            }
+        }
+
+        /* ── OVERLAYS (seed, reset, presets) ── */
+        .ov {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(6, 6, 6, .6);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .ov.open {
+            display: flex
+        }
+
+        .od {
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: var(--w);
+            border: 1px solid var(--bdr2);
+            border-bottom: none;
+            scrollbar-width: thin;
+            scrollbar-color: var(--bdr) transparent;
+        }
+
+        .odh {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--bdr2);
+            font-size: 9px;
+            letter-spacing: .18em;
+            font-weight: 700;
+        }
+
+        .odx {
+            padding: 1px 8px;
+            border: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7.5px;
+            cursor: pointer;
+            letter-spacing: .09em;
+            color: var(--ink3);
+        }
+
+        .odx:hover {
+            border-color: var(--ink2);
+            color: var(--ink)
+        }
+
+        .od-inp {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid var(--bdr);
+            outline: none;
+            padding: 14px 12px;
+            font-family: inherit;
+            font-size: 22px;
+            font-weight: 300;
+            background: var(--paper);
+            caret-color: var(--ink);
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .od-inp:focus {
+            background: var(--w)
+        }
+
+        .od-inp::-webkit-outer-spin-button,
+        .od-inp::-webkit-inner-spin-button {
+            -webkit-appearance: none
+        }
+
+        .odr {
+            display: flex;
+            border-top: 1px solid var(--bdr)
+        }
+
+        .ob {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-right: 1px solid var(--bdr);
+            background: transparent;
+            font-family: inherit;
+            font-size: 7.5px;
+            cursor: pointer;
+            letter-spacing: .1em;
+            color: var(--ink3);
+        }
+
+        .ob:last-child {
+            border-right: none
+        }
+
+        .ob:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        .ob.primary {
+            color: var(--ink);
+            font-weight: 500
+        }
+
+        .ob.primary:hover {
+            background: var(--ink);
+            color: var(--w)
+        }
+
+        /* Reset rows */
+        .rr {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--bdr);
+            cursor: pointer;
+            transition: background .1s
+        }
+
+        .rr:hover {
+            background: var(--paper)
+        }
+
+        .rr-title {
+            font-size: 10.5px;
+            color: var(--ink);
+            margin-bottom: 2px
+        }
+
+        .rr-destroys {
+            font-size: 8px;
+            color: var(--red);
+            margin-bottom: 1px
+        }
+
+        .rr-keeps {
+            font-size: 8px;
+            color: var(--ink3)
+        }
+
+        /* Preset grid */
+        #pgrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr
+        }
+
+        .pg {
+            padding: 10px 11px;
+            border-right: 1px solid var(--bdr);
+            border-bottom: 1px solid var(--bdr);
+            cursor: pointer;
+            transition: background .1s;
+        }
+
+        .pg:nth-child(2n) {
+            border-right: none
+        }
+
+        .pg:hover {
+            background: var(--paper)
+        }
+
+        .pg-name {
+            font-size: 10px;
+            color: var(--ink);
+            margin-bottom: 2px;
+            font-weight: 500
+        }
+
+        .pg-claim {
+            font-size: 8px;
+            color: var(--ink3);
+            line-height: 1.35;
+            margin-bottom: 4px
+        }
+
+        .pg-nodes {
+            font-size: 7.5px;
+            color: var(--ink4);
+            margin-bottom: 2px
+        }
+
+        .pg-edit {
+            font-size: 7.5px;
+            color: var(--ink4);
+            font-style: italic
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 52px;
+            left: 50%;
+            transform: translateX(-50%) translateY(3px);
+            padding: 4px 12px;
+            background: var(--ink);
+            color: var(--w);
+            font-size: 8.5px;
+            letter-spacing: .06em;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .14s, transform .14s;
+            z-index: 500;
+            white-space: nowrap;
+        }
+
+        #toast.on {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        #toast.err {
+            background: var(--red)
+        }
+
+        /* File input */
+        #file-inp {
+            display: none
+        }
+
+        #media-preview {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            width: 72px;
+            height: 54px;
+            object-fit: cover;
+            opacity: .2;
+            display: none;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        #media-preview.on {
+            display: block
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+
+        <!-- STATE STRIP: always visible -->
+        <div id="sstrip">
+            <span id="ss-state">EMPTY</span>
+            <div class="sep"></div>
+            <span id="ss-t">t=<b id="tc">000000</b></span>
+            <span id="ss-u">u=<b id="uc">0</b></span>
+            <span id="ss-seed">seed:<b id="sc">42</b></span>
+            <div class="sep"></div>
+            <span id="ss-director">DIR ··</span>
+            <span id="ss-rec-cap">REC ··</span>
+        </div>
+
+        <!-- FIELD PLANE -->
+        <div id="cwrap">
+            <canvas id="c"></canvas>
+            <video id="media-preview" autoplay muted playsinline loop></video>
+            <div id="overlay-lbl"></div>
+            <div id="nodehint"></div>
+            <div id="ebar">
+                <div id="efill"></div>
+            </div>
+        </div>
+
+        <!-- NODE INSPECTOR STRIP -->
+        <div id="inspector">
+            <div id="ins-type">NODE</div>
+            <div id="ins-body">
+                <div id="ins-name">—</div>
+                <div id="ins-params">—</div>
+                <div id="ins-line">—</div>
+            </div>
+            <div class="ins-actions">
+                <button class="ia" id="ia-edit" onclick="openScriptToNode()">EDIT LAW</button>
+                <button class="ia" id="ia-deselect" onclick="deselectNode()">✕</button>
+            </div>
+        </div>
+
+        <!-- MODE BAR -->
+        <div id="modebar">
+            <button class="mbt active" data-mode="OPERATE">OPERATE</button>
+            <button class="mbt" data-mode="READ">READ</button>
+            <button class="mbt" data-mode="PATCH">PATCH</button>
+            <button id="script-btn" onclick="toggleScript()">SCRIPT ↑</button>
+        </div>
+
+        <!-- MODE PANEL -->
+        <div id="modepanel">
+
+            <!-- OPERATE -->
+            <div class="mpanel active" id="mp-OPERATE">
+                <div id="op-empty" style="display:flex">
+                    <span style="letter-spacing:.14em;font-size:10px;color:var(--ink3)">NO NODE SELECTED</span>
+                    <span>Tap a node on the field to inspect it</span>
+                    <span>Drag to reposition · node updates script live</span>
+                </div>
+                <div id="op-metrics-row"><!-- filled --></div>
+                <div id="op-regime"></div>
+                <div id="op-nodes-list"><!-- filled --></div>
+            </div>
+
+            <!-- READ -->
+            <div class="mpanel" id="mp-READ">
+                <div id="read-metrics"><!-- filled --></div>
+                <div id="read-regime"></div>
+                <div id="read-overlays">
+                    <div class="ro-title">DIAGNOSTIC OVERLAYS</div>
+                    <div class="ro-btns">
+                        <button class="rob" onclick="toggleOverlay('vectors')">↗ VECTORS</button>
+                        <button class="rob" onclick="toggleOverlay('trails')">∿ TRAILS</button>
+                        <button class="rob" onclick="toggleOverlay('floor')">— FLOOR</button>
+                        <button class="rob" id="rob-color" onclick="cycleColor()">◐ COLOR: MONO</button>
+                        <button class="rob" id="rob-noise" onclick="toggleNoise()">⊕ NOISE</button>
+                        <button class="rob on" id="rob-recycle" onclick="toggleRecycle()">⟳ RECYCLE</button>
+                        <button class="rob on" id="rob-energy" onclick="toggleAdaptive()">⚡ ADAPTIVE E</button>
+                    </div>
+                </div>
+                <div id="read-media">
+                    <div class="rm-title">MEDIA INFLUENCE</div>
+                    <div class="rm-row">
+                        <button class="rmb" id="rmb-cam" onclick="toggleWebcam()">◎ WEBCAM</button>
+                        <button class="rmb" id="rmb-vid" onclick="pickVideo()">▶ VIDEO</button>
+                        <button class="rmb" id="rmb-img" onclick="pickImage()">⊞ IMAGE</button>
+                        <span style="margin-left:auto;font-size:8px;color:var(--ink4)">STRENGTH</span>
+                        <input type="range" id="inf-slider" min="0" max="100" value="40" style="width:60px">
+                        <span id="inf-val" class="inf-val">40%</span>
+                    </div>
+                    <div style="font-size:8px;color:var(--ink4);line-height:1.5">
+                        Optical flow from camera or video steers particle force.<br>
+                        Drop video/image onto the field canvas to load.
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATCH -->
+            <div class="mpanel" id="mp-PATCH">
+                <div id="patch-top">
+                    <button class="pb primary" id="dir-now">◈ ANALYZE NOW</button>
+                    <button class="pb" onclick="clearDirLog()">CLEAR LOG</button>
+                    <span id="pt-auto" onclick="toggleAuto()">AUTO: ON</span>
+                    <span id="pt-st">Awaiting field data…</span>
+                </div>
+                <div id="undo-bar">
+                    <span id="undo-info">—</span>
+                    <button id="undo-btn" onclick="undoLastPatch()">↩ UNDO</button>
+                </div>
+                <div id="dirlog">
+                    <div style="padding:16px 8px;font-size:8.5px;color:var(--ink4);line-height:1.7;text-align:center">
+                        The Director reads field state, names emergent patterns,<br>
+                        and proposes concrete script patches toward real video targets.<br><br>
+                        Every patch shows BEFORE and AFTER. Apply or discard.
+                    </div>
+                </div>
+                <div id="cloading">◈ Conjuring field from description…</div>
+                <div id="cbar">
+                    <input id="cinp" type="text" maxlength="80"
+                        placeholder="Describe a visual target → conjure field configuration…">
+                    <button id="cbtn" onclick="doConjure()">CONJURE</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SCRIPT SHEET -->
+        <div id="script-sheet">
+            <div id="ss-top">
+                <button class="ssa" onclick="copyScript()">COPY</button>
+                <button class="ssa" onclick="exportJSON()">EXPORT JSON</button>
+                <button class="ssa" onclick="openOv('ov-preset')">PRESETS</button>
+                <span id="ss-lbl">LIVE · 150ms debounce</span>
+                <button id="ss-close" onclick="closeScript()">CLOSE ↓</button>
+            </div>
+            <div id="ss-err"></div>
+            <div id="ss-editor">
+                <div id="lnums"></div>
+                <textarea id="se" spellcheck="false" autocomplete="off" autocorrect="off"
+                    autocapitalize="off"></textarea>
+            </div>
+        </div>
+
+        <!-- ACTION RAIL -->
+        <div id="rail">
+            <button class="rb" id="rb-reset" onclick="openOv('ov-reset')"><span class="rb-i">⟳</span>RESET</button>
+            <button class="rb" id="rb-seed" onclick="openOv('ov-seed')"><span class="rb-i">⊛</span>SEED</button>
+            <button class="rb" id="rb-preset" onclick="openOv('ov-preset')"><span class="rb-i">⋮⋮</span>PRESET</button>
+            <button class="rb" id="rb-rec" onclick="toggleRec()"><span class="rb-i">●</span>RECORD</button>
+            <button class="rb run" id="rb-run" onclick="toggleRun()"><span class="rb-i">▶</span>RUN</button>
+        </div>
+
+    </div>
+
+    <!-- SEED OVERLAY -->
+    <div class="ov" id="ov-seed">
+        <div class="od">
+            <div class="odh">SEED<button class="odx" onclick="closeOv('ov-seed')">CLOSE</button></div>
+            <input type="number" class="od-inp" id="seed-inp" value="42">
+            <div class="odr">
+                <button class="ob"
+                    onclick="document.getElementById('seed-inp').value=Math.floor(Math.random()*99999)">RANDOM</button>
+                <button class="ob primary" onclick="applySeed()">APPLY SEED</button>
+                <button class="ob" onclick="closeOv('ov-seed')">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESET OVERLAY -->
+    <div class="ov" id="ov-reset">
+        <div class="od">
+            <div class="odh">RESET<button class="odx" onclick="closeOv('ov-reset')">CLOSE</button></div>
+            <div class="rr" onclick="doReset('sim')">
+                <div class="rr-title">Reset Simulation</div>
+                <div class="rr-destroys">DESTROYS: particles · t counter · metric history</div>
+                <div class="rr-keeps">PRESERVES: nodes · script · director log · seed</div>
+            </div>
+            <div class="rr" onclick="doReset('gen')">
+                <div class="rr-title">Reload Generators</div>
+                <div class="rr-destroys">DESTROYS: node positions (re-parsed from script)</div>
+                <div class="rr-keeps">PRESERVES: particle state · metric history · director log</div>
+            </div>
+            <div class="rr" onclick="doReset('all')">
+                <div class="rr-title">Reset All</div>
+                <div class="rr-destroys">DESTROYS: everything — script reverts to default</div>
+                <div class="rr-keeps">PRESERVES: nothing</div>
+            </div>
+            <div class="odr"><button class="ob" onclick="closeOv('ov-reset')">CANCEL</button></div>
+        </div>
+    </div>
+
+    <!-- PRESETS OVERLAY -->
+    <div class="ov" id="ov-preset">
+        <div class="od">
+            <div class="odh">PRESETS — STARTING HYPOTHESES<button class="odx"
+                    onclick="closeOv('ov-preset')">CLOSE</button></div>
+            <div id="pgrid"><!-- filled by JS --></div>
+        </div>
+    </div>
+
+    <input type="file" id="file-inp" accept="video/*,image/*">
+    <div id="toast"></div>
+
+    <script>
+        'use strict';
+        // ════════════════════════════════════════════════════════════════════════════
+        // ICARO · NAURIAN LOOP — CAUSAL PATCH CONSOLE
+        // Redesigned per POML spec: white instrument, causal bindings, patch preview
+        // ════════════════════════════════════════════════════════════════════════════
+
+        // ── PRESETS ─────────────────────────────────────────────────────────────────
+        const PRESETS = [
+            {
+                name: 'Stellar Nursery',
+                claim: 'Two repulsive jets feed one convergent attractor sink. High speed, moderate coherence. Watch for particle jet formation.',
+                nodes: '2 sources · 1 attractor · 1 driver',
+                bestFirstEdit: 'Increase attractor strength (14→22) to collapse jets faster',
+                script: `# Stellar Nursery\nseed 7331\nbounds 0 800 0 600\nfloor y=588 friction=0.04\nsource P1 x=200 y=300 strength=10\nsource P2 x=600 y=300 strength=10\nattractor A x=400 y=140 strength=14\ndriver D1 x=400 y=500 amp=5 freq=0.017 omega=0.7 phase=0\nrender particles=5000 trails=1 vectors=0`
+            },
+            {
+                name: 'Aurora Curtain',
+                claim: 'Three phase-locked horizontal wave drivers create large coherent sheets. Low curl, high coherence. Trails required for aurora effect.',
+                nodes: '3 drivers · phase_lock',
+                bestFirstEdit: 'Shift D2 phase to 2.094 for asymmetric curtain folds',
+                script: `# Aurora Curtain\nseed 1984\nbounds 0 800 0 600\nfloor y=596 friction=0.02\ndriver D1 x=400 y=90 amp=9 freq=0.011 omega=0.32 phase=0\ndriver D2 x=400 y=300 amp=7 freq=0.015 omega=0.48 phase=1.047\ndriver D3 x=400 y=510 amp=5.5 freq=0.021 omega=0.62 phase=2.094\nphase_lock D1 D2 D3 offset=0\nrender particles=5000 trails=1 vectors=0`
+            },
+            {
+                name: 'Twin Vortex',
+                claim: 'Opposing omega values on co-located drivers create counter-rotating vortex pair. High curl. Drag D1 toward D2 to merge into one spiral.',
+                nodes: '2 sources · 2 drivers (opposing omega)',
+                bestFirstEdit: 'Change D2 omega from -1.5 to -0.8 to slow one vortex',
+                script: `# Twin Vortex\nseed 2718\nbounds 0 800 0 600\nfloor y=592 friction=0.03\nsource P1 x=270 y=300 strength=5\nsource P2 x=530 y=300 strength=5\ndriver D1 x=270 y=300 amp=8 freq=0.026 omega=1.5 phase=0\ndriver D2 x=530 y=300 amp=8 freq=0.026 omega=-1.5 phase=0\nrender particles=5000 trails=1 vectors=0`
+            },
+            {
+                name: 'Smoke Column',
+                claim: 'Negative-strength source pushes particles upward. High floor friction creates turbulent base. Three lateral drivers add realistic shear.',
+                nodes: '1 negative source · 3 drivers · 1 attractor · floor friction=0.14',
+                bestFirstEdit: 'Reduce floor y from 555 to 520 to raise the column base',
+                script: `# Smoke Column\nseed 999\nbounds 0 800 0 600\nfloor y=555 friction=0.14\nsource P1 x=400 y=535 strength=-16\ndriver D1 x=400 y=390 amp=3.5 freq=0.044 omega=2.2 phase=0\ndriver D2 x=310 y=280 amp=2.2 freq=0.054 omega=1.9 phase=1.57\ndriver D3 x=490 y=280 amp=2.2 freq=0.054 omega=1.9 phase=-1.57\nattractor A x=400 y=55 strength=7\nrender particles=5000 trails=1 vectors=0`
+            },
+            {
+                name: 'Murmuration',
+                claim: 'Phase-locked drivers with attractor bias produce synchronized flock-like coherence. Very high coherence, low curl. No trails to reveal individual trajectories.',
+                nodes: '3 drivers · phase_lock · 1 attractor',
+                bestFirstEdit: 'Increase attractor strength (4→8) to tighten the flock center',
+                script: `# Murmuration\nseed 5555\nbounds 0 800 0 600\nfloor y=596 friction=0.01\ndriver D1 x=220 y=300 amp=5.5 freq=0.031 omega=0.52 phase=0\ndriver D2 x=400 y=300 amp=5.5 freq=0.031 omega=0.52 phase=2.094\ndriver D3 x=580 y=300 amp=5.5 freq=0.031 omega=0.52 phase=4.189\nphase_lock D1 D2 D3 offset=0\nattractor A x=400 y=300 strength=4\nrender particles=5000 trails=0 vectors=0`
+            },
+            {
+                name: 'Ocean Gyre',
+                claim: 'Single large-omega driver creates a basin-scale rotation. Two sources add asymmetry. Enable vectors to see the force topology.',
+                nodes: '1 driver · 2 sources · 1 attractor',
+                bestFirstEdit: 'Raise driver amp from 11 to 16 for faster gyre rotation',
+                script: `# Ocean Gyre\nseed 3141\nbounds 0 800 0 600\nfloor y=594 friction=0.05\ndriver D1 x=400 y=300 amp=11 freq=0.0075 omega=0.2 phase=0\nsource P1 x=160 y=160 strength=3.5\nsource P2 x=640 y=440 strength=3.5\nattractor A x=400 y=300 strength=5\nrender particles=5000 trails=1 vectors=1`
+            },
+            {
+                name: 'Neural Cascade',
+                claim: 'Triangle of strong attractors with central repulsor. Particles oscillate between sinks. Low trail — watch particle flow routing between nodes.',
+                nodes: '3 attractors · 1 source · 1 driver',
+                bestFirstEdit: 'Move P1 source from center (400,300) to edge to break symmetry',
+                script: `# Neural Cascade\nseed 1729\nbounds 0 800 0 600\nfloor y=594 friction=0.03\nattractor A1 x=200 y=190 strength=16\nattractor A2 x=600 y=190 strength=16\nattractor A3 x=400 y=510 strength=16\nsource P1 x=400 y=300 strength=7\ndriver D1 x=400 y=300 amp=3.5 freq=0.019 omega=0.85 phase=0\nrender particles=5000 trails=0 vectors=0`
+            },
+            {
+                name: 'Storm Cell',
+                claim: 'Three detuned high-amplitude drivers at moderate separation. Interference patterns create turbulent chaos. High curl, low coherence.',
+                nodes: '3 drivers (detuned) · 1 source · high floor friction',
+                bestFirstEdit: 'Detune D3 freq from 0.052 to 0.072 for stronger interference',
+                script: `# Storm Cell\nseed 8192\nbounds 0 800 0 600\nfloor y=490 friction=0.18\ndriver D1 x=270 y=240 amp=10 freq=0.036 omega=2.3 phase=0\ndriver D2 x=530 y=240 amp=10 freq=0.039 omega=2.5 phase=1.1\ndriver D3 x=400 y=460 amp=7 freq=0.052 omega=1.9 phase=3.14\nsource P1 x=400 y=240 strength=4\nrender particles=5000 trails=0 vectors=0`
+            },
+            {
+                name: 'Gravity Well',
+                claim: 'One dominant attractor with tiny repulsor prevents complete collapse. Driver adds orbital angular momentum. Enable trails for accretion disk effect.',
+                nodes: '1 attractor (strength=30) · 1 source · 1 driver',
+                bestFirstEdit: 'Increase driver omega from 0.26 to 0.5 to tighten spiral arms',
+                script: `# Gravity Well\nseed 6174\nbounds 0 800 0 600\nfloor y=596 friction=0.01\nattractor A x=400 y=300 strength=30\nsource P1 x=400 y=300 strength=2\ndriver D1 x=400 y=300 amp=4.5 freq=0.014 omega=0.26 phase=0\nrender particles=5000 trails=1 vectors=0`
+            },
+            {
+                name: 'Lissajous Web',
+                claim: 'Two drivers at golden-ratio frequency ratio, phase-locked. Creates stable 2D standing-wave geometry. High coherence in wave nodes.',
+                nodes: '2 drivers (golden ratio omega) · 1 driver · phase_lock',
+                bestFirstEdit: 'Change D2 phase from 1.5708 to 0.785 for rotated figure-8',
+                script: `# Lissajous Web\nseed 1618\nbounds 0 800 0 600\nfloor y=596 friction=0.01\ndriver D1 x=400 y=300 amp=8 freq=0.019 omega=1.0 phase=0\ndriver D2 x=400 y=300 amp=8 freq=0.031 omega=1.618 phase=1.5708\ndriver D3 x=200 y=480 amp=4.5 freq=0.037 omega=0.9 phase=0.785\nphase_lock D1 D2 offset=0\nrender particles=5000 trails=1 vectors=0`
+            },
+        ];
+        const DEFAULT_SCRIPT = PRESETS[0].script;
+
+        // ── RNG ──────────────────────────────────────────────────────────────────────
+        function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }; }
+        let _rng = mulberry32(42);
+        const rand = () => _rng();
+        function reseedRng(s) { _rng = mulberry32(s); }
+
+        // ── SONIC HAPTICS ────────────────────────────────────────────────────────────
+        let _audioCtx = null;
+        function sonicBeep(type) {
+            if (!_audioCtx) {
+                try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
+                catch (e) { return; }
+            }
+            if (_audioCtx.state === 'suspended') _audioCtx.resume();
+            
+            const osc = _audioCtx.createOscillator();
+            const gain = _audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(_audioCtx.destination);
+            
+            const now = _audioCtx.currentTime;
+            if (type === 'start') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1200, now + 0.05);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // ── PARSER ───────────────────────────────────────────────────────────────────
+        function kv(p, f) { const m = {}; for (let i = f; i < p.length; i++) { const e = p[i].indexOf('='); if (e > 0) m[p[i].slice(0, e)] = p[i].slice(e + 1); } return m; }
+
+        function parseScript(txt) {
+            const r = {
+                seed: 42, bounds: { xMin: 0, xMax: 800, yMin: 0, yMax: 600 },
+                floor: { y: 590, friction: 0.04 }, nodes: [], phaseLocks: [],
+                render: { particles: 5000, trails: false, vectors: false }, errors: []
+            };
+            txt.split('\n').forEach((raw, li) => {
+                const t = raw.trim(); if (!t || t[0] === '#') return;
+                const p = t.split(/\s+/), w = p[0].toLowerCase();
+                try {
+                    if (w === 'seed') r.seed = parseInt(p[1]) || 42;
+                    else if (w === 'bounds') r.bounds = { xMin: +p[1] || 0, xMax: +p[2] || 800, yMin: +p[3] || 0, yMax: +p[4] || 600 };
+                    else if (w === 'floor') { const m = kv(p, 1); r.floor = { y: parseFloat(m.y ?? 590), friction: parseFloat(m.friction ?? 0.04) }; }
+                    else if (w === 'source') { const m = kv(p, 2); r.nodes.push({ type: 'source', name: p[1] || 'P', li, x: +m.x || 400, y: +m.y || 300, strength: +m.strength || 6 }); }
+                    else if (w === 'attractor') { const m = kv(p, 2); r.nodes.push({ type: 'attractor', name: p[1] || 'A', li, x: +m.x || 400, y: +m.y || 300, strength: +m.strength || 12 }); }
+                    else if (w === 'driver') { const m = kv(p, 2); r.nodes.push({ type: 'driver', name: p[1] || 'D', li, x: +m.x || 400, y: +m.y || 300, amp: +m.amp || 4, freq: +m.freq || 0.025, omega: +m.omega || 0.8, phase: +m.phase || 0 }); }
+                    else if (w === 'phase_lock') { const m = kv(p, 1); r.phaseLocks.push({ names: p.slice(1).filter(x => !x.includes('=')), offset: +m.offset || 0, li }); }
+                    else if (w === 'render') { const m = kv(p, 1); r.render = { particles: Math.min(+m.particles || 5000, 8000), trails: m.trails === '1', vectors: m.vectors === '1' }; }
+                } catch (e) { r.errors.push({ line: li, msg: e.message }); }
+            });
+            return r;
+        }
+
+        // ── ENERGY SYSTEM ────────────────────────────────────────────────────────────
+        const EN = { target: 3.5, current: 0, scale: 1.0, injecting: false, history: [] };
+
+        // ── APP STATE ─────────────────────────────────────────────────────────────────
+        const A = {
+            // State machine
+            simState: 'EMPTY',
+            mode: 'OPERATE',
+            scriptOpen: false,
+
+            // Bindings
+            selectedNodeIdx: null,
+            hoveredNodeIdx: null,
+            activeScriptLine: -1,
+            hoveredScriptLine: -1,
+            activeOverlay: null, // 'speed'|'coherence'|'curl'|'pressure'
+
+            // Script
+            script: DEFAULT_SCRIPT,
+            lastValidScript: DEFAULT_SCRIPT,
+            errLine: -1,
+            nodePulse: { idx: -1, tick: 0 },
+
+            // Patch/Undo
+            undoStack: [],
+            patchPreview: null,
+
+            // Director
+            dirLog: [],
+            autoInfer: false,
+            inferring: false,
+            inferTimer: 0,
+            INFER_INT: 1800,
+
+            // Recording
+            recordCapable: null, // null=checking, true=yes, false=no
+            recActive: false,
+
+            // Simulation
+            running: false,
+            t: 0,
+            seed: 42,
+            particles: [],
+            nodes: [],
+            phaseLocks: [],
+            bounds: { xMin: 0, xMax: 800, yMin: 0, yMax: 600 },
+            floor: { y: 590, friction: 0.04 },
+            trails: false,
+            vectors: false,
+            showFloor: true,
+            thermalNoise: true,
+            recycleParticles: true,
+            adaptiveEnergy: true,
+            colorMode: 0,
+            CMODES: ['MONO', 'SPEED', 'DIR', 'NODE', 'AGE'],
+            particleCount: 5000,
+            metrics: { speed: [], coherence: [], curl: [], ke: [] },
+            MWIN: 350,
+
+            // Media
+            mediaMode: null,
+            mediaInfluence: 0.4,
+            prevFrameData: null,
+            flowGrid: null,
+            webcamStream: null,
+        };
+
+        // ── PARTICLES ────────────────────────────────────────────────────────────────
+        function initParticles(count, bounds, seed) {
+            reseedRng(seed);
+            const bw = bounds.xMax - bounds.xMin, bh = bounds.yMax - bounds.yMin;
+            return Array.from({ length: count }, () => ({
+                x: bounds.xMin + rand() * bw, y: bounds.yMin + rand() * bh,
+                vx: (rand() - .5) * 3, vy: (rand() - .5) * 3,
+                age: Math.floor(rand() * 600), staleTicks: 0,
+            }));
+        }
+        function respawnParticle(p) {
+            const srcs = A.nodes.filter(n => n.type === 'source');
+            const pool = srcs.length ? srcs : A.nodes;
+            const nd = pool.length ? pool[Math.floor(rand() * pool.length)] : null;
+            if (nd) { p.x = nd.x + (rand() - .5) * 60; p.y = nd.y + (rand() - .5) * 60; }
+            else { p.x = A.bounds.xMin + rand() * (A.bounds.xMax - A.bounds.xMin); p.y = A.bounds.yMin + rand() * (A.bounds.yMax - A.bounds.yMin); }
+            p.vx = (rand() - .5) * EN.target * 1.2; p.vy = (rand() - .5) * EN.target * 1.2; p.staleTicks = 0; p.age = 0;
+        }
+
+        // ── PHYSICS ──────────────────────────────────────────────────────────────────
+        function nodeForce(px, py, nd, t) {
+            const dx = nd.x - px, dy = nd.y - py, d2 = dx * dx + dy * dy, d = Math.sqrt(d2) + 1e-5;
+            if (nd.type === 'source') {
+                const pulse = 1 + 0.4 * Math.sin(t * 0.5);
+                const f = -nd.strength * 800 * pulse / (d2 + 700);
+                return { fx: f * dx / d, fy: f * dy / d };
+            }
+            if (nd.type === 'attractor') {
+                const f = nd.strength * 800 / (d2 + 700);
+                return { fx: (f * dx / d - f * 0.15 * dy / d), fy: (f * dy / d + f * 0.15 * dx / d) };
+            }
+            if (nd.type === 'driver') {
+                const ph = nd._lockPhase !== undefined ? nd._lockPhase : (nd.omega * t + nd.phase);
+                const rad = Math.sin(nd.freq * d - ph), tan = Math.cos(nd.freq * d - ph);
+                const pump = nd.amp * 0.35 * (1 + Math.sin(nd.omega * t + nd.phase)) / 2;
+                const wsc = nd.amp * 28 / (d * 0.045 + 1), psc = pump * 18 / (d * 0.055 + 1);
+                return { fx: (rad * dx / d - tan * dy / d) * wsc + (dx / d) * psc, fy: (rad * dy / d + tan * dx / d) * wsc + (dy / d) * psc };
+            }
+            return { fx: 0, fy: 0 };
+        }
+
+        function surveyEnergy() {
+            const p = A.particles, N = p.length; if (!N) return;
+            const step = Math.ceil(N / 300); let ke = 0, cnt = 0;
+            for (let i = 0; i < N; i += step) { const q = p[i]; ke += q.vx * q.vx + q.vy * q.vy; cnt++; }
+            EN.current = Math.sqrt(ke / cnt);
+            const push = (a, v) => { a.push(v); if (a.length > A.MWIN) a.shift(); };
+            push(EN.history, EN.current); push(A.metrics.ke, EN.current);
+            if (A.adaptiveEnergy) {
+                const r = EN.current / EN.target;
+                if (r < 0.25) { EN.scale = 4.0; EN.injecting = true; }
+                else if (r < 0.5) { EN.scale = 2.2; EN.injecting = true; }
+                else if (r < 0.75) { EN.scale = 1.5; EN.injecting = false; }
+                else if (r > 4) { EN.scale = 0.3; EN.injecting = false; }
+                else if (r > 2.5) { EN.scale = 0.65; EN.injecting = false; }
+                else { EN.scale = 1.0; EN.injecting = false; }
+            } else { EN.scale = 1.0; EN.injecting = false; }
+        }
+
+        function simTick() {
+            const { bounds, floor, nodes, particles, phaseLocks, t } = A;
+            const MSP = 14, bw = bounds.xMax - bounds.xMin, bh = bounds.yMax - bounds.yMin;
+            for (const lock of phaseLocks) {
+                const ref = nodes.find(n => lock.names.includes(n.name) && n.type === 'driver');
+                if (!ref) continue; const ph = ref.omega * t + lock.offset;
+                for (const nd of nodes) if (lock.names.includes(nd.name) && nd.type === 'driver' && nd !== ref) nd._lockPhase = ph;
+            }
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i]; let fx = 0, fy = 0;
+                for (const nd of nodes) { const f = nodeForce(p.x, p.y, nd, t); fx += f.fx; fy += f.fy; }
+                fx *= EN.scale; fy *= EN.scale;
+                if (A.thermalNoise) { fx += (rand() - .5) * 0.22; fy += (rand() - .5) * 0.22; }
+                if (A.flowGrid && A.mediaInfluence > 0) {
+                    const nx = Math.min(31, Math.max(0, Math.floor((p.x - bounds.xMin) / bw * 32)));
+                    const ny = Math.min(23, Math.max(0, Math.floor((p.y - bounds.yMin) / bh * 24)));
+                    const cell = A.flowGrid[ny * 32 + nx];
+                    if (cell) { fx += cell.dx * A.mediaInfluence * 12; fy += cell.dy * A.mediaInfluence * 12; }
+                }
+                if (floor && p.y >= floor.y - 2) { p.vx *= (1 - floor.friction * 1.4); p.vy = -Math.abs(p.vy) * .28; p.y = floor.y - 2; }
+                p.vx += fx; p.vy += fy;
+                const spd = Math.hypot(p.vx, p.vy); if (spd > MSP) { p.vx = p.vx / spd * MSP; p.vy = p.vy / spd * MSP; }
+                p.x += p.vx; p.y += p.vy; p.age++;
+                if (p.x < bounds.xMin) p.x += bw; else if (p.x > bounds.xMax) p.x -= bw;
+                if (p.y < bounds.yMin) { p.y = bounds.yMin; p.vy = Math.abs(p.vy) * .5; }
+                else if (p.y > bounds.yMax) { p.y = bounds.yMax; p.vy = -Math.abs(p.vy) * .4; }
+                if (A.recycleParticles) { const s2 = Math.hypot(p.vx, p.vy); p.staleTicks = (s2 < 0.08) ? p.staleTicks + 1 : 0; if (p.staleTicks > 80) respawnParticle(p); }
+            }
+        }
+
+        // ── METRICS ──────────────────────────────────────────────────────────────────
+        function computeMetrics() {
+            const { particles, nodes, t, metrics, MWIN } = A; const N = particles.length; if (!N) return;
+            let ss = 0, sc = 0; const step = Math.ceil(N / 400); let cnt = 0;
+            for (let i = 0; i < N; i += step) {
+                const p = particles[i], spd = Math.hypot(p.vx, p.vy); ss += spd;
+                let fx = 0, fy = 0; for (const nd of nodes) { const f = nodeForce(p.x, p.y, nd, t); fx += f.fx; fy += f.fy; }
+                const fm = Math.hypot(fx, fy) + 1e-8; sc += (p.vx * fx + p.vy * fy) / ((spd + 1e-8) * fm); cnt++;
+            }
+            let curl = 0; const GN = 4, bw = (A.bounds.xMax - A.bounds.xMin) / GN, bh = (A.bounds.yMax - A.bounds.yMin) / GN, eps = 4;
+            for (let gi = 0; gi < GN; gi++)for (let gj = 0; gj < GN; gj++) {
+                const gx = A.bounds.xMin + (gi + .5) * bw, gy = A.bounds.yMin + (gj + .5) * bh;
+                let fy1 = 0, fy2 = 0, fx3 = 0, fx4 = 0;
+                for (const nd of nodes) {
+                    fy1 += nodeForce(gx + eps, gy, nd, t).fy; fy2 += nodeForce(gx - eps, gy, nd, t).fy;
+                    fx3 += nodeForce(gx, gy + eps, nd, t).fx; fx4 += nodeForce(gx, gy - eps, nd, t).fx;
+                }
+                curl += Math.abs((fy1 - fy2) / (2 * eps) - (fx3 - fx4) / (2 * eps));
+            }
+            const push = (a, v) => { a.push(v); if (a.length > MWIN) a.shift(); };
+            push(metrics.speed, ss / cnt); push(metrics.coherence, sc / cnt); push(metrics.curl, curl / (GN * GN));
+        }
+
+        function getRegime() {
+            const m = A.metrics, avg = a => { if (!a.length) return 0; return a.slice(-40).reduce((s, v) => s + v, 0) / Math.min(a.length, 40); };
+            const sp = avg(m.speed), co = avg(m.coherence), cu = avg(m.curl);
+            if (cu > 0.25 && co < 0.2) return { name: 'TURBULENT CHAOS', desc: 'High curl, low coherence. Drivers are detuned or interfering. Add phase_lock or reduce driver count.' };
+            if (co > 0.6 && sp > 2) return { name: 'LAMINAR COHERENT', desc: 'Particles move in aligned streams. Attractor pulling with stable driver wave. Good for video capture.' };
+            if (cu > 0.1 && co > 0.3) return { name: 'VORTEX TRANSITIONAL', desc: 'Rotational structure emerging. Increase driver omega to sharpen spiral.' };
+            if (sp < 0.2) return { name: 'NEAR-STASIS', desc: 'Field is collapsing. Adaptive energy is compensating. Check attractor strength — may need to balance with repulsors.' };
+            if (co > 0.7) return { name: 'HIGH COHERENCE', desc: 'Very aligned motion. Consider adding a driver to introduce complexity.' };
+            return { name: 'MIXED REGIME', desc: 'Balanced forces. Good baseline for experimentation.' };
+        }
+
+        // ── COORD TRANSFORMS ─────────────────────────────────────────────────────────
+        let canvas, ctx, W = 800, H = 600;
+        function s2c(sx, sy) { return [(sx - A.bounds.xMin) * W / (A.bounds.xMax - A.bounds.xMin), (sy - A.bounds.yMin) * H / (A.bounds.yMax - A.bounds.yMin)]; }
+        function c2s(cx, cy) { return [cx * (A.bounds.xMax - A.bounds.xMin) / W + A.bounds.xMin, cy * (A.bounds.yMax - A.bounds.yMin) / H + A.bounds.yMin]; }
+
+        // ── RENDERER ─────────────────────────────────────────────────────────────────
+        const SPD_COLS = ['#1e3acc', '#2288ff', '#00ddaa', '#88ff22', '#ffcc00', '#ff3300'];
+        function hue(h) { h = ((h % 360) + 360) % 360; const s = .85, l = .52, c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; let r = 0, g = 0, b = 0; if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; } else if (h < 300) { r = x; b = c; } else { r = c; b = x; } return `rgb(${Math.round((r + m) * 255)},${Math.round((g + m) * 255)},${Math.round((b + m) * 255)})`; }
+        function drawArrow(x1, y1, x2, y2, col) { const ang = Math.atan2(y2 - y1, x2 - x1); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.stroke(); ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - 4 * Math.cos(ang - .4), y2 - 4 * Math.sin(ang - .4)); ctx.lineTo(x2 - 4 * Math.cos(ang + .4), y2 - 4 * Math.sin(ang + .4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); }
+
+        function render() {
+            if (A.trails) { ctx.fillStyle = 'rgba(0,0,0,.09)'; ctx.fillRect(0, 0, W, H); }
+            else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }
+
+            if (A.showFloor && A.floor) {
+                const [, fy] = s2c(0, A.floor.y);
+                ctx.save(); ctx.setLineDash([4, 10]); ctx.strokeStyle = 'rgba(255,100,100,.2)'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke(); ctx.restore();
+            }
+
+            if (A.vectors) {
+                const GN = 16, bw = (A.bounds.xMax - A.bounds.xMin) / GN, bh = (A.bounds.yMax - A.bounds.yMin) / GN;
+                for (let gi = 0; gi < GN; gi++)for (let gj = 0; gj < GN; gj++) {
+                    const sx = A.bounds.xMin + (gi + .5) * bw, sy = A.bounds.yMin + (gj + .5) * bh;
+                    let fx = 0, fy = 0; for (const nd of A.nodes) { const f = nodeForce(sx, sy, nd, A.t); fx += f.fx; fy += f.fy; }
+                    const mag = Math.hypot(fx, fy); if (mag < .01) continue;
+                    const len = Math.min(9, mag * 2.5) / mag; const [cx2, cy2] = s2c(sx, sy);
+                    drawArrow(cx2, cy2, cx2 + fx * len, cy2 + fy * len, 'rgba(80,80,80,.5)');
+                }
+            }
+
+            // Overlay: color by metric
+            const scx = W / (A.bounds.xMax - A.bounds.xMin), scy = H / (A.bounds.yMax - A.bounds.yMin);
+            const ox = -A.bounds.xMin * scx, oy = -A.bounds.yMin * scy;
+            const cm = A.colorMode, ps = A.particles;
+
+            if (cm === 0) {
+                ctx.fillStyle = 'rgba(200,210,230,.82)'; ctx.beginPath();
+                for (let i = 0; i < ps.length; i++) { const p = ps[i]; ctx.rect(p.x * scx + ox - .8, p.y * scy + oy - .8, 1.6, 1.6); }
+                ctx.fill();
+            } else if (cm === 1) {
+                const B = SPD_COLS.map(() => []);
+                for (let i = 0; i < ps.length; i++) { const p = ps[i]; B[Math.min(5, Math.floor(Math.hypot(p.vx, p.vy) / 14 * 5))].push(p); }
+                for (let b = 0; b < 6; b++) { ctx.fillStyle = SPD_COLS[b] + 'cc'; ctx.beginPath(); for (const p of B[b]) ctx.rect(p.x * scx + ox - .8, p.y * scy + oy - .8, 1.6, 1.6); ctx.fill(); }
+            } else if (cm === 2) {
+                const NB = 36, B = Array.from({ length: NB }, () => []);
+                for (let i = 0; i < ps.length; i++) { const p = ps[i]; const ang = Math.atan2(p.vy, p.vx); B[Math.floor(((ang + Math.PI) / (2 * Math.PI)) * NB) % NB].push(p); }
+                for (let b = 0; b < NB; b++) { if (!B[b].length) continue; ctx.fillStyle = hue(b * (360 / NB)) + 'cc'; ctx.beginPath(); for (const p of B[b]) ctx.rect(p.x * scx + ox - .8, p.y * scy + oy - .8, 1.6, 1.6); ctx.fill(); }
+            } else if (cm === 3) {
+                const tp = { source: 0, attractor: 1, driver: 2 }; const NC = ['rgba(200,40,40,.75)', 'rgba(40,140,255,.75)', 'rgba(80,220,40,.75)'];
+                const B = [[], [], []];
+                for (let i = 0; i < ps.length; i++) { const p = ps[i]; let best = Infinity, btype = 0; for (const nd of A.nodes) { const d2 = (nd.x - p.x) ** 2 + (nd.y - p.y) ** 2; if (d2 < best) { best = d2; btype = tp[nd.type] || 0; } } B[btype].push(p); }
+                for (let b = 0; b < 3; b++) { ctx.fillStyle = NC[b]; ctx.beginPath(); for (const p of B[b]) ctx.rect(p.x * scx + ox - .8, p.y * scy + oy - .8, 1.6, 1.6); ctx.fill(); }
+            } else if (cm === 4) {
+                for (let i = 0; i < ps.length; i++) { const p = ps[i]; const a = Math.min(p.age / 200, 1); ctx.fillStyle = `rgba(180,200,230,${(.1 + .8 * a).toFixed(2)})`; ctx.fillRect(p.x * scx + ox - .8, p.y * scy + oy - .8, 1.6, 1.6); }
+            }
+
+            // Nodes
+            for (let i = 0; i < A.nodes.length; i++)renderNode(i);
+
+            // Pulse animation
+            if (A.nodePulse.idx >= 0) {
+                const age = A.t - A.nodePulse.tick;
+                if (age < 20 && A.nodePulse.idx < A.nodes.length) {
+                    const nd = A.nodes[A.nodePulse.idx];
+                    const [cx2, cy2] = s2c(nd.x, nd.y);
+                    const r = 18 + age * 2.5; const alpha = Math.max(0, 0.5 - age / 20 * .5);
+                    ctx.beginPath(); ctx.arc(cx2, cy2, r, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255,255,255,${alpha})`; ctx.lineWidth = 1.5; ctx.stroke();
+                } else { A.nodePulse.idx = -1; }
+            }
+        }
+
+        function renderNode(idx) {
+            const nd = A.nodes[idx]; const [cx2, cy2] = s2c(nd.x, nd.y);
+            const R = 15, sel = A.selectedNodeIdx === idx, hov = A.hoveredNodeIdx === idx;
+            // Colors: source=warm, attractor=cool (still within near-mono palette for canvas)
+            const col = nd.type === 'source' ? 'rgba(220,80,60,1)' : nd.type === 'attractor' ? 'rgba(80,160,240,1)' : 'rgba(140,220,80,1)';
+            const colF = nd.type === 'source' ? 'rgba(220,80,60,.15)' : nd.type === 'attractor' ? 'rgba(80,160,240,.15)' : 'rgba(140,220,80,.15)';
+
+            if (sel) { ctx.beginPath(); ctx.arc(cx2, cy2, R + 8, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]); ctx.stroke(); ctx.setLineDash([]); }
+            if (hov && !sel) { ctx.beginPath(); ctx.arc(cx2, cy2, R + 5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.lineWidth = 1; ctx.stroke(); }
+
+            ctx.beginPath(); ctx.arc(cx2, cy2, R, 0, Math.PI * 2); ctx.fillStyle = colF; ctx.fill();
+            ctx.strokeStyle = col; ctx.lineWidth = sel ? 2 : 1.2; ctx.stroke();
+
+            if (nd.type === 'source') {
+                const dir = nd.strength >= 0 ? 1 : -1;
+                for (let a = 0; a < 4; a++) {
+                    const ang = a * Math.PI / 2, ax = Math.cos(ang), ay = Math.sin(ang);
+                    if (dir > 0) drawArrow(cx2 + ax * 4, cy2 + ay * 4, cx2 + ax * 11, cy2 + ay * 11, col);
+                    else drawArrow(cx2 + ax * 11, cy2 + ay * 11, cx2 + ax * 4, cy2 + ay * 4, col);
+                }
+            } else if (nd.type === 'attractor') {
+                for (let a = 0; a < 4; a++) { const ang = a * Math.PI / 2, ax = Math.cos(ang), ay = Math.sin(ang); drawArrow(cx2 + ax * 11, cy2 + ay * 11, cx2 + ax * 4, cy2 + ay * 4, col); }
+            } else {
+                const ph = nd._lockPhase !== undefined ? nd._lockPhase : (nd.omega * A.t + nd.phase);
+                ctx.beginPath(); for (let xi = -8; xi <= 8; xi++) { const wy = Math.sin(xi * .75 + ph) * 3.5; xi === -8 ? ctx.moveTo(cx2 + xi, cy2 + wy) : ctx.lineTo(cx2 + xi, cy2 + wy); }
+                ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+                const pls = (Math.sin(ph) + 1) * .5; ctx.beginPath(); ctx.arc(cx2, cy2, R * (.3 + .22 * pls), 0, Math.PI * 2); ctx.strokeStyle = col.replace(',1)', ',0.4)'); ctx.lineWidth = 1; ctx.stroke();
+            }
+
+            ctx.fillStyle = col; ctx.font = `500 8px IBM Plex Mono`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(nd.name, cx2, cy2 + R + 3);
+        }
+
+        // ── SPARKLINES ────────────────────────────────────────────────────────────────
+        function drawSpark(id, data, col) {
+            const cv = document.getElementById(id); if (!cv || data.length < 2) return;
+            const c2 = cv.getContext('2d'), w = cv.width, h = cv.height;
+            c2.clearRect(0, 0, w, h);
+            const mn = Math.min(...data), mx = Math.max(...data), rng = mx - mn || 1;
+            c2.beginPath(); for (let i = 0; i < data.length; i++) { const x = i / (data.length - 1) * w, y = h - ((data[i] - mn) / rng) * (h - 1) - .5; i ? c2.lineTo(x, y) : c2.moveTo(x, y); }
+            c2.lineTo(w, h); c2.lineTo(0, h); c2.closePath(); c2.fillStyle = col + '14'; c2.fill();
+            c2.beginPath(); for (let i = 0; i < data.length; i++) { const x = i / (data.length - 1) * w, y = h - ((data[i] - mn) / rng) * (h - 1) - .5; i ? c2.lineTo(x, y) : c2.moveTo(x, y); }
+            c2.strokeStyle = col; c2.lineWidth = 1.2; c2.stroke();
+        }
+
+        // ── UI UPDATE ─────────────────────────────────────────────────────────────────
+        function setSimState(s) {
+            A.simState = s;
+            const el = document.getElementById('ss-state');
+            el.textContent = s;
+            el.className = '';
+            if (s === 'PARSE_FAILED' || s === 'DIRECTOR_OFFLINE' || s === 'MEDIA_UNSUPPORTED' || s === 'RECORD_FAILED') el.classList.add('fail');
+            else if (s === 'RECORDING') el.classList.add('rec');
+            else if (s === 'RUNNING') el.classList.add('run');
+        }
+
+        function updateStateStrip() {
+            document.getElementById('tc').textContent = String(A.t).padStart(6, '0');
+            document.getElementById('uc').textContent = A.particles.length;
+            document.getElementById('sc').textContent = A.seed;
+            // Director status
+            const ds = document.getElementById('ss-director');
+            if (A.inferring) { ds.textContent = 'DIR BUSY'; ds.className = 'busy'; }
+            else if (A.simState === 'DIRECTOR_OFFLINE') { ds.textContent = 'DIR OFFLINE'; ds.className = 'fail'; }
+            else if (A.metrics.speed.length > 10) { ds.textContent = 'DIR READY'; ds.className = 'ok'; }
+            else { ds.textContent = 'DIR ··'; ds.className = ''; }
+            // Rec cap
+            const rs = document.getElementById('ss-rec-cap');
+            if (A.recordCapable === true) { rs.textContent = A.recActive ? '● REC' : ' REC READY'; rs.className = A.recActive ? 'rec' : 'ok'; }
+            else if (A.recordCapable === false) { rs.textContent = 'REC UNSUPPORTED'; rs.className = 'no'; }
+            else { rs.textContent = 'REC ··'; rs.className = ''; }
+            // Energy fill
+            const pct = Math.min(100, EN.current / EN.target * 50);
+            const fill = document.getElementById('efill');
+            fill.style.width = pct + '%';
+            fill.style.background = EN.injecting ? 'rgba(200,160,0,.5)' : 'rgba(255,255,255,.25)';
+        }
+
+        function updateMetricDisplays() {
+            const m = A.metrics, last = a => a.length ? a[a.length - 1] : 0;
+            // Update OPERATE mode compact metrics
+            const row = document.getElementById('op-metrics-row');
+            if (row) {
+                ['speed', 'coherence', 'curl', 'ke'].forEach((k, i) => {
+                    const mc = document.getElementById(`omc-${k}`);
+                    if (mc) { mc.querySelector('.omv').textContent = k === 'ke' ? EN.current.toFixed(3) : last(m[k] < 0 ? m.coherence : m[k]).toFixed(3); }
+                    drawSpark(`ospark-${k}`, k === 'ke' ? EN.history : m[k], '#090909');
+                });
+            }
+            // READ mode
+            ['speed', 'coherence', 'curl', 'ke'].forEach((k, i) => {
+                const mv = document.getElementById(`rmv-${k}`);
+                if (mv) mv.textContent = k === 'ke' ? EN.current.toFixed(3) : last(m[k]).toFixed(3);
+                drawSpark(`rspark-${k}`, k === 'ke' ? EN.history : m[k], '#090909');
+            });
+            // Regime
+            const reg = getRegime();
+            const rr = document.getElementById('read-regime');
+            if (rr) rr.innerHTML = `<strong>${reg.name}</strong>${reg.desc}`;
+            const or = document.getElementById('op-regime');
+            if (or) or.innerHTML = `REGIME &nbsp;<b>${reg.name}</b>`;
+        }
+
+        function updateNodeList() {
+            const list = document.getElementById('op-nodes-list'); if (!list) return;
+            list.innerHTML = A.nodes.map((nd, i) => `
+    <div class="onl-row ${A.selectedNodeIdx === i ? 'selected' : ''}" onclick="selectNode(${i})">
+      <div class="onl-dot ${nd.type === 'source' ? 'src' : nd.type === 'attractor' ? 'att' : 'drv'}"></div>
+      <div class="onl-name">${nd.name}</div>
+      <div class="onl-type">${nd.type.toUpperCase()}</div>
+      <div class="onl-param">${nd.type === 'source' || nd.type === 'attractor' ? `str=${nd.strength}` : `amp=${nd.amp} freq=${nd.freq}`}</div>
+      <div class="onl-pos">${Math.round(nd.x)},${Math.round(nd.y)}</div>
+    </div>`).join('');
+        }
+
+        function updateInspector() {
+            const el = document.getElementById('inspector');
+            if (A.selectedNodeIdx === null || A.selectedNodeIdx >= A.nodes.length) {
+                el.classList.remove('open');
+                document.getElementById('op-empty').style.display = 'flex';
+                updateNodeList();
+                return;
+            }
+            document.getElementById('op-empty').style.display = 'none';
+            el.classList.add('open');
+            const nd = A.nodes[A.selectedNodeIdx];
+            document.getElementById('ins-type').textContent = nd.type.toUpperCase();
+            document.getElementById('ins-name').textContent = nd.name;
+            let params = '';
+            if (nd.type === 'source') params = `x=${Math.round(nd.x)} · y=${Math.round(nd.y)} · strength=${nd.strength}`;
+            else if (nd.type === 'attractor') params = `x=${Math.round(nd.x)} · y=${Math.round(nd.y)} · strength=${nd.strength}`;
+            else params = `x=${Math.round(nd.x)} · y=${Math.round(nd.y)} · amp=${nd.amp} · freq=${nd.freq} · ω=${nd.omega}`;
+            document.getElementById('ins-params').textContent = params;
+            const lines = A.script.split('\n');
+            document.getElementById('ins-line').textContent = lines[nd.li] || '—';
+            updateNodeList();
+        }
+
+        function updateAll() {
+            updateStateStrip();
+            updateMetricDisplays();
+            updateInspector();
+            updateLnums();
+        }
+
+        // ── OPERATE MODE: build compact metrics ───────────────────────────────────────
+        function buildOperateMetrics() {
+            const KEYS = ['speed', 'coherence', 'curl', 'ke'];
+            const LABELS = ['SPEED', 'COHERENCE', 'CURL', 'ENERGY KE'];
+            document.getElementById('op-metrics-row').innerHTML = KEYS.map((k, i) => `
+    <div class="omc ${A.activeOverlay === k ? 'overlay-active' : ''}" id="omc-${k}" onclick="toggleMetricOverlay('${k}')">
+      <div class="oml">${LABELS[i]}</div>
+      <div class="omv" id="omv-${k}">0.000</div>
+      <canvas class="oms" id="ospark-${k}" width="100" height="12"></canvas>
+    </div>`).join('');
+        }
+
+        // ── READ MODE: build full metrics ────────────────────────────────────────────
+        const METRIC_GLOSSARY = {
+            speed: { means: 'Mean particle velocity. High = forceful field; low = stasis approaching.', action: 'If speed < 0.5, adaptive energy will inject. If stuck, try dragging a source node outward.' },
+            coherence: { means: 'Alignment of velocity with local force direction. High = laminar flow; negative = chaotic.', action: 'To raise coherence: add phase_lock, reduce driver count, or lower floor friction.' },
+            curl: { means: 'Rotational magnitude of the force field. High = vortices present.', action: 'To increase curl: add a driver near an attractor. To reduce: align driver freq with source spacing.' },
+            ke: { means: 'Kinetic energy mean. This is the internal stability signal — adaptive energy targets 3.5.', action: 'If KE > 8 and field looks chaotic, lower all driver amp values by 2. If KE < 1, raise amp.' },
+        };
+        function buildReadMetrics() {
+            const KEYS = ['speed', 'coherence', 'curl', 'ke'];
+            const LABELS = ['SPEED', 'COHERENCE', 'CURL', 'ENERGY KE'];
+            document.getElementById('read-metrics').innerHTML = KEYS.map((k, i) => `
+    <div class="rmc ${A.activeOverlay === k ? 'overlay-active' : ''}" onclick="toggleMetricOverlay('${k}')">
+      <div class="rmc-left">
+        <div class="rmc-name">${LABELS[i]}</div>
+        <div class="rmc-val" id="rmv-${k}">0.000</div>
+        <canvas class="rmc-spark" id="rspark-${k}" width="80" height="14"></canvas>
+      </div>
+      <div class="rmc-right">
+        <div class="rmc-means">${METRIC_GLOSSARY[k].means}</div>
+        <div class="rmc-action"><b>→ </b>${METRIC_GLOSSARY[k].action}</div>
+      </div>
+    </div>`).join('');
+        }
+
+        function toggleMetricOverlay(k) {
+            A.activeOverlay = A.activeOverlay === k ? null : k;
+            // Update overlay label on canvas
+            document.getElementById('overlay-lbl').textContent = A.activeOverlay ? `OVERLAY: ${A.activeOverlay.toUpperCase()}` : '';
+            buildOperateMetrics(); buildReadMetrics();
+            if (!A.running) render();
+        }
+
+        // ── SCRIPT ENGINE ─────────────────────────────────────────────────────────────
+        let debTimer = null;
+        function onScriptInput(txt) {
+            A.script = txt; updateLnums();
+            clearTimeout(debTimer); debTimer = setTimeout(() => applyScript(A.script, true), 150);
+        }
+
+        function applyScript(txt, fromEdit = false) {
+            const r = parseScript(txt);
+            const errEl = document.getElementById('ss-err');
+            if (r.errors.length) {
+                A.errLine = r.errors[0].line; updateLnums();
+                errEl.textContent = `Line ${A.errLine + 1}: ${r.errors[0].msg || 'parse error'} — expected: ${expectedGrammar(A.errLine)}`;
+                errEl.style.display = 'block';
+                setSimState('PARSE_FAILED'); return;
+            }
+            A.errLine = -1; errEl.style.display = 'none';
+            if (fromEdit) A.lastValidScript = txt;
+            const prev = {}; for (const nd of A.nodes) prev[nd.name] = { x: nd.x, y: nd.y };
+            A.bounds = r.bounds; A.floor = r.floor; A.trails = r.render.trails; A.vectors = r.render.vectors;
+            A.particleCount = r.render.particles;
+            if (r.seed !== A.seed || Math.abs(r.render.particles - A.particles.length) > 50) {
+                A.seed = r.seed; A.particles = initParticles(r.render.particles, r.bounds, r.seed);
+            }
+            A.nodes = r.nodes.map(nd => ({ ...nd, x: prev[nd.name] ? prev[nd.name].x : nd.x, y: prev[nd.name] ? prev[nd.name].y : nd.y }));
+            A.phaseLocks = r.phaseLocks;
+            if (!A.running) setSimState('READY');
+            updateLnums(); updateInspector(); updateNodeList();
+            if (!A.running) render();
+        }
+
+        function expectedGrammar(li) {
+            const lines = A.script.split('\n'); const raw = (lines[li] || '').trim().split(/\s+/)[0] || '?';
+            const G = { seed: 'seed [integer]', bounds: 'bounds xMin xMax yMin yMax', floor: 'floor y=N friction=N', source: 'source NAME x=N y=N strength=N', attractor: 'attractor NAME x=N y=N strength=N', driver: 'driver NAME x=N y=N amp=N freq=N omega=N phase=N', phase_lock: 'phase_lock NAME1 NAME2 ... offset=N', render: 'render particles=N trails=0|1 vectors=0|1' };
+            return G[raw.toLowerCase()] || 'seed | bounds | floor | source | attractor | driver | phase_lock | render';
+        }
+
+        function updateLnums() {
+            const lines = A.script.split('\n');
+            document.getElementById('lnums').innerHTML = lines.map((_, i) => {
+                const cls = i === A.errLine ? 'le' : i === A.activeScriptLine ? 'la' : i === A.hoveredScriptLine ? 'lh' : '';
+                return `<div class="${cls}" onclick="selectScriptLine(${i})">${i + 1}</div>`;
+            }).join('');
+            document.getElementById('lnums').scrollTop = document.getElementById('se').scrollTop;
+        }
+
+        function selectScriptLine(li) {
+            A.activeScriptLine = li;
+            const nd = A.nodes.find(n => n.li === li);
+            if (nd) {
+                A.selectedNodeIdx = A.nodes.indexOf(nd);
+                A.nodePulse = { idx: A.selectedNodeIdx, tick: A.t };
+            } else { A.selectedNodeIdx = null; }
+            updateLnums(); updateInspector();
+            if (!A.running) render();
+        }
+
+        function writeToScript(fn, label) {
+            // Push to undo stack
+            A.undoStack.push({ script: A.script, t: A.t, label: label || 'Script change' });
+            if (A.undoStack.length > 12) A.undoStack.shift();
+            const lines = A.script.split('\n'); fn(lines); A.script = lines.join('\n');
+            const se = document.getElementById('se'); const st = se.scrollTop;
+            se.value = A.script; se.scrollTop = st;
+            applyScript(A.script, true);
+            updateUndoBar();
+        }
+
+        function serializeNode(nd) {
+            writeToScript(lines => {
+                if (nd.li < 0 || nd.li >= lines.length) return;
+                lines[nd.li] = lines[nd.li].replace(/x=[\d.-]+/, `x=${Math.round(nd.x)}`).replace(/y=[\d.-]+/, `y=${Math.round(nd.y)}`);
+            }, 'Drag node ' + nd.name);
+        }
+
+        function patchRender(k, v) {
+            writeToScript(lines => {
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].trim().startsWith('render')) {
+                        if (lines[i].includes(`${k}=`)) lines[i] = lines[i].replace(new RegExp(`${k}=[\\w]+`), `${k}=${v}`);
+                        else lines[i] += ` ${k}=${v}`; return;
+                    }
+                }
+            });
+        }
+        function patchSeed(s) { writeToScript(lines => { for (let i = 0; i < lines.length; i++) { if (lines[i].trim().startsWith('seed')) { lines[i] = `seed ${s}`; return; } } }, 'Seed change'); }
+
+        // ── PATCH / UNDO ──────────────────────────────────────────────────────────────
+        function undoLastPatch() {
+            if (!A.undoStack.length) return;
+            const entry = A.undoStack.pop();
+            A.script = entry.script;
+            document.getElementById('se').value = A.script;
+            applyScript(A.script, false);
+            updateUndoBar();
+            toast(`Undone: ${entry.label}`);
+        }
+        function updateUndoBar() {
+            const bar = document.getElementById('undo-bar');
+            if (!A.undoStack.length) { bar.classList.remove('v'); return; }
+            bar.classList.add('v');
+            const last = A.undoStack[A.undoStack.length - 1];
+            document.getElementById('undo-info').textContent = `Last: ${last.label} (t=${String(last.t).padStart(6, '0')})`;
+        }
+
+        // ── DIRECTOR ─────────────────────────────────────────────────────────────────
+        function toggleAuto() {
+            A.autoInfer = !A.autoInfer;
+            document.getElementById('pt-auto').textContent = `AUTO: ${A.autoInfer ? 'ON' : 'OFF'}`;
+        }
+        function avg40(arr) { if (!arr.length) return 0; return arr.slice(-40).reduce((a, b) => a + b, 0) / Math.min(arr.length, 40); }
+
+        async function runInference() {
+            if (A.inferring) return;
+            if (A.metrics.speed.length < 12) { toast('Need more data — let field run', true); return; }
+            A.inferring = true;
+            sonicBeep('start');
+            const pst = document.getElementById('pt-st');
+            pst.textContent = 'Sending snapshot…'; pst.classList.add('busy');
+            document.getElementById('dir-now').disabled = true;
+            document.getElementById('ss-director').textContent = 'DIR BUSY';
+            document.getElementById('ss-director').className = 'busy';
+
+            const history = A.dirLog.slice(-4).map(e => ({ t: e.t, pattern: e.pattern, resembles: e.resembles, targetVideo: e.targetVideo }));
+            const snap = {
+                t: A.t,
+                energy: { current: EN.current.toFixed(3), target: EN.target, injecting: EN.injecting },
+                nodes: A.nodes.map(nd => ({ type: nd.type, name: nd.name, x: Math.round(nd.x), y: Math.round(nd.y), ...(nd.type === 'source' ? { strength: nd.strength } : {}), ...(nd.type === 'attractor' ? { strength: nd.strength } : {}), ...(nd.type === 'driver' ? { amp: nd.amp, freq: nd.freq, omega: nd.omega } : {}) })),
+                phaseLocks: A.phaseLocks.map(l => ({ names: l.names })),
+                metrics: { speed: avg40(A.metrics.speed).toFixed(3), coherence: avg40(A.metrics.coherence).toFixed(3), curl: avg40(A.metrics.curl).toFixed(3) },
+                media: A.mediaMode || 'none', history,
+            };
+
+            // This snapshot IS what the Director sees — we display it in the entry
+            const sentSnapshot = JSON.stringify(snap, null, 2);
+
+            const sys = `You are the Director — a causal patch author embedded in a self-sustaining particle field simulator. You are NOT a critic. You read simulation state and propose ONE concrete, reversible script line mutation. You must always show your evidence.
+
+Return ONLY valid JSON (no markdown):
+{
+  "pattern": "3-7 word name for emergent form right now",
+  "resembles": "cinematically specific real footage description — what does this look like on screen (10-16 words)",
+  "evolution": "how has the field changed since last observation — or 'Initial scan' (6-12 words)",
+  "targetVideo": "the exact real-world footage category this is becoming — shot type, subject, lighting, motion (15-25 words)",
+  "evidence": "which metric or node motivated this suggestion — name the specific value (8-14 words)",
+  "suggest": "plain language description of the one parameter change (8-16 words)",
+  "suggestOldLine": "the CURRENT exact script line that should change — copy verbatim, or null",
+  "suggestNewLine": "the REPLACEMENT complete script line — must be valid syntax, or null",
+  "suggestNodeName": "node name string or null",
+  "risk": "what this change could break (6-12 words)",
+  "confidence": 0.0 to 1.0
+}
+
+Be a builder: show your reasoning in evidence, name the risk, give exact lines. Target CINEMATIC VIDEO. Examples:
+- "Macro slow-motion of milk crown impact into dark espresso"  
+- "Aerial thermal camera footage of wildfire smoke column"
+- "Night-sky long exposure: star trail rotation over ocean horizon"`;
+
+            let apiKey;
+            try { apiKey = _getOpenAIApiKey(); } catch (e) {
+                A.inferring = false; pst.classList.remove('busy');
+                document.getElementById('dir-now').disabled = false;
+                toast('Director requires OpenAI API Key', true);
+                return;
+            }
+
+            try {
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: 'gpt-4o',
+                        max_tokens: 480,
+                        messages: [
+                            { role: 'system', content: sys },
+                            { role: 'user', content: `State: ${JSON.stringify(snap)}` }
+                        ]
+                    }),
+                });
+                const d = await res.json();
+                const raw = d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content.trim() : '{}';
+                let p = {};
+                try { p = JSON.parse(raw); }
+                catch { p = { pattern: 'Active', resembles: 'Field dynamics developing', evolution: 'Data received', targetVideo: 'Generative visual', evidence: 'Metrics observed', suggest: 'Let field evolve', suggestOldLine: null, suggestNewLine: null, suggestNodeName: null, risk: 'Unknown', confidence: 0.5 }; }
+                const entry = { t: A.t, ...p, sentSnapshot, discarded: false };
+                A.dirLog.push(entry); if (A.dirLog.length > 14) A.dirLog.shift();
+                renderDirLog();
+                pst.textContent = `t=${String(A.t).padStart(6, '0')}`;
+                if (A.mode === 'PATCH') switchMode('PATCH'); // re-render
+                document.getElementById('ss-director').textContent = 'DIR READY'; document.getElementById('ss-director').className = 'ok';
+                sonicBeep('success');
+            } catch (e) {
+                const entry = { t: A.t, pattern: 'Offline', resembles: 'AI unavailable', evolution: 'Network error', targetVideo: '—', evidence: '—', suggest: 'Check network', suggestOldLine: null, suggestNewLine: null, suggestNodeName: null, risk: 'None', confidence: 0, sentSnapshot, discarded: false };
+                A.dirLog.push(entry); renderDirLog();
+                pst.textContent = 'OFFLINE'; pst.classList.add('fail');
+                setSimState('DIRECTOR_OFFLINE');
+                document.getElementById('ss-director').textContent = 'DIR OFFLINE'; document.getElementById('ss-director').className = 'fail';
+                sonicBeep('fail');
+            }
+            A.inferring = false; pst.classList.remove('busy');
+            document.getElementById('dir-now').disabled = false;
+        }
+
+        function renderDirLog() {
+            const log = document.getElementById('dirlog');
+            if (!A.dirLog.length) {
+                log.innerHTML = `<div style="padding:14px 8px;font-size:8.5px;color:var(--ink4);text-align:center;line-height:1.7">Director reads the field and proposes<br>concrete script patches toward real video targets.<br><br>Run simulation · click ANALYZE NOW.</div>`;
+                return;
+            }
+            log.innerHTML = [...A.dirLog].reverse().map((e, ri) => {
+                const idx = A.dirLog.length - 1 - ri;
+                const hasPatch = !!(e.suggestOldLine && e.suggestNewLine && e.suggestNodeName);
+                return `<div class="de ${ri === 0 ? 'fresh' : ''} ${hasPatch ? 'has-patch' : ''} ${e.discarded ? 'discarded' : ''}">
+      <div class="de-head">
+        <span class="de-time">t=${String(e.t).padStart(6, '0')}</span>
+        <span class="de-conf">${((e.confidence || 0) * 100).toFixed(0)}% confidence</span>
+        <div class="de-acts">
+          ${hasPatch && !e.discarded ? `<button class="da apply" onclick="applyDirPatch(${idx})">APPLY ▶</button><button class="da discard" onclick="discardDirPatch(${idx})">DISCARD</button>` : ''}
+        </div>
+      </div>
+      <div class="de-body">
+        <div class="de-row"><span class="de-k">PATTERN</span><span class="de-v pattern">${e.pattern || '—'}</span></div>
+        <div class="de-row"><span class="de-k">RESEMBLES</span><span class="de-v resembles">${e.resembles || '—'}</span></div>
+        <div class="de-row"><span class="de-k">EVOLVING</span><span class="de-v">${e.evolution || '—'}</span></div>
+        <div class="de-row"><span class="de-k">TARGET VIDEO</span><span class="de-v target">${e.targetVideo || '—'}</span></div>
+        <div class="de-row"><span class="de-k">EVIDENCE</span><span class="de-v" style="font-size:8px;color:var(--ink4)">${e.evidence || '—'}</span></div>
+        ${e.suggest ? `<div class="de-row"><span class="de-k">SUGGEST</span><span class="de-v" style="font-size:8.5px;color:var(--ink3)">${e.suggest}</span></div>` : ''}
+        ${hasPatch ? `
+        <div class="de-diff">
+          <div class="de-diff-head">SCRIPT PATCH — ${e.suggestNodeName}</div>
+          <div class="diff-old">${e.suggestOldLine || '(none)'}</div>
+          <div class="diff-new">${e.suggestNewLine}</div>
+        </div>
+        <div class="de-row" style="margin-top:4px"><span class="de-k">RISK</span><span class="de-v" style="font-size:8px;color:var(--ink4)">${e.risk || '—'}</span></div>`
+                        : `<div class="de-diff"><div class="diff-null">Director found no patch needed — field is evolving well.</div></div>`}
+        ${e.discarded ? `<div style="font-size:7.5px;color:var(--red);margin-top:4px;letter-spacing:.08em">✕ DISCARDED — saved as counterexample</div>` : ''}
+      </div>
+    </div>`;
+            }).join('');
+        }
+
+        function applyDirPatch(idx) {
+            const e = A.dirLog[idx];
+            if (!e || !e.suggestNewLine || !e.suggestNodeName) return;
+            const oldScript = A.script;
+            writeToScript(lines => {
+                for (let i = 0; i < lines.length; i++) {
+                    const p = lines[i].trim().split(/\s+/);
+                    if (p.length >= 2 && p[1] === e.suggestNodeName) { lines[i] = e.suggestNewLine; return; }
+                }
+                // If not found, append before render
+                for (let i = 0; i < lines.length; i++) { if (lines[i].trim().startsWith('render')) { lines[i - 1] += '\n' + e.suggestNewLine; return; } }
+            }, `Director patch: ${e.suggestNodeName}`);
+            toast(`Patch applied: ${e.suggestNodeName}`);
+            renderDirLog();
+        }
+
+        function discardDirPatch(idx) {
+            A.dirLog[idx].discarded = true;
+            renderDirLog();
+            toast('Patch discarded — saved as counterexample');
+        }
+
+        function clearDirLog() { A.dirLog = []; renderDirLog(); toast('Director log cleared'); }
+
+        // ── API KEY HELPER ───────────────────────────────────────────────────────────
+        function _getOpenAIApiKey() {
+            let key = localStorage.getItem('OPENAI_API_KEY');
+            if (!key) {
+                key = prompt('Enter your OpenAI API Key to enable AI features:');
+                if (key && key.trim().startsWith('sk-')) {
+                    localStorage.setItem('OPENAI_API_KEY', key.trim());
+                } else {
+                    throw new Error('Invalid or missing API Key');
+                }
+            }
+            return key.trim();
+        }
+
+        // ── CONJURE ───────────────────────────────────────────────────────────────────
+        async function doConjure() {
+            const inp = document.getElementById('cinp'); const desc = inp.value.trim();
+            if (!desc) { toast('Enter a visual target description', true); return; }
+            
+            let apiKey;
+            try { apiKey = _getOpenAIApiKey(); } catch(e) { toast('Conjure requires OpenAI API Key', true); return; }
+
+            sonicBeep('start');
+            document.getElementById('cloading').classList.add('on');
+            document.getElementById('cbtn').disabled = true;
+            const sys = `Generate a NAURIAN LOOP particle field script for the visual target. Script syntax only:
+seed [int] / bounds 0 800 0 600 / floor y=[0-600] friction=[0.01-0.4]
+source NAME x=[0-800] y=[0-600] strength=[-30 to 30]
+attractor NAME x=[0-800] y=[0-600] strength=[5-35]
+driver NAME x=[0-800] y=[0-600] amp=[1-14] freq=[0.007-0.065] omega=[0.15-3.5] phase=[0-6.28]
+phase_lock NAME1 NAME2 offset=[0-6.28] / render particles=5000 trails=[0|1] vectors=[0|1]
+Return ONLY the script, no explanation, starting with # [name].`;
+            try {
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: 'gpt-4o',
+                        max_tokens: 280,
+                        messages: [
+                            { role: 'system', content: sys },
+                            { role: 'user', content: `Target: "${desc}"` }
+                        ]
+                    })
+                });
+                const d = await res.json(); 
+                const sc = d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content.trim() : '';
+                if (sc && sc.includes('seed')) {
+                    A.undoStack.push({ script: A.script, t: A.t, label: `Before conjure: "${desc}"` });
+                    A.script = sc; document.getElementById('se').value = sc;
+                    A.metrics = { speed: [], coherence: [], curl: [], ke: [] }; EN.history = []; A.t = 0;
+                    applyScript(sc, true); inp.value = '';
+                    toggleScript();// open script to show result
+                    toast(`Conjured: "${desc}"`); updateUndoBar();
+                    sonicBeep('success');
+                } else { toast('Conjure failed — rephrase the target', true); sonicBeep('fail'); }
+            } catch (e) { toast('Director offline — conjure unavailable', true); sonicBeep('fail'); }
+            document.getElementById('cloading').classList.remove('on'); document.getElementById('cbtn').disabled = false;
+        }
+
+        // ── MODES ─────────────────────────────────────────────────────────────────────
+        function switchMode(m) {
+            A.mode = m;
+            document.querySelectorAll('.mbt').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+            document.querySelectorAll('.mpanel').forEach(p => p.classList.toggle('active', p.id === `mp-${m}`));
+            if (m === 'PATCH') renderDirLog();
+        }
+
+        // ── SCRIPT SHEET ──────────────────────────────────────────────────────────────
+        function toggleScript() {
+            A.scriptOpen = !A.scriptOpen;
+            document.getElementById('script-sheet').classList.toggle('open', A.scriptOpen);
+            document.getElementById('script-btn').classList.toggle('open', A.scriptOpen);
+            document.getElementById('script-btn').textContent = A.scriptOpen ? 'SCRIPT ↓' : 'SCRIPT ↑';
+        }
+        function closeScript() { A.scriptOpen = false; document.getElementById('script-sheet').classList.remove('open'); document.getElementById('script-btn').classList.remove('open'); document.getElementById('script-btn').textContent = 'SCRIPT ↑'; }
+
+        function openScriptToNode() {
+            if (A.selectedNodeIdx === null) return;
+            const nd = A.nodes[A.selectedNodeIdx];
+            if (!A.scriptOpen) toggleScript();
+            setTimeout(() => {
+                const se = document.getElementById('se');
+                const lines = A.script.split('\n'); let start = 0;
+                for (let i = 0; i < nd.li; i++)start += lines[i].length + 1;
+                se.focus(); se.setSelectionRange(start, start + (lines[nd.li] || '').length);
+                se.scrollTop = Math.max(0, nd.li * 16.5 - 40);
+                updateLnums();
+            }, 220);
+        }
+
+        // ── DRAG ─────────────────────────────────────────────────────────────────────
+        function getXY(e) { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)]; }
+        function nodeAt(cx, cy) { for (let i = 0; i < A.nodes.length; i++) { const [nx, ny] = s2c(A.nodes[i].x, A.nodes[i].y); if ((cx - nx) ** 2 + (cy - ny) ** 2 < 22 * 22) return i; } return -1; }
+
+        function selectNode(idx) {
+            A.selectedNodeIdx = idx;
+            A.activeScriptLine = A.nodes[idx].li;
+            A.nodePulse = { idx, tick: A.t };
+            updateInspector(); updateLnums();
+            if (!A.running) render();
+        }
+
+        function deselectNode() {
+            A.selectedNodeIdx = null; A.activeScriptLine = -1;
+            updateInspector(); updateLnums();
+            if (!A.running) render();
+        }
+
+        function onPD(e) {
+            const [cx, cy] = getXY(e); const idx = nodeAt(cx, cy);
+            if (idx >= 0) {
+                selectNode(idx);
+                A.drag = { on: true, idx }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag');
+                e.preventDefault();
+            } else { deselectNode(); }
+        }
+        function onPM(e) {
+            const [cx, cy] = getXY(e);
+            if (A.drag && A.drag.on) {
+                const [sx, sy] = c2s(cx, cy); const nd = A.nodes[A.drag.idx];
+                nd.x = Math.max(A.bounds.xMin + 5, Math.min(A.bounds.xMax - 5, sx));
+                nd.y = Math.max(A.bounds.yMin + 5, Math.min(A.bounds.yMax - 5, sy));
+                serializeNode(nd); updateInspector();
+                if (!A.running) render();
+            } else {
+                const prev = A.hoveredNodeIdx; A.hoveredNodeIdx = nodeAt(cx, cy);
+                if (A.hoveredNodeIdx >= 0) {
+                    const nd = A.nodes[A.hoveredNodeIdx];
+                    const h = document.getElementById('nodehint');
+                    h.textContent = `${nd.name} [${nd.type}] → line ${nd.li + 1}`; h.classList.add('v');
+                    canvas.style.cursor = 'grab';
+                } else {
+                    document.getElementById('nodehint').classList.remove('v'); canvas.style.cursor = 'crosshair';
+                }
+                if (prev !== A.hoveredNodeIdx && !A.running) render();
+            }
+        }
+        function onPU() { if (A.drag && A.drag.on) { A.drag = { on: false }; canvas.classList.remove('drag'); canvas.style.cursor = 'crosshair'; } }
+
+        // ── MEDIA ─────────────────────────────────────────────────────────────────────
+        const mCanvas = document.createElement('canvas'); mCanvas.width = 32; mCanvas.height = 24;
+        const mCtx = mCanvas.getContext('2d', { willReadFrequently: true });
+
+        async function toggleWebcam() {
+            if (A.mediaMode === 'webcam') { stopMedia(); return; }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, frameRate: 15 } });
+                A.webcamStream = stream; const vid = document.getElementById('media-preview');
+                vid.srcObject = stream; vid.classList.add('on');
+                A.mediaMode = 'webcam'; A.prevFrameData = null;
+                document.getElementById('rmb-cam').classList.add('on'); toast('Webcam driving field');
+            } catch (e) { toast('Webcam unavailable: ' + e.message, true); }
+        }
+        function pickVideo() {
+            const fi = document.getElementById('file-inp'); fi.accept = 'video/*';
+            fi.onchange = e => { if (e.target.files[0]) loadVideo(e.target.files[0]); }; fi.click();
+        }
+        function pickImage() {
+            const fi = document.getElementById('file-inp'); fi.accept = 'image/*';
+            fi.onchange = e => { if (e.target.files[0]) loadImage(e.target.files[0]); }; fi.click();
+        }
+        function loadVideo(file) {
+            const vid = document.getElementById('media-preview'); vid.src = URL.createObjectURL(file); vid.loop = true; vid.muted = true; vid.play(); vid.classList.add('on');
+            A.mediaMode = 'video'; A.prevFrameData = null; document.getElementById('rmb-vid').classList.add('on'); toast(`Video: "${file.name}"`);
+        }
+        function loadImage(file) {
+            const img = new Image(); img.onload = () => {
+                mCtx.drawImage(img, 0, 0, 32, 24); const data = mCtx.getImageData(0, 0, 32, 24).data;
+                A.flowGrid = new Array(32 * 24).fill(null).map((_, i) => {
+                    const x = i % 32, y = Math.floor(i / 32);
+                    if (x === 0 || y === 0 || x === 31 || y === 23) return { dx: 0, dy: 0 };
+                    const idx = i * 4, L = data[(y * 32 + x - 1) * 4], R = data[(y * 32 + x + 1) * 4], U = data[((y - 1) * 32 + x) * 4], D = data[((y + 1) * 32 + x) * 4];
+                    return { dx: (R - L) / 255 * 2, dy: (D - U) / 255 * 2 };
+                });
+                A.mediaMode = 'image'; document.getElementById('rmb-img').classList.add('on'); toast('Image field active'); URL.revokeObjectURL(img.src);
+            }; img.src = URL.createObjectURL(file);
+        }
+        function stopMedia() {
+            if (A.webcamStream) { A.webcamStream.getTracks().forEach(t => t.stop()); A.webcamStream = null; }
+            const vid = document.getElementById('media-preview'); vid.srcObject = null; vid.src = ''; vid.classList.remove('on');
+            A.mediaMode = null; A.prevFrameData = null; A.flowGrid = null;
+            ['rmb-cam', 'rmb-vid', 'rmb-img'].forEach(id => document.getElementById(id).classList.remove('on'));
+            toast('Media input stopped');
+        }
+        function processMediaFrame() {
+            if (!A.mediaMode || A.mediaMode === 'image') return;
+            const vid = document.getElementById('media-preview'); if (!vid || vid.readyState < 2) return;
+            try {
+                mCtx.drawImage(vid, 0, 0, 32, 24); const curr = mCtx.getImageData(0, 0, 32, 24).data;
+                if (!A.prevFrameData) { A.prevFrameData = curr.slice(); return; }
+                const prev = A.prevFrameData, grid = new Array(32 * 24);
+                for (let y = 0; y < 24; y++)for (let x = 0; x < 32; x++) {
+                    const i = (y * 32 + x) * 4, gx = x < 31 ? ((curr[(y * 32 + x + 1) * 4] - curr[i]) / 255) : 0, gy = y < 23 ? ((curr[((y + 1) * 32 + x) * 4] - curr[i]) / 255) : 0, dt = (curr[i] - prev[i]) / 255, mag = gx * gx + gy * gy + 0.001;
+                    grid[y * 32 + x] = { dx: -gx * dt / mag, dy: -gy * dt / mag };
+                }
+                A.flowGrid = grid; A.prevFrameData = curr.slice();
+            } catch (e) { }
+        }
+
+        // ── RECORDING ─────────────────────────────────────────────────────────────────
+        let mrec = null, recChunks = [];
+        function checkRecordCapability() {
+            try {
+                const test = canvas.captureStream(1);
+                if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm')) {
+                    A.recordCapable = true;
+                } else { A.recordCapable = false; document.getElementById('rb-rec').classList.add('disabled'); }
+                test.getTracks().forEach(t => t.stop());
+            } catch (e) { A.recordCapable = false; document.getElementById('rb-rec').classList.add('disabled'); }
+            updateStateStrip();
+        }
+
+        function toggleRec() {
+            if (A.recordCapable === false) { toast('MEDIA_UNSUPPORTED — recording unavailable in this browser', true); return; }
+            if (A.recActive) stopRec(); else startRec();
+        }
+        function startRec() {
+            if (A.recActive || !A.recordCapable) return;
+            try {
+                const stream = canvas.captureStream(30);
+                const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+                mrec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
+                recChunks = [];
+                mrec.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+                mrec.onstop = () => {
+                    if (!recChunks.length) { toast('RECORD_FAILED — no data captured', true); setSimState('RECORD_FAILED'); return; }
+                    const blob = new Blob(recChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `naurian-t${A.t}.webm`; a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 3000);
+                    toast('EXPORT_SAVED — video downloading'); setSimState(A.running ? 'RUNNING' : 'PAUSED');
+                };
+                mrec.start(200); A.recActive = true;
+                setSimState('RECORDING');
+                document.getElementById('rb-rec').className = 'rb rec-on';
+                document.getElementById('rb-rec').innerHTML = '<span class="rb-i">■</span>STOP';
+                document.getElementById('rb-rec').classList.remove('disabled');
+                if (!A.running) toggleRun();
+                toast('RECORDING — click ■ STOP to save');
+            } catch (e) { toast('RECORD_FAILED: ' + e.message, true); setSimState('RECORD_FAILED'); }
+        }
+        function stopRec() {
+            if (!A.recActive) return;
+            mrec.stop(); A.recActive = false;
+            document.getElementById('rb-rec').className = 'rb';
+            document.getElementById('rb-rec').innerHTML = '<span class="rb-i">●</span>RECORD';
+        }
+
+        // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+        let frameCount = 0;
+        function loop() {
+            if (!A.running) return;
+            simTick(); A.t++; frameCount++; A.inferTimer++;
+            if (frameCount % 5 === 0) computeMetrics();
+            if (frameCount % 8 === 0) surveyEnergy();
+            if (frameCount % 4 === 0) { updateStateStrip(); updateMetricDisplays(); }
+            if (frameCount % 3 === 0) processMediaFrame();
+            if (A.autoInfer && A.inferTimer >= A.INFER_INT) { A.inferTimer = 0; runInference(); }
+            render();
+            if (frameCount % 2 === 0 && _ATOBUS_ACTIVE) {
+                _busEmitPatch();
+                _busEmitCursor();
+            }
+            A.rafId = requestAnimationFrame(loop);
+        }
+
+        function toggleRun() {
+            if (A.simState === 'PARSE_FAILED') { toast('Fix parse error before running', true); return; }
+            if (A.running) pauseSim(); else startSim();
+        }
+        function startSim() {
+            if (A.running) return; A.running = true;
+            setSimState('RUNNING');
+            document.getElementById('rb-run').className = 'rb active-run';
+            document.getElementById('rb-run').innerHTML = '<span class="rb-i">⏸</span>PAUSE';
+            document.getElementById('hstep') && (document.getElementById('hstep').style.display = 'none');
+            A.rafId = requestAnimationFrame(loop);
+        }
+        function pauseSim() {
+            A.running = false; if (A.rafId) cancelAnimationFrame(A.rafId);
+            setSimState('PAUSED');
+            document.getElementById('rb-run').className = 'rb run';
+            document.getElementById('rb-run').innerHTML = '<span class="rb-i">▶</span>RUN';
+            render(); updateStateStrip();
+        }
+
+        // ── RESETS ────────────────────────────────────────────────────────────────────
+        function doReset(type) {
+            closeOv('ov-reset');
+            if (type === 'sim') {
+                A.t = 0; frameCount = 0; A.inferTimer = 0;
+                A.metrics = { speed: [], coherence: [], curl: [], ke: [] }; EN.history = [];
+                A.particles = initParticles(A.particleCount, A.bounds, A.seed);
+                updateAll(); if (!A.running) render(); toast('Simulation reset — particles,t,metrics cleared');
+            } else if (type === 'gen') {
+                applyScript(A.script, true); toast('Generators reloaded from script');
+            } else {
+                const was = A.running; pauseSim();
+                A.t = 0; frameCount = 0; A.inferTimer = 0;
+                A.metrics = { speed: [], coherence: [], curl: [], ke: [] }; EN.history = [];
+                A.dirLog = []; A.undoStack = [];
+                A.selectedNodeIdx = null; A.activeScriptLine = -1;
+                document.getElementById('se').value = DEFAULT_SCRIPT;
+                A.script = DEFAULT_SCRIPT; applyScript(DEFAULT_SCRIPT, true);
+                renderDirLog(); updateUndoBar();
+                if (was) startSim(); toast('Full reset — all state cleared');
+            }
+        }
+
+        // ── OVERLAYS ─────────────────────────────────────────────────────────────────
+        function openOv(id) { document.getElementById(id).classList.add('open'); }
+        function closeOv(id) { document.getElementById(id).classList.remove('open'); }
+
+        function buildPresetGrid() {
+            document.getElementById('pgrid').innerHTML = PRESETS.map((p, i) => `
+    <div class="pg" onclick="loadPreset(${i})">
+      <div class="pg-name">${p.name}</div>
+      <div class="pg-claim">${p.claim}</div>
+      <div class="pg-nodes">${p.nodes}</div>
+      <div class="pg-edit">First edit: ${p.bestFirstEdit}</div>
+    </div>`).join('');
+        }
+
+        function loadPreset(i) {
+            A.undoStack.push({ script: A.script, t: A.t, label: `Before preset: ${PRESETS[i].name}` });
+            const sc = PRESETS[i].script;
+            A.script = sc; document.getElementById('se').value = sc;
+            A.metrics = { speed: [], coherence: [], curl: [], ke: [] }; EN.history = []; A.t = 0; frameCount = 0;
+            applyScript(sc, true); closeOv('ov-preset');
+            if (!A.running) render();
+            updateUndoBar();
+            toast(`Preset: ${PRESETS[i].name}`);
+        }
+
+        function applySeed() {
+            const ns = parseInt(document.getElementById('seed-inp').value) || 42;
+            A.undoStack.push({ script: A.script, t: A.t, label: `Before seed change to ${ns}` });
+            A.seed = ns; patchSeed(ns);
+            A.particles = initParticles(A.particleCount, A.bounds, ns);
+            A.t = 0; frameCount = 0; A.metrics = { speed: [], coherence: [], curl: [], ke: [] }; EN.history = [];
+            closeOv('ov-seed'); toast(`Seed ${ns}`); updateUndoBar(); if (!A.running) render();
+        }
+
+        // ── FIELD CONTROL TOGGLES ────────────────────────────────────────────────────
+        function toggleOverlay(k) {
+            if (k === 'vectors') { A.vectors = !A.vectors; patchRender('vectors', A.vectors ? '1' : '0'); document.querySelector('[onclick="toggleOverlay(\'vectors\')"]').classList.toggle('on', A.vectors); }
+            else if (k === 'trails') { A.trails = !A.trails; patchRender('trails', A.trails ? '1' : '0'); document.querySelector('[onclick="toggleOverlay(\'trails\')"]').classList.toggle('on', A.trails); }
+            else if (k === 'floor') { A.showFloor = !A.showFloor; document.querySelector('[onclick="toggleOverlay(\'floor\')"]').classList.toggle('on', A.showFloor); }
+            if (!A.running) render();
+        }
+        function cycleColor() {
+            A.colorMode = (A.colorMode + 1) % A.CMODES.length;
+            document.getElementById('rob-color').textContent = `◐ COLOR: ${A.CMODES[A.colorMode]}`;
+            if (!A.running) render();
+        }
+        function toggleNoise() { A.thermalNoise = !A.thermalNoise; document.getElementById('rob-noise').classList.toggle('on', A.thermalNoise); toast(`Thermal noise: ${A.thermalNoise ? 'ON' : 'OFF'}`); }
+        function toggleRecycle() { A.recycleParticles = !A.recycleParticles; document.getElementById('rob-recycle').classList.toggle('on', A.recycleParticles); toast(`Particle recycle: ${A.recycleParticles ? 'ON' : 'OFF'}`); }
+        function toggleAdaptive() { A.adaptiveEnergy = !A.adaptiveEnergy; document.getElementById('rob-energy').classList.toggle('on', A.adaptiveEnergy); toast(`Adaptive energy: ${A.adaptiveEnergy ? 'ON' : 'OFF'}`); }
+
+        // ── EXPORT ────────────────────────────────────────────────────────────────────
+        function copyScript() { navigator.clipboard.writeText(A.script).then(() => toast('Script copied')).catch(() => toast('Copy failed', true)); }
+        function exportJSON() {
+            const d = JSON.stringify({ script: A.script, seed: A.seed, t: A.t, metrics: A.metrics, dirLog: A.dirLog, undoStack: A.undoStack }, null, 2);
+            const b = new Blob([d], { type: 'application/json' }); const u = URL.createObjectURL(b);
+            const a = document.createElement('a'); a.href = u; a.download = `naurian-${Date.now()}.json`; a.click();
+            setTimeout(() => URL.revokeObjectURL(u), 2000); toast('Session exported as JSON');
+        }
+
+        // ── RESIZE ────────────────────────────────────────────────────────────────────
+        function resize() {
+            const wrap = document.getElementById('cwrap');
+            W = wrap.clientWidth; H = wrap.clientHeight; canvas.width = W; canvas.height = H;
+            if (!A.running) render();
+        }
+
+        // ── TOAST ─────────────────────────────────────────────────────────────────────
+        let toastT = null;
+        function toast(msg, err = false) {
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.className = 'on' + (err ? ' err' : '');
+            clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
+        }
+
+        // ── ICARO BUS INTEGRATION ───────────────────────────────────────────────────
+        const _ATOBUS_ACTIVE = (window.parent !== window);
+        const G_COLS = 128;
+        const G_ROWS = 96;
+        let _busCanvas = document.createElement('canvas');
+        _busCanvas.width = G_COLS; _busCanvas.height = G_ROWS;
+        let _busCtx = _busCanvas.getContext('2d', { willReadFrequently: true });
+
+        function _busDeriveGrid() {
+            if (!canvas) return new Uint8Array(G_COLS * G_ROWS);
+            _busCtx.drawImage(canvas, 0, 0, G_COLS, G_ROWS);
+            const px = _busCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
+            const grid = new Uint8Array(G_COLS * G_ROWS);
+            for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                const pi = i * 4;
+                const lum = px[pi] * 0.299 + px[pi+1] * 0.587 + px[pi+2] * 0.114;
+                // In sand-plate, field is black and particles are white.
+                // We want bright particles to map to higher INKS values (1-7), black to 0.
+                grid[i] = Math.round((lum / 255) * 7);
+            }
+            return grid;
+        }
+
+        function _busEmitPatch() {
+            if (!_ATOBUS_ACTIVE) return;
+            const grid = _busDeriveGrid();
+            window.parent.postMessage({
+                type: 'FRAME_PATCH',
+                _origin: 'engine',
+                index: A.t,
+                grid: Array.from(grid),
+                version: 1,
+                gridW: G_COLS,
+                gridH: G_ROWS
+            }, '*');
+        }
+
+        function _busEmitCursor() {
+            if (!_ATOBUS_ACTIVE) return;
+            window.parent.postMessage({
+                type: 'CURSOR_MOVE',
+                _origin: 'engine',
+                cursor: A.t,
+                total: A.t + 100 // keep the timeline scrolling forward
+            }, '*');
+        }
+
+        window.addEventListener('message', e => {
+            const d = e.data;
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+            if (d._origin === 'engine') return;
+            if (d.type === 'GOTO_FRAME' && typeof d.cursor === 'number') {
+                if (d.cursor === 0) doReset('sim');
+            }
+            if (d.type === 'REQUEST_SYNC') {
+                _busEmitCursor();
+            }
+        });
+
+        // ── INIT ──────────────────────────────────────────────────────────────────────
+        function init() {
+            canvas = document.getElementById('c'); ctx = canvas.getContext('2d');
+            resize(); window.addEventListener('resize', resize);
+
+            // Canvas events
+            canvas.addEventListener('pointerdown', onPD);
+            canvas.addEventListener('pointermove', onPM);
+            canvas.addEventListener('pointerup', onPU);
+            canvas.addEventListener('pointerleave', () => { A.hoveredNodeIdx = null; document.getElementById('nodehint').classList.remove('v'); canvas.style.cursor = 'crosshair'; });
+            canvas.addEventListener('dragover', e => e.preventDefault());
+            canvas.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return; if (f.type.startsWith('video/')) loadVideo(f); else if (f.type.startsWith('image/')) loadImage(f); });
+
+            // Script editor
+            const se = document.getElementById('se');
+            se.value = DEFAULT_SCRIPT;
+            se.addEventListener('input', e => onScriptInput(e.target.value));
+            se.addEventListener('scroll', () => { document.getElementById('lnums').scrollTop = se.scrollTop; });
+            se.addEventListener('click', () => {
+                const lines = A.script.split('\n'); let pos = se.selectionStart, cc = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    cc += lines[i].length + 1; if (pos < cc) {
+                        A.activeScriptLine = i; const nd = A.nodes.find(n => n.li === i);
+                        if (nd) { A.selectedNodeIdx = A.nodes.indexOf(nd); A.nodePulse = { idx: A.selectedNodeIdx, tick: A.t }; }
+                        else A.selectedNodeIdx = null;
+                        updateInspector(); updateLnums(); if (!A.running) render(); break;
+                    }
+                }
+            });
+
+            // Mode bar
+            document.querySelectorAll('.mbt').forEach(t => t.addEventListener('click', () => switchMode(t.dataset.mode)));
+
+            // Director
+            document.getElementById('dir-now').addEventListener('click', runInference);
+            document.getElementById('cinp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doConjure(); } });
+
+            // Media slider
+            document.getElementById('inf-slider').addEventListener('input', e => {
+                A.mediaInfluence = e.target.value / 100; document.getElementById('inf-val').textContent = e.target.value + '%';
+            });
+
+            // Overlay backdrops
+            ['ov-seed', 'ov-reset', 'ov-preset'].forEach(id => {
+                document.getElementById(id).addEventListener('click', e => { if (e.target === e.currentTarget) closeOv(id); });
+            });
+
+            // Keyboard
+            window.addEventListener('keydown', e => {
+                if (['se', 'cinp'].includes(e.target.id)) return;
+                if (e.code === 'Space') { e.preventDefault(); toggleRun(); }
+                if (e.code === 'KeyZ' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); undoLastPatch(); }
+                if (e.code === 'Escape') { ['ov-seed', 'ov-reset', 'ov-preset'].forEach(closeOv); closeScript(); }
+                if (e.code === 'KeyV') toggleOverlay('vectors');
+                if (e.code === 'KeyT') toggleOverlay('trails');
+                if (e.code === 'KeyC') cycleColor();
+                if (e.code === 'KeyS' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); toggleScript(); }
+            });
+
+            // Build UI
+            buildOperateMetrics();
+            buildReadMetrics();
+            buildPresetGrid();
+
+            // Check recording support
+            checkRecordCapability();
+
+            // Load default
+            applyScript(DEFAULT_SCRIPT, true);
+            setSimState('READY');
+            render(); updateAll(); renderDirLog();
+
+            // Auto-start
+            setTimeout(() => {
+                startSim();
+            }, 300);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>

@@ -66,11 +66,13 @@ The program describes **bidirectional temporal navigation across two incompatibl
 | `[hydrate-frustum]` | Tunnel | Pre-loads textures for clips entering camera view |
 | `[route-message]` | Harness | Receives from one iframe, forwards to the other |
 | `[pool-message]` | Harness | rAF deduplication — forwards only latest cursor/goto per frame |
-| `[derive-frame-from-camera]` | Tunnel | `Math.round(S.cam / (SNAP * 2))` → frame index |
+| `[derive-frame-from-camera]` | Tunnel | Hold-frame clip lookup: find clip containing S.cam, return its `_frameIndex` |
 | `[derive-camera-from-cursor]` | Tunnel | `cursor * SNAP * 2` → camera position |
 | `[push-undo]` | Engine | Snapshots handLayer before drawing begins |
 | `[undo]` | Engine | Restores handLayer from snapshot, increments `_v`, emits FRAME_PATCH |
+| `[mobile-undo]` | Engine | Two-finger tap on canvas or UNDO button in draw toolbar |
 | `[sync-clips-incremental]` | Tunnel | Reconciles clip array with new frame count without destroying user edits |
+| `[set-active-track]` | Tunnel | Updates `_busActiveTrack` when a frame-mapped clip is selected |
 
 ### `<States>`
 
@@ -110,6 +112,9 @@ The program describes **bidirectional temporal navigation across two incompatibl
 2. **Grid Transport**: Frame data crosses the iframe boundary as `Uint8Array(128x96)` of shade values, not raw pixels.
 3. **Iframe Isolation**: Engine and tunnel share NO JavaScript state. All coupling is via `postMessage`.
 4. **Height Explicitness**: Iframes require explicit `height` values (not `auto`, not flex). `calc(50dvh - 14px)` is the canonical mobile formula.
+5. **Safe Accessors**: All frame access goes through `safeFrame(idx)` / `curFrame()`. These NEVER return null/undefined. If no frames exist, they return a frozen sentinel object.
+6. **Origin-Tagged Protocol**: Every outbound message carries `_origin: 'engine'|'tunnel'`. Receivers reject messages from self. The harness router only forwards to the opposite instrument.
+7. **Validated Messages**: All three receivers (engine, tunnel, harness) reject messages that are not `{type: string}` objects. Unknown message types are dropped.
 
 ### `<Invariants>`
 
@@ -120,9 +125,12 @@ The program describes **bidirectional temporal navigation across two incompatibl
 |----|-----------|-------------|
 | **I-1** | `cursor(engine) == frameIndex(tunnel.camera)` at rest | Bidirectional message sync |
 | **I-2** | `frames.length == clips.length` after `FRAMES_SYNC` | `_busSeedFromFrames()` |
-| **I-3** | No feedback loops: `GOTO_FRAME` must not trigger `CURSOR_MOVE` which triggers `GOTO_FRAME` | `_busInboundGoto` guard + `_busCamLastFrame` tracking |
+| **I-3** | No feedback loops: `GOTO_FRAME` must not trigger `CURSOR_MOVE` which triggers `GOTO_FRAME` | **Structurally impossible**: `_origin` tags + three-gate harness router. Messages from engine never reach engine; messages from tunnel never reach tunnel. |
 | **I-4** | Frame thumbnails on tunnel clip faces match engine frame content | Versioned cache: `_busFrameCache.get(i).version === frame._v` |
 | **I-5** | Both instruments are visible simultaneously on mobile (default split mode) | `height: calc(50dvh - 14px)` on both iframes |
+| **I-6** | `safeFrame(idx)` never returns null/undefined | Returns clamped frame or frozen `_SENTINEL_FRAME` |
+| **I-7** | Harness only processes messages from known sources | `e.source === engine.contentWindow \|\| tunnel.contentWindow` gate |
+| **I-8** | Unknown message types are silently dropped | `VALID_TYPES` Set whitelist in harness |
 
 ---
 
@@ -232,6 +240,57 @@ The program describes **bidirectional temporal navigation across two incompatibl
 | **Bus Stale Detection** | Engine or tunnel stops responding | Harness heartbeat (3s interval) checks `lastEngineMsg`/`lastTunnelMsg`, shows STALE after 10s/15s |
 | **Event Flooding** | User scrubbing emits 120+ messages/sec | rAF pooling in harness deduplicates to 1 message/render-frame |
 | **Tab Background** | Browser suspends iframe execution | `visibilitychange` listener triggers `REQUEST_SYNC` on return |
+
+### Footage Object Conflict Matrix
+
+| Conflict | Description | Resolution | Undo |
+|----------|-------------|------------|------|
+| **Clip Overlap** | Two clips occupy the same timeline position on the same track | Both render — later clip draws on top. `_busDeriveFrame` returns the FIRST matching clip. User can MOVE one clip to resolve. | `clipUndo()` restores original position |
+| **Orphaned Clip** | Frame deleted in engine but clip persists in tunnel | `_busSyncFromFrames()` removes clips whose `_frameIndex >= total`. Clean removal. | Not undoable — source frame is gone |
+| **Dual-Source Frame** | After SPLIT, two clips reference the same `_frameIndex` | Both show the same thumbnail. Drawing on the source frame updates both clips' textures via `FRAME_PATCH`. | `clipUndo()` un-splits by restoring pre-split clip state |
+| **Track Collision** | Clip dragged to a track that already has a clip at that position | No enforcement — clips stack. `_busDeriveFrame` returns first match. | `clipUndo()` restores previous track |
+| **Hold-Frame Gap** | Camera is between clips (no clip contains S.cam) | `_busDeriveFrame` falls back to nearest clip, then linear formula | N/A — navigational, not a mutation |
+| **Drawing During Playback** | User draws while sequence is playing | `pointerdown` pushes undo snapshot. Drawing commits normally. Playback stops on canvas interaction. | `undo()` restores pre-draw state |
+| **Concurrent Draw + Scrub** | Engine drawing while tunnel scrubbing | Each instrument works independently. `FRAME_PATCH` debounced at 100ms. `GOTO_FRAME` pooled at rAF. No lock contention — instruments share NO state. | Independent undo stacks in each instrument |
+| **Undo Across Instruments** | User undoes in wrong instrument | Each instrument has its own undo stack. Engine undo restores pixel data. Tunnel undo restores clip geometry. No cross-instrument undo. | By design — undo is local to the instrument that performed the mutation |
+
+### Undo Architecture
+
+```
+ENGINE UNDO (_undoStack)
+  pushUndo() → snapshot handLayer Uint8ClampedArray
+  undo()     → restore handLayer, increment _v, emit FRAME_PATCH
+  Triggers:
+    - Ctrl+Z / Cmd+Z (keyboard)
+    - Two-finger tap (mobile)
+    - Right-click on canvas (contextmenu)
+    - ↺ button in draw toolbar
+  Max: 30 entries per session
+
+TUNNEL UNDO (_clipUndoStack)
+  pushClipUndo(clip) → snapshot {start, dur, track, rot, lift, locked}
+  clipUndo()          → restore clip state, re-select, wake bus
+  Triggers:
+    - Ctrl+Z / Cmd+Z (keyboard)
+    - Right-click on tunnel canvas (contextmenu)
+  Max: 30 entries per session
+  
+INVARIANT: Undo never crosses the bus boundary.
+  Engine undo does NOT undo tunnel clip operations.
+  Tunnel undo does NOT undo engine drawing.
+  This is by design — the instruments are sovereign.
+```
+
+### Recovery Procedures
+
+| Failure Class | Recovery | Automatic? |
+|---------------|----------|-----------|
+| **Stale Thumbnails** | `REQUEST_SYNC` triggers full `FRAMES_SYNC` from engine | Yes — on tab refocus |
+| **Lost Clip Edits** | `_busSyncFromFrames()` preserves user-edited clips | Yes — on every FRAMES_SYNC |
+| **Drawing Mistake** | Undo stack (30 levels) | Manual — Cmd+Z, right-click, two-finger tap, or ↺ button |
+| **Clip Operation Mistake** | Clip undo stack (30 levels) | Manual — Cmd+Z or right-click on tunnel |
+| **Iframe Crash** | Harness detects STALE after 15s, shows warning | Semi-auto — user must reload |
+| **Bus Desync** | Camera/cursor drift detected by guard flags | Auto — guards prevent feedback loops |
 
 ---
 
@@ -430,6 +489,136 @@ LAW 9 — MAIN THREAD SANCTITY
   Canvas state operations (save/restore) per-clip not per-cell.
   rAF pooling caps message throughput to screen refresh rate.
   Live drawing sync uses 100ms debounce, not per-stroke emission.
+
+LAW 10 — HOLD-FRAME SOVEREIGNTY
+  A clip's _frameIndex identifies which SOURCE frame to show.
+  A clip's duration controls HOW LONG that frame is held.
+  Extending a clip = freeze frame. Trimming = shortening the hold.
+  [derive-frame-from-camera] must walk the clip timeline, not
+  divide by a constant. Clips on the active track take priority.
+
+LAW 11 — TOOL TRANSPARENCY
+  Every tool must declare its category and effect description.
+  Temporal tools (MOVE, TRIM, SPLIT) affect playback structure.
+  Visual tools (ROLL, LIFT) affect appearance only.
+  Annotation tools (ROUTE, STORE) create metadata, not mutations.
+  The user must always know which category they're operating in.
+
+LAW 12 — ERROR ELIMINATION BY CONSTRUCTION
+  Errors must be made IMPOSSIBLE, not merely caught.
+  Prefer design patterns that eliminate error classes entirely
+  over runtime guards that detect errors after they occur.
+  The hierarchy of error handling:
+    1. IMPOSSIBLE (by construction) — the API cannot express the error
+    2. UNREACHABLE (by validation gates) — invalid input rejected at entry
+    3. RECOVERABLE (by undo) — mutation can be reversed
+    4. REPORTABLE (by toast/log) — user informed, system continues
+  Never add a try/catch where a type constraint would suffice.
+```
+
+---
+
+## 12. `<Error Elimination Theory>`
+
+### Design Principle
+
+> **"A well-designed system doesn't handle errors gracefully — it makes them structurally impossible."**
+
+Errors fall into classes. Each class has a design pattern that eliminates it entirely. Runtime guards (try/catch, null checks, validation) are a last resort — they prove the error is still possible but merely caught.
+
+### Error Class Elimination Table
+
+| Error Class | Old Approach (Fragile) | New Approach (Structural) | Status |
+|------------|----------------------|--------------------------|--------|
+| **Null frame access** | `const f = state.frames[state.cur]; if (!f) return;` | `safeFrame(idx)` returns clamped frame or frozen sentinel. Null access is **impossible**. | ✓ Eliminated |
+| **Feedback loop** | `_busInboundGoto` temporal flag (fragile — one missed reset = infinite loop) | Origin-tagged protocol: messages carry `_origin: 'engine'\|'tunnel'`. Three-gate router: GATE 1 (shape), GATE 2 (type whitelist), GATE 3 (source identity). Echo is **impossible**. | ✓ Eliminated |
+| **Malformed message crash** | `if (!d \|\| !d.type) return;` (incomplete — d could be a string, number, etc.) | `typeof d !== 'object' \|\| typeof d.type !== 'string'` full shape validation. Unknown types rejected via `VALID_TYPES` Set. Type errors from bad messages are **impossible**. | ✓ Eliminated |
+| **Unknown message source** | No check — any iframe or script could inject messages | `e.source === engine.contentWindow \|\| tunnel.contentWindow` gate. Messages from unknown sources are **impossible** to process. | ✓ Eliminated |
+| **Cursor out of bounds** | Scattered `Math.max(0, Math.min(...))` at each call site | `clampCursor()` central function. `safeFrame()` clamps on access. Out-of-bounds cursor is **impossible**. | ✓ Eliminated |
+| **Clip state destruction** | `_busSeedFromFrames()` wipes all clips on every sync | `_busSyncFromFrames()` preserves existing clips. Only adds/removes. Destruction is **impossible** after initial seed. | ✓ Eliminated |
+| **Drawing without undo** | No undo — pixel mutations permanent | `pushUndo()` at pointerdown. `undo()` via Cmd+Z, right-click, two-finger tap, ↺ button. Unrecoverable drawing is **impossible**. | ✓ Eliminated |
+| **Clip operation without undo** | No undo — clip mutations permanent | `pushClipUndo()` at drag start. `clipUndo()` via Cmd+Z or right-click. Unrecoverable clip edit is **impossible**. | ✓ Eliminated |
+
+### The Three-Gate Router
+
+```
+GATE 1: SHAPE VALIDATION
+  if (!d || typeof d !== 'object' || typeof d.type !== 'string') → DROP
+  Result: Non-object payloads IMPOSSIBLE to process
+
+GATE 2: TYPE WHITELIST
+  if (!VALID_TYPES.has(d.type)) → DROP
+  Result: Unknown message types IMPOSSIBLE to process
+
+GATE 3: SOURCE IDENTITY
+  fromEngine = e.source === engine.contentWindow
+  fromTunnel = e.source === tunnel.contentWindow
+  if (!fromEngine && !fromTunnel) → DROP
+  Result: Messages from unknown sources IMPOSSIBLE to process
+  
+  ENGINE messages → forwarded to TUNNEL only (never back to engine)
+  TUNNEL messages → forwarded to ENGINE only (never back to tunnel)
+  Result: Echo/feedback loops IMPOSSIBLE by topology
+```
+
+### The Safe Accessor Pattern
+
+```
+safeFrame(idx):
+  if (frames.length === 0) → return _SENTINEL_FRAME (frozen, read-only)
+  clamp idx to [0, frames.length - 1]
+  return frames[clamped] || _SENTINEL_FRAME
+  
+  Result: null/undefined frame access IMPOSSIBLE
+  
+  _SENTINEL_FRAME = Object.freeze({
+    src: null, scriptLayer: null, handLayer: null, _v: 0, _sentinel: true
+  })
+  
+  Callers can check f._sentinel to know they're on the sentinel,
+  but they can NEVER crash from accessing properties on it.
+```
+
+---
+
+## 11. `<Tool Theory>`
+
+### Tool Categories
+
+| Category | Tools | Color | Effect Domain |
+|----------|-------|-------|--------------|
+| **Temporal** | MOVE, TRIM, SPLIT | Green (#22c55e) | Changes WHEN and HOW LONG frames appear in the timeline |
+| **Visual** | ROLL, LIFT | Blue (#60a5fa) | Changes how clips LOOK on the tunnel surface |
+| **Annotation** | ROUTE, STORE | Amber (#fbbf24) | Creates metadata and connections, no structural mutation |
+
+### Formal Tool Semantics
+
+| Tool | Input | Output | Invariant |
+|------|-------|--------|-----------|
+| **MOVE** | Drag clip → new position | `clip.start` changes | Frame's source content unchanged. Only timeline position moves. |
+| **TRIM** (start) | Drag clip start edge | `clip.start` increases, `clip.dur` decreases | Hold begins later. Source frame unchanged. |
+| **TRIM** (end) | Drag clip end edge | `clip.dur` increases or decreases | Hold extends or shortens. Source frame unchanged. |
+| **SPLIT** | Tap on clip body | Two clips, both referencing same `_frameIndex` | Creates editorial cut point. Both halves show same frame. |
+| **ROLL** | Drag on clip body | `clip.rot` changes | Rotates clip face on barrel. No temporal or source effect. |
+| **LIFT** | Drag on clip body | `clip.lift` changes | Displaces clip radially from barrel. Visual emphasis only. |
+| **ROUTE** | Drag from clip A to clip B | Route added `{from, to}` | Annotation. No structural effect. |
+| **STORE** | Panel interaction | Slot save/load | Session management. Persists clip arrangement. |
+
+### The Hold-Frame Model
+
+```
+BEFORE (broken):
+  frameIdx = Math.round(S.cam / (SNAP * 2))
+  clip.dur has NO effect on which frame the engine shows
+  Extending a clip is purely cosmetic
+
+AFTER (hold-frame):
+  frameIdx = _busDeriveFrame(S.cam)
+    → walks clips to find which clip contains camera position
+    → returns clip._frameIndex (the SOURCE frame)
+  clip.dur controls HOW LONG that source frame is held
+  Extending a clip = freeze frame
+  Different tracks can have different hold patterns
 ```
 
 ---

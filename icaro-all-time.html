@@ -1,0 +1,3711 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All-Time scoring and playlist instrument" />
+    <title>All-Time</title>
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='white'/%3E%3Cpath d='M4 4h24v24H4zM16 4v24M4 16h24' fill='none' stroke='black' stroke-width='3'/%3E%3C/svg%3E" />
+    <style>
+        :root {
+            --paper: #fff;
+            --ink: #000;
+            --soft: #f3f3f3;
+            --muted: #555;
+            --header-h: 186px;
+            --legend-h: 58px;
+            --column-w: clamp(286px, 20vw, 430px);
+            --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+                var(--paper);
+            background-size: 28px 28px;
+            color: var(--ink);
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        button,
+        select,
+        input,
+        textarea,
+        a {
+            font: inherit;
+            color: inherit;
+        }
+
+        button,
+        select,
+        input,
+        textarea {
+            border-radius: 0;
+        }
+
+        .app {
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) var(--legend-h);
+            overflow: hidden;
+        }
+
+        .player {
+            z-index: 30;
+            display: grid;
+            grid-template-columns: 118px 1fr;
+            border-bottom: 2px solid var(--ink);
+            background: var(--paper);
+            min-height: var(--header-h);
+        }
+
+        .art {
+            border-right: 2px solid var(--ink);
+            background: var(--soft);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+
+        .art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            filter: grayscale(1) contrast(1.35);
+        }
+
+        .mark {
+            font-weight: 950;
+            font-size: 1.45rem;
+            letter-spacing: 0.06em;
+        }
+
+        .deck {
+            min-width: 0;
+            display: grid;
+            grid-template-rows: 28px minmax(0, 1fr) 34px 38px;
+        }
+
+        .deck-top {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            border-bottom: 2px solid var(--ink);
+            font-size: 0.66rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            min-width: 0;
+        }
+
+        .hub {
+            min-height: 100%;
+            display: inline-flex;
+            align-items: center;
+            padding: 0 8px;
+            border-right: 1px solid var(--ink);
+            text-decoration: none;
+        }
+
+        .top-tool {
+            min-height: 24px;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            padding: 0 9px;
+            cursor: pointer;
+        }
+
+        .top-tool:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .top-tool.on {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .file-input {
+            position: fixed;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .state,
+        .time {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .now {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 7px 8px;
+        }
+
+        .now h1 {
+            margin: 0;
+            font-size: clamp(1.45rem, 5vw, 3.1rem);
+            line-height: 0.96;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+        }
+
+        .now p {
+            margin: 5px 0 0;
+            font-size: 0.72rem;
+            font-weight: 950;
+            text-transform: uppercase;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .now-share {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .now-share-btn {
+            min-height: 26px;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            padding: 0 9px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.58rem;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+        }
+
+        .now-share-btn.primary,
+        .now-share-btn:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .scrub {
+            border-top: 2px solid var(--ink);
+            display: grid;
+            grid-template-columns: 54px 1fr 54px;
+            align-items: center;
+            gap: 7px;
+            padding: 0 8px;
+        }
+
+        .scrub span {
+            font-size: 0.64rem;
+            font-weight: 950;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .scrub input {
+            width: 100%;
+            accent-color: var(--ink);
+            touch-action: pan-x;
+        }
+
+        .transport {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr 1fr;
+            border-top: 2px solid var(--ink);
+        }
+
+        .btn,
+        .mini,
+        .select {
+            min-width: 0;
+            min-height: 40px;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0 8px;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            font-weight: 950;
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+        }
+
+        .transport .btn {
+            border: 0;
+            border-right: 2px solid var(--ink);
+            min-height: 36px;
+        }
+
+        .transport .btn:last-child {
+            border-right: 0;
+        }
+
+        .transport .primary {
+            font-size: 0.78rem;
+            letter-spacing: 0.1em;
+        }
+
+        .primary,
+        .play-control,
+        .btn:hover,
+        .mini:hover,
+        .unit:hover,
+        .unit.active,
+        .unit.selected {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .play-control {
+            border-width: 2px;
+        }
+
+        .play-control::before {
+            content: "▶";
+            margin-right: 6px;
+        }
+
+        .play-control.is-playing::before {
+            content: "▮▮";
+            letter-spacing: -0.08em;
+            margin-right: 8px;
+        }
+
+        .workspace {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            background: var(--paper);
+            scrollbar-width: thin;
+            scrollbar-color: var(--ink) var(--paper);
+        }
+
+        .column {
+            flex: 0 0 var(--column-w);
+            width: var(--column-w);
+            min-width: var(--column-w);
+            height: 100%;
+            display: grid;
+            grid-template-rows: 74px minmax(0, 1fr);
+            border-right: 2px solid var(--ink);
+            background: var(--paper);
+            scroll-snap-align: start;
+            position: relative;
+            transition: border-color 160ms linear;
+        }
+
+        .column-header {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            align-items: stretch;
+            border-bottom: 2px solid var(--ink);
+            min-height: 74px;
+            background: var(--paper);
+        }
+
+        .column-header::after {
+            content: attr(data-count);
+            align-self: center;
+            justify-self: end;
+            margin-right: 10px;
+            grid-row: 1;
+            grid-column: 1;
+            border: 1px solid var(--ink);
+            border-radius: 3px;
+            padding: 2px 7px;
+            background: var(--paper);
+            font-size: 0.76rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            line-height: 1.1;
+        }
+
+        .column-title {
+            min-width: 0;
+            padding: 12px 64px 10px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            text-transform: uppercase;
+        }
+
+        .column-name {
+            font-weight: 950;
+            font-size: 1.08rem;
+            line-height: 1.05;
+            letter-spacing: 0.12em;
+        }
+
+        .column-subtitle {
+            font-size: 0.74rem;
+            line-height: 1.15;
+            font-weight: 850;
+            letter-spacing: 0.04em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .column-content {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: minmax(0, 1fr) auto;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .column-scroll {
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: var(--ink) var(--paper);
+        }
+
+        .column-add {
+            min-height: 54px;
+            border: 2px solid var(--ink);
+            border-left: 0;
+            border-right: 0;
+            border-bottom: 0;
+            background: var(--paper);
+            color: var(--ink);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            text-transform: uppercase;
+            font-weight: 950;
+            cursor: pointer;
+            padding: 7px 10px;
+            text-align: center;
+        }
+
+        .column-add-main {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            line-height: 1.05;
+        }
+
+        .column-add-sub {
+            font-size: 0.58rem;
+            letter-spacing: 0.06em;
+            line-height: 1.1;
+            opacity: 0.82;
+        }
+
+        .column-add:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .unit {
+            width: 100%;
+            border: 2px solid var(--ink);
+            background: var(--paper);
+            margin-bottom: 10px;
+            text-align: left;
+            display: block;
+            cursor: pointer;
+            transition: background 120ms linear, color 120ms linear, transform 180ms ease, outline-color 180ms ease;
+            position: relative;
+        }
+
+        .slot-row {
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr);
+            gap: 0;
+            align-items: stretch;
+            margin-bottom: 10px;
+        }
+
+        .slot-row .unit {
+            border-left: 0;
+        }
+
+        .slot-num {
+            border: 2px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            display: grid;
+            place-items: center;
+            min-height: 58px;
+            border-right: 0;
+            font-size: 0.82rem;
+            font-weight: 950;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .slot-row .unit {
+            margin-bottom: 0;
+        }
+
+        .slot-row.displaced .slot-num,
+        .slot-row.ready .slot-num,
+        .slot-row.now-slot .slot-num {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .unit::after,
+        .block::after {
+            content: "";
+            position: absolute;
+            right: -13px;
+            top: 50%;
+            width: 12px;
+            height: 24px;
+            background: var(--paper);
+            border: 2px solid currentColor;
+            border-right: 0;
+            transform: translate(0, -50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .unit:hover::after,
+        .unit.active::after,
+        .unit.selected::after,
+        .unit.now-playing::after,
+        .block:hover::after,
+        .block.now-playing::after {
+            background: var(--ink);
+        }
+
+        .unit.dragging,
+        .dragging {
+            opacity: 0.55;
+            outline: 4px double var(--ink);
+            outline-offset: -7px;
+        }
+
+        .unit.held,
+        .slot-row.held .unit {
+            outline: 6px double var(--ink);
+            outline-offset: -9px;
+        }
+
+        .unit.displaced {
+            transform: translateY(8px);
+            outline: 5px double var(--ink);
+            outline-offset: -8px;
+        }
+
+        .unit.snap-accept,
+        .block.snap-accept,
+        .socket-zone.snap-accept {
+            animation: snapAccept 520ms ease both;
+        }
+
+        .unit.snap-refuse,
+        .block.snap-refuse,
+        .socket-zone.snap-refuse {
+            animation: snapRefuse 360ms ease both;
+        }
+
+        .unit.now-playing,
+        .block.now-playing {
+            background: var(--ink);
+            color: var(--paper);
+            animation: attentionPulse 760ms ease both;
+        }
+
+        .unit.parent-lit {
+            outline: 4px double var(--ink);
+            outline-offset: -7px;
+        }
+
+        .unit.moved-up {
+            animation: moveUp 560ms ease both;
+            outline: 7px double var(--ink);
+            outline-offset: -10px;
+        }
+
+        .unit.moved-down {
+            animation: moveDown 560ms ease both;
+            outline: 7px double var(--ink);
+            outline-offset: -10px;
+        }
+
+        .unit.moved-up .transclusion-row,
+        .unit.moved-down .transclusion-row {
+            opacity: 1;
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .unit-body {
+            padding: 10px 16px 10px 10px;
+            display: grid;
+            gap: 6px;
+            position: relative;
+            z-index: 1;
+            min-width: 0;
+        }
+
+        .unit-id {
+            width: max-content;
+            border-bottom: 1px solid currentColor;
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            font-weight: 950;
+            letter-spacing: 0.11em;
+            padding-bottom: 2px;
+        }
+
+        .unit-label {
+            min-width: 0;
+            text-transform: uppercase;
+            font-size: 0.98rem;
+            font-weight: 950;
+            line-height: 1.1;
+            overflow-wrap: anywhere;
+        }
+
+        .unit-meta,
+        .hint,
+        .field {
+            min-width: 0;
+            color: #333;
+            text-transform: uppercase;
+            font-size: 0.66rem;
+            font-weight: 850;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .unit:hover .unit-meta,
+        .unit.active .unit-meta,
+        .unit.selected .unit-meta,
+        .unit:hover .hint,
+        .unit.active .hint,
+        .unit.selected .hint,
+        .unit:hover .field,
+        .unit.active .field,
+        .unit.selected .field {
+            color: var(--paper);
+        }
+
+        .unit:hover .mini,
+        .unit.active .mini,
+        .unit.selected .mini,
+        .unit:hover .select,
+        .unit.active .select,
+        .unit.selected .select,
+        .unit:hover .note-input,
+        .unit.active .note-input,
+        .unit.selected .note-input,
+        .unit:hover .drag-handle,
+        .unit.active .drag-handle,
+        .unit.selected .drag-handle {
+            border-color: var(--paper);
+        }
+
+        .unit:hover .mini:hover,
+        .unit.active .mini:hover,
+        .unit.selected .mini:hover {
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .unit:hover .play-control,
+        .unit.active .play-control,
+        .unit.selected .play-control {
+            background: var(--paper);
+            color: var(--ink);
+            border-color: var(--paper);
+        }
+
+        .unit-main {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 4px;
+            align-items: start;
+            min-width: 0;
+        }
+
+        .unit-main>div {
+            min-width: 0;
+        }
+
+        .song-shell {
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr);
+            gap: 8px;
+            align-items: stretch;
+            min-width: 0;
+        }
+
+        .thumb {
+            border: 1px solid currentColor;
+            min-height: 62px;
+            background: var(--soft);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            align-self: stretch;
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            filter: grayscale(1) contrast(1.25);
+        }
+
+        .thumb span {
+            font-size: 0.62rem;
+            font-weight: 950;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .song-shell .unit-id,
+        .song-shell .unit-label,
+        .song-shell .unit-meta {
+            display: block;
+        }
+
+        .drag-handle {
+            min-height: 40px;
+            border: 1px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            font-size: 0.58rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .move-rail {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) 48px;
+            gap: 5px;
+        }
+
+        .move-rail .mini,
+        .move-rail .drag-handle {
+            min-height: 48px;
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
+            width: 100%;
+        }
+
+        .move-btn {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .move-icon {
+            border: 1px solid currentColor;
+            min-width: 28px;
+            min-height: 28px;
+            display: inline-grid;
+            place-items: center;
+            font-size: 1rem;
+            line-height: 1;
+            margin: 0 auto;
+        }
+
+        .move-word {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .transclusion-row {
+            min-height: 32px;
+            border: 2px dashed currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            opacity: 0.78;
+        }
+
+        .transclusion-row.hot {
+            opacity: 1;
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .chip {
+            border: 1px solid currentColor;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            font-size: 0.58rem;
+            font-weight: 950;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .chip.hot {
+            background: currentColor;
+        }
+
+        .chip.hot span {
+            color: var(--paper);
+        }
+
+        .unit:hover .chip.hot span,
+        .unit.active .chip.hot span,
+        .unit.selected .chip.hot span {
+            color: var(--ink);
+        }
+
+        .chip-button {
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .chip-button:hover {
+            background: currentColor;
+        }
+
+        .chip-button:hover span {
+            color: var(--paper);
+        }
+
+        .unit:hover .chip-button:hover span,
+        .unit.active .chip-button:hover span,
+        .unit.selected .chip-button:hover span {
+            color: var(--ink);
+        }
+
+        .stars {
+            font-weight: 950;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            justify-self: start;
+            font-size: 0.82rem;
+            line-height: 1;
+        }
+
+        .rating-rail {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .star-btn {
+            min-height: 48px;
+            border: 2px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            font-size: 1.18rem;
+            font-weight: 950;
+            cursor: pointer;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .star-btn.on,
+        .star-btn:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .star-btn.on span,
+        .star-btn:hover span {
+            color: inherit;
+        }
+
+        .unit:hover .star-btn,
+        .unit.active .star-btn,
+        .unit.selected .star-btn {
+            border-color: var(--paper);
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .unit:hover .star-btn.on span,
+        .unit.active .star-btn.on span,
+        .unit.selected .star-btn.on span,
+        .unit:hover .star-btn:hover span,
+        .unit.active .star-btn:hover span,
+        .unit.selected .star-btn:hover span {
+            color: inherit;
+        }
+
+        .toolbar {
+            border: 2px solid var(--ink);
+            padding: 8px;
+            margin-bottom: 10px;
+            display: grid;
+            gap: 8px;
+            background: var(--paper);
+        }
+
+        .grab-banner {
+            border: 3px solid var(--ink);
+            background: var(--ink);
+            color: var(--paper);
+            padding: 9px;
+            margin-bottom: 10px;
+            display: grid;
+            gap: 8px;
+            text-transform: uppercase;
+            font-size: 0.68rem;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+        }
+
+        .grab-banner .mini {
+            border-color: var(--paper);
+            color: var(--paper);
+            background: var(--ink);
+        }
+
+        .grab-banner .mini:hover {
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .toolbar-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            text-transform: uppercase;
+            font-size: 0.68rem;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+        }
+
+        .socket-zone {
+            border: 2px dashed var(--ink);
+            background:
+                repeating-linear-gradient(90deg, transparent 0 12px, rgba(0, 0, 0, 0.05) 12px 24px),
+                var(--paper);
+            padding: 8px;
+            min-height: 44px;
+            display: grid;
+            align-content: center;
+            text-transform: uppercase;
+            font-size: 0.64rem;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+            margin-bottom: 10px;
+        }
+
+        .socket-zone.ready {
+            outline: 5px double var(--ink);
+            outline-offset: -8px;
+        }
+
+        .socket-label {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .beat-strip {
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .beat-pill {
+            min-height: 30px;
+            flex: 0 0 auto;
+            border: 1px solid var(--ink);
+            padding: 0 8px;
+            background: var(--paper);
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            font-weight: 950;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+        }
+
+        .beat-pill.active,
+        .beat-pill:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 5px;
+        }
+
+        .actions.three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .actions.four {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .unit-ops {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 6px;
+        }
+
+        .unit-ops .mini,
+        .unit-ops .select {
+            min-height: 38px;
+            font-size: 0.68rem;
+            padding: 0 5px;
+        }
+
+        .unit-fields {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .media-ops {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(82px, 0.8fr);
+        }
+
+        .select {
+            width: 100%;
+            justify-content: flex-start;
+            text-align: left;
+            display: block;
+            padding: 0 8px;
+        }
+
+        .beat {
+            border: 2px solid var(--ink);
+            margin-bottom: 12px;
+            background: var(--paper);
+        }
+
+        .beat-head {
+            min-height: 50px;
+            border-bottom: 2px solid var(--ink);
+            padding: 8px 10px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            text-transform: uppercase;
+            font-weight: 950;
+            letter-spacing: 0.05em;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+
+        .beat-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.92rem;
+            line-height: 1.05;
+        }
+
+        .beat-stat {
+            font-size: 0.66rem;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .beat.active .beat-head {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .beat-body {
+            padding: 8px;
+            min-height: var(--beat-h, 110px);
+            background:
+                linear-gradient(180deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+                var(--paper);
+            background-size: 100% 24px;
+            transition: outline-color 160ms ease, background 160ms ease;
+        }
+
+        .block {
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            min-height: 58px;
+            height: var(--block-h, 56px);
+            margin-bottom: 6px;
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr);
+            gap: 8px;
+            align-items: center;
+            padding: 7px;
+            text-transform: uppercase;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .block-thumb {
+            width: 42px;
+            height: 42px;
+            border: 1px solid currentColor;
+            background: var(--soft);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+
+        .block-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(1) contrast(1.25);
+        }
+
+        .block-copy {
+            min-width: 0;
+        }
+
+        .block:hover {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .block-title {
+            display: block;
+            font-weight: 950;
+            font-size: 0.82rem;
+            line-height: 1.05;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .block-meta {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.62rem;
+            font-weight: 850;
+            opacity: 0.75;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty {
+            border: 1px solid var(--ink);
+            padding: 14px;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            font-weight: 900;
+            line-height: 1.45;
+        }
+
+        .export-box {
+            margin-top: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 260px;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            padding: 10px;
+            resize: vertical;
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
+
+        .paste-box {
+            min-height: 118px;
+            margin-top: 10px;
+        }
+
+        .share-card {
+            width: 100%;
+            min-height: 76px;
+            border: 2px solid var(--ink);
+            background: var(--paper);
+            margin-bottom: 10px;
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) 58px;
+            gap: 10px;
+            align-items: center;
+            padding: 8px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .share-card:hover,
+        .share-card.active {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .share-icon {
+            width: 42px;
+            height: 42px;
+            border: 2px solid currentColor;
+            display: grid;
+            place-items: center;
+            font-size: 0.8rem;
+            font-weight: 950;
+            letter-spacing: 0.04em;
+        }
+
+        .share-title {
+            text-transform: uppercase;
+            font-size: 0.82rem;
+            font-weight: 950;
+            letter-spacing: 0.06em;
+        }
+
+        .share-meta {
+            margin-top: 3px;
+            text-transform: uppercase;
+            font-size: 0.62rem;
+            font-weight: 850;
+            color: currentColor;
+            opacity: 0.82;
+        }
+
+        .share-send {
+            min-height: 42px;
+            border: 2px solid currentColor;
+            display: grid;
+            place-items: center;
+            font-size: 1rem;
+            font-weight: 950;
+        }
+
+        .share-section {
+            border: 2px solid var(--ink);
+            margin-bottom: 12px;
+            background: var(--paper);
+        }
+
+        .share-section-title {
+            border-bottom: 2px solid var(--ink);
+            padding: 8px 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+        }
+
+        .share-panel {
+            padding: 10px;
+            border-bottom: 1px solid var(--ink);
+            display: grid;
+            gap: 8px;
+        }
+
+        .share-panel:last-child {
+            border-bottom: 0;
+        }
+
+        .share-panel.primary {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        .share-panel-head {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+        }
+
+        .share-url {
+            border: 1px solid currentColor;
+            padding: 6px 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.62rem;
+            font-weight: 850;
+        }
+
+        .share-panel.primary .mini {
+            border-color: var(--paper);
+            background: var(--paper);
+            color: var(--ink);
+        }
+
+        .share-panel.primary .mini.primary {
+            background: var(--paper);
+            color: var(--ink);
+            outline: 3px double var(--paper);
+            outline-offset: -7px;
+        }
+
+        .share-tools {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            border-top: 2px solid var(--ink);
+            background: var(--paper);
+            padding: 8px 12px;
+            overflow-x: auto;
+            text-transform: uppercase;
+            font-size: 0.66rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+        }
+
+        .legend-title {
+            font-size: 0.82rem;
+            font-weight: 950;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-swatch {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--ink);
+            display: inline-block;
+            background: var(--paper);
+        }
+
+        .legend-swatch.dark {
+            background: var(--ink);
+        }
+
+        .legend-swatch.ghost {
+            border-style: dashed;
+        }
+
+        .note-input {
+            min-height: 30px;
+            width: 100%;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            color: var(--ink);
+            padding: 0 7px;
+            resize: none;
+            text-transform: uppercase;
+            font-size: 0.6rem;
+            font-weight: 850;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        @keyframes moveUp {
+            0% {
+                transform: translateY(12px);
+                outline: 4px double var(--ink);
+            }
+
+            45% {
+                transform: translateY(-7px);
+                outline: 4px double var(--ink);
+            }
+
+            100% {
+                transform: translateY(0);
+                outline: 0 solid transparent;
+            }
+        }
+
+        @keyframes moveDown {
+            0% {
+                transform: translateY(-12px);
+                outline: 4px double var(--ink);
+            }
+
+            45% {
+                transform: translateY(7px);
+                outline: 4px double var(--ink);
+            }
+
+            100% {
+                transform: translateY(0);
+                outline: 0 solid transparent;
+            }
+        }
+
+        @keyframes attentionPulse {
+            0% {
+                transform: scale(0.985);
+                outline: 5px double currentColor;
+                outline-offset: -8px;
+            }
+
+            55% {
+                transform: scale(1.01);
+                outline: 5px double currentColor;
+                outline-offset: -8px;
+            }
+
+            100% {
+                transform: scale(1);
+                outline: 0 solid transparent;
+            }
+        }
+
+        @keyframes snapAccept {
+            0% {
+                transform: scale(0.985);
+                outline: 6px double var(--ink);
+                outline-offset: -9px;
+            }
+
+            50% {
+                transform: scale(1.018);
+                outline: 6px double var(--ink);
+                outline-offset: -9px;
+            }
+
+            100% {
+                transform: scale(1);
+                outline: 0 solid transparent;
+            }
+        }
+
+        @keyframes snapRefuse {
+
+            0%,
+            100% {
+                transform: translateX(0);
+                outline: 4px double var(--ink);
+                outline-offset: -7px;
+            }
+
+            25% {
+                transform: translateX(-7px);
+            }
+
+            55% {
+                transform: translateX(7px);
+            }
+
+            80% {
+                transform: translateX(-4px);
+            }
+        }
+
+        @media (max-width: 760px) {
+            :root {
+                --header-h: 150px;
+                --legend-h: 52px;
+                --column-w: 100vw;
+            }
+
+            .player {
+                grid-template-columns: 82px 1fr;
+            }
+
+            .deck {
+                grid-template-rows: 24px minmax(0, 1fr) 30px 36px;
+            }
+
+            .deck-top,
+            .unit-meta,
+            .hint,
+            .field {
+                font-size: 0.56rem;
+            }
+
+            .deck-top {
+                grid-template-columns: minmax(0, 1fr) auto auto auto;
+            }
+
+            .deck-top .time,
+            .deck-top .top-tool.compact-hide {
+                display: none;
+            }
+
+            .now {
+                padding: 5px 6px;
+            }
+
+            .now h1 {
+                font-size: clamp(1rem, 6.2vw, 1.72rem);
+            }
+
+            .now p {
+                font-size: 0.58rem;
+                margin-top: 3px;
+            }
+
+            .now-share {
+                gap: 4px;
+                margin-top: 5px;
+            }
+
+            .now-share-btn {
+                min-height: 24px;
+                padding: 0 6px;
+                font-size: 0.5rem;
+            }
+
+            .scrub {
+                grid-template-columns: 42px 1fr 42px;
+                min-height: 30px;
+                padding: 0 5px;
+                gap: 5px;
+            }
+
+            .scrub span {
+                font-size: 0.56rem;
+            }
+
+            .hub {
+                display: none;
+            }
+
+            .column-content {
+                padding: 8px;
+            }
+
+            .actions.three {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .actions.four {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .unit-ops {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .media-ops {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .move-rail {
+                grid-template-columns: 48px minmax(0, 1fr) 48px;
+            }
+
+            .move-rail .mini,
+            .move-rail .drag-handle {
+                min-height: 52px;
+            }
+
+            .song-shell {
+                grid-template-columns: 54px minmax(0, 1fr);
+            }
+
+            .legend {
+                gap: 14px;
+                padding: 7px 8px;
+            }
+
+            .slot-row {
+                grid-template-columns: 42px minmax(0, 1fr);
+                gap: 0;
+            }
+
+            .thumb {
+                min-height: 64px;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--paper);
+            border-left: 1px solid var(--ink);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--ink);
+            border: 3px solid var(--paper);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            border-width: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app" aria-label="All-Time scoring instrument">
+        <section class="player" aria-label="Locked player">
+            <div class="art" id="artBox">
+                <div class="mark">ALL</div>
+            </div>
+            <div class="deck">
+                <div class="deck-top">
+                    <a class="hub" href="./index.html">Hub</a>
+                    <span class="state" id="stateReadout">Ready</span>
+                    <button class="top-tool" id="autoplayBtn" type="button">Autoplay</button>
+                    <button class="top-tool" id="shuffleBtn" type="button">Shuffle</button>
+                    <button class="top-tool compact-hide" id="importBtn" type="button">Upload</button>
+                    <button class="top-tool" id="clearBtn" type="button">Clear</button>
+                    <span class="time" id="timeReadout">0:00 / --</span>
+                </div>
+                <div class="now">
+                    <h1 id="nowTitle">All-Time</h1>
+                    <p id="nowMeta">Albums -> Songs -> Keeps -> Beats -> Exports</p>
+                    <div class="now-share" aria-label="Now playing share actions">
+                        <button class="now-share-btn primary" type="button" data-action="copy-current-link">Copy Song
+                            Link</button>
+                        <button class="now-share-btn" type="button" data-action="copy-album-link">Copy Album
+                            Link</button>
+                        <button class="now-share-btn compact-hide" type="button" data-action="download-current-qr">Song
+                            QR</button>
+                    </div>
+                </div>
+                <div class="scrub">
+                    <span id="scrubNow">0:00</span>
+                    <input id="songScrub" type="range" min="0" max="0" value="0" step="0.01" disabled
+                        aria-label="Scrub current song" />
+                    <span id="scrubEnd">--</span>
+                </div>
+                <div class="transport">
+                    <button class="btn" id="prevBtn" type="button">◀ Back</button>
+                    <button class="btn primary" id="playBtn" type="button">▶ Play</button>
+                    <button class="btn" id="nextBtn" type="button">Next ▶</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="workspace" id="workspace" aria-label="Operational columns"></section>
+        <input class="file-input" id="projectUpload" type="file" accept="application/json,.json"
+            aria-label="Upload All-Time playlist JSON" />
+        <footer class="legend" aria-label="Interface legend">
+            <span class="legend-title">Legend:</span>
+            <span class="legend-item"><span class="legend-swatch dark"></span> Currently playing</span>
+            <span class="legend-item"><span class="legend-swatch"></span> Selected / active</span>
+            <span class="legend-item"><span class="legend-swatch ghost"></span> Drop target / placement</span>
+            <span class="legend-item">→ To keeps</span>
+            <span class="legend-item">← From songs</span>
+        </footer>
+    </main>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const MANIFEST_URL = "./VOLHOLLA/media-manifest.json";
+            const PUBLIC_BASE_URL = "https://hartswf0.github.io/moto/";
+            const STORAGE_KEY = "allTimeInstrument.v3";
+            const beats = [
+                { id: "unassigned", label: "Unassigned", target: 0 },
+                { id: "CH00", label: "CH00 Release", target: 30 },
+                { id: "CH01", label: "CH01 Field", target: 180 },
+                { id: "CH02", label: "CH02 Governance", target: 286 },
+                { id: "CH03", label: "CH03 Metabolism", target: 351 },
+                { id: "CH04", label: "CH04 Bodies", target: 240 },
+                { id: "CH05", label: "CH05 Belief", target: 301 },
+                { id: "CH06", label: "CH06 Residue", target: 165 }
+            ];
+            const scale = { pxPerSecond: 0.36, fudge: 1.0, minBlock: 42, maxBlock: 170, minBeat: 105, maxBeat: 360 };
+
+            const els = {
+                workspace: document.getElementById("workspace"),
+                art: document.getElementById("artBox"),
+                state: document.getElementById("stateReadout"),
+                time: document.getElementById("timeReadout"),
+                title: document.getElementById("nowTitle"),
+                meta: document.getElementById("nowMeta"),
+                scrub: document.getElementById("songScrub"),
+                scrubNow: document.getElementById("scrubNow"),
+                scrubEnd: document.getElementById("scrubEnd"),
+                autoplay: document.getElementById("autoplayBtn"),
+                shuffle: document.getElementById("shuffleBtn"),
+                import: document.getElementById("importBtn"),
+                upload: document.getElementById("projectUpload"),
+                clear: document.getElementById("clearBtn"),
+                prev: document.getElementById("prevBtn"),
+                play: document.getElementById("playBtn"),
+                next: document.getElementById("nextBtn")
+            };
+
+            const audio = new Audio();
+            audio.preload = "metadata";
+
+            let albums = [];
+            let tracks = [];
+            let build = [];
+            let activeAlbum = "";
+            let activeBeat = "unassigned";
+            let currentIndex = 0;
+            let nowItem = null;
+            let playOrigin = "keeps";
+            let dragTrackId = "";
+            let dragPayload = null;
+            let heldPayload = null;
+            let lastMove = { id: "", direction: "" };
+            let lastPlacement = { id: "", text: "" };
+            let lastSnap = { target: "", state: "" };
+            let lastSnapKey = "";
+            const panelBusyUntil = {};
+            let restoreWorkspaceScroll = 0;
+            let isScrubbing = false;
+            let autoplayEnabled = true;
+            let shuffleEnabled = false;
+            let statusTimer = 0;
+            let longPressTimer = 0;
+            let longPressTrackId = "";
+
+            function path(source) {
+                if (!source) return "";
+                if (/^https?:\/\//i.test(source) || source.startsWith("data:")) return source;
+                if (source.startsWith("./") || source.startsWith("/") || source.startsWith("../")) return source;
+                return `./${source}`;
+            }
+
+            function fmt(sec) {
+                if (!Number.isFinite(sec) || sec < 0) return "--";
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${m}:${String(s).padStart(2, "0")}`;
+            }
+
+            function runtime(item) {
+                const seconds = Number(item?.runtime);
+                return Number.isFinite(seconds) && seconds > 0.5 ? seconds : null;
+            }
+
+            function currentDuration(item) {
+                const loaded = Number(audio.duration);
+                if (Number.isFinite(loaded) && loaded > 0.5) return loaded;
+                return runtime(item);
+            }
+
+            function stars(item) {
+                return Math.max(0, Math.min(5, Number(item?.stars) || 0));
+            }
+
+            function starText(item) {
+                const count = stars(item);
+                return `${"★".repeat(count)}${"☆".repeat(5 - count)}`;
+            }
+
+            function beatLabel(id) {
+                return beats.find((beat) => beat.id === id)?.label || "Unassigned";
+            }
+
+            function originLabel() {
+                if (playOrigin === "source") return "album";
+                if (playOrigin === "beats") return "beats";
+                return "keeps";
+            }
+
+            function sortedBuild() {
+                return build.slice().sort((a, b) => a.order - b.order);
+            }
+
+            function currentItem() {
+                return sortedBuild()[currentIndex] || sortedBuild()[0] || null;
+            }
+
+            function keptFor(trackId) {
+                return build.find((item) => item.id === trackId) || null;
+            }
+
+            function trackKey(albumKey, index) {
+                return `${albumKey}:${String(index).padStart(2, "0")}`;
+            }
+
+            function trackMatchesLegacyId(track, id) {
+                const raw = String(id || "");
+                return raw === track.id || raw.startsWith(`${track.albumKey}:${track.index}:`);
+            }
+
+            function findTrackByAnyId(id) {
+                return tracks.find((track) => trackMatchesLegacyId(track, id)) || null;
+            }
+
+            function artHtml(item) {
+                return item?.art
+                    ? `<img src="${encodeURI(path(item.art))}" alt="">`
+                    : `<span>Art</span>`;
+            }
+
+            function snapClass(target) {
+                if (lastSnap.target !== target) return "";
+                return lastSnap.state === "accept" ? "snap-accept" : "snap-refuse";
+            }
+
+            function heldClass(kind, id) {
+                return heldPayload?.kind === kind && heldPayload?.id === id ? "held" : "";
+            }
+
+            function setHeld(kind, id) {
+                heldPayload = { kind, id };
+                render();
+                status(`Grabbed ${heldLabel()}. Click a keep slot or beat socket.`, 2200);
+            }
+
+            function clearHeld() {
+                heldPayload = null;
+                render();
+            }
+
+            function rememberPlacement(id, text) {
+                lastPlacement = { id, text };
+                window.setTimeout(() => {
+                    if (lastPlacement.id === id && lastPlacement.text === text) {
+                        lastPlacement = { id: "", text: "" };
+                    }
+                }, 1800);
+            }
+
+            function placementText(id, fallback = "") {
+                return lastPlacement.id === id ? lastPlacement.text : fallback;
+            }
+
+            function heldLabel() {
+                if (!heldPayload) return "";
+                const item = heldPayload.kind === "source"
+                    ? tracks.find((track) => track.id === heldPayload.id)
+                    : build.find((track) => track.id === heldPayload.id);
+                return item ? `${heldPayload.kind}: ${item.title}` : heldPayload.kind;
+            }
+
+            function grabBanner(target) {
+                if (!heldPayload) return "";
+                const place = target === "beats" ? "click a beat socket to place it" : "click a slot number to reorder or insert it";
+                return h`
+          <div class="grab-banner">
+            <div>${escapeHtml(heldLabel())}</div>
+            <div>${escapeHtml(place)}</div>
+            <button class="mini" type="button" data-action="cancel-grab">Cancel Grab</button>
+          </div>
+        `;
+            }
+
+            function signalSnap(target, accepted) {
+                lastSnap = { target, state: accepted ? "accept" : "refuse" };
+                if (accepted) {
+                    if (navigator.vibrate) navigator.vibrate(18);
+                    clickSound();
+                    status("Placed", 900);
+                } else {
+                    status("Cannot place there", 1200);
+                }
+                window.setTimeout(() => {
+                    if (lastSnap.target === target) {
+                        lastSnap = { target: "", state: "" };
+                    }
+                }, accepted ? 560 : 420);
+            }
+
+            function clickSound() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    const ctx = new AudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "square";
+                    osc.frequency.value = 660;
+                    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.08);
+                } catch {
+                    // audio feedback is optional
+                }
+            }
+
+            function status(message, duration = 1500) {
+                if (!message) return;
+                window.clearTimeout(statusTimer);
+                els.state.textContent = message;
+                if (navigator.vibrate) navigator.vibrate(14);
+                statusTimer = window.setTimeout(() => renderNow(), duration);
+            }
+
+            function sourceTracks() {
+                return tracks.filter((track) => track.albumKey === activeAlbum);
+            }
+
+            function save() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        activeAlbum,
+                        activeBeat,
+                        currentIndex,
+                        nowItemId: nowItem?.id || "",
+                        playOrigin,
+                        autoplayEnabled,
+                        shuffleEnabled,
+                        build: sortedBuild().map(({ id, order, stars, beat, runtime, notes }) => ({ id, order, stars, beat, runtime, notes }))
+                    }));
+                } catch {
+                    // localStorage may be blocked
+                }
+                // ── MARK SPINE: emit score state on every save ──
+                _busEmitScoreSync();
+            }
+
+            function restore() {
+                try {
+                    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+                    if (raw.activeAlbum) activeAlbum = raw.activeAlbum;
+                    if (raw.activeBeat) activeBeat = raw.activeBeat;
+                    if (Number.isFinite(Number(raw.currentIndex))) currentIndex = Number(raw.currentIndex);
+                    if (typeof raw.playOrigin === "string") playOrigin = raw.playOrigin;
+                    if (typeof raw.autoplayEnabled === "boolean") autoplayEnabled = raw.autoplayEnabled;
+                    if (typeof raw.shuffleEnabled === "boolean") shuffleEnabled = raw.shuffleEnabled;
+                    if (!Array.isArray(raw.build)) return;
+                    build = raw.build.map((item) => {
+                        const base = findTrackByAnyId(item.id);
+                        if (!base) return null;
+                        return {
+                            ...base,
+                            order: Number.isFinite(Number(item.order)) ? Number(item.order) : 0,
+                            stars: Number.isFinite(Number(item.stars)) ? Number(item.stars) : 0,
+                            beat: typeof item.beat === "string" ? item.beat : "unassigned",
+                            runtime: Number.isFinite(Number(item.runtime)) ? Number(item.runtime) : base.runtime,
+                            notes: typeof item.notes === "string" ? item.notes : ""
+                        };
+                    }).filter(Boolean);
+                    normalizeOrder();
+                    if (raw.nowItemId) {
+                        const nextIndex = sortedBuild().findIndex((item) => trackMatchesLegacyId(item, raw.nowItemId));
+                        if (nextIndex >= 0) currentIndex = nextIndex;
+                    }
+                    currentIndex = Math.max(0, Math.min(currentIndex, Math.max(0, build.length - 1)));
+                    nowItem = currentItem();
+                } catch {
+                    // ignore malformed state
+                }
+            }
+
+            function normalizeOrder() {
+                sortedBuild().forEach((item, index) => { item.order = index; });
+            }
+
+            function selectAlbum(key) {
+                activeAlbum = key;
+                save();
+                render();
+            }
+
+            function selectBeat(id) {
+                activeBeat = id;
+                save();
+                render();
+            }
+
+            function addTrack(track, beatId = activeBeat) {
+                if (!track) return false;
+                const existing = keptFor(track.id);
+                if (existing) {
+                    existing.beat = beatId || existing.beat || "unassigned";
+                    rememberPlacement(track.id, "already in keeps");
+                    save();
+                    render({ snap: false });
+                    return true;
+                }
+                build.push({ ...track, order: build.length, stars: 0, beat: beatId, notes: "", keptAt: new Date().toISOString() });
+                normalizeOrder();
+                rememberPlacement(track.id, beatId && beatId !== "unassigned" ? `moved to ${beatLabel(beatId)}` : "moved to keeps");
+                save();
+                render({ snap: false });
+                return true;
+            }
+
+            function addTrackAt(track, targetId) {
+                if (!track) return false;
+                if (keptFor(track.id)) return false;
+                const list = sortedBuild();
+                const targetIndex = list.findIndex((item) => item.id === targetId);
+                const insertAt = targetIndex < 0 ? list.length : targetIndex;
+                list.splice(insertAt, 0, { ...track, order: insertAt, stars: 0, beat: activeBeat, notes: "", keptAt: new Date().toISOString() });
+                build = list;
+                normalizeOrder();
+                rememberPlacement(track.id, "inserted in keeps");
+                save();
+                render({ snap: false });
+                return true;
+            }
+
+            function loadAlbum() {
+                build = sourceTracks().map((track, index) => ({ ...track, order: index, stars: 0, beat: activeBeat, notes: "" }));
+                currentIndex = 0;
+                nowItem = currentItem();
+                save();
+                render({ snap: false });
+            }
+
+            function keepOpenAlbum() {
+                const visible = sourceTracks();
+                let added = 0;
+                visible.forEach((track) => {
+                    if (keptFor(track.id)) return;
+                    build.push({ ...track, order: build.length, stars: 0, beat: activeBeat, notes: "", keptAt: new Date().toISOString() });
+                    added += 1;
+                });
+                normalizeOrder();
+                if (added) rememberPlacement(visible[0]?.id || "", `${added} songs moved to keeps`);
+                save();
+                render({ snap: false });
+                status(added ? `${added} songs added to Keeps` : "Open album is already in Keeps", 1800);
+                requestAnimationFrame(() => scrollColumn("keeps"));
+                return true;
+            }
+
+            function cutItem(id) {
+                const list = sortedBuild();
+                const index = list.findIndex((item) => item.id === id);
+                if (index < 0) return;
+                const wasCurrent = currentItem()?.id === id;
+                const wasPlaying = !audio.paused && !!audio.src;
+                build = list.filter((item) => item.id !== id);
+                if (wasCurrent) currentIndex = Math.min(index, Math.max(0, build.length - 1));
+                else if (index < currentIndex) currentIndex -= 1;
+                normalizeOrder();
+                save();
+                if (!build.length) {
+                    audio.pause();
+                    audio.removeAttribute("src");
+                    nowItem = null;
+                    audio.load();
+                    render();
+                    return;
+                }
+                if (wasCurrent) loadCurrent(wasPlaying);
+                else render();
+            }
+
+            function confirmCutItem(id) {
+                const item = build.find((candidate) => candidate.id === id);
+                if (!item) return false;
+                if (!window.confirm(`Cut "${item.title}" from keeps?`)) {
+                    status("Cut cancelled", 1200);
+                    return false;
+                }
+                cutItem(id);
+                status(`Cut ${item.title}`, 1600);
+                return true;
+            }
+
+            function setRating(id, rating) {
+                const item = build.find((candidate) => candidate.id === id);
+                if (!item) return;
+                item.stars = Math.max(0, Math.min(5, Number(rating) || 0));
+                save();
+                render({ snap: false });
+                status(`${item.title} rated ${item.stars}/5`, 1200);
+            }
+
+            function setNote(id, note) {
+                const item = build.find((candidate) => candidate.id === id);
+                if (!item) return;
+                item.notes = String(note || "");
+                save();
+            }
+
+            function clearBuild() {
+                build = [];
+                currentIndex = 0;
+                nowItem = null;
+                heldPayload = null;
+                lastMove = { id: "", direction: "" };
+                lastPlacement = { id: "", text: "" };
+                lastSnap = { target: "", state: "" };
+                audio.pause();
+                audio.removeAttribute("src");
+                audio.load();
+                save();
+                render();
+            }
+
+            function assignBeat(id, beatId) {
+                const item = build.find((candidate) => candidate.id === id);
+                if (!item) return;
+                item.beat = beatId;
+                rememberPlacement(id, `placed in ${beatLabel(beatId)}`);
+                save();
+                render({ snap: false });
+                status(`${item.title} -> ${beatLabel(beatId)}`, 1400);
+            }
+
+            function beatSource(id) {
+                const track = tracks.find((candidate) => candidate.id === id);
+                if (!track) return false;
+                const targetBeat = activeBeat && activeBeat !== "unassigned" ? activeBeat : "CH00";
+                activeBeat = targetBeat;
+                const ok = addTrack(track, targetBeat);
+                if (ok) {
+                    status(`${track.title} -> ${beatLabel(targetBeat)}`, 1600);
+                    requestAnimationFrame(() => scrollColumn("beats"));
+                }
+                return ok;
+            }
+
+            function addCurrentItem() {
+                const item = nowItem || currentItem() || sourceTracks()[0] || tracks[0];
+                const ok = addTrack(item);
+                if (ok && item) {
+                    status(`${item.title} is in Keeps`, 1600);
+                    requestAnimationFrame(() => scrollColumn("keeps"));
+                }
+                return ok;
+            }
+
+            function addCurrentItemToActiveBeat() {
+                const item = nowItem || currentItem() || sourceTracks()[0] || tracks[0];
+                if (!item) return false;
+                const targetBeat = activeBeat && activeBeat !== "unassigned" ? activeBeat : "CH00";
+                activeBeat = targetBeat;
+                const existing = keptFor(item.id);
+                if (existing) {
+                    existing.beat = targetBeat;
+                } else {
+                    build.push({ ...item, order: build.length, stars: 0, beat: targetBeat, notes: "", keptAt: new Date().toISOString() });
+                    normalizeOrder();
+                }
+                rememberPlacement(item.id, `placed in ${beatLabel(targetBeat)}`);
+                save();
+                render({ snap: false });
+                status(`${item.title} placed in ${beatLabel(targetBeat)}`, 1700);
+                requestAnimationFrame(() => scrollColumn("beats"));
+                return true;
+            }
+
+            function moveItem(id, delta) {
+                const list = sortedBuild();
+                const index = list.findIndex((item) => item.id === id);
+                const next = index + delta;
+                if (index < 0 || next < 0 || next >= list.length) {
+                    signalSnap(`keep:${id}`, false);
+                    return false;
+                }
+                const [item] = list.splice(index, 1);
+                list.splice(next, 0, item);
+                build = list;
+                normalizeOrder();
+                lastMove = { id, direction: delta < 0 ? "up" : "down" };
+                const slot = sortedBuild().findIndex((candidate) => candidate.id === id) + 1;
+                const message = `${delta < 0 ? "moved earlier" : "moved later"} -> slot ${String(slot).padStart(2, "0")}`;
+                rememberPlacement(id, message);
+                currentIndex = Math.max(0, list.findIndex((candidate) => candidate.id === nowItem?.id));
+                save();
+                render({ snap: false });
+                status(`${item.title} ${message}`, 1800);
+                window.setTimeout(() => {
+                    if (lastMove.id === id) {
+                        lastMove = { id: "", direction: "" };
+                    }
+                }, 1400);
+                return true;
+            }
+
+            function moveSlot(slot, delta) {
+                const list = sortedBuild();
+                const index = Number(slot);
+                const next = index + delta;
+                if (!Number.isInteger(index) || index < 0 || next < 0 || next >= list.length) {
+                    signalSnap("keep:intake", false);
+                    return false;
+                }
+                const [item] = list.splice(index, 1);
+                list.splice(next, 0, item);
+                build = list;
+                normalizeOrder();
+                lastMove = { id: item.id, direction: delta < 0 ? "up" : "down" };
+                const slotNumber = next + 1;
+                const message = `${delta < 0 ? "moved earlier" : "moved later"} -> slot ${String(slotNumber).padStart(2, "0")}`;
+                rememberPlacement(item.id, message);
+                currentIndex = Math.max(0, list.findIndex((candidate) => candidate.id === nowItem?.id));
+                save();
+                render({ snap: false });
+                status(`${item.title} ${message}`, 1800);
+                return true;
+            }
+
+            function reorderItem(id, targetId) {
+                if (!id || !targetId || id === targetId) return false;
+                const list = sortedBuild();
+                const from = list.findIndex((item) => item.id === id);
+                const to = list.findIndex((item) => item.id === targetId);
+                if (from < 0 || to < 0) return false;
+                const [item] = list.splice(from, 1);
+                list.splice(to, 0, item);
+                build = list;
+                normalizeOrder();
+                lastMove = { id, direction: to < from ? "up" : "down" };
+                const slot = sortedBuild().findIndex((candidate) => candidate.id === id) + 1;
+                const message = `${to < from ? "moved earlier" : "moved later"} -> slot ${String(slot).padStart(2, "0")}`;
+                rememberPlacement(id, message);
+                currentIndex = Math.max(0, list.findIndex((candidate) => candidate.id === nowItem?.id));
+                save();
+                render({ snap: false });
+                status(`${item.title} ${message}`, 1800);
+                window.setTimeout(() => {
+                    if (lastMove.id === id) {
+                        lastMove = { id: "", direction: "" };
+                    }
+                }, 1400);
+                return true;
+            }
+
+            function applyHeldToKeep(targetId) {
+                const held = heldPayload;
+                if (!held) return false;
+                if (held.kind === "keep") {
+                    const ok = reorderItem(held.id, targetId);
+                    heldPayload = ok ? null : held;
+                    signalSnap(`keep:${held.id}`, ok);
+                    return ok;
+                }
+                if (held.kind === "source") {
+                    const ok = addTrackAt(tracks.find((track) => track.id === held.id), targetId);
+                    heldPayload = ok ? null : held;
+                    signalSnap(ok ? `keep:${held.id}` : `song:${held.id}`, ok);
+                    return ok;
+                }
+                return false;
+            }
+
+            function applyHeldToBeat(beatId) {
+                const held = heldPayload;
+                if (!held) return false;
+                if (held.kind === "source") {
+                    addTrack(tracks.find((track) => track.id === held.id), beatId);
+                    heldPayload = null;
+                    signalSnap(`beat:${beatId}`, true);
+                    return true;
+                }
+                if (held.kind === "keep") {
+                    assignBeat(held.id, beatId);
+                    heldPayload = null;
+                    signalSnap(`beat:${beatId}`, true);
+                    return true;
+                }
+                return false;
+            }
+
+            function revealTrack(id, preferred = "keeps") {
+                const source = tracks.find((track) => track.id === id);
+                const keep = keptFor(id);
+                if (!source && !keep) {
+                    signalSnap(`song:${id}`, false);
+                    return false;
+                }
+                if (source && activeAlbum !== source.albumKey) {
+                    activeAlbum = source.albumKey;
+                    save();
+                    render();
+                }
+                const selectors = [
+                    ["keeps", "data-keep-id", `keep:${id}`],
+                    ["songs", "data-song-id", `song:${id}`],
+                    ["beats", "data-beat-song-id", `beat-song:${id}`]
+                ];
+                const ordered = selectors.slice().sort((a, b) => (a[0] === preferred ? -1 : 0) - (b[0] === preferred ? -1 : 0));
+                requestAnimationFrame(() => {
+                    const found = ordered
+                        .map(([type, attr, target]) => ({ type, attr, target, node: findByData(type, attr, id) }))
+                        .find((item) => item.node);
+                    if (!found) {
+                        signalSnap(`song:${id}`, false);
+                        return;
+                    }
+                    lastSnap = { target: found.target, state: "accept" };
+                    clickSound();
+                    render();
+                    requestAnimationFrame(() => {
+                        document.querySelector(`[data-column="${found.type}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                        snapElementInPanel(found.type, findByData(found.type, found.attr, id), { force: true });
+                    });
+                    window.setTimeout(() => {
+                        if (lastSnap.target === found.target) {
+                            lastSnap = { target: "", state: "" };
+                            render();
+                        }
+                    }, 560);
+                });
+                return true;
+            }
+
+            function setCurrent(id, autoplay, origin = "keeps") {
+                const index = sortedBuild().findIndex((item) => item.id === id);
+                if (index < 0) return;
+                currentIndex = index;
+                playOrigin = origin;
+                nowItem = currentItem();
+                loadCurrent(autoplay);
+            }
+
+            function playSource(id) {
+                const track = tracks.find((candidate) => candidate.id === id);
+                if (!track) return;
+                playOrigin = "source";
+                playObject(track, true);
+            }
+
+            function toggleSource(id) {
+                if (nowItem?.id === id && playOrigin === "source" && audio.src) {
+                    playPause();
+                    return;
+                }
+                playSource(id);
+            }
+
+            function toggleBuild(id, origin = "keeps") {
+                if (nowItem?.id === id && playOrigin === origin && audio.src) {
+                    playPause();
+                    return;
+                }
+                setCurrent(id, true, origin);
+            }
+
+            function loadCurrent(autoplay) {
+                const item = currentItem();
+                if (!item) return;
+                nowItem = item;
+                playObject(item, autoplay);
+            }
+
+            function playObject(item, autoplay) {
+                const src = path(item.audio);
+                nowItem = item;
+                if (src && audio.src !== new URL(encodeURI(src), window.location.href).toString()) {
+                    audio.src = encodeURI(src);
+                    audio.load();
+                }
+                render();
+                renderNow(item);
+                snapNowPlaying({ force: true });
+                if (autoplay && src) audio.play().catch(() => renderNow(item));
+            }
+
+            function playPause() {
+                if (!nowItem && currentItem()) nowItem = currentItem();
+                if (!nowItem) return;
+                if (!audio.src) {
+                    playObject(nowItem, true);
+                    return;
+                }
+                if (audio.paused) audio.play().catch(render);
+                else audio.pause();
+            }
+
+            function next() {
+                const list = sortedBuild();
+                if (!list.length) return;
+                if (shuffleEnabled && list.length > 1) {
+                    let nextIndex = currentIndex;
+                    while (nextIndex === currentIndex) nextIndex = Math.floor(Math.random() * list.length);
+                    currentIndex = nextIndex;
+                } else {
+                    currentIndex = currentIndex >= list.length - 1 ? 0 : currentIndex + 1;
+                }
+                nowItem = currentItem();
+                loadCurrent(true);
+            }
+
+            function prev() {
+                const list = sortedBuild();
+                if (!list.length) return;
+                if (audio.currentTime > 3) {
+                    audio.currentTime = 0;
+                    renderNow();
+                    return;
+                }
+                currentIndex = currentIndex > 0 ? currentIndex - 1 : list.length - 1;
+                nowItem = currentItem();
+                loadCurrent(true);
+            }
+
+            function scrollColumn(type) {
+                requestAnimationFrame(() => {
+                    document.querySelector(`[data-column="${type}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                });
+            }
+
+            function focusTrackInPanel(type, id) {
+                requestAnimationFrame(() => {
+                    const attr = type === "songs" ? "data-song-id" : type === "beats" ? "data-beat-song-id" : "data-keep-id";
+                    document.querySelector(`[data-column="${type}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                    snapElementInPanel(type, findByData(type, attr, id), { force: true });
+                });
+            }
+
+            function captureScrollState() {
+                const columns = {};
+                document.querySelectorAll("[data-column]").forEach((column) => {
+                    const type = column.dataset.column;
+                    const body = column.querySelector(".column-scroll");
+                    if (type && body) columns[type] = body.scrollTop;
+                });
+                return { workspace: els.workspace.scrollLeft, columns };
+            }
+
+            function restoreScrollState(snapshot) {
+                if (!snapshot) return;
+                requestAnimationFrame(() => {
+                    els.workspace.scrollLeft = snapshot.workspace || 0;
+                    Object.entries(snapshot.columns || {}).forEach(([type, top]) => {
+                        const body = document.querySelector(`[data-column="${type}"] .column-scroll`);
+                        if (body) body.scrollTop = top;
+                    });
+                });
+            }
+
+            function markPanelBusy(event) {
+                const column = event.target.closest?.("[data-column]");
+                if (!column) return;
+                panelBusyUntil[column.dataset.column] = Date.now() + 2600;
+            }
+
+            function panelCanSnap(type) {
+                return Date.now() > (panelBusyUntil[type] || 0);
+            }
+
+            function findByData(type, attr, value) {
+                const column = document.querySelector(`[data-column="${type}"]`);
+                if (!column || !value) return null;
+                return Array.from(column.querySelectorAll(`[${attr}]`)).find((node) => node.getAttribute(attr) === value) || null;
+            }
+
+            function snapElementInPanel(type, element, options = {}) {
+                if (!element || (!options.force && !panelCanSnap(type))) return;
+                const body = document.querySelector(`[data-column="${type}"] .column-scroll`);
+                if (!body) return;
+                const bodyBox = body.getBoundingClientRect();
+                const itemBox = element.getBoundingClientRect();
+                const delta = itemBox.top - bodyBox.top - (bodyBox.height / 2) + (itemBox.height / 2);
+                body.scrollTo({ top: Math.max(0, body.scrollTop + delta), behavior: "smooth" });
+            }
+
+            function snapNowPlaying({ force = false } = {}) {
+                if (!nowItem) return;
+                const snapKey = `${nowItem.id}:${playOrigin}:${audio.src ? "loaded" : "idle"}`;
+                if (!force && snapKey === lastSnapKey) return;
+                lastSnapKey = snapKey;
+                requestAnimationFrame(() => {
+                    snapElementInPanel("albums", findByData("albums", "data-album", nowItem.albumKey));
+                    snapElementInPanel("songs", findByData("songs", "data-song-id", nowItem.id));
+                    snapElementInPanel("keeps", findByData("keeps", "data-keep-id", nowItem.id));
+                    snapElementInPanel("beats", findByData("beats", "data-beat-song-id", nowItem.id));
+                });
+            }
+
+            function h(strings, ...values) {
+                return strings.reduce((out, str, index) => out + str + (values[index] ?? ""), "");
+            }
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+            }
+
+            function column(type, name, subtitle, content) {
+                const count = {
+                    albums: albums.length,
+                    songs: sourceTracks().length,
+                    keeps: sortedBuild().length,
+                    beats: beats.length,
+                    shares: 12
+                }[type] ?? "";
+                return h`
+          <section class="column" data-column="${type}">
+            <header class="column-header" data-count="${String(count).padStart(2, "0")}">
+              <div class="column-title">
+                <div class="column-name">${escapeHtml(name)}</div>
+                <div class="column-subtitle">${escapeHtml(subtitle)}</div>
+              </div>
+            </header>
+            <div class="column-content">
+              <div class="column-scroll">${content}</div>
+              ${columnFooter(type)}
+            </div>
+          </section>
+        `;
+            }
+
+            function columnFooter(type) {
+                const footers = {
+                    albums: ["Import Build", "Upload or restore JSON", "upload-project"],
+                    songs: ["Keep Open Album", "Append visible songs to Keeps", "keep-open-album"],
+                    keeps: ["Keep Now Playing", "Add current item to Keeps", "add-current"],
+                    beats: ["Place Now In Beat", "Send current item to target beat", "add-current-active"],
+                    shares: ["Download All JSON", "Full project export", "download-json"]
+                };
+                const [label, sublabel, action] = footers[type] || ["", "", ""];
+                if (!label) return "";
+                const extra = type === "beats" ? ` data-beat="${activeBeat}"` : "";
+                return `<button class="column-add" type="button" data-action="${action}"${extra}><span class="column-add-main">${escapeHtml(label)}</span><span class="column-add-sub">${escapeHtml(sublabel)}</span></button>`;
+            }
+
+            function renderAlbums() {
+                return albums.map((album, index) => h`
+          <div class="slot-row ${album.key === activeAlbum || (nowItem?.albumKey === album.key && audio.src) ? "now-slot" : ""}">
+            <button class="slot-num" type="button" data-action="select-album" data-album="${album.key}">${String(index + 1).padStart(2, "0")}</button>
+            <button class="unit ${album.key === activeAlbum ? "active" : ""} ${nowItem?.albumKey === album.key && audio.src ? "selected parent-lit" : ""} ${snapClass(`album:${album.key}`)}" type="button" data-action="select-album" data-album="${album.key}">
+              <span class="unit-body">
+                <span class="song-shell">
+                  <span class="thumb">${album.cover ? `<img src="${encodeURI(path(album.cover))}" alt="">` : `<span>Art</span>`}</span>
+                  <span>
+                    <span class="unit-id">${escapeHtml(album.key)}</span>
+                    <span class="unit-label">${escapeHtml(album.label)}</span>
+                    <span class="unit-meta">${album.count} songs</span>
+                    <span class="chips">
+                      ${album.key === activeAlbum ? `<span class="chip">Open</span>` : ""}
+                      ${nowItem?.albumKey === album.key && audio.src ? `<span class="chip">Now playing</span>` : ""}
+                      ${build.some((item) => item.albumKey === album.key) ? `<span class="chip">${build.filter((item) => item.albumKey === album.key).length} kept</span>` : ""}
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </button>
+          </div>
+        `).join("");
+            }
+
+            function renderSongs() {
+                const items = sourceTracks();
+                if (!items.length) return `<div class="empty">Choose an album first.</div>`;
+                return [
+                    ...items.map((track) => {
+                        const kept = keptFor(track.id);
+                        const playing = nowItem?.id === track.id && !!audio.src;
+                        return h`
+            <div class="slot-row ${playing ? "now-slot" : ""}">
+            <button class="slot-num" type="button" data-action="play-source" data-track="${track.id}">${String(track.index).padStart(2, "0")}</button>
+            <article class="unit ${kept ? "selected" : ""} ${playing ? "active now-playing" : ""} ${snapClass(`song:${track.id}`)} ${heldClass("source", track.id)}" data-song-id="${track.id}">
+              <div class="unit-body">
+                <div class="song-shell">
+                  <div class="thumb">${artHtml(kept || track)}</div>
+                  <div>
+                    <div class="unit-main">
+                      <div>
+                        <div class="unit-id">${String(track.index).padStart(2, "0")}</div>
+                        <div class="unit-label">${escapeHtml(track.title)}</div>
+                      </div>
+                      <div class="stars">${kept ? starText(kept) : ""}</div>
+                    </div>
+                    <div class="unit-meta">${escapeHtml(track.albumLabel)} / ${runtime(kept || track) === null ? "runtime --" : fmt(runtime(kept || track))}</div>
+                    <div class="chips">
+                      <span class="chip">${kept ? "Kept" : "Source"}</span>
+                      ${kept ? `<span class="chip hot"><span>In Keeps</span></span>` : ""}
+                      ${kept ? `<span class="chip">${escapeHtml(beatLabel(kept.beat))}</span>` : ""}
+                      ${playing ? `<span class="chip">Playing from album</span>` : ""}
+                    </div>
+                  </div>
+                </div>
+                <div class="actions three">
+                  <button class="mini" type="button" data-action="${kept ? "confirm-cut" : "add-track"}" data-track="${track.id}">${kept ? "Cut" : "Keep"}</button>
+                  <button class="mini play-control ${playing ? "is-playing" : ""}" type="button" data-action="play-source" data-track="${track.id}">${playing && !audio.paused ? "Pause" : "Play"}</button>
+                  <button class="mini" type="button" data-action="beat-source" data-track="${track.id}">Beat</button>
+                </div>
+                ${kept || lastPlacement.id === track.id ? `<button class="transclusion-row ${lastPlacement.id === track.id ? "hot" : ""}" type="button" data-action="reveal-track" data-track="${track.id}">→ ${escapeHtml(placementText(track.id, "to keeps"))}</button>` : ""}
+              </div>
+            </article>
+            </div>
+          `;
+                    })
+                ].join("");
+            }
+
+            function renderBuild() {
+                const list = sortedBuild();
+                return h`
+          ${grabBanner("keeps")}
+          <div class="toolbar">
+            <div class="toolbar-title">
+              <span>Target Beat</span>
+              <span>${escapeHtml(beatLabel(activeBeat))}</span>
+            </div>
+            <div class="beat-strip">
+              ${beats.map((beat) => `<button class="beat-pill ${beat.id === activeBeat ? "active" : ""}" type="button" data-action="select-beat" data-beat="${beat.id}">${escapeHtml(beat.label)}</button>`).join("")}
+            </div>
+          </div>
+          <div class="socket-zone ${snapClass("keep:intake")}" data-drop-keep="end">
+            <div class="socket-label"><span>Drop song blocks here</span><span>Songs -> Keeps</span></div>
+          </div>
+          ${list.length ? "" : `<div class="empty">No kept songs yet. Add one song, drop a song block, or keep the whole album.</div>`}
+          ${list.map((item, index) => {
+                    const playing = nowItem?.id === item.id && !!audio.src;
+                    const moveClass = lastMove.id === item.id ? `moved-${lastMove.direction}` : "";
+                    const itemId = escapeHtml(item.id);
+                    return h`
+          <div class="slot-row ${playing ? "now-slot" : ""} ${heldClass("keep", item.id)}" data-slot-track="${itemId}" data-drop-track="${itemId}">
+            <button class="slot-num" type="button" data-action="slot-target" data-track="${itemId}">${String(index + 1).padStart(2, "0")}</button>
+            <article class="unit ${index === currentIndex ? "active" : ""} ${playing ? "now-playing" : ""} ${moveClass} ${snapClass(`keep:${item.id}`)} ${heldClass("keep", item.id)}" data-keep-id="${itemId}" data-drop-track="${itemId}">
+            <div class="unit-body">
+              <div class="song-shell">
+                <div class="thumb">${artHtml(item)}</div>
+                <div>
+                  <div class="unit-main">
+                    <div>
+                      <div class="unit-id">Track ${String(item.index || index + 1).padStart(2, "0")}</div>
+                      <div class="unit-label">${escapeHtml(item.title)}</div>
+                    </div>
+                    <div class="stars">${starText(item)}</div>
+                  </div>
+                  <div class="unit-meta">${escapeHtml(beatLabel(item.beat))} / ${escapeHtml(item.albumLabel)} / ${runtime(item) === null ? "runtime --" : fmt(runtime(item))} / ${stars(item)}/5</div>
+                  <div class="chips">
+                    <span class="chip">Kept</span>
+                    <span class="chip">${escapeHtml(beatLabel(item.beat))}</span>
+                    ${item.beat && item.beat !== "unassigned" ? `<span class="chip hot"><span>In Beats</span></span>` : ""}
+                    <button class="chip chip-button" type="button" data-action="reveal-track" data-track="${itemId}"><span>Source</span></button>
+                    ${moveClass ? `<span class="chip">Moved ${lastMove.direction === "up" ? "↑" : "↓"}</span>` : ""}
+                    ${playing ? `<span class="chip">Playing from ${escapeHtml(originLabel())}</span>` : ""}
+                  </div>
+                </div>
+              </div>
+              <div class="move-rail">
+                <button class="mini move-btn" type="button" data-action="move-slot-earlier" data-slot="${index}" data-track="${itemId}" aria-label="Move slot ${index + 1} earlier"><span class="move-icon">↑</span><span class="move-word">Earlier</span></button>
+                <button class="drag-handle" type="button" draggable="true" data-action="grab-keep" data-track="${itemId}" data-drag-track="${itemId}" aria-label="Grab block for movement">${heldPayload?.kind === "keep" && heldPayload?.id === item.id ? "Grabbed" : "Grab"}</button>
+                <button class="mini move-btn" type="button" data-action="move-slot-later" data-slot="${index}" data-track="${itemId}" aria-label="Move slot ${index + 1} later"><span class="move-icon">↓</span><span class="move-word">Later</span></button>
+              </div>
+              <div class="unit-ops media-ops">
+                <button class="mini play-control ${playing ? "is-playing" : ""}" type="button" data-action="play-build" data-context="keeps" data-track="${itemId}">${playing && !audio.paused ? "Pause" : "Play"}</button>
+                <button class="mini" type="button" data-action="assign-active" data-track="${itemId}">Beat</button>
+                <button class="mini" type="button" data-action="confirm-cut" data-track="${itemId}">Cut</button>
+              </div>
+              <div class="unit-ops">
+                <select class="select" data-action="assign-beat" data-track="${itemId}" aria-label="Beat for ${escapeHtml(item.title)}">
+                  ${beats.map((beat) => `<option value="${beat.id}" ${beat.id === item.beat ? "selected" : ""}>${escapeHtml(beat.label)}</option>`).join("")}
+                </select>
+                <div class="rating-rail" aria-label="Rating for ${escapeHtml(item.title)}">
+                  ${[1, 2, 3, 4, 5].map((value) => `<button class="star-btn ${value <= stars(item) ? "on" : ""}" type="button" data-action="rate-star" data-track="${itemId}" data-rating="${value}" title="${value} stars" aria-label="Rate ${escapeHtml(item.title)} ${value} stars"><span>${value <= stars(item) ? "★" : "☆"}</span></button>`).join("")}
+                </div>
+                <input class="note-input" data-action="note" data-track="${itemId}" placeholder="Cue note" value="${escapeHtml(item.notes || "")}" aria-label="Cue note for ${escapeHtml(item.title)}" />
+              </div>
+              <button class="transclusion-row ${lastPlacement.id === item.id ? "hot" : ""}" type="button" data-action="reveal-track" data-track="${itemId}">← ${escapeHtml(placementText(item.id, "from songs"))}</button>
+            </div>
+          </article>
+          </div>
+        `;
+                }).join("")}
+        `;
+            }
+
+            function durationToHeight(seconds) {
+                const raw = (Number(seconds) || 0) * scale.pxPerSecond * scale.fudge;
+                return Math.max(scale.minBlock, Math.min(scale.maxBlock, raw));
+            }
+
+            function beatHeight(target) {
+                if (!target) return 120;
+                return Math.max(scale.minBeat, Math.min(scale.maxBeat, target * scale.pxPerSecond * 1.2));
+            }
+
+            function renderBeats() {
+                const list = sortedBuild();
+                return grabBanner("beats") + beats.map((beat) => {
+                    const assigned = list.filter((item) => (item.beat || "unassigned") === beat.id);
+                    const total = assigned.reduce((sum, item) => sum + (runtime(item) || 0), 0);
+                    const delta = beat.target ? beat.target - total : 0;
+                    const status = beat.target ? (delta >= 0 ? `${fmt(delta)} open` : `${fmt(Math.abs(delta))} over`) : `${assigned.length} songs`;
+                    return h`
+            <section class="beat ${beat.id === activeBeat ? "active" : ""} ${snapClass(`beat:${beat.id}`)}">
+              <div class="beat-head" data-action="select-beat" data-beat="${beat.id}">
+                <span class="beat-name">${escapeHtml(beat.label)}</span>
+                <span class="beat-stat">${beat.target ? `${fmt(total)} / ${fmt(beat.target)} / ${status}` : status}</span>
+              </div>
+              <div class="beat-body socket-zone" style="--beat-h:${beatHeight(beat.target)}px" data-drop-beat="${beat.id}">
+                <div class="socket-label"><span>${heldPayload ? "Click to place held block" : "Beat socket"}</span><span>${escapeHtml(status)}</span></div>
+                ${assigned.length ? assigned.map((item) => h`
+                  <button class="block ${nowItem?.id === item.id && audio.src ? "now-playing" : ""} ${snapClass(`beat-song:${item.id}`)}" type="button" draggable="true" style="--block-h:${durationToHeight(runtime(item) || 50)}px" data-action="play-build" data-context="beats" data-track="${item.id}" data-drag-track="${item.id}" data-beat-song-id="${item.id}">
+                    <span class="block-thumb">${artHtml(item)}</span>
+                    <span class="block-copy">
+                      <span class="block-title">${nowItem?.id === item.id && !audio.paused ? "▮▮ " : "▶ "}${escapeHtml(item.title)}</span>
+                      <span class="block-meta">${escapeHtml(item.albumLabel)} / from keeps / ${runtime(item) === null ? "runtime --" : fmt(runtime(item))} / ${starText(item)}${nowItem?.id === item.id && audio.src ? " / now playing" : ""}</span>
+                    </span>
+                  </button>
+                `).join("") : `<div class="empty">No songs assigned.</div>`}
+              </div>
+            </section>
+          `;
+                }).join("");
+            }
+
+            function exportPayload() {
+                return {
+                    version: "all-time-project-v1",
+                    title: "All-Time build",
+                    exportedAt: new Date().toISOString(),
+                    activeAlbum,
+                    activeBeat,
+                    playback: {
+                        nowItemId: nowItem?.id || currentItem()?.id || "",
+                        currentIndex,
+                        origin: playOrigin,
+                        autoplay: autoplayEnabled,
+                        shuffle: shuffleEnabled
+                    },
+                    songs: sortedBuild().map((item, index) => ({
+                        id: item.id,
+                        order: index + 1,
+                        trackIndex: item.index,
+                        songName: item.title,
+                        album: item.albumLabel,
+                        albumKey: item.albumKey,
+                        beat: item.beat || "unassigned",
+                        beatLabel: beatLabel(item.beat || "unassigned"),
+                        duration: runtime(item) === null ? null : fmt(runtime(item)),
+                        durationSeconds: runtime(item),
+                        rating: stars(item),
+                        notes: item.notes || "",
+                        songPage: item.page,
+                        songPageUrl: sourceSongPageUrl(item),
+                        audio: item.audio,
+                        artwork: item.art
+                    })),
+                    beatSummary: beats.map((beat) => {
+                        const assigned = sortedBuild().filter((item) => (item.beat || "unassigned") === beat.id);
+                        const total = assigned.reduce((sum, item) => sum + (runtime(item) || 0), 0);
+                        return { beat: beat.id, label: beat.label, targetSeconds: beat.target, totalSeconds: total, deltaSeconds: beat.target ? beat.target - total : null, count: assigned.length };
+                    })
+                };
+            }
+
+            function shareCard(icon, title, meta, kind, active = false) {
+                return h`
+          <button class="share-card ${active ? "active" : ""}" type="button" data-action="download-export" data-export="${escapeHtml(kind)}">
+            <span class="share-icon">${escapeHtml(icon)}</span>
+            <span>
+              <span class="share-title">${escapeHtml(title)}</span>
+              <span class="share-meta">${escapeHtml(meta)}</span>
+            </span>
+            <span class="share-send">⇧</span>
+          </button>
+        `;
+            }
+
+            function exportChannel(kind) {
+                const payload = exportPayload();
+                const current = nowItem || currentItem();
+                const source = sourceTracks();
+                if (kind === "current") return { kind, current, songPageUrl: current ? sourceSongPageUrl(current) : "" };
+                if (kind === "albums") return { kind, albums };
+                if (kind === "songs") return { kind, songs: source.length ? source : tracks };
+                if (kind === "keeps") return { kind, keeps: payload.songs };
+                if (kind === "beats") return { kind, beats: payload.beatSummary };
+                return payload;
+            }
+
+            function sourceSongPagePath(item) {
+                if (!item) return "";
+                if (item.page) return item.page;
+                if (!item.albumKey || !Number.isFinite(Number(item.index))) return "";
+                return `VOLHOLLA/song-${item.albumKey}-${String(Number(item.index)).padStart(2, "0")}.html`;
+            }
+
+            function sourceSongPageUrl(item) {
+                const page = sourceSongPagePath(item);
+                if (!page) return "";
+                try {
+                    return new URL(page.replace(/^\.\//, ""), PUBLIC_BASE_URL).toString();
+                } catch {
+                    return page;
+                }
+            }
+
+            function activeAlbumRecord() {
+                return albums.find((album) => album.key === activeAlbum) || albums[0] || null;
+            }
+
+            function albumPagePath(album) {
+                if (!album) return "";
+                return `VOLHOLLA/${album.pageSlug || album.key}.html`;
+            }
+
+            function albumPageUrl(album) {
+                const page = albumPagePath(album);
+                if (!page) return "";
+                try {
+                    return new URL(page.replace(/^\.\//, ""), PUBLIC_BASE_URL).toString();
+                } catch {
+                    return page;
+                }
+            }
+
+            function currentShareItem() {
+                return nowItem || currentItem();
+            }
+
+            function currentSongPageHtml(item) {
+                const duration = runtime(item);
+                const beat = beatLabel(item.beat || activeBeat);
+                const audioSrc = item.audio ? encodeURI(path(item.audio)) : "";
+                const artSrc = item.art ? encodeURI(path(item.art)) : "";
+                const pageHref = sourceSongPageUrl(item);
+                return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(item.title)} / All-Time</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: #000; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; }
+    main { min-height: 100vh; display: grid; grid-template-columns: minmax(220px, 34vw) 1fr; border: 2px solid #000; }
+    .art { border-right: 2px solid #000; min-height: 100vh; display: grid; place-items: center; background: #f3f3f3; }
+    .art img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.25); }
+    .mark { font-size: clamp(2rem, 8vw, 7rem); font-weight: 950; letter-spacing: .08em; }
+    .deck { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
+    .top, .player, .meta { border-bottom: 2px solid #000; padding: 14px; text-transform: uppercase; font-weight: 950; }
+    h1 { margin: 0; font-size: clamp(2rem, 8vw, 6rem); line-height: .94; letter-spacing: .035em; text-transform: uppercase; overflow-wrap: anywhere; }
+    .meta { display: grid; gap: 8px; font-size: .78rem; }
+    audio { width: 100%; }
+    a, button { color: inherit; font: inherit; }
+    a { border: 2px solid #000; padding: 10px 12px; text-decoration: none; display: inline-flex; width: max-content; text-transform: uppercase; font-weight: 950; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } .art { min-height: 42vh; border-right: 0; border-bottom: 2px solid #000; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="art">${artSrc ? `<img src="${artSrc}" alt="${escapeHtml(item.title)} artwork">` : `<div class="mark">ALL</div>`}</section>
+    <section class="deck">
+      <div class="top">All-Time Export / ${escapeHtml(playOrigin)} / ${new Date().toISOString()}</div>
+      <div class="player">
+        <h1>${escapeHtml(item.title)}</h1>
+        <div class="meta">
+          <div>${escapeHtml(item.albumLabel)} / ${escapeHtml(beat)} / ${duration === null ? "runtime --" : escapeHtml(fmt(duration))} / ${stars(item)}/5</div>
+          <div>${escapeHtml(item.notes || "No cue note")}</div>
+        </div>
+        ${audioSrc ? `<audio controls preload="metadata" src="${audioSrc}"></audio>` : `<div class="meta">No audio source stored for this item.</div>`}
+      </div>
+      <div class="meta">
+        ${pageHref ? `<a href="${pageHref}">Open Canonical Song Page</a>` : ""}
+      </div>
+    </section>
+  </main>
+</body>
+</html>`;
+            }
+
+            function downloadCurrentSongPage() {
+                const item = currentShareItem();
+                if (!item) {
+                    status("No current song to export", 1800);
+                    return false;
+                }
+                downloadText(`${slug(item.title)}-song-page.html`, currentSongPageHtml(item), "text/html");
+                return true;
+            }
+
+            function copyCurrentSongLink() {
+                const item = currentShareItem();
+                const url = sourceSongPageUrl(item);
+                if (!url) {
+                    status("No song page link available", 1800);
+                    return false;
+                }
+                copyText(url, "Copied song page link");
+                return true;
+            }
+
+            function downloadCurrentSongLink() {
+                const item = currentShareItem();
+                const url = sourceSongPageUrl(item);
+                if (!item || !url) {
+                    status("No song page link available", 1800);
+                    return false;
+                }
+                downloadText(`${slug(item.title)}-song-link.txt`, `${item.title}\n${item.albumLabel}\n${url}\n`, "text/plain");
+                return true;
+            }
+
+            function qrImageUrl(url) {
+                return `https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=18&data=${encodeURIComponent(url)}`;
+            }
+
+            function currentQrHtml(item, url) {
+                const qrUrl = qrImageUrl(url);
+                return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(item.title)} QR / All-Time</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff; color: #000; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; }
+    main { width: min(720px, calc(100vw - 24px)); border: 2px solid #000; padding: 18px; display: grid; gap: 14px; }
+    h1 { margin: 0; text-transform: uppercase; font-size: clamp(1.4rem, 6vw, 3rem); line-height: 1; overflow-wrap: anywhere; }
+    img { width: min(100%, 520px); border: 2px solid #000; image-rendering: pixelated; justify-self: center; }
+    a { color: #000; overflow-wrap: anywhere; font-weight: 950; }
+    .meta { text-transform: uppercase; font-weight: 950; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="meta">All-Time Canonical Song Page QR</div>
+    <h1>${escapeHtml(item.title)}</h1>
+    <div>${escapeHtml(item.albumLabel)} / ${escapeHtml(beatLabel(item.beat || activeBeat))}</div>
+    <img src="${qrUrl}" alt="QR code for ${escapeHtml(item.title)}">
+    <a href="${url}">${url}</a>
+  </main>
+</body>
+</html>`;
+            }
+
+            function albumQrHtml(album, url) {
+                const qrUrl = qrImageUrl(url);
+                const artSrc = album?.cover ? encodeURI(path(album.cover)) : "";
+                return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(album?.label || "Album")} QR / All-Time</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff; color: #000; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; }
+    main { width: min(820px, calc(100vw - 24px)); border: 2px solid #000; display: grid; grid-template-columns: minmax(160px, 260px) 1fr; }
+    .art { border-right: 2px solid #000; min-height: 100%; display: grid; place-items: center; background: #f3f3f3; }
+    .art img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.25); }
+    .mark { font-size: 2rem; font-weight: 950; }
+    .body { padding: 18px; display: grid; gap: 14px; }
+    h1 { margin: 0; text-transform: uppercase; font-size: clamp(1.6rem, 6vw, 3.6rem); line-height: 1; overflow-wrap: anywhere; }
+    img.qr { width: min(100%, 420px); border: 2px solid #000; image-rendering: pixelated; justify-self: start; }
+    a { color: #000; overflow-wrap: anywhere; font-weight: 950; }
+    .meta { text-transform: uppercase; font-weight: 950; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } .art { min-height: 36vh; border-right: 0; border-bottom: 2px solid #000; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="art">${artSrc ? `<img src="${artSrc}" alt="${escapeHtml(album?.label || "Album")} artwork">` : `<div class="mark">ALBUM</div>`}</section>
+    <section class="body">
+      <div class="meta">All-Time Canonical Album Page QR</div>
+      <h1>${escapeHtml(album?.label || "Album")}</h1>
+      <div>${album?.count || 0} songs</div>
+      <img class="qr" src="${qrUrl}" alt="QR code for ${escapeHtml(album?.label || "Album")}">
+      <a href="${url}">${url}</a>
+    </section>
+  </main>
+</body>
+</html>`;
+            }
+
+            function downloadCurrentSongQr() {
+                const item = currentShareItem();
+                const url = sourceSongPageUrl(item);
+                if (!item || !url) {
+                    status("No song page link available", 1800);
+                    return false;
+                }
+                downloadText(`${slug(item.title)}-qr.html`, currentQrHtml(item, url), "text/html");
+                return true;
+            }
+
+            function copyActiveAlbumLink() {
+                const album = activeAlbumRecord();
+                const url = albumPageUrl(album);
+                if (!url) {
+                    status("No album page link available", 1800);
+                    return false;
+                }
+                copyText(url, "Copied album page link");
+                return true;
+            }
+
+            function downloadActiveAlbumLink() {
+                const album = activeAlbumRecord();
+                const url = albumPageUrl(album);
+                if (!album || !url) {
+                    status("No album page link available", 1800);
+                    return false;
+                }
+                downloadText(`${slug(album.label)}-album-link.txt`, `${album.label}\n${url}\n`, "text/plain");
+                return true;
+            }
+
+            function downloadActiveAlbumQr() {
+                const album = activeAlbumRecord();
+                const url = albumPageUrl(album);
+                if (!album || !url) {
+                    status("No album page link available", 1800);
+                    return false;
+                }
+                downloadText(`${slug(album.label)}-album-qr.html`, albumQrHtml(album, url), "text/html");
+                return true;
+            }
+
+            function renderShares() {
+                const json = JSON.stringify(exportPayload(), null, 2);
+                const list = sortedBuild();
+                const current = nowItem || currentItem();
+                const album = activeAlbumRecord();
+                const assigned = list.filter((item) => (item.beat || "unassigned") === activeBeat);
+                const songUrl = current ? sourceSongPageUrl(current) : "";
+                const albumUrl = album ? albumPageUrl(album) : "";
+                return h`
+          <section class="share-section">
+            <div class="share-section-title"><span>Share Links</span><span>Repo Pages</span></div>
+            <article class="share-panel primary">
+              <div class="share-panel-head">
+                <span class="share-icon">SONG</span>
+                <span>
+                  <span class="share-title">Current Song Page</span>
+                  <span class="share-meta">${escapeHtml(current ? current.title : "No current song")}</span>
+                </span>
+              </div>
+              <div class="share-url">${escapeHtml(songUrl || "No canonical song page available")}</div>
+              <div class="share-tools">
+                <button class="mini primary" type="button" data-action="copy-current-link">Copy</button>
+                <button class="mini" type="button" data-action="open-current-link">Open</button>
+                <button class="mini" type="button" data-action="download-current-qr">QR</button>
+                <button class="mini" type="button" data-action="download-current-link">TXT</button>
+              </div>
+            </article>
+            <article class="share-panel">
+              <div class="share-panel-head">
+                <span class="share-icon">ALBUM</span>
+                <span>
+                  <span class="share-title">Current Album Page</span>
+                  <span class="share-meta">${escapeHtml(album ? album.label : "No album")}</span>
+                </span>
+              </div>
+              <div class="share-url">${escapeHtml(albumUrl || "No canonical album page available")}</div>
+              <div class="share-tools">
+                <button class="mini primary" type="button" data-action="copy-album-link">Copy</button>
+                <button class="mini" type="button" data-action="open-album-link">Open</button>
+                <button class="mini" type="button" data-action="download-album-qr">QR</button>
+                <button class="mini" type="button" data-action="download-album-link">TXT</button>
+              </div>
+            </article>
+          </section>
+          <section class="share-section">
+            <div class="share-section-title"><span>Build Data</span><span>Keeps / Beats</span></div>
+            <article class="share-panel">
+              <div class="share-panel-head">
+                <span class="share-icon">KEEP</span>
+                <span>
+                  <span class="share-title">Keeps</span>
+                  <span class="share-meta">${list.length} kept songs</span>
+                </span>
+              </div>
+              <div class="share-tools">
+                <button class="mini primary" type="button" data-action="copy-keeps">Copy</button>
+                <button class="mini" type="button" data-action="download-keeps">JSON</button>
+                <button class="mini" type="button" data-action="download-csv">CSV</button>
+                <button class="mini" type="button" data-action="copy-csv">Copy CSV</button>
+              </div>
+            </article>
+            <article class="share-panel">
+              <div class="share-panel-head">
+                <span class="share-icon">BEAT</span>
+                <span>
+                  <span class="share-title">Beats</span>
+                  <span class="share-meta">${beats.length} beats / ${assigned.length} in active</span>
+                </span>
+              </div>
+              <div class="share-tools">
+                <button class="mini primary" type="button" data-action="copy-beats">Copy</button>
+                <button class="mini" type="button" data-action="download-beats">JSON</button>
+                <button class="mini" type="button" data-action="download-json">Project</button>
+                <button class="mini" type="button" data-action="copy-json">Copy All</button>
+              </div>
+            </article>
+            <article class="share-panel">
+              <div class="share-panel-head">
+                <span class="share-icon">LOAD</span>
+                <span>
+                  <span class="share-title">Load / Reset</span>
+                  <span class="share-meta">Paste or upload an All-Time build</span>
+                </span>
+              </div>
+              <div class="share-tools">
+                <button class="mini primary" type="button" data-action="upload-project">Upload</button>
+                <button class="mini" type="button" data-action="paste-json">Paste</button>
+                <button class="mini" type="button" data-action="download-current-page">Portable</button>
+                <button class="mini" type="button" data-action="clear-build">Clear</button>
+              </div>
+            </article>
+          </section>
+          <textarea class="paste-box" data-paste-import placeholder="Paste All-Time JSON here, then press Paste JSON"></textarea>
+          <div class="export-box"><textarea readonly>${escapeHtml(json)}</textarea></div>
+        `;
+            }
+
+            function render({ preserveScroll = true, snap = true } = {}) {
+                const scrollState = preserveScroll ? captureScrollState() : null;
+                normalizeOrder();
+                const album = albums.find((item) => item.key === activeAlbum);
+                els.workspace.innerHTML = [
+                    column("albums", "Albums", album ? album.label : "Choose source", renderAlbums()),
+                    column("songs", "Songs", album ? `${album.label} / ${sourceTracks().length} songs` : "No album", renderSongs()),
+                    column("keeps", "Keeps", `${sortedBuild().length} kept`, renderBuild()),
+                    column("beats", "Beats", `${beats.length} containers`, renderBeats()),
+                    column("shares", "Exports", "Current / channels / data", renderShares())
+                ].join("");
+                renderNow();
+                restoreScrollState(scrollState);
+                if (snap) snapNowPlaying();
+            }
+
+            function renderNow(override) {
+                const item = override || nowItem || currentItem();
+                if (!item) {
+                    els.state.textContent = "Ready";
+                    els.time.textContent = "0:00 / --";
+                    els.title.textContent = "All-Time";
+                    els.meta.textContent = "Albums -> Songs -> Keeps -> Beats -> Shares";
+                    els.play.textContent = "▶ Play";
+                    els.art.innerHTML = `<div class="mark">ALL</div>`;
+                    els.scrub.disabled = true;
+                    els.scrub.value = "0";
+                    els.scrub.max = "0";
+                    els.scrubNow.textContent = "0:00";
+                    els.scrubEnd.textContent = "--";
+                    els.autoplay.classList.toggle("on", autoplayEnabled);
+                    els.shuffle.classList.toggle("on", shuffleEnabled);
+                    return;
+                }
+                const duration = currentDuration(item);
+                const inBuild = sortedBuild().findIndex((candidate) => candidate.id === item.id);
+                const position = inBuild >= 0 ? `${String(inBuild + 1).padStart(2, "0")}/${sortedBuild().length}` : "source";
+                const playing = !audio.paused && !!audio.src;
+                els.state.textContent = playing ? `Playing ${originLabel()} ${position}` : audio.src ? `Paused ${originLabel()} ${position}` : `Ready ${originLabel()} ${position}`;
+                els.time.textContent = audio.src ? `${fmt(audio.currentTime)} / ${fmt(duration)}` : duration === null ? "runtime --" : fmt(duration);
+                els.title.textContent = item.title;
+                els.meta.textContent = `${item.albumLabel} / ${beatLabel(item.beat || activeBeat)} / ${inBuild >= 0 ? `${stars(item)}/5` : "source"} / from ${originLabel()}`;
+                els.play.textContent = playing ? "▮▮ Pause" : audio.src ? "▶ Resume" : "▶ Play";
+                els.autoplay.classList.toggle("on", autoplayEnabled);
+                els.autoplay.textContent = autoplayEnabled ? "Autoplay On" : "Autoplay";
+                els.shuffle.classList.toggle("on", shuffleEnabled);
+                els.shuffle.textContent = shuffleEnabled ? "Shuffle On" : "Shuffle";
+                els.art.innerHTML = item.art ? `<img src="${encodeURI(path(item.art))}" alt="${escapeHtml(item.title)} artwork">` : `<div class="mark">ALL</div>`;
+                els.scrub.disabled = !audio.src || duration === null;
+                els.scrub.max = duration === null ? "0" : String(duration);
+                if (!isScrubbing) els.scrub.value = duration === null ? "0" : String(Math.min(audio.currentTime || 0, duration));
+                els.scrubNow.textContent = fmt(isScrubbing ? Number(els.scrub.value) : audio.currentTime);
+                els.scrubEnd.textContent = duration === null ? "--" : fmt(duration);
+            }
+
+            function csvText() {
+                const rows = [["order", "song_name", "album", "beat", "duration", "duration_seconds", "rating", "notes", "song_page", "audio"]];
+                sortedBuild().forEach((item, index) => {
+                    rows.push([index + 1, item.title, item.albumLabel, beatLabel(item.beat), runtime(item) === null ? "" : fmt(runtime(item)), runtime(item) === null ? "" : runtime(item).toFixed(3), stars(item), item.notes || "", item.page, item.audio]);
+                });
+                return rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+            }
+
+            async function copyText(text, label = "Copied") {
+                try {
+                    if (!navigator.clipboard?.writeText) throw new Error("clipboard");
+                    await navigator.clipboard.writeText(text);
+                    status(label);
+                } catch {
+                    window.prompt("Copy this data", text);
+                    status("Copy fallback opened");
+                }
+            }
+
+            function downloadText(filename, text, type = "application/json") {
+                const blob = new Blob([text], { type });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = filename;
+                link.rel = "noopener";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                status(`Downloaded ${filename}`);
+            }
+
+            function slug(text) {
+                return String(text || "all-time")
+                    .toLowerCase()
+                    .normalize("NFKD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "")
+                    .slice(0, 64) || "all-time";
+            }
+
+            function downloadExport(kind = "all") {
+                downloadText(`all-time-${slug(kind)}.json`, JSON.stringify(exportChannel(kind), null, 2));
+            }
+
+            function copyExport(kind = "all") {
+                return copyText(JSON.stringify(exportChannel(kind), null, 2), `Copied ${kind}`);
+            }
+
+            function openUrl(url, label = "Opened link") {
+                if (!url) {
+                    status("No link available", 1800);
+                    return false;
+                }
+                window.open(url, "_blank", "noopener,noreferrer");
+                status(label, 1400);
+                return true;
+            }
+
+            function openCurrentSongLink() {
+                return openUrl(sourceSongPageUrl(currentShareItem()), "Opened song page");
+            }
+
+            function openActiveAlbumLink() {
+                return openUrl(albumPageUrl(activeAlbumRecord()), "Opened album page");
+            }
+
+            function importPayload(payload) {
+                const importedSongs = Array.isArray(payload?.songs) ? payload.songs : Array.isArray(payload?.keeps) ? payload.keeps : [];
+                const playback = payload?.playback || {};
+                const nextBuild = importedSongs.map((entry, index) => {
+                    const base = findTrackByAnyId(entry.id)
+                        || tracks.find((track) => entry.audio && track.audio === entry.audio)
+                        || tracks.find((track) => track.title === (entry.songName || entry.title) && (!entry.albumKey || track.albumKey === entry.albumKey));
+                    if (!base) return null;
+                    return {
+                        ...base,
+                        order: Number.isFinite(Number(entry.order)) ? Number(entry.order) - 1 : index,
+                        stars: Number.isFinite(Number(entry.rating ?? entry.stars)) ? Number(entry.rating ?? entry.stars) : 0,
+                        beat: typeof entry.beat === "string" ? entry.beat : "unassigned",
+                        runtime: Number.isFinite(Number(entry.durationSeconds ?? entry.runtime)) ? Number(entry.durationSeconds ?? entry.runtime) : base.runtime,
+                        notes: typeof entry.notes === "string" ? entry.notes : ""
+                    };
+                }).filter(Boolean);
+                if (!nextBuild.length) throw new Error("No matching songs in uploaded playlist");
+                build = nextBuild;
+                normalizeOrder();
+                activeAlbum = payload.activeAlbum && albums.some((album) => album.key === payload.activeAlbum) ? payload.activeAlbum : build[0].albumKey;
+                activeBeat = payload.activeBeat || activeBeat;
+                autoplayEnabled = typeof playback.autoplay === "boolean" ? playback.autoplay : autoplayEnabled;
+                shuffleEnabled = typeof playback.shuffle === "boolean" ? playback.shuffle : shuffleEnabled;
+                const restoredIndex = playback.nowItemId ? sortedBuild().findIndex((item) => trackMatchesLegacyId(item, playback.nowItemId)) : -1;
+                currentIndex = restoredIndex >= 0 ? restoredIndex : 0;
+                nowItem = currentItem();
+                playOrigin = playback.origin || "keeps";
+                save();
+                render({ preserveScroll: false });
+                status(`Uploaded playlist: ${build.length} keeps`, 2200);
+            }
+
+            async function uploadProjectFile(file) {
+                if (!file) return;
+                try {
+                    importPayload(JSON.parse(await file.text()));
+                } catch (error) {
+                    status(`Upload failed: ${error.message || "invalid JSON"}`, 2400);
+                } finally {
+                    els.upload.value = "";
+                }
+            }
+
+            async function pasteProjectText() {
+                const field = document.querySelector("[data-paste-import]");
+                let text = field?.value?.trim() || "";
+                try {
+                    if (!text && navigator.clipboard?.readText) {
+                        text = (await navigator.clipboard.readText()).trim();
+                    }
+                    if (!text) throw new Error("Paste JSON into the box first");
+                    importPayload(JSON.parse(text));
+                    status("Pasted playlist JSON", 1800);
+                } catch (error) {
+                    status(`Paste failed: ${error.message || "invalid JSON"}`, 2600);
+                }
+            }
+
+            function placeHeldInSocket(socket) {
+                if (!socket || !heldPayload || !els.workspace.contains(socket)) return false;
+                if (socket.dataset.dropBeat) return applyHeldToBeat(socket.dataset.dropBeat);
+                if (socket.dataset.dropKeep) {
+                    const held = heldPayload;
+                    if (held.kind !== "source") {
+                        signalSnap("keep:intake", false);
+                        return false;
+                    }
+                    const track = tracks.find((candidate) => candidate.id === held.id);
+                    const ok = addTrack(track);
+                    heldPayload = ok ? null : held;
+                    signalSnap("keep:intake", ok);
+                    return ok;
+                }
+                return false;
+            }
+
+            function runAction(control) {
+                const action = control.dataset.action;
+                const track = () => tracks.find((candidate) => candidate.id === control.dataset.track);
+                const actions = {
+                    "select-album": () => selectAlbum(control.dataset.album),
+                    "select-beat": () => selectBeat(control.dataset.beat),
+                    "load-album": () => loadAlbum(),
+                    "keep-open-album": () => keepOpenAlbum(),
+                    "add-track": () => addTrack(track()),
+                    "add-to-active": () => addTrack(track(), activeBeat),
+                    "add-current": () => addCurrentItem(),
+                    "add-current-active": () => addCurrentItemToActiveBeat(),
+                    "beat-source": () => beatSource(control.dataset.track),
+                    "play-source": () => toggleSource(control.dataset.track),
+                    "play-build": () => toggleBuild(control.dataset.track, control.dataset.context || "keeps"),
+                    "assign-active": () => assignBeat(control.dataset.track, activeBeat),
+                    "move-earlier": () => moveItem(control.dataset.track, -1),
+                    "move-later": () => moveItem(control.dataset.track, 1),
+                    "move-slot-earlier": () => moveSlot(control.dataset.slot, -1),
+                    "move-slot-later": () => moveSlot(control.dataset.slot, 1),
+                    "grab-source": () => {
+                        setHeld("source", control.dataset.track);
+                        scrollColumn("beats");
+                    },
+                    "grab-keep": () => setHeld("keep", control.dataset.track),
+                    "cancel-grab": () => clearHeld(),
+                    "slot-target": () => applyHeldToKeep(control.dataset.track),
+                    "reveal-track": () => revealTrack(control.dataset.track, "songs"),
+                    "rate-star": () => setRating(control.dataset.track, control.dataset.rating),
+                    "cut": () => cutItem(control.dataset.track),
+                    "confirm-cut": () => confirmCutItem(control.dataset.track),
+                    "clear-build": () => clearBuild(),
+                    "download-export": () => downloadExport(control.dataset.export || "all"),
+                    "download-current-page": () => downloadCurrentSongPage(),
+                    "copy-current-link": () => copyCurrentSongLink(),
+                    "open-current-link": () => openCurrentSongLink(),
+                    "download-current-link": () => downloadCurrentSongLink(),
+                    "download-current-qr": () => downloadCurrentSongQr(),
+                    "copy-album-link": () => copyActiveAlbumLink(),
+                    "open-album-link": () => openActiveAlbumLink(),
+                    "download-album-link": () => downloadActiveAlbumLink(),
+                    "download-album-qr": () => downloadActiveAlbumQr(),
+                    "copy-keeps": () => copyExport("keeps"),
+                    "download-keeps": () => downloadExport("keeps"),
+                    "copy-beats": () => copyExport("beats"),
+                    "download-beats": () => downloadExport("beats"),
+                    "download-json": () => downloadText("all-time-build.json", JSON.stringify(exportPayload(), null, 2)),
+                    "download-csv": () => downloadText("all-time-keeps.csv", csvText(), "text/csv"),
+                    "upload-project": () => els.upload.click(),
+                    "paste-json": () => pasteProjectText(),
+                    "copy-json": () => copyText(JSON.stringify(exportPayload(), null, 2), "Copied JSON"),
+                    "copy-csv": () => copyText(csvText(), "Copied CSV")
+                };
+                if (actions[action]) {
+                    actions[action]();
+                    return true;
+                }
+                return false;
+            }
+
+            els.workspace.addEventListener("click", (event) => {
+                const control = event.target.closest("[data-action]");
+                if (control && els.workspace.contains(control)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    runAction(control);
+                    return;
+                }
+                if (heldPayload) {
+                    const targetSlot = event.target.closest("[data-drop-track]");
+                    if (targetSlot && els.workspace.contains(targetSlot)) {
+                        event.preventDefault();
+                        applyHeldToKeep(targetSlot.dataset.dropTrack);
+                        return;
+                    }
+                }
+                placeHeldInSocket(event.target.closest("[data-drop-beat], [data-drop-keep]"));
+            });
+
+            els.workspace.addEventListener("pointerdown", markPanelBusy);
+            els.workspace.addEventListener("touchstart", markPanelBusy, { passive: true });
+            els.workspace.addEventListener("wheel", markPanelBusy, { passive: true });
+            els.workspace.addEventListener("focusin", markPanelBusy);
+
+            function clearLongPress() {
+                if (longPressTimer) window.clearTimeout(longPressTimer);
+                longPressTimer = 0;
+                longPressTrackId = "";
+            }
+
+            els.workspace.addEventListener("contextmenu", (event) => {
+                const unit = event.target.closest("[data-keep-id]");
+                if (!unit || !els.workspace.contains(unit)) return;
+                event.preventDefault();
+                confirmCutItem(unit.dataset.keepId);
+            });
+
+            els.workspace.addEventListener("pointerdown", (event) => {
+                clearLongPress();
+                if (event.target.closest("button, input, select, textarea, a")) return;
+                const unit = event.target.closest("[data-keep-id]");
+                if (!unit || !els.workspace.contains(unit)) return;
+                longPressTrackId = unit.dataset.keepId;
+                longPressTimer = window.setTimeout(() => {
+                    const id = longPressTrackId;
+                    clearLongPress();
+                    if (id) confirmCutItem(id);
+                }, 720);
+            });
+
+            ["pointerup", "pointercancel", "pointerleave", "pointermove", "dragstart", "scroll"].forEach((type) => {
+                els.workspace.addEventListener(type, clearLongPress);
+            });
+
+            els.workspace.addEventListener("dragstart", (event) => {
+                const source = event.target.closest("[data-source-track]");
+                const unit = event.target.closest("[data-drag-track]");
+                if (source && els.workspace.contains(source)) {
+                    dragPayload = { kind: "source", id: source.dataset.sourceTrack };
+                    dragTrackId = source.dataset.sourceTrack;
+                    source.classList.add("dragging");
+                    event.dataTransfer.effectAllowed = "copyMove";
+                    event.dataTransfer.setData("text/plain", JSON.stringify(dragPayload));
+                    return;
+                }
+                if (!unit || !els.workspace.contains(unit)) return;
+                dragPayload = { kind: "keep", id: unit.dataset.dragTrack };
+                dragTrackId = unit.dataset.dragTrack;
+                unit.classList.add("dragging");
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", JSON.stringify(dragPayload));
+            });
+
+            els.workspace.addEventListener("dragover", (event) => {
+                const target = event.target.closest("[data-drop-track], [data-drop-keep], [data-drop-beat]");
+                if (!target || !dragPayload || !els.workspace.contains(target)) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = dragPayload.kind === "source" ? "copy" : "move";
+                target.classList.add("ready");
+                const displaced = target.closest("[data-drop-track]");
+                if (displaced && displaced.dataset.dropTrack !== dragPayload.id) {
+                    displaced.classList.add("displaced");
+                    displaced.closest(".slot-row")?.classList.add("displaced");
+                }
+            });
+
+            document.querySelector(".player")?.addEventListener("click", (event) => {
+                const control = event.target.closest("[data-action]");
+                if (!control) return;
+                event.preventDefault();
+                event.stopPropagation();
+                runAction(control);
+            });
+
+            els.workspace.addEventListener("dragleave", (event) => {
+                const target = event.target.closest("[data-drop-track], [data-drop-keep], [data-drop-beat]");
+                if (target) target.classList.remove("ready");
+                const displaced = event.target.closest("[data-drop-track]");
+                if (displaced) {
+                    displaced.classList.remove("displaced");
+                    displaced.closest(".slot-row")?.classList.remove("displaced");
+                }
+            });
+
+            els.workspace.addEventListener("drop", (event) => {
+                const target = event.target.closest("[data-drop-track], [data-drop-keep], [data-drop-beat]");
+                if (!target || !dragPayload || !els.workspace.contains(target)) return;
+                event.preventDefault();
+                target.classList.remove("ready");
+                document.querySelectorAll(".unit.displaced").forEach((unit) => unit.classList.remove("displaced"));
+                document.querySelectorAll(".slot-row.displaced").forEach((unit) => unit.classList.remove("displaced"));
+                if (target.dataset.dropKeep) {
+                    if (dragPayload.kind === "source") {
+                        const ok = addTrack(tracks.find((track) => track.id === dragPayload.id));
+                        signalSnap("keep:intake", ok !== false);
+                        return;
+                    }
+                    signalSnap("keep:intake", false);
+                    return;
+                }
+                if (target.dataset.dropBeat) {
+                    const beatId = target.dataset.dropBeat;
+                    if (dragPayload.kind === "source") {
+                        const track = tracks.find((candidate) => candidate.id === dragPayload.id);
+                        addTrack(track, beatId);
+                        signalSnap(`beat:${beatId}`, true);
+                        return;
+                    }
+                    if (dragPayload.kind === "keep") {
+                        assignBeat(dragPayload.id, beatId);
+                        signalSnap(`beat:${beatId}`, true);
+                        return;
+                    }
+                }
+                if (target.dataset.dropTrack) {
+                    if (dragPayload.kind === "keep") {
+                        reorderItem(dragPayload.id, target.dataset.dropTrack);
+                        signalSnap(`keep:${dragPayload.id}`, true);
+                        return;
+                    }
+                    if (dragPayload.kind === "source") {
+                        const ok = addTrackAt(tracks.find((track) => track.id === dragPayload.id), target.dataset.dropTrack);
+                        signalSnap(ok ? `keep:${dragPayload.id}` : `song:${dragPayload.id}`, ok);
+                        return;
+                    }
+                }
+                signalSnap("keep:intake", false);
+            });
+
+            els.workspace.addEventListener("dragend", () => {
+                dragTrackId = "";
+                dragPayload = null;
+                document.querySelectorAll(".dragging").forEach((unit) => unit.classList.remove("dragging"));
+                document.querySelectorAll(".ready").forEach((unit) => unit.classList.remove("ready"));
+                document.querySelectorAll(".unit.displaced").forEach((unit) => unit.classList.remove("displaced"));
+                document.querySelectorAll(".slot-row.displaced").forEach((unit) => unit.classList.remove("displaced"));
+            });
+
+            els.workspace.addEventListener("change", (event) => {
+                const control = event.target.closest("[data-action]");
+                if (!control || !els.workspace.contains(control)) return;
+                const action = control.dataset.action;
+                if (action === "assign-beat") assignBeat(control.dataset.track, control.value);
+                if (action === "note") setNote(control.dataset.track, control.value);
+            });
+
+            els.workspace.addEventListener("input", (event) => {
+                const control = event.target.closest("[data-action='note']");
+                if (!control || !els.workspace.contains(control)) return;
+                setNote(control.dataset.track, control.value);
+            });
+
+            els.prev.addEventListener("click", prev);
+            els.play.addEventListener("click", playPause);
+            els.next.addEventListener("click", next);
+            els.autoplay.addEventListener("click", () => {
+                autoplayEnabled = !autoplayEnabled;
+                save();
+                renderNow();
+                status(autoplayEnabled ? "Autoplay on" : "Autoplay off");
+            });
+            els.shuffle.addEventListener("click", () => {
+                shuffleEnabled = !shuffleEnabled;
+                save();
+                renderNow();
+                status(shuffleEnabled ? "Shuffle radio on" : "Shuffle radio off");
+            });
+            els.import.addEventListener("click", () => els.upload.click());
+            els.upload.addEventListener("change", () => uploadProjectFile(els.upload.files?.[0]));
+            els.clear.addEventListener("click", clearBuild);
+            els.scrub.addEventListener("pointerdown", () => {
+                isScrubbing = true;
+                if (!audio.src && currentItem()) loadCurrent(false);
+            });
+            els.scrub.addEventListener("input", () => {
+                isScrubbing = true;
+                const seconds = Number(els.scrub.value) || 0;
+                els.scrubNow.textContent = fmt(seconds);
+                if (audio.src && Number.isFinite(Number(audio.duration))) audio.currentTime = Math.max(0, Math.min(Number(audio.duration), seconds));
+            });
+            els.scrub.addEventListener("change", () => {
+                const seconds = Number(els.scrub.value) || 0;
+                if (audio.src && Number.isFinite(Number(audio.duration))) audio.currentTime = Math.max(0, Math.min(Number(audio.duration), seconds));
+                isScrubbing = false;
+                renderNow();
+            });
+            els.scrub.addEventListener("pointerup", () => {
+                isScrubbing = false;
+                renderNow();
+            });
+
+            audio.addEventListener("play", () => { renderNow(); _busEmitScoreCursor(); });
+            audio.addEventListener("pause", () => { renderNow(); _busEmitScoreCursor(); });
+            audio.addEventListener("timeupdate", () => { renderNow(); _busEmitScoreCursor(); });
+            audio.addEventListener("loadedmetadata", () => {
+                const item = nowItem || currentItem();
+                if (item && Number.isFinite(audio.duration)) {
+                    item.runtime = audio.duration;
+                    const source = tracks.find((track) => track.id === item.id);
+                    if (source) source.runtime = audio.duration;
+                    const kept = build.find((track) => track.id === item.id);
+                    if (kept) kept.runtime = audio.duration;
+                    save();
+                }
+                render();
+            });
+            audio.addEventListener("ended", () => {
+                if (autoplayEnabled) next();
+                else {
+                    audio.pause();
+                    renderNow();
+                    status("Track ended. Autoplay is off.");
+                }
+            });
+
+            fetch(MANIFEST_URL, { cache: "no-cache" })
+                .then((response) => response.ok ? response.json() : Promise.reject(new Error("manifest")))
+                .then((manifest) => {
+                    albums = Object.values(manifest.albums || {}).map((album) => ({
+                        key: album.key,
+                        label: album.label || album.key,
+                        pageSlug: album.pageSlug || album.key,
+                        cover: album.cover?.source || album.defaultTrackArt?.source || "",
+                        count: (album.tracks || []).length
+                    })).filter((album) => album.key);
+                    tracks = [];
+                    Object.values(manifest.albums || {}).forEach((album) => {
+                        const albumKey = album.key;
+                        const albumLabel = album.label || album.key;
+                        (album.tracks || []).forEach((track) => {
+                            const audioSource = track.audio?.source || track.source || "";
+                            tracks.push({
+                                id: trackKey(albumKey, track.index),
+                                albumKey,
+                                albumLabel,
+                                index: track.index,
+                                title: track.title || track.file || "Untitled",
+                                page: track.songPage || "",
+                                audio: audioSource,
+                                art: track.art?.source || album.defaultTrackArt?.source || album.cover?.source || "",
+                                runtime: Number(track.duration || track.runtime || track.audio?.duration || 0) || null,
+                                beat: "unassigned",
+                                stars: 0,
+                                order: 0
+                            });
+                        });
+                    });
+                    activeAlbum = albums[0]?.key || "";
+                    restore();
+                    render({ preserveScroll: false });
+                })
+                .catch(() => {
+                    els.title.textContent = "Manifest failed";
+                    els.meta.textContent = "Could not load VOLHOLLA/media-manifest.json";
+                });
+            // ══════════════════════════════════════════════════
+            // ██ ICARO BUS INTEGRATION (Mark Spine — Phase 1)
+            // ██ Anti-theory constraints:
+            // ██   - All-time EMITS to bus, never COMMANDED by bus
+            // ██   - No SET_RATING, ASSIGN_BEAT, or REORDER accepted
+            // ██   - Only REQUEST_SYNC accepted inbound
+            // ██   - localStorage persistence PRESERVED (parallel, not replaced)
+            // ══════════════════════════════════════════════════
+
+            const _BUS_ACTIVE = (window.parent !== window);
+            let _busLastCursorEmit = 0;
+
+            function _busEmitScoreSync() {
+                if (!_BUS_ACTIVE) return;
+                window.parent.postMessage({
+                    type: 'SCORE_SYNC',
+                    _origin: 'scorer',
+                    build: sortedBuild().map(k => ({
+                        id: k.id, title: k.title, beat: k.beat,
+                        stars: k.stars, order: k.order,
+                        runtime: k.runtime || null
+                    })),
+                    beats: beats.map(b => ({ id: b.id, label: b.label, target: b.target })),
+                    nowId: nowItem?.id || '',
+                    currentIndex: currentIndex,
+                    total: build.length
+                }, '*');
+            }
+
+            function _busEmitScoreCursor() {
+                if (!_BUS_ACTIVE) return;
+                const now = performance.now();
+                if (now - _busLastCursorEmit < 500) return; // Throttle: max 2Hz
+                _busLastCursorEmit = now;
+                const item = nowItem || currentItem();
+                window.parent.postMessage({
+                    type: 'SCORE_CURSOR',
+                    _origin: 'scorer',
+                    id: item?.id || '',
+                    beat: item?.beat || 'unassigned',
+                    time: Number.isFinite(audio.currentTime) ? audio.currentTime : 0,
+                    duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+                    playing: !audio.paused
+                }, '*');
+            }
+
+            // Inbound: only REQUEST_SYNC accepted
+            window.addEventListener('message', e => {
+                const d = e.data;
+                if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+                if (d._origin === 'scorer') return; // No echo
+                if (d.type === 'REQUEST_SYNC') {
+                    _busEmitScoreSync();
+                    _busEmitScoreCursor();
+                }
+            });
+
+            // Emit initial sync after manifest loads (deferred)
+            if (_BUS_ACTIVE) {
+                setTimeout(() => {
+                    _busEmitScoreSync();
+                }, 2000); // Wait for manifest fetch to complete
+            }
+
+        })();
+    </script>
+</body>
+
+</html>

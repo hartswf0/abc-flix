@@ -301,15 +301,36 @@
             }
         }
 
-        // ── MESSAGE ROUTER (with rAF pooling for cursor messages) ──
+        // ── MESSAGE ROUTER (Hardened — Error Elimination) ──
+        // STRUCTURAL GUARANTEES:
+        // 1. Only messages from known sources are processed
+        // 2. Messages must be {type: string} — malformed payloads rejected
+        // 3. Router NEVER forwards back to origin — echo impossible
+        // 4. _origin tags preserved for downstream validation
+        const VALID_TYPES = new Set([
+            'FRAMES_SYNC', 'FRAME_PATCH', 'CURSOR_MOVE', 'GOTO_FRAME',
+            'PLAY_SYNC', 'CLIP_SELECT', 'REQUEST_SYNC', 'RIP_PROGRESS',
+            'VIEW_CYCLE'
+        ]);
+
         window.addEventListener('message', e => {
             const d = e.data;
-            if (!d || !d.type) return;
+
+            // ── GATE 1: Shape validation (rejects malformed messages) ──
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+
+            // ── GATE 2: Known type validation ──
+            if (!VALID_TYPES.has(d.type)) return;
 
             msgCount++;
 
-            if (e.source === engine.contentWindow) {
-                // ENGINE → TUNNEL
+            // ── GATE 3: Source identification (rejects unknown sources) ──
+            const fromEngine = e.source === engine.contentWindow;
+            const fromTunnel = e.source === tunnel.contentWindow;
+            if (!fromEngine && !fromTunnel) return; // Unknown source — drop
+
+            if (fromEngine) {
+                // ENGINE → TUNNEL (never back to engine)
                 lastEngineMsg = Date.now();
                 engineReady = true;
 
@@ -357,8 +378,8 @@
                     }
                 }
 
-            } else if (e.source === tunnel.contentWindow) {
-                // TUNNEL → ENGINE
+            } else if (fromTunnel) {
+                // TUNNEL → ENGINE (never back to tunnel)
                 lastTunnelMsg = Date.now();
                 tunnelReady = true;
 

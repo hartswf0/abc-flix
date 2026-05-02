@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>ICARO HARNESS v2 — Mark Spine</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230a0a0a'/><circle cx='16' cy='16' r='8' fill='none' stroke='%2322c55e' stroke-width='2.5'/><circle cx='16' cy='16' r='2.5' fill='%23ef4444'/></svg>" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; height: 100dvh; overflow: hidden; background: #0a0a0a; font-family: ui-monospace, monospace; }
+
+        #harness {
+            display: flex;
+            flex-direction: column;
+            width: 100%; height: 100%; height: 100dvh;
+        }
+
+        #engine-frame { flex: 0 0 55%; width: 100%; border: none; }
+        #tunnel-frame { flex: 1; width: 100%; border: none; }
+        /* Scorer: hidden iframe — audio-only, no visual presence */
+        #scorer-frame { width: 0; height: 0; border: none; position: absolute; visibility: hidden; }
+
+        /* ── Bus strip ── */
+        #bus-strip {
+            height: 18px; background: #0a0a0a;
+            font-size: 9px; font-weight: 900; text-transform: uppercase;
+            display: flex; align-items: center;
+            gap: 10px; padding: 0 8px;
+            letter-spacing: 0.05em; flex-shrink: 0;
+            cursor: row-resize; position: relative; z-index: 10;
+            border-top: 1px solid #1a1a1a;
+            border-bottom: 1px solid #1a1a1a;
+            user-select: none;
+        }
+        #bus-strip span { color: #555; }
+
+        .bus-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #333; flex-shrink: 0;
+            transition: background 0.08s;
+        }
+        .bus-dot.live { background: #22c55e; }
+        .bus-dot.sync { background: #ef4444; }
+        @keyframes busPulse { 0% { transform: scale(1.8); } 100% { transform: scale(1); } }
+        @keyframes busPulse2 { 0% { transform: scale(1.8); } 100% { transform: scale(1); } }
+
+        #sync-bar {
+            position: absolute; left: 0; bottom: 0;
+            height: 2px; background: #22c55e;
+            width: 0%; transition: width 0.15s ease-out;
+            opacity: 0.8;
+        }
+
+        .bus-btn {
+            background: none; border: 1px solid #333; color: #888;
+            padding: 0 6px; height: 14px; font: inherit;
+            font-size: 8px; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            transition: color 0.1s, border-color 0.1s;
+        }
+        .bus-btn:hover { color: #fff; border-color: #666; }
+        .bus-btn:active { color: #22c55e; border-color: #22c55e; }
+
+        .bus-spacer { flex: 1; }
+        .bus-error { color: #ef4444 !important; }
+
+        #bus-clip {
+            color: #888; transition: color 0.3s;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 120px;
+        }
+
+        /* Mark count badge */
+        #bus-marks {
+            color: #666; font-size: 8px;
+            cursor: pointer; transition: color 0.15s;
+        }
+        #bus-marks:hover { color: #22c55e; }
+
+        /* ── Mobile toggle ── */
+        .bus-toggle {
+            display: none;
+            background: #222; border: 1px solid #444; color: #ccc;
+            padding: 0 10px; height: 18px; font: inherit;
+            font-size: 9px; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            transition: all 0.1s;
+        }
+        .bus-toggle:active { color: #22c55e; border-color: #22c55e; }
+        .bus-toggle.active { background: #22c55e; color: #000; border-color: #22c55e; }
+
+        /* ── Mark Ledger Panel ── */
+        #mark-panel {
+            display: none; flex-direction: column;
+            height: 0; background: #080808;
+            border-top: 1px solid #1a1a1a;
+            overflow: hidden; transition: height 0.2s ease;
+            flex-shrink: 0;
+        }
+        #mark-panel.open { display: flex; height: 140px; }
+        #mark-panel-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 4px 8px; font-size: 9px; font-weight: 900;
+            color: #555; text-transform: uppercase; letter-spacing: 0.05em;
+            border-bottom: 1px solid #111; flex-shrink: 0;
+        }
+        #mark-panel-header span { color: #22c55e; }
+        #mark-feed {
+            flex: 1; overflow-y: auto; padding: 4px 8px;
+            font-size: 8px; line-height: 1.6; color: #444;
+        }
+        #mark-feed::-webkit-scrollbar { width: 4px; }
+        #mark-feed::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+        .mark-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mark-line .m-t { color: #333; }
+        .mark-line .m-origin { font-weight: 700; }
+        .mark-line .m-origin.engine { color: #ef4444; }
+        .mark-line .m-origin.tunnel { color: #3b82f6; }
+        .mark-line .m-origin.scorer { color: #f59e0b; }
+        .mark-line .m-origin.sand { color: #22c55e; }
+        .mark-line .m-type { color: #888; }
+
+        /* ── Mobile ── */
+        @media (max-width: 767px) {
+            #harness { display: flex; flex-direction: column; width: 100%; height: 100dvh; overflow: hidden; }
+            #engine-frame { flex: none !important; width: 100%; height: calc(50dvh - 14px); border: none; }
+            #bus-strip { flex-shrink: 0; height: 28px; font-size: 10px; cursor: default; }
+            #tunnel-frame { flex: none !important; width: 100%; height: calc(50dvh - 14px); border: none; }
+            #harness.max-engine #engine-frame { height: calc(100dvh - 28px); }
+            #harness.max-engine #tunnel-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #engine-frame { height: 0; overflow: hidden; }
+            #harness.max-tunnel #tunnel-frame { height: calc(100dvh - 28px); }
+            .bus-toggle { display: inline-block; }
+            .bus-btn { height: 18px; font-size: 9px; padding: 0 8px; }
+            #bus-clip { display: none; }
+            #mark-panel.open { height: 100px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="harness">
+        <iframe id="engine-frame" src="icaro-pro-bus.html"></iframe>
+        <div id="bus-strip">
+            <div class="bus-dot" id="bus-dot"></div>
+            <span id="bus-msg">IDLE</span>
+            <span id="bus-clip"></span>
+            <span id="bus-frames">0 FR</span>
+            <span id="bus-cursor">CUR 0</span>
+            <span id="bus-marks" title="Click to toggle mark ledger">0 MK</span>
+            <div class="bus-spacer"></div>
+            <button class="bus-btn" id="bus-view">BARREL</button>
+            <button class="bus-toggle" id="bus-toggle">SPLIT</button>
+            <div id="sync-bar"></div>
+        </div>
+        <div id="mark-panel">
+            <div id="mark-panel-header">
+                MARK LEDGER <span id="mark-total">0</span>
+                <div class="bus-spacer"></div>
+                <button class="bus-btn" id="mark-clear">CLEAR</button>
+            </div>
+            <div id="mark-feed"></div>
+        </div>
+        <iframe id="tunnel-frame" loading="lazy"></iframe>
+        <!-- Scorer: loaded only over HTTP (file:// can't fetch manifest due to CORS) -->
+        <iframe id="scorer-frame"></iframe>
+    </div>
+
+    <script>
+    (() => {
+        'use strict';
+
+        // ══════════════════════════════════════════════════
+        // ██ HARNESS v2 — MARK SPINE
+        // ██ Theory: Witness every message as a Mark.
+        // ██ Anti-theory: Harness does NOT generate domain marks.
+        // ██            Harness does NOT inspect payloads.
+        // ██            Harness does NOT replace instrument state.
+        // ══════════════════════════════════════════════════
+
+        // ── ELEMENT REFS ──
+        const engine   = document.getElementById('engine-frame');
+        const tunnel   = document.getElementById('tunnel-frame');
+        const scorer   = document.getElementById('scorer-frame');
+        const strip    = document.getElementById('bus-strip');
+        const busMsg   = document.getElementById('bus-msg');
+        const busFrames = document.getElementById('bus-frames');
+        const busCursor = document.getElementById('bus-cursor');
+        const busClip  = document.getElementById('bus-clip');
+        const busDot   = document.getElementById('bus-dot');
+        const busViewBtn = document.getElementById('bus-view');
+        const syncBar  = document.getElementById('sync-bar');
+        const busMarks = document.getElementById('bus-marks');
+        const markPanel = document.getElementById('mark-panel');
+        const markTotal = document.getElementById('mark-total');
+        const markFeed = document.getElementById('mark-feed');
+        const markClear = document.getElementById('mark-clear');
+
+        // ── BOOT TIMING ──
+        const _t0 = performance.now();
+        console.log('[HARNESS-v2] Boot at', _t0.toFixed(0) + 'ms');
+
+        // ── DEFERRED TUNNEL LOAD ──
+        engine.onload = () => {
+            const t = (performance.now() - _t0).toFixed(0);
+            console.log('[HARNESS-v2] Engine loaded in ' + t + 'ms — loading tunnel');
+            engineReady = false;
+            tunnel.src = 'c-bus.html';
+            // Load scorer only over HTTP (file:// CORS blocks manifest fetch)
+            if (location.protocol !== 'file:') {
+                scorer.src = 'icaro-all-time.html';
+            } else {
+                console.log('[HARNESS-v2] Scorer deferred — file:// protocol, manifest will CORS-fail');
+            }
+        };
+
+        // ══════════════════════════════════════════════════
+        // ██ 1. MARK LEDGER (The Spine)
+        // ██ Anti-theory constraints:
+        // ██   - Append-only in RAM (no auto-flush)
+        // ██   - Stores type + origin + timestamp + payloadSize
+        // ██   - Does NOT copy payload data (no ledger bloat)
+        // ██   - Does NOT interpret payload content
+        // ██   - ROUTE marks only (observation, not authorship)
+        // ══════════════════════════════════════════════════
+
+        const MARK_MAX = 10000; // Hard ceiling — anti-theory: no unbounded growth
+        const marks = [];
+
+        function commitMark(type, origin, payloadSize) {
+            if (marks.length >= MARK_MAX) {
+                // Evict oldest quarter — leave SCAR
+                const evicted = marks.splice(0, MARK_MAX / 4);
+                marks.unshift({
+                    t: performance.now(),
+                    origin: 'harness',
+                    type: 'LEDGER_EVICT',
+                    payloadSize: 0,
+                    id: -1,
+                    note: evicted.length + ' marks evicted at ceiling'
+                });
+            }
+            marks.push({
+                t: performance.now(),
+                origin: origin,
+                type: type,
+                payloadSize: payloadSize,
+                id: marks.length
+            });
+            // Update UI (cheap — just text)
+            busMarks.textContent = marks.length + ' MK';
+            markTotal.textContent = marks.length;
+        }
+
+        // ── MARK FEED (diagnostic display — throttled to max 4Hz) ──
+        const FEED_MAX = 50;
+        let _feedDirty = false;
+        let _feedThrottleTimer = null;
+
+        function appendFeedLine(type, origin) {
+            if (!markPanel.classList.contains('open')) {
+                _feedDirty = true;
+                return;
+            }
+            // Throttle DOM updates: batch at 250ms intervals during bursts
+            if (_feedThrottleTimer) {
+                _feedDirty = true;
+                return;
+            }
+            _doAppendFeedLine(type, origin);
+            _feedThrottleTimer = setTimeout(() => {
+                _feedThrottleTimer = null;
+                if (_feedDirty) flushFeed();
+            }, 250);
+        }
+
+        function _doAppendFeedLine(type, origin) {
+            const el = document.createElement('div');
+            el.className = 'mark-line';
+            const tStr = ((performance.now() - _t0) / 1000).toFixed(1) + 's';
+            el.innerHTML =
+                '<span class="m-t">' + tStr + '</span> ' +
+                '<span class="m-origin ' + origin + '">' + origin.toUpperCase() + '</span> ' +
+                '<span class="m-type">' + type + '</span>';
+            markFeed.appendChild(el);
+            while (markFeed.children.length > FEED_MAX) {
+                markFeed.removeChild(markFeed.firstChild);
+            }
+            markFeed.scrollTop = markFeed.scrollHeight;
+        }
+
+        function flushFeed() {
+            if (!_feedDirty) return;
+            _feedDirty = false;
+            markFeed.innerHTML = '';
+            const start = Math.max(0, marks.length - FEED_MAX);
+            for (let i = start; i < marks.length; i++) {
+                const m = marks[i];
+                appendFeedLine(m.type, m.origin);
+            }
+        }
+
+        // Toggle panel
+        busMarks.addEventListener('click', () => {
+            markPanel.classList.toggle('open');
+            if (markPanel.classList.contains('open')) flushFeed();
+        });
+
+        // Clear ledger (with SCAR)
+        markClear.addEventListener('click', () => {
+            const count = marks.length;
+            marks.length = 0;
+            marks.push({
+                t: performance.now(),
+                origin: 'harness',
+                type: 'LEDGER_CLEAR',
+                payloadSize: 0,
+                id: 0,
+                note: count + ' marks cleared by operator'
+            });
+            markFeed.innerHTML = '';
+            busMarks.textContent = '1 MK';
+            markTotal.textContent = '1';
+            appendFeedLine('LEDGER_CLEAR', 'harness');
+        });
+
+        // ══════════════════════════════════════════════════
+        // ██ 2. MESSAGE ROUTER (Preserved from v1)
+        // ██ Three-gate validation + rAF pooling
+        // ══════════════════════════════════════════════════
+
+        const VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
+        let currentView = 0;
+        let msgCount = 0;
+        let lastEngineMsg = 0;
+        let lastTunnelMsg = 0;
+        let engineReady = false;
+        let tunnelReady = false;
+        let framesSynced = 0;
+        let syncPulseTimer = null;
+
+        // ── BUS ACTIVITY ANIMATION ──
+        let _pulseFrame = 0;
+        function pulseSync(direction, type) {
+            _pulseFrame++;
+            busDot.style.animationName = (_pulseFrame % 2) ? 'busPulse' : 'busPulse2';
+            busDot.classList.add('live');
+
+            if (type === 'FRAMES_SYNC') {
+                syncBar.style.width = '100%';
+                syncBar.style.background = '#22c55e';
+                clearTimeout(syncPulseTimer);
+                syncPulseTimer = setTimeout(() => { syncBar.style.width = '0%'; }, 600);
+            } else if (type === 'CURSOR_MOVE') {
+                syncBar.style.width = '30%';
+                syncBar.style.background = '#3b82f6';
+                clearTimeout(syncPulseTimer);
+                syncPulseTimer = setTimeout(() => { syncBar.style.width = '0%'; }, 200);
+            }
+        }
+
+        // ── VIEW CYCLE ──
+        busViewBtn.onclick = () => {
+            currentView = (currentView + 1) % VIEWS.length;
+            busViewBtn.textContent = VIEWS[currentView];
+            safeSend(tunnel, { type: 'VIEW_CYCLE', view: currentView });
+        };
+
+        // ── MOBILE TOGGLE ──
+        const harness = document.getElementById('harness');
+        const busToggle = document.getElementById('bus-toggle');
+        const MODES = ['split', 'max-engine', 'max-tunnel'];
+        let mobileMode = 0;
+
+        busToggle.onclick = () => {
+            mobileMode = (mobileMode + 1) % MODES.length;
+            harness.classList.remove('max-engine', 'max-tunnel');
+            if (MODES[mobileMode] !== 'split') {
+                harness.classList.add(MODES[mobileMode]);
+            }
+            const labels = ['SPLIT', 'ENGINE', 'TUNNEL'];
+            busToggle.textContent = labels[mobileMode];
+            busToggle.classList.toggle('active', mobileMode !== 0);
+        };
+
+        // ── SAFE SEND ──
+        function safeSend(iframe, data) {
+            try {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.postMessage(data, '*');
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[HARNESS-v2] Send failed:', e.message);
+                busMsg.textContent = 'SEND ERR';
+                busMsg.classList.add('bus-error');
+                setTimeout(() => busMsg.classList.remove('bus-error'), 2000);
+            }
+            return false;
+        }
+
+        // ── rAF MESSAGE POOLING ──
+        let _pendingCursorToTunnel = null;
+        let _pendingGotoToEngine = null;
+        let _rafPooled = false;
+
+        function _flushPooledMessages() {
+            _rafPooled = false;
+            if (_pendingCursorToTunnel) {
+                safeSend(tunnel, _pendingCursorToTunnel);
+                _pendingCursorToTunnel = null;
+            }
+            if (_pendingGotoToEngine) {
+                safeSend(engine, _pendingGotoToEngine);
+                _pendingGotoToEngine = null;
+            }
+        }
+
+        function poolMessage(target, data) {
+            if (target === 'tunnel' && data.type === 'CURSOR_MOVE') {
+                _pendingCursorToTunnel = data;
+            } else if (target === 'engine' && data.type === 'GOTO_FRAME') {
+                _pendingGotoToEngine = data;
+            } else {
+                safeSend(target === 'tunnel' ? tunnel : engine, data);
+                return;
+            }
+            if (!_rafPooled) {
+                _rafPooled = true;
+                requestAnimationFrame(_flushPooledMessages);
+            }
+        }
+
+        // ── Estimate payload size without inspecting content ──
+        function estimateSize(d) {
+            // Anti-theory: we do NOT read d.grid or d.payload.
+            // We estimate from type. This is imprecise by design.
+            if (d.type === 'FRAMES_SYNC') return (d.total || 0) * 12288; // ~12KB per frame grid
+            if (d.type === 'FRAME_PATCH') return 12288;
+            return 64; // metadata-only messages
+        }
+
+        // ══════════════════════════════════════════════════
+        // ██ 3. THE THREE-GATE ROUTER + MARK WITNESS
+        // ══════════════════════════════════════════════════
+
+        const VALID_TYPES = new Set([
+            'FRAMES_SYNC', 'FRAME_PATCH', 'CURSOR_MOVE', 'GOTO_FRAME',
+            'PLAY_SYNC', 'CLIP_SELECT', 'CLIP_ARRANGE', 'STRIP_REORDER', 'REQUEST_SYNC', 'RIP_PROGRESS',
+            'VIEW_CYCLE',
+            // Phase 1 scorer types
+            'SCORE_SYNC', 'SCORE_CURSOR'
+        ]);
+
+        // Scorer contentWindow — cache to avoid repeated cross-origin checks
+        let _scorerWindow = null;
+        let _scorerWindowChecked = false;
+        function getScorerWindow() {
+            if (!_scorerWindowChecked && scorer && scorer.src) {
+                try { _scorerWindow = scorer.contentWindow; } catch(e) { /* cross-origin */ }
+                _scorerWindowChecked = true;
+            }
+            return _scorerWindow;
+        }
+
+        window.addEventListener('message', e => {
+            const d = e.data;
+
+            // ── GATE 1: Shape validation ──
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+
+            // ── GATE 2: Known type ──
+            if (!VALID_TYPES.has(d.type)) return;
+
+            msgCount++;
+
+            // ── GATE 3: Source identification ──
+            const fromEngine = e.source === engine.contentWindow;
+            const fromTunnel = e.source === tunnel.contentWindow;
+            const sw = getScorerWindow();
+            const fromScorer = sw && e.source === sw;
+            if (!fromEngine && !fromTunnel && !fromScorer) return;
+
+            // ── ROUTING FIRST (hot path — identical to v1, no extra work) ──
+
+            if (fromScorer) {
+                // Scorer marks: witness only, no routing
+                if (d.type === 'SCORE_SYNC') {
+                    busMsg.textContent = 'SCORE ' + (d.total || 0) + ' KEEPS';
+                    pulseSync('up', d.type);
+                } else if (d.type === 'SCORE_CURSOR') {
+                    pulseSync('up', d.type);
+                }
+                // Witness after handling
+                commitMark(d.type, 'scorer', 64);
+                appendFeedLine(d.type, 'scorer');
+                return;
+            }
+
+            if (fromEngine) {
+                lastEngineMsg = Date.now();
+                engineReady = true;
+
+                if (d.type === 'CURSOR_MOVE') {
+                    poolMessage('tunnel', d);
+                } else {
+                    safeSend(tunnel, d);
+                }
+                pulseSync('down', d.type);
+
+                // Status updates
+                if (d.type === 'FRAMES_SYNC') {
+                    framesSynced = d.total;
+                    busFrames.textContent = d.total + ' FR';
+                    busMsg.textContent = 'SYNC ' + d.total;
+                }
+                if (d.type === 'CURSOR_MOVE' || d.type === 'FRAMES_SYNC') {
+                    busCursor.textContent = 'CUR ' + (d.cursor + 1);
+                }
+                if (d.type === 'CURSOR_MOVE') {
+                    busMsg.textContent = 'CUR ' + (d.cursor + 1);
+                }
+                if (d.type === 'FRAME_PATCH') {
+                    busMsg.textContent = 'PATCH F' + (d.index + 1);
+                }
+                if (d.type === 'RIP_PROGRESS') {
+                    if (d.phase === 'START') {
+                        busMsg.textContent = 'RIP 0/' + d.total;
+                        syncBar.style.background = '#ef4444';
+                        syncBar.style.width = '0%';
+                        syncBar.style.transition = 'width 0.3s';
+                    } else if (d.phase === 'CHUNK') {
+                        const pct = Math.round((d.done / d.total) * 100);
+                        busMsg.textContent = 'RIP ' + d.done + '/' + d.total;
+                        busFrames.textContent = d.done + ' FR';
+                        syncBar.style.width = pct + '%';
+                    } else if (d.phase === 'DONE') {
+                        busMsg.textContent = 'RIP DONE';
+                        busFrames.textContent = d.total + ' FR';
+                        syncBar.style.width = '100%';
+                        syncBar.style.background = '#22c55e';
+                        setTimeout(() => { syncBar.style.width = '0%'; }, 1500);
+                    }
+                }
+
+            } else if (fromTunnel) {
+                lastTunnelMsg = Date.now();
+                tunnelReady = true;
+
+                if (d.type === 'GOTO_FRAME') {
+                    poolMessage('engine', d);
+                } else {
+                    safeSend(engine, d);
+                }
+                pulseSync('up', d.type);
+
+                if (d.type === 'GOTO_FRAME') {
+                    busCursor.textContent = 'CUR ' + (d.cursor + 1);
+                    busMsg.textContent = 'GOTO ' + (d.cursor + 1);
+                }
+                if (d.type === 'CLIP_SELECT') {
+                    busClip.textContent = d.name || '';
+                    busClip.style.color = '#fff';
+                    setTimeout(() => { busClip.style.color = ''; }, 800);
+                }
+            }
+
+            // ── MARK WITNESS (after routing — never blocks the hot path) ──
+            const origin = fromEngine ? 'engine' : 'tunnel';
+            commitMark(d.type, origin, 64); // flat cost, no payload inspection
+            appendFeedLine(d.type, origin);
+        });
+
+        // ══════════════════════════════════════════════════
+        // ██ 4. DIVIDER RESIZE (preserved)
+        // ══════════════════════════════════════════════════
+
+        let dragging = false, startY = 0, startFlex = 55;
+
+        strip.addEventListener('pointerdown', e => {
+            dragging = true; startY = e.clientY;
+            const flex = engine.style.flex;
+            startFlex = flex ? parseFloat(flex.split(' ')[2]) || 55 : 55;
+            strip.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        window.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            const dy = e.clientY - startY;
+            const pct = Math.max(20, Math.min(80, startFlex + (dy / window.innerHeight) * 100));
+            engine.style.flex = `0 0 ${pct}%`;
+        });
+        window.addEventListener('pointerup', () => {
+            dragging = false;
+            strip.style.cursor = 'row-resize';
+        });
+
+        // ══════════════════════════════════════════════════
+        // ██ 5. FAILURE RESILIENCE (preserved)
+        // ══════════════════════════════════════════════════
+
+        // Heartbeat — detect stale connections
+        setInterval(() => {
+            const now = Date.now();
+            const engineStale = engineReady && (now - lastEngineMsg > 10000);
+            const tunnelStale = tunnelReady && (now - lastTunnelMsg > 15000);
+
+            if (engineStale && tunnelStale) {
+                busDot.classList.remove('live');
+                busMsg.textContent = 'STALE';
+            } else if (!engineReady && !tunnelReady && msgCount === 0) {
+                busMsg.textContent = 'WAIT';
+            }
+        }, 3000);
+
+        // Iframe error handlers
+        engine.onerror = () => {
+            busMsg.textContent = 'ENGINE ERR';
+            busMsg.classList.add('bus-error');
+            commitMark('ENGINE_ERROR', 'harness', 0);
+        };
+        tunnel.onerror = () => {
+            busMsg.textContent = 'TUNNEL ERR';
+            busMsg.classList.add('bus-error');
+            commitMark('TUNNEL_ERROR', 'harness', 0);
+        };
+
+        // Ping on tunnel load
+        tunnel.onload = () => {
+            const totalBoot = (performance.now() - _t0).toFixed(0);
+            console.log('[HARNESS-v2] Tunnel loaded — total boot: ' + totalBoot + 'ms');
+            busMsg.textContent = 'BOOT ' + totalBoot + 'ms';
+            tunnelReady = false;
+            commitMark('TUNNEL_BOOT', 'harness', 0);
+            setTimeout(() => {
+                safeSend(engine, { type: 'REQUEST_SYNC' });
+                commitMark('REQUEST_SYNC', 'harness', 0);
+            }, 500);
+        };
+
+        // Re-sync on visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && framesSynced > 0) {
+                safeSend(engine, { type: 'REQUEST_SYNC' });
+                commitMark('VISIBILITY_SYNC', 'harness', 0);
+            }
+        });
+
+        // Global error boundary
+        window.addEventListener('error', e => {
+            console.error('[HARNESS-v2] Uncaught:', e.message);
+            commitMark('UNCAUGHT_ERROR', 'harness', 0);
+        });
+
+    })();
+    </script>
+</body>
+</html>

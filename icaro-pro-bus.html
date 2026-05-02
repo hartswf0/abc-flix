@@ -172,6 +172,56 @@
         .tl-frame.on { border-left: 5px solid var(--act-c); }
         .tl-frame.tl-selected { box-shadow: inset 0 0 0 3px var(--act-c), 0 0 10px rgba(230,0,0,0.8); border-color: var(--act-c); }
         .tl-frame.tl-clip-boundary { border-left: 3px solid var(--act-c); }
+        .tl-frame.tl-drag-over { border-left: 4px solid #22c55e; transform: translateX(4px); }
+        .tl-frame[draggable] { cursor: grab; }
+        .tl-frame.tl-dragging { opacity: 0.3; transform: scale(0.9); }
+        #tl-sync { font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 3px; margin-left: 6px; transition: opacity 0.3s, background 0.3s; opacity: 0; }
+        #tl-sync.show { opacity: 1; }
+        #tl-sync.from-tunnel { background: #3b82f6; color: #fff; }
+        #tl-sync.from-engine { background: #22c55e; color: #fff; }
+
+        /* ── ZONE RULER ── */
+        #tl-zone-ruler {
+            flex: 0 0 16px; display: flex; overflow-x: auto;
+            padding: 0 10px; gap: 0; align-items: stretch;
+            border-bottom: 1px solid var(--black);
+            scrollbar-width: none;
+        }
+        #tl-zone-ruler::-webkit-scrollbar { display: none; }
+        .tl-zone-block {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 8px; font-weight: 900; color: #fff;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            cursor: pointer; overflow: hidden; white-space: nowrap;
+            min-width: 0; border-right: 1px solid rgba(0,0,0,0.3);
+        }
+        .tl-zone-block:last-child { border-right: none; }
+
+        /* ── BEAT RULER ── */
+        #tl-beat-ruler {
+            flex: 0 0 12px; display: flex; overflow-x: auto;
+            padding: 0 10px; gap: 0; align-items: stretch;
+            background: #222; border-bottom: 1px solid var(--black);
+            scrollbar-width: none;
+        }
+        #tl-beat-ruler::-webkit-scrollbar { display: none; }
+        .tl-beat-cell {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 7px; font-weight: 700; color: #888;
+            border-right: 1px solid #333; min-width: 0;
+        }
+        .tl-beat-cell.on-beat {
+            color: #fff; font-weight: 900;
+            border-right: 1px solid #555;
+        }
+
+        /* ── LOOP MARKERS ── */
+        .tl-frame.tl-loop-in { border-left: 3px solid #22c55e !important; }
+        .tl-frame.tl-loop-out { border-right: 3px solid #ef4444 !important; }
+        .tl-frame.tl-in-loop { background: #1a2a1a; }
+
+        /* ── TRANSPORT DIVIDERS ── */
+        .tl-divider { width: 1px; height: 18px; background: #444; flex-shrink: 0; }
 
         .tl-thumb { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; position: absolute; inset: 0; z-index: 1; opacity: 0.5; }
         .tl-num { position: relative; z-index: 2; color: var(--white); font-size: 14px; font-weight: 900; text-shadow: 1px 1px 0 var(--black); pointer-events: none; }
@@ -434,6 +484,8 @@
                     <button class="dt-btn" id="dtt-rect" onclick="bindTool('rect')">BOX</button>
                     <button class="dt-btn" id="dtt-erase" onclick="bindTool('erase')">×</button>
                     <div class="dt-div"></div>
+                    <button class="dt-btn" id="dtt-undo" onclick="undo()" style="color:#ef4444;font-size:16px;">↺</button>
+                    <div class="dt-div"></div>
                     <div id="dt-swatches" style="display:flex; gap:5px; align-items:center;"></div>
                 </div>
 
@@ -469,20 +521,21 @@
             <!-- ── TIMELINE ── -->
             <div id="timeline-zone">
                 <div id="tl-controls">
+                    <button class="tl-ctrl-btn" onclick="stepSequence(-1)" style="font-size:15px;min-width:36px;padding:5px 10px;">◄</button>
                     <button class="tl-ctrl-btn tl-play-btn" id="tl-play" onclick="engageSequence()" style="background:var(--act-c);color:var(--white);border-color:var(--act-c);min-width:60px;">PLAY</button>
-                    <button class="tl-ctrl-btn" onclick="stepSequence(-1)" style="font-size:15px; min-width:36px; padding:5px 10px;">◄</button>
-                    <button class="tl-ctrl-btn" onclick="stepSequence(1)" style="font-size:15px; min-width:36px; padding:5px 10px;">►</button>
-                    <div style="width:1px; height:18px; background:var(--black); flex-shrink:0;"></div>
+                    <button class="tl-ctrl-btn" onclick="stepSequence(1)" style="font-size:15px;min-width:36px;padding:5px 10px;">►</button>
+                    <div style="width:1px;height:18px;background:var(--black);flex-shrink:0;"></div>
                     <button class="tl-ctrl-btn" onclick="injectFrame()">+BLK</button>
                     <button class="tl-ctrl-btn" onclick="duplicateFrame()">+CPY</button>
-                    <div style="width:1px; height:18px; background:var(--black); flex-shrink:0;"></div>
+                    <div style="width:1px;height:18px;background:var(--black);flex-shrink:0;"></div>
                     <div id="speed-wrap">
                         <span id="speed-label">SPD · 12</span>
                         <input type="range" id="speed-slider" min="1" max="30" value="12" step="1"
                             oninput="onSpeedSlider(this.value)">
                     </div>
-                    <div style="flex-grow:1; min-width:4px;"></div>
+                    <div style="flex-grow:1;min-width:4px;"></div>
                     <span id="tl-frame-readout" style="font-size:12px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--black);flex-shrink:0;">01/01</span>
+                    <span id="tl-sync"></span>
                     <button class="tl-ctrl-btn" id="btn-grid-view" onclick="toggleTimelineGrid()">▦</button>
                 </div>
                 <div id="tl-strip"></div>
@@ -708,8 +761,59 @@ SHF 2 1 24</textarea>
         tool: 'pen', color: 7, size: 5, grid: false,
         dragging: false, p0: [0, 0], p1: [0, 0],
         activeNav: null, audioSourceBlob: null, audioDuration: 0,
-        selStart: -1, selEnd: -1, selMode: false
+        selStart: -1, selEnd: -1, selMode: false,
+        // ── ZONES / BEATS / LOOP ──
+        zones: [],       // [{start: 0, name: 'A', color: '#3b82f6'}, ...]
+        loopIn: -1,      // frame index, -1 = unset
+        loopOut: -1,     // frame index, -1 = unset
+        beatSize: 4      // frames per beat
     };
+
+    // Zone color palette (cyclical)
+    const ZONE_COLORS = ['#3b82f6','#f59e0b','#22c55e','#a855f7','#ef4444','#06b6d4'];
+
+    function getZoneAt(frameIdx) {
+        if (!state.zones.length) return null;
+        for (let i = state.zones.length - 1; i >= 0; i--) {
+            if (frameIdx >= state.zones[i].start) return state.zones[i];
+        }
+        return state.zones[0];
+    }
+    function getZoneIndex(frameIdx) {
+        if (!state.zones.length) return 0;
+        for (let i = state.zones.length - 1; i >= 0; i--) {
+            if (frameIdx >= state.zones[i].start) return i;
+        }
+        return 0;
+    }
+    function ensureDefaultZone() {
+        if (!state.zones.length && state.frames.length) {
+            state.zones = [{ start: 0, name: 'A', color: ZONE_COLORS[0] }];
+        }
+    }
+
+    // ── SAFE ACCESSORS (Error Elimination) ──
+    // These make entire error classes structurally impossible.
+
+    // safeFrame(idx): Returns a valid frame object, NEVER null/undefined.
+    // Clamps idx into [0, length-1]. If no frames exist, returns a sentinel.
+    const _SENTINEL_FRAME = Object.freeze({ src: null, scriptLayer: null, handLayer: null, _v: 0, _sentinel: true });
+    function safeFrame(idx) {
+        if (state.frames.length === 0) return _SENTINEL_FRAME;
+        const i = Math.max(0, Math.min(state.frames.length - 1, idx || 0));
+        return state.frames[i] || _SENTINEL_FRAME;
+    }
+
+    // curFrame(): Current frame, always valid.
+    function curFrame() {
+        return safeFrame(state.cur);
+    }
+
+    // clampCursor(): Ensures state.cur is always valid after any mutation.
+    function clampCursor() {
+        if (state.frames.length === 0) { state.cur = 0; return; }
+        state.cur = Math.max(0, Math.min(state.frames.length - 1, state.cur));
+    }
 
     // ── ATO STATE (Sequence Engine) ──
     const ATO_VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
@@ -756,9 +860,33 @@ SHF 2 1 24</textarea>
     // 181 frames = 181 tunnel faces, each showing its frame content
     let _derivedClipsCache = null;
     let _derivedClipsCacheKey = '';
+    let _tunnelPlayOrder = null; // Set by CLIP_ARRANGE from tunnel
+    let _tunnelArrangement = null; // Full spatial data from tunnel
 
     function deriveClips() {
-        // Fast cache: avoid recomputing if frame count hasn't changed
+        // If tunnel has sent arrangement, use it
+        if (_tunnelArrangement && _tunnelArrangement.length > 0) {
+            const key = JSON.stringify(_tunnelPlayOrder);
+            if (_derivedClipsCache && _derivedClipsCacheKey === key) return _derivedClipsCache;
+            const clips = _tunnelArrangement.map(a => ({
+                id: 'F' + (a.frameIndex + 1),
+                frameStart: a.frameIndex,
+                frameEnd: a.frameIndex,
+                vStart: a.vStart,
+                vDur: a.vDur,
+                vTrack: a.track,
+                vLift: a.lift || 0,
+                track: a.track,
+                rot: a.rot || 0,
+                lift: a.lift || 0,
+                isBoundary: false,
+                fullTube: true
+            }));
+            _derivedClipsCache = clips;
+            _derivedClipsCacheKey = key;
+            return clips;
+        }
+        // Fallback: linear order (no tunnel arrangement received yet)
         const key = state.frames.length + '';
         if (_derivedClipsCache && _derivedClipsCacheKey === key) return _derivedClipsCache;
 
@@ -776,7 +904,7 @@ SHF 2 1 24</textarea>
                 rot: 0,
                 lift: 0,
                 isBoundary: !!state.frames[i].clipBoundary,
-                fullTube: true  // wrap frame around entire tube circumference
+                fullTube: true
             });
         }
         _derivedClipsCache = clips;
@@ -787,14 +915,13 @@ SHF 2 1 24</textarea>
     // ── BIDIRECTIONAL CURSOR ↔ CAMERA SYNC ──
     function syncCameraFromCursor() {
         if (!state.frames.length) return;
-        const clips = deriveClips();
-        for (const c of clips) {
-            if (state.cur >= c.frameStart && state.cur <= c.frameEnd) {
-                const progress = (state.cur - c.frameStart) / (c.frameEnd - c.frameStart + 1);
-                ATO.cam = c.vStart + progress * c.vDur;
-                return;
-            }
+        // LAW 2: Use tunnel's actual positions, not derived/cached positions
+        if (_tunnelArrangement) {
+            const a = _tunnelArrangement.find(c => c.frameIndex === state.cur);
+            if (a) { ATO.cam = a.vStart + a.vDur / 2; return; }
         }
+        // Fallback: linear position (no arrangement received yet)
+        ATO.cam = state.cur * ATO_SNAP;
     }
 
     const ATO = {
@@ -961,19 +1088,42 @@ SHF 2 1 24</textarea>
             const py = gy * B_SZ + B_SZ * 0.5;
             tc.beginPath(); tc.moveTo(0, py); tc.lineTo(W, py); tc.stroke();
         }
-        let srcGrid = null;
-        if (f.src) {
-            const tmpSrc = document.createElement('canvas'); tmpSrc.width = G_COLS; tmpSrc.height = G_ROWS;
-            const tmpCtx = tmpSrc.getContext('2d'); tmpCtx.imageSmoothingEnabled = true;
-            tmpCtx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
-            const srcPx = tmpCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
-            srcGrid = new Uint8Array(G_ROWS * G_COLS);
-            for (let i = 0; i < G_ROWS * G_COLS; i++) {
-                const pi = i * 4;
-                const lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
-                srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+        const grid = extractDotGrid(f);
+        for (let gy = 0; gy < G_ROWS; gy++) {
+            for (let gx = 0; gx < G_COLS; gx++) {
+                const val = grid[gy * G_COLS + gx];
+                if (val > 0 && DOT_STAMPS[val]) { tc.drawImage(DOT_STAMPS[val], gx * B_SZ, gy * B_SZ); }
             }
         }
+    }
+
+    // ── EXTRACT DOT GRID from frame (128×96 Uint8Array of 0-7 levels) ──
+    // Priority: handLayer > scriptLayer > srcGrid (ripped video)
+    function extractDotGrid(f) {
+        let srcGrid = null;
+        if (f.src) {
+            const fv = f._v !== undefined ? f._v : -1;
+            const srcReady = (f.src.complete !== false);
+            if (f._srcGrid && f._srcGridVersion === fv && srcReady) {
+                srcGrid = f._srcGrid;
+            } else {
+                const tmpSrc = document.createElement('canvas'); tmpSrc.width = G_COLS; tmpSrc.height = G_ROWS;
+                const tmpCtx = tmpSrc.getContext('2d'); tmpCtx.imageSmoothingEnabled = true;
+                tmpCtx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
+                const srcPx = tmpCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
+                srcGrid = new Uint8Array(G_ROWS * G_COLS);
+                for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                    const pi = i * 4;
+                    const lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
+                    srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+                }
+                if (srcReady) {
+                    f._srcGrid = srcGrid;
+                    f._srcGridVersion = fv;
+                }
+            }
+        }
+        const grid = new Uint8Array(G_ROWS * G_COLS);
         for (let gy = 0; gy < G_ROWS; gy++) {
             for (let gx = 0; gx < G_COLS; gx++) {
                 const sX = gx * B_SZ + Math.floor(B_SZ / 2);
@@ -987,13 +1137,152 @@ SHF 2 1 24</textarea>
                     if (sAlpha >= 16) { val = alphaToLevel(sAlpha); }
                     else if (srcGrid) { val = srcGrid[gy * G_COLS + gx]; }
                 }
-                if (val > 0 && DOT_STAMPS[val]) { tc.drawImage(DOT_STAMPS[val], gx * B_SZ, gy * B_SZ); }
+                grid[gy * G_COLS + gx] = val;
+            }
+        }
+        return grid;
+    }
+
+    // ── RENDER DOT GRID to canvas (shared final step) ──
+    function renderDotGrid(grid, targetCanvas) {
+        const tc = targetCanvas.getContext('2d');
+        tc.fillStyle = '#FFFFFF'; tc.fillRect(0, 0, W, H);
+        tc.strokeStyle = 'rgba(0,0,0,0.06)'; tc.lineWidth = 0.5;
+        for (let gy = 0; gy < G_ROWS; gy++) {
+            const py = gy * B_SZ + B_SZ * 0.5;
+            tc.beginPath(); tc.moveTo(0, py); tc.lineTo(W, py); tc.stroke();
+        }
+        for (let gy = 0; gy < G_ROWS; gy++) {
+            for (let gx = 0; gx < G_COLS; gx++) {
+                const val = grid[gy * G_COLS + gx];
+                if (val > 0 && DOT_STAMPS[Math.min(val, 7)]) {
+                    tc.drawImage(DOT_STAMPS[Math.min(val, 7)], gx * B_SZ, gy * B_SZ);
+                }
             }
         }
     }
 
+    // ══════════════════════════════════════════════════
+    // ██ TRACK COMPOSITING — ADDITIVE
+    // ██ POSSIBLE=0.25  PLAUSIBLE=0.50  PROBABLE=0.75  PREFERRED=1.0
+    // ██ LIFT = per-clip weight multiplier (volume knob)
+    // ██ ROLL = per-clip contrast curve (punch or flatten)
+    // ██ Overlapping dots ADD. Convergence across tracks = max density.
+    // ══════════════════════════════════════════════════
+    const TRACK_WEIGHT = [0.25, 0.50, 0.75, 1.0]; // track 0→3
+
+    // Apply LIFT (weight) and ROLL (contrast) to a dot grid
+    // Returns a new Float32Array ready for accumulation
+    function applyClipEffects(grid, clip) {
+        // LIFT: multiplies the clip's compositing weight
+        // lift=0 → 1x, lift=1 → 2x, lift=-0.5 → 0.5x
+        const baseWeight = TRACK_WEIGHT[clip.track] || 1.0;
+        const liftMul = Math.max(0, 1 + (clip.lift || 0));
+        const weight = baseWeight * liftMul;
+
+        // ROLL: contrast curve around midpoint (3.5)
+        // rot is in radians (-π to π), normalize to useful range
+        // rot=0 → no change, rot>0 → increase contrast, rot<0 → flatten
+        const rollVal = clip.rot || 0;
+        const contrast = 1 + rollVal * 1.5; // gentle curve
+        const mid = 3.5;
+
+        const out = new Float32Array(grid.length);
+        for (let i = 0; i < grid.length; i++) {
+            let v = grid[i];
+            // Apply contrast around midpoint
+            if (contrast !== 1) {
+                v = (v - mid) * contrast + mid;
+                v = Math.max(0, Math.min(7, v));
+            }
+            out[i] = v * weight;
+        }
+        return out;
+    }
+
+    function compositeAtZ(z) {
+        if (!_tunnelArrangement || _tunnelArrangement.length < state.frames.length * 0.5) {
+            // No arrangement — single frame render
+            const f = state.frames[state.cur]; if (!f) return;
+            renderDotFrame(f, compBuf);
+            ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+            return;
+        }
+
+        // Find all clips at this Z position
+        const active = [];
+        for (const a of _tunnelArrangement) {
+            if (z >= a.vStart && z < a.vStart + a.vDur) {
+                if (a.frameIndex >= 0 && a.frameIndex < state.frames.length) {
+                    active.push(a);
+                }
+            }
+        }
+
+        if (active.length === 0) {
+            // Gap — hold current frame (already on screen)
+            return;
+        }
+
+        if (active.length === 1) {
+            // Single clip — apply LIFT/ROLL effects
+            const clip = active[0];
+            state.cur = clip.frameIndex;
+            const hasEffects = (clip.lift && clip.lift !== 0) || (clip.rot && clip.rot !== 0);
+            if (!hasEffects) {
+                // No effects — standard fast path
+                renderDotFrame(state.frames[state.cur], compBuf);
+            } else {
+                // Apply effects through the compositor pipeline
+                const grid = extractDotGrid(state.frames[state.cur]);
+                const effected = applyClipEffects(grid, clip);
+                const finalGrid = new Uint8Array(grid.length);
+                for (let i = 0; i < grid.length; i++) {
+                    finalGrid[i] = Math.min(7, Math.max(0, Math.round(effected[i])));
+                }
+                renderDotGrid(finalGrid, compBuf);
+            }
+            ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+            return;
+        }
+
+        // Multiple clips — ADDITIVE compositing with LIFT + ROLL
+        active.sort((a, b) => a.track - b.track);
+
+        const composite = new Float32Array(G_ROWS * G_COLS);
+        for (const clip of active) {
+            const f = state.frames[clip.frameIndex];
+            if (!f) continue;
+            const grid = extractDotGrid(f);
+            const effected = applyClipEffects(grid, clip);
+            for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                composite[i] += effected[i];
+            }
+        }
+
+        // Clamp to 0-7
+        const finalGrid = new Uint8Array(G_ROWS * G_COLS);
+        for (let i = 0; i < G_ROWS * G_COLS; i++) {
+            finalGrid[i] = Math.min(7, Math.max(0, Math.round(composite[i])));
+        }
+
+        state.cur = active[active.length - 1].frameIndex;
+        renderDotGrid(finalGrid, compBuf);
+        ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+    }
+
     function renderOutput() {
         const f = state.frames[state.cur]; if (!f) return;
+        // If tunnel arrangement exists, use compositor to show layering/effects
+        if (_tunnelArrangement && _tunnelArrangement.length >= state.frames.length * 0.5) {
+            const clip = _tunnelArrangement.find(a => a.frameIndex === state.cur);
+            if (clip) {
+                // Render at the midpoint of this clip's spatial extent
+                compositeAtZ(clip.vStart + clip.vDur / 2);
+                return;
+            }
+        }
+        // Fallback: no arrangement, raw frame render
         renderDotFrame(f, compBuf);
         ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
     }
@@ -1062,6 +1351,20 @@ SHF 2 1 24</textarea>
             e.preventDefault();
             undo();
         }
+    });
+
+    // Two-finger tap undo (mobile gesture — Procreate convention)
+    cvs.addEventListener('touchstart', e => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            undo();
+        }
+    }, { passive: false });
+
+    // Right-click undo (desktop gesture — fast non-drawing-hand undo)
+    cvs.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        undo();
     });
 
     cvs.addEventListener('pointerdown', e => {
@@ -1205,30 +1508,278 @@ SHF 2 1 24</textarea>
 
     // ── TIMELINE ──
     // STRUCTURAL rebuild — only call when frames are added/deleted/reordered
+    // ── SYNC STATUS FLASH ──
+    let _syncTimer = null;
+    function flashSync(direction) {
+        const el = document.getElementById('tl-sync');
+        if (!el) return;
+        clearTimeout(_syncTimer);
+        el.textContent = direction === 'up' ? 'TUNNEL' : 'STRIP';
+        el.className = 'show ' + (direction === 'up' ? 'from-tunnel' : 'from-engine');
+        _syncTimer = setTimeout(() => { el.className = ''; }, 1200);
+    }
+
+    // ── EMIT STRIP REORDER TO TUNNEL ──
+    function _emitStripReorder(newOrder) {
+        if (!_ATOBUS_ACTIVE) return;
+        // Build arrangement from current order with default spacing
+        const SNAP = 120; // match tunnel's SNAP * 2
+        const arrangement = newOrder.map((fi, pos) => ({
+            frameIndex: fi,
+            vStart: pos * SNAP,
+            vDur: SNAP,
+            track: fi % 4,
+            lift: 0,
+            rot: 0
+        }));
+        _tunnelPlayOrder = newOrder;
+        _tunnelArrangement = arrangement;
+        _derivedClipsCache = null;
+        _derivedClipsCacheKey = '';
+        window.parent.postMessage({
+            type: 'STRIP_REORDER',
+            _origin: 'engine',
+            order: newOrder,
+            arrangement: arrangement
+        }, '*');
+        flashSync('down');
+    }
+
+    // ══════════════════════════════════════════════════
+    // ██ ZONES / BEATS / LOOP CONTROLS
+    // ══════════════════════════════════════════════════
+
+    function markZone() {
+        playTick();
+        ensureDefaultZone();
+        const cur = state.cur;
+        // Check if there's already a zone starting at this frame
+        const existing = state.zones.findIndex(z => z.start === cur);
+        if (existing > 0) {
+            // Remove it (can't remove zone at frame 0)
+            state.zones.splice(existing, 1);
+            fireToast('ZONE REMOVED');
+        } else if (cur > 0) {
+            // Add new zone boundary
+            const idx = state.zones.length;
+            const name = String.fromCharCode(65 + (idx % 26)); // A, B, C...
+            const color = ZONE_COLORS[idx % ZONE_COLORS.length];
+            state.zones.push({ start: cur, name: name, color: color });
+            state.zones.sort((a, b) => a.start - b.start);
+            fireToast('ZONE ' + name);
+        }
+        rebuildTrack();
+    }
+
+    function jumpZone(dir) {
+        playTick();
+        ensureDefaultZone();
+        if (!state.zones.length) return;
+        const curZone = getZoneIndex(state.cur);
+        let target;
+        if (dir < 0) {
+            // Jump to start of current zone, or previous zone
+            if (state.cur > state.zones[curZone].start) {
+                target = state.zones[curZone].start;
+            } else {
+                target = curZone > 0 ? state.zones[curZone - 1].start : 0;
+            }
+        } else {
+            // Jump to start of next zone, or end
+            target = curZone < state.zones.length - 1
+                ? state.zones[curZone + 1].start
+                : state.frames.length - 1;
+        }
+        state.cur = Math.max(0, Math.min(state.frames.length - 1, target));
+        renderOutput(); highlightFrame(state.cur); updateStatusBar();
+        syncCameraFromCursor();
+    }
+
+    function setLoopIn() {
+        playTick();
+        state.loopIn = state.cur;
+        if (state.loopOut >= 0 && state.loopOut <= state.loopIn) state.loopOut = -1;
+        const btn = document.getElementById('btn-loop-in');
+        if (btn) btn.style.background = '#22c55e';
+        fireToast('LOOP IN: ' + (state.cur + 1));
+        rebuildTrack();
+    }
+    function setLoopOut() {
+        playTick();
+        state.loopOut = state.cur;
+        if (state.loopIn >= 0 && state.loopIn >= state.loopOut) state.loopIn = -1;
+        const btn = document.getElementById('btn-loop-out');
+        if (btn) btn.style.background = '#ef4444';
+        fireToast('LOOP OUT: ' + (state.cur + 1));
+        rebuildTrack();
+    }
+    function clearLoop() {
+        playTick();
+        state.loopIn = -1; state.loopOut = -1;
+        const bi = document.getElementById('btn-loop-in');
+        const bo = document.getElementById('btn-loop-out');
+        if (bi) bi.style.background = '';
+        if (bo) bo.style.background = '';
+        fireToast('LOOP CLEARED');
+        rebuildTrack();
+    }
+
+    function buildZoneRuler() {
+        const ruler = document.getElementById('tl-zone-ruler'); if (!ruler) return;
+        ruler.innerHTML = '';
+        ensureDefaultZone();
+        const total = state.frames.length;
+        if (!total) return;
+        const frameW = 74; // 68px frame + 6px gap
+        for (let zi = 0; zi < state.zones.length; zi++) {
+            const zone = state.zones[zi];
+            const nextStart = zi < state.zones.length - 1 ? state.zones[zi + 1].start : total;
+            const span = nextStart - zone.start;
+            const block = document.createElement('div');
+            block.className = 'tl-zone-block';
+            block.style.flex = '0 0 ' + (span * frameW) + 'px';
+            block.style.background = zone.color;
+            block.textContent = zone.name;
+            block.title = 'Zone ' + zone.name + ' (' + zone.start + '-' + (nextStart - 1) + ')';
+            block.onclick = () => {
+                const newName = prompt('Zone name:', zone.name);
+                if (newName && newName.trim()) { zone.name = newName.trim().toUpperCase(); buildZoneRuler(); }
+            };
+            ruler.appendChild(block);
+        }
+    }
+
+    function buildBeatRuler() {
+        const ruler = document.getElementById('tl-beat-ruler'); if (!ruler) return;
+        ruler.innerHTML = '';
+        const total = state.frames.length;
+        if (!total) return;
+        const frameW = 74; // 68px frame + 6px gap
+        let beatNum = 1;
+        for (let i = 0; i < total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'tl-beat-cell';
+            cell.style.flex = '0 0 ' + frameW + 'px';
+            if (i % state.beatSize === 0) {
+                cell.classList.add('on-beat');
+                cell.textContent = 'B' + beatNum;
+                beatNum++;
+            }
+            ruler.appendChild(cell);
+        }
+    }
+
     function rebuildTrack() {
         const trk = document.getElementById('tl-strip'); trk.innerHTML = '';
-        for (let i = 0; i < state.frames.length; i++) {
+        // Use tunnel arrangement order if it covers most frames, else linear
+        let order;
+        if (_tunnelArrangement && _tunnelArrangement.length >= state.frames.length * 0.5) {
+            // Arrangement covers enough frames — use tunnel order
+            order = _tunnelArrangement.map(a => a.frameIndex);
+            // Append any frames NOT in arrangement (newly added, not yet synced)
+            const inArrangement = new Set(order);
+            for (let i = 0; i < state.frames.length; i++) {
+                if (!inArrangement.has(i)) order.push(i);
+            }
+        } else {
+            // No arrangement or too sparse — linear order
+            order = state.frames.map((_, i) => i);
+        }
+
+        let _dragIdx = null;
+
+        for (let pos = 0; pos < order.length; pos++) {
+            const i = order[pos];
+            if (i < 0 || i >= state.frames.length) continue;
             const f = state.frames[i];
             const w = document.createElement('div');
             let cls = 'tl-frame';
             if (i === state.cur) cls += ' on';
             if (f.clipBoundary) cls += ' tl-clip-boundary';
+            // Loop markers
+            if (i === state.loopIn) cls += ' tl-loop-in';
+            if (i === state.loopOut) cls += ' tl-loop-out';
+            if (state.loopIn >= 0 && state.loopOut >= 0 && i >= state.loopIn && i <= state.loopOut) cls += ' tl-in-loop';
             w.className = cls;
             w.dataset.idx = i;
+            w.draggable = true;
+
+            // ── CLICK ──
             w.onclick = () => {
                 if (state.playing) return;
                 playTick(); state.cur = i; highlightFrame(i); renderOutput(); updateStatusBar();
+                syncCameraFromCursor();
             };
+
+            // ── DRAG-TO-REORDER ──
+            w.addEventListener('dragstart', (e) => {
+                _dragIdx = i;
+                w.classList.add('tl-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', i);
+            });
+            w.addEventListener('dragend', () => {
+                w.classList.remove('tl-dragging');
+                trk.querySelectorAll('.tl-drag-over').forEach(el => el.classList.remove('tl-drag-over'));
+                _dragIdx = null;
+            });
+            w.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                // Visual indicator
+                trk.querySelectorAll('.tl-drag-over').forEach(el => el.classList.remove('tl-drag-over'));
+                w.classList.add('tl-drag-over');
+            });
+            w.addEventListener('dragleave', () => {
+                w.classList.remove('tl-drag-over');
+            });
+            w.addEventListener('drop', (e) => {
+                e.preventDefault();
+                w.classList.remove('tl-drag-over');
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIdx = i;
+                if (fromIdx === toIdx) return;
+                // Compute new order: remove fromIdx from current position, insert before toIdx
+                const curOrder = Array.from(trk.querySelectorAll('.tl-frame')).map(el => parseInt(el.dataset.idx));
+                const fromPos = curOrder.indexOf(fromIdx);
+                if (fromPos < 0) return;
+                curOrder.splice(fromPos, 1);
+                const toPos = curOrder.indexOf(toIdx);
+                curOrder.splice(toPos, 0, fromIdx);
+                // Apply new order
+                _emitStripReorder(curOrder);
+                rebuildTrack();
+                highlightFrame(state.cur);
+                playTick();
+            });
+
             const TW = 136, TH = 96;
             const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = TW; c.height = TH;
             renderThumb(f, c, TW, TH);
             w.appendChild(c);
-            const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1; w.appendChild(n);
-            const b = document.createElement('div'); b.className = 'tl-badge'; b.textContent = i + 1; w.appendChild(b);
+            // Show position in arrangement + original frame number
+            const hasTunnelOrder = _tunnelArrangement && _tunnelArrangement.length >= state.frames.length * 0.5;
+            const label = hasTunnelOrder ? (pos + 1) : (i + 1);
+            const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = label; w.appendChild(n);
+            const b = document.createElement('div'); b.className = 'tl-badge'; b.textContent = (i + 1); w.appendChild(b);
             trk.appendChild(w);
             if (i === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
         }
         updateStatusBar();
+        // Build rulers (synced to strip)
+        buildZoneRuler();
+        buildBeatRuler();
+        // Sync scroll: rulers follow strip scroll position
+        const strip = document.getElementById('tl-strip');
+        if (strip && !strip._rulerSyncBound) {
+            strip._rulerSyncBound = true;
+            strip.addEventListener('scroll', () => {
+                const zr = document.getElementById('tl-zone-ruler');
+                const br = document.getElementById('tl-beat-ruler');
+                if (zr) zr.scrollLeft = strip.scrollLeft;
+                if (br) br.scrollLeft = strip.scrollLeft;
+            });
+        }
     }
 
     // CURSOR-ONLY highlight — O(1), zero DOM creation, zero grid extraction
@@ -1237,7 +1788,8 @@ SHF 2 1 24</textarea>
         if (!trk) return;
         const prev = trk.querySelector('.tl-frame.on');
         if (prev) prev.classList.remove('on');
-        const next = trk.children[idx];
+        // Find by data-idx since strip order may differ from array order
+        const next = trk.querySelector('[data-idx="' + idx + '"]');
         if (next) {
             next.classList.add('on');
             next.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -1247,7 +1799,8 @@ SHF 2 1 24</textarea>
     // SINGLE THUMB UPDATE — refreshes one thumbnail after pixel mutation
     function updateThumb(idx) {
         const trk = document.getElementById('tl-strip');
-        const w = trk && trk.children[idx];
+        // Find by data-idx since strip order may differ from array order
+        const w = trk && trk.querySelector('[data-idx="' + idx + '"]');
         if (!w) return;
         const c = w.querySelector('.tl-thumb');
         if (c && state.frames[idx]) renderThumb(state.frames[idx], c, c.width, c.height);
@@ -1273,7 +1826,18 @@ SHF 2 1 24</textarea>
     function engageSequence() {
         if (state.frames.length < 2) { fireToast('ADD FRAMES FIRST'); return; }
         playClack(); state.playing = !state.playing;
-        if (state.playing) { lastT = performance.now(); playRAF = requestAnimationFrame(playStep); }
+        if (state.playing) {
+            lastT = performance.now();
+            // Reset spatial playback Z to current cursor's position
+            if (_tunnelArrangement && _tunnelArrangement.length > 0) {
+                const cur = _tunnelArrangement.find(a => a.frameIndex === state.cur);
+                _playZ = cur ? cur.vStart : _tunnelArrangement[0].vStart;
+            } else {
+                _playZ = 0;
+            }
+            _lastPlayFrame = state.cur;
+            playRAF = requestAnimationFrame(playStep);
+        }
         else { cancelAnimationFrame(playRAF); renderOutput(); highlightFrame(state.cur); }
         // Update status bar play button (mobile)
         const btn = document.getElementById('sb-play-btn');
@@ -1288,15 +1852,60 @@ SHF 2 1 24</textarea>
             tlPlay.style.borderColor = state.playing ? '#333' : 'var(--act-c)';
         }
     }
+    // Spatial playback state
+    let _playZ = 0;          // Virtual Z position during playback (space = time)
+    let _playZRate = 120;    // Z units per tick (= SNAP * 2, one default clip slot)
+    let _lastPlayFrame = -1; // Last frame rendered during play (for hold detection)
+
     function playStep(now) {
         if (!state.playing) return;
         playRAF = requestAnimationFrame(playStep);
         const el = now - lastT, dur = 1000 / BASE_FPS;
         if (el >= dur) {
             lastT = now - (el % dur);
-            state.cur = (state.cur + 1) % state.frames.length;
-            renderOutput();
-            syncCameraFromCursor(); // bidirectional sync: timeline play drives camera
+
+            if (_tunnelArrangement && _tunnelArrangement.length >= state.frames.length * 0.5) {
+                // ── SPATIAL PLAYBACK: space IS time ──
+                _playZ += _playZRate;
+
+                // Find arrangement extent — wrap at end (or loop)
+                const lastClip = _tunnelArrangement[_tunnelArrangement.length - 1];
+                const extent = lastClip.vStart + lastClip.vDur;
+
+                // Loop enforcement in spatial mode
+                if (state.loopIn >= 0 && state.loopOut >= 0) {
+                    const loopInClip = _tunnelArrangement.find(a => a.frameIndex === state.loopIn);
+                    const loopOutClip = _tunnelArrangement.find(a => a.frameIndex === state.loopOut);
+                    if (loopInClip && loopOutClip) {
+                        const loopEnd = loopOutClip.vStart + loopOutClip.vDur;
+                        if (_playZ >= loopEnd) _playZ = loopInClip.vStart;
+                    } else if (_playZ >= extent) {
+                        _playZ = _tunnelArrangement[0].vStart;
+                    }
+                } else if (_playZ >= extent) {
+                    _playZ = _tunnelArrangement[0].vStart;
+                }
+
+                compositeAtZ(_playZ);
+                syncCameraFromCursor();
+                _lastPlayFrame = state.cur;
+                // Spatial path bypasses renderOutput() monkey-patch —
+                // emit cursor explicitly so tunnel follows playback
+                _atoBusEmitCursor();
+                highlightFrame(state.cur);
+
+            } else {
+                // Fallback: linear order with loop enforcement
+                state.cur = (state.cur + 1) % state.frames.length;
+                // Loop enforcement in linear mode
+                if (state.loopIn >= 0 && state.loopOut >= 0) {
+                    if (state.cur > state.loopOut) state.cur = state.loopIn;
+                    if (state.cur < state.loopIn) state.cur = state.loopIn;
+                }
+                renderOutput();
+                syncCameraFromCursor();
+            }
+
             // Update all frame readouts
             const fb = document.getElementById('sb-frame');
             const rd = document.getElementById('tl-frame-readout');
@@ -2854,6 +3463,7 @@ SHF 2 1 24</textarea>
         const grid = _getCachedGrid(frameIndex);
         window.parent.postMessage({
             type: 'FRAME_PATCH',
+            _origin: 'engine',
             index: frameIndex,
             grid: Array.from(grid),
             version: f._v || 0,
@@ -2875,6 +3485,7 @@ SHF 2 1 24</textarea>
             }));
             window.parent.postMessage({
                 type: 'FRAMES_SYNC',
+                _origin: 'engine',
                 frames: frames,
                 total: state.frames.length,
                 cursor: state.cur,
@@ -2888,6 +3499,7 @@ SHF 2 1 24</textarea>
         if (!_ATOBUS_ACTIVE) return;
         window.parent.postMessage({
             type: 'CURSOR_MOVE',
+            _origin: 'engine',
             cursor: state.cur,
             total: state.frames.length
         }, '*');
@@ -2910,6 +3522,8 @@ SHF 2 1 24</textarea>
         // Only emit FRAMES_SYNC on structural changes (add/delete/reorder)
         // Cursor-only changes use highlightFrame() which skips this entirely
         const _origRebuild = rebuildTrack;
+        // Stash for use in message handler (CLIP_ARRANGE needs strip rebuild without re-emitting sync)
+        window._rebuildTrackNoSync = _origRebuild;
         rebuildTrack = function() { _origRebuild.apply(this, arguments); _atoBusEmitSync(); };
 
         const _origRenderOutput = renderOutput;
@@ -2929,8 +3543,16 @@ SHF 2 1 24</textarea>
         // Listen for commands from tunnel via harness
         window.addEventListener('message', e => {
             const d = e.data;
-            if (!d || !d.type) return;
+            // ── MESSAGE VALIDATION (Structural) ──
+            // Reject malformed messages before they reach ANY handler.
+            // This makes type-error crashes from bad messages impossible.
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+            // Reject messages from self (echo prevention)
+            if (d._origin === 'engine') return;
+
             if (d.type === 'GOTO_FRAME' && typeof d.cursor === 'number') {
+                // During playback, engine is temporal authority — ignore tunnel navigation
+                if (state.playing) return;
                 const newCur = Math.max(0, Math.min(state.frames.length - 1, d.cursor));
                 if (newCur !== state.cur) {
                     state.cur = newCur;
@@ -2939,6 +3561,18 @@ SHF 2 1 24</textarea>
                     _busInboundGoto = false;
                     highlightFrame(state.cur); // O(1) cursor highlight
                 }
+            }
+            if (d.type === 'CLIP_ARRANGE' && Array.isArray(d.playOrder)) {
+                _tunnelPlayOrder = d.playOrder.filter(i => i >= 0 && i < state.frames.length);
+                _tunnelArrangement = d.arrangement || null;
+                _derivedClipsCache = null;
+                _derivedClipsCacheKey = '';
+                // Use un-patched rebuild to avoid re-emitting FRAMES_SYNC (breaks ping-pong loop)
+                if (window._rebuildTrackNoSync) window._rebuildTrackNoSync();
+                else rebuildTrack();
+                highlightFrame(state.cur);
+                flashSync('up');
+                console.log('[ENGINE] Arrangement synced:', _tunnelPlayOrder.length, 'clips');
             }
             if (d.type === 'PLAY_SYNC') {
                 // Tunnel requested play/stop — sync icaro-pro playback

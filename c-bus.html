@@ -269,6 +269,15 @@
             color: #fff;
         }
 
+        /* Tool category colors (when active) */
+        #dock button.on[data-cat="time"] { background: #166534; }
+        #dock button.on[data-cat="vis"] { background: #1e40af; }
+        #dock button.on[data-cat="ann"] { background: #92400e; }
+        /* Subtle tint when inactive */
+        #dock button[data-cat="time"] { color: #22c55e; }
+        #dock button[data-cat="vis"] { color: #60a5fa; }
+        #dock button[data-cat="ann"] { color: #fbbf24; }
+
         #badge {
             position: fixed;
             z-index: 22;
@@ -320,7 +329,7 @@
 
         .slots {
             display: grid;
-            grid-template-columns: repeat(5, 1fr)
+            grid-template-columns: repeat(4, 1fr)
         }
 
         .slot {
@@ -490,13 +499,13 @@
         <div class="slots" id="slots"></div>
     </section>
     <section id="dock">
-        <button data-tool="MOVE" class="on">MOVE</button>
-        <button data-tool="TRIM">TRIM</button>
-        <button data-tool="ROLL">ROLL</button>
-        <button data-tool="LIFT">LIFT</button>
-        <button data-tool="SPLIT">SPLIT</button>
-        <button data-tool="ROUTE">ROUTE</button>
-        <button data-tool="STORE">STORE</button>
+        <button data-tool="MOVE" data-cat="time" class="on">MOVE</button>
+        <button data-tool="TRIM" data-cat="time">TRIM</button>
+        <button data-tool="ROLL" data-cat="vis">ROLL</button>
+        <button data-tool="LIFT" data-cat="vis">LIFT</button>
+        <button data-tool="SPLIT" data-cat="time">SPLIT</button>
+        <button data-tool="ROUTE" data-cat="ann">ROUTE</button>
+        <button data-tool="STORE" data-cat="ann">STORE</button>
     </section>
     <footer id="bottom">
         <div id="tracks"></div>
@@ -762,6 +771,19 @@
                         haptic([12, 30, 12])
                     } else if (kind === 'jog') {
                         tone(880, .004, .001, 'triangle');
+                    } else if (kind === 'mode') {
+                        tone(660, .008, .003, 'square');
+                        setTimeout(() => tone(990, .006, .002, 'square'), 18);
+                        haptic([3, 8, 3]);
+                    } else if (kind === 'thud') {
+                        tone(180, .025, .008, 'sine');
+                        haptic([8, 20, 6]);
+                    } else if (kind === 'grab') {
+                        tone(440, .006, .002, 'triangle');
+                        haptic(3);
+                    } else if (kind === 'release') {
+                        tone(660, .008, .003, 'triangle');
+                        haptic([2, 6, 2]);
                     } else {
                         tone(1120, .008, S.unit === 'EDGE' ? .0025 : .0045, 'triangle');
                         haptic(S.unit === 'EDGE' ? 2 : 4)
@@ -820,11 +842,15 @@
                     c.start = Number.isFinite(+c.start) ? +c.start : 0;
                     c.dur = Math.max(SNAP, Number.isFinite(+c.dur) ? +c.dur : SNAP);
                     c.track = norm(+c.track || 0);
+                    c.rot = Number.isFinite(+c.rot) ? +c.rot : 0;
+                    c.lift = Number.isFinite(+c.lift) ? +c.lift : 0;
                     return Object.assign(mk(0, 0, 0), c, {
                         id: String(c.id || id()),
                         vStart: c.start,
                         vTrack: c.track,
-                        vDur: c.dur
+                        vDur: c.dur,
+                        _frameIndex: (c._frameIndex !== undefined) ? c._frameIndex : undefined,
+                        _userEdited: c._userEdited || false
                     });
                 }
                 function seed() {
@@ -844,7 +870,7 @@
                 function projectPayload() {
                     return {
                         app: 'Arc-Tunnel Operator',
-                        version: 12,
+                        version: 13,
                         exportedAt: new Date().toISOString(),
                         state: {
                             view: S.view,
@@ -857,9 +883,23 @@
                             snap: S.snap
                         },
                         nextId,
-                        clips: clips.map(c => Object.assign({}, c)),
+                        clips: clips.map(c => ({
+                            id: c.id,
+                            start: c.start,
+                            dur: c.dur,
+                            track: c.track,
+                            rot: c.rot || 0,
+                            lift: c.lift || 0,
+                            locked: c.locked || false,
+                            labelDx: c.labelDx || 0,
+                            labelDy: c.labelDy || 0,
+                            _frameIndex: c._frameIndex,
+                            _userEdited: c._userEdited || false
+                        })),
                         bank: bank.map(b => Object.assign({}, b)),
-                        routes: routes.map(r => Object.assign({}, r))
+                        routes: routes.map(r => Object.assign({}, r)),
+                        clipCount: clips.length,
+                        routeCount: routes.length
                     }
                 }
                 function applyProjectPayload(d) {
@@ -873,7 +913,9 @@
                     drawTracks();
                     drawStore();
                     drawOps();
-                    save()
+                    _wakeBus();
+                    save();
+                    toast('LOADED ' + clips.length + ' CLIPS, ' + routes.length + ' ROUTES');
                 }
                 function save() {
                     try {
@@ -941,15 +983,19 @@
                     }
                 }
                 function exportEDL() {
-                    let lines = ['TITLE: ARC-TUNNEL OPERATOR', ''];
-                    clips.slice().sort( (a, b) => a.start - b.start).forEach( (c, i) => lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur}`));
+                    let lines = ['TITLE: ARC-TUNNEL OPERATOR', 'EXPORTED: ' + new Date().toISOString(), ''];
+                    clips.slice().sort( (a, b) => a.start - b.start).forEach( (c, i) => {
+                        let fi = c._frameIndex !== undefined ? ' FRAME:' + (c._frameIndex + 1) : '';
+                        let rot = c.rot ? ' ROT:' + Math.round(c.rot * 180 / Math.PI) + '\u00B0' : '';
+                        let lift = c.lift ? ' LIFT:' + c.lift.toFixed(2) : '';
+                        lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur}${fi}${rot}${lift}`);
+                    });
                     let edl = lines.join(String.fromCharCode(10));
                     safeClipboardWrite(edl).then(ok => {
                         downloadText(edl, 'arc_tunnel_edl_' + Date.now() + '.txt', 'text/plain');
                         tick('export');
                         toast(ok ? 'EDL COPIED + DOWNLOADED' : 'EDL DOWNLOADED')
-                    }
-                    )
+                    })
                 }
                 function requestImport() {
                     importFile.value = '';
@@ -1466,10 +1512,10 @@
                             ctx.fillStyle = baseFill;
                             ctx.fill(p);
 
-                            // Hatch/thumbnail: only on near cells, thumbnail only on nearest
+                            // Hatch/thumbnail: show on ALL near cells (hold-frame model)
+                            // Extended clips show their source frame across the entire face
                             if (!sel && cell.d < (isMobile ? 3500 : 5500)) {
-                                const isNearest = (cell.d === nearestD);
-                                _busCurrentClip = isNearest ? c : null; // thumbnail only on nearest cell
+                                _busCurrentClip = c; // thumbnail on ALL near cells
                                 hatch(p, st.hatch, b);
                                 _busCurrentClip = null;
                             }
@@ -1595,6 +1641,15 @@
                           , hov = S.hover && S.hover.clip === c;
                         if (x1 < A.x - 90 || x0 > A.x + A.w + 90)
                             continue;
+                        // Apply visual rotation in flat views
+                        let hasRot = c.rot && Math.abs(c.rot) > 0.01;
+                        let cx = x0 + Math.max(5, w) / 2, cy = top + h / 2;
+                        if (hasRot) {
+                            ctx.save();
+                            ctx.translate(cx, cy);
+                            ctx.rotate(c.rot);
+                            ctx.translate(-cx, -cy);
+                        }
                         let p = new Path2D();
                         p.rect(x0, top, Math.max(5, w), h);
                         ctx.save();
@@ -1613,6 +1668,15 @@
                         ctx.lineWidth = sel ? 5 : 2;
                         ctx.strokeStyle = '#000';
                         ctx.stroke(p);
+                        // Rotation angle indicator
+                        if (hasRot) {
+                            ctx.fillStyle = '#ef4444';
+                            ctx.font = '700 7px ui-monospace';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(Math.round(c.rot * 180 / Math.PI) + '\u00B0', x0 + Math.max(5, w) - 3, top + h - 2);
+                        }
+                        if (hasRot) ctx.restore(); // Undo rotation transform
                         if (sel) {
                             ctx.strokeStyle = '#fff';
                             ctx.lineWidth = 2;
@@ -1636,6 +1700,23 @@
                         ctx.setLineDash([]);
                         if (sel || hov || w > 88)
                             tag((x0 + x1) / 2, y, c.id, sel);
+                        // Track layer pip — colored dot showing POSSIBLE/PLAUSIBLE/PROBABLE/PREFERRED
+                        ctx.save();
+                        ctx.fillStyle = TRACK_COLORS[c.track] || '#888';
+                        ctx.beginPath();
+                        ctx.arc(x0 + 6, top + 6, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                        ctx.stroke();
+                        // Track initial letter
+                        if (w > 40) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = '900 7px ui-monospace';
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(SHORT[c.track], x0 + 13, top + 2);
+                        }
+                        ctx.restore();
                         rendered.push({
                             type: 'bench',
                             clip: c,
@@ -1667,6 +1748,67 @@
                         w: 76,
                         h: A.h - 16
                     });
+
+                    // ── LIFT INDICATORS — vertical nub on each clip ──
+                    for (const c of clips) {
+                        if (!c.lift && c.lift !== 0) continue;
+                        if (Math.abs(c.lift) < 0.05) continue;
+                        let x0 = benchX(c.vStart)
+                          , x1 = benchX(c.vStart + c.vDur)
+                          , mx = (x0 + x1) / 2
+                          , y = laneY(c.vTrack)
+                          , h = laneH();
+                        if (x1 < A.x - 90 || x0 > A.x + A.w + 90) continue;
+                        // Nub: vertical bar extending up (positive) or down (negative) from clip center
+                        let nubH = Math.abs(c.lift) * h * 0.6;
+                        let nubY = c.lift > 0 ? y - h/2 - nubH : y + h/2;
+                        ctx.save();
+                        ctx.fillStyle = c.lift > 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.5)';
+                        ctx.fillRect(mx - 3, nubY, 6, nubH);
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(mx - 3, nubY, 6, nubH);
+                        // Label
+                        ctx.fillStyle = '#000';
+                        ctx.font = '700 7px ui-monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = c.lift > 0 ? 'bottom' : 'top';
+                        ctx.fillText((c.lift > 0 ? '+' : '') + c.lift.toFixed(2), mx, c.lift > 0 ? nubY - 2 : nubY + nubH + 2);
+                        ctx.restore();
+                    }
+
+                    // ── ROUTE LINES — dashed connections between linked clips ──
+                    if (routes.length > 0) {
+                        ctx.save();
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([6, 4]);
+                        ctx.strokeStyle = '#000';
+                        for (const r of routes) {
+                            let a = clips.find(c => c.id === r.from)
+                              , b = clips.find(c => c.id === r.to);
+                            if (!a || !b) continue;
+                            let ax1 = (benchX(a.vStart) + benchX(a.vStart + a.vDur)) / 2
+                              , ay = laneY(a.vTrack)
+                              , bx = (benchX(b.vStart) + benchX(b.vStart + b.vDur)) / 2
+                              , by = laneY(b.vTrack);
+                            ctx.beginPath();
+                            ctx.moveTo(ax1, ay);
+                            ctx.lineTo(bx, by);
+                            ctx.stroke();
+                            // Route label at midpoint
+                            tag((ax1 + bx) / 2, (ay + by) / 2, r.type || 'ROUTE');
+                        }
+                        // Active route drag line
+                        if (S.drag && S.drag.mode === 'route' && S.drag.clip) {
+                            ctx.beginPath();
+                            ctx.moveTo(S.drag.sx, S.drag.sy);
+                            ctx.lineTo(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy);
+                            ctx.stroke();
+                            tag(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy, 'ROUTE');
+                        }
+                        ctx.setLineDash([]);
+                        ctx.restore();
+                    }
                 }
 
                 function outsideP() {
@@ -2137,8 +2279,13 @@
                     last = ts;
 
                     // ── MOTION: only when something is moving ──
-                    if (S.play) {
+                    if (S.play && !_BUSRX_ACTIVE) {
+                        // Standalone mode: tunnel advances its own clock
                         S.cam += dt * 0.16 * S.playRate;
+                        _dirty = true;
+                    } else if (S.play && _BUSRX_ACTIVE) {
+                        // Coupled mode: engine is the clock — tunnel follows CURSOR_MOVE
+                        // Just keep dirty so we re-render (camera is set by message handler)
                         _dirty = true;
                     } else if (!S.drag && !S.scrub && Math.abs(S.inertia) > 0.05) {
                         S.cam += S.inertia * (dt / 16);
@@ -2201,20 +2348,19 @@
                     _perf.renderMs += performance.now() - t0;
                     _perf.frames++;
 
-                    // ── CONTINUOUS CAMERA→FRAME SYNC ──
-                    // When camera moves (scrub, scroll, inertia, playback),
-                    // derive which frame we're over and tell the engine
-                    if (_BUSRX_ACTIVE && _busFrameTotal > 0) {
-                        const frameIdx = Math.max(0, Math.min(
-                            _busFrameTotal - 1,
-                            Math.round(S.cam / (SNAP * 2))
-                        ));
+                    // ── CONTINUOUS CAMERA→FRAME SYNC (Hold-Frame Model) ──
+                    // Derives which SOURCE FRAME the camera is over by checking
+                    // which clip's [vStart, vStart+vDur) range contains S.cam.
+                    // This means extending a clip = holding that frame longer.
+                    if (_BUSRX_ACTIVE && _busFrameTotal > 0 && !S.drag) {
+                        const frameIdx = _busDeriveFrame(S.cam);
                         const now = performance.now();
                         if (frameIdx !== _busCamLastFrame && now - _busCamLastEmit > 60) {
                             _busCamLastFrame = frameIdx;
                             _busCamLastEmit = now;
                             window.parent.postMessage({
                                 type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
                                 cursor: frameIdx,
                                 source: 'camera'
                             }, '*');
@@ -2239,8 +2385,12 @@
                     }
                     S.selected = c;
                     S.active = c.track;
-                    selBig.textContent = c.id;
-                    selMeta.textContent = `${S.tool} ${S.unit} ${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
+                    // Update active track for hold-frame derivation
+                    if (c._frameIndex !== undefined) _busActiveTrack = c.track;
+                    selBig.textContent = c._frameIndex !== undefined ? `F${c._frameIndex + 1}` : c.id;
+                    const holdBeats = Math.round(c.dur / SNAP);
+                    const frameInfo = c._frameIndex !== undefined ? `HOLD ${holdBeats}× ` : '';
+                    selMeta.textContent = `${frameInfo}${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
                     drawTracks();
                     drawOps();
                     if (src === 'object' && c !== old) {
@@ -2304,11 +2454,16 @@
                     bank.unshift({
                         id: c.id,
                         dur: c.dur,
-                        track: c.track
+                        start: c.start,
+                        track: c.track,
+                        lift: c.lift || 0,
+                        frameIndex: c._frameIndex,
+                        timestamp: Date.now()
                     });
-                    bank.splice(5);
+                    bank.splice(8);
+                    tick('export');
                     drawStore();
-                    toast('STORED ' + c.id)
+                    toast('STORED ' + c.id + ' (' + NAMES[c.track] + ')')
                 }
                 function drawTracks() {
                     tracksEl.innerHTML = '';
@@ -2330,14 +2485,44 @@
                 function drawStore() {
                     storeCount.textContent = bank.length;
                     slotsEl.innerHTML = '';
-                    for (let i = 0; i < 5; i++) {
+                    for (let i = 0; i < 8; i++) {
                         let s = bank[i]
                           , d = document.createElement('div');
                         d.className = 'slot';
-                        d.innerHTML = s ? `<b>${s.id}</b><small>${NAMES[s.track]}</small>` : '<b>EMPTY</b><small>STORE</small>';
-                        if (s)
-                            d.onclick = () => addClip(S.cam + SNAP * (i + 1), s.track);
+                        if (s) {
+                            d.innerHTML = `<b>${s.id}</b><small>${NAMES[s.track]} F${(s.frameIndex||0)+1}</small>`;
+                            d.onclick = () => {
+                                // RECALL: jump camera to stored clip position
+                                S.cam = s.start + s.dur / 2;
+                                tick('snap');
+                                toast('RECALL ' + s.id);
+                                _wakeBus();
+                            };
+                        } else {
+                            d.innerHTML = '<b>EMPTY</b><small>STORE</small>';
+                        }
                         slotsEl.appendChild(d)
+                    }
+                    // Export button
+                    if (bank.length > 0) {
+                        let ex = document.createElement('div');
+                        ex.className = 'slot';
+                        ex.style.gridColumn = '1 / -1';
+                        ex.style.textAlign = 'center';
+                        ex.style.fontWeight = '900';
+                        ex.style.letterSpacing = '0.08em';
+                        ex.innerHTML = '<b>EXPORT STORE</b><small>DOWNLOAD JSON</small>';
+                        ex.onclick = () => {
+                            const data = JSON.stringify({ store: bank, exported: new Date().toISOString() }, null, 2);
+                            const blob = new Blob([data], { type: 'application/json' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = 'icaro-store-' + Date.now() + '.json';
+                            a.click();
+                            tick('export');
+                            toast('EXPORTED ' + bank.length + ' CLIPS');
+                        };
+                        slotsEl.appendChild(ex);
                     }
                 }
                 function op(id, label, act, state) {
@@ -2366,21 +2551,33 @@
                     op('unit', 'UNIT', 'clip beat cell edge', S.unit);
                     op('move', 'MOVE', 'center plate / front lip', S.tool);
                     op('trim', 'TRIM', 'nose lip / rear lip', S.tool);
-                    op('roll', 'ROLL', 'rotate knob', S.tool);
-                    op('lift', 'LIFT', 'inside outside nub', S.tool);
-                    op('route', 'ROUTE', 'socket arrow', routes.length + ' ROUTES');
-                    op('store', 'STORE', 'send to tray', bank.length + ' STORED');
+                    op('roll', 'ROLL', 'angular rotation', S.selected ? Math.round((S.selected.rot||0) * 180 / Math.PI) + '\u00B0' : '0\u00B0');
+                    op('lift', 'LIFT', 'compositing weight', S.selected ? (S.selected.lift||0).toFixed(2) : '0.00');
+                    op('route', 'ROUTE', 'narrative link', routes.length + ' ROUTES');
+                    op('store', 'STORE', 'snapshot + recall', bank.length + ' STORED');
                     op('edl', 'EDL', 'download edit list', 'READY');
                     op('import', 'IMPORT', 'load project JSON', 'FILE');
                     op('project', 'PROJECT', 'download full state', 'JSON')
                 }
+                // Tool descriptions — what each tool MEANS in the coupled system
+                const TOOL_DESC = {
+                    MOVE:  'REPOSITION IN TIME + TRACK',
+                    TRIM:  'EXTEND / SHORTEN HOLD',
+                    ROLL:  'ANGULAR ROTATION',
+                    LIFT:  'COMPOSITING WEIGHT',
+                    SPLIT: 'CUT AT PLAYHEAD',
+                    ROUTE: 'NARRATIVE LINK',
+                    STORE: 'SNAPSHOT + RECALL'
+                };
+
                 function setTool(t) {
                     S.tool = t;
                     [...dock.querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.tool === t));
                     // Toggle store panel visibility
                     const storeEl = document.getElementById('store');
                     if (storeEl) storeEl.classList.toggle('show', t === 'STORE');
-                    toast(t);
+                    // Show tool description
+                    setStatus(TOOL_DESC[t] || t);
                     drawOps();
                     if (S.selected)
                         select(S.selected, 'tool')
@@ -2412,6 +2609,7 @@
                 function cycleUnit() {
                     let i = UNITS.indexOf(S.unit);
                     S.unit = UNITS[(i + 1) % UNITS.length];
+                    tick('mode');
                     toast('UNIT ' + S.unit);
                     drawOps();
                     if (S.selected)
@@ -2419,9 +2617,64 @@
                 }
                 function setView(v) {
                     S.view = v;
+                    tick('mode');
                     toast(VIEWS[v]);
-                    drawOps()
+                    drawOps();
+                    _wakeBus();
+                    render(performance.now());
                 }
+
+                // ── CLIP UNDO STACK ──
+                // Captures clip state before drag operations.
+                // Right-click, Cmd+Z, or context menu to undo.
+                const _clipUndoMax = 30;
+                const _clipUndoStack = [];
+                let _clipUndoIndex = -1;
+
+                function pushClipUndo(clip) {
+                    if (!clip) return;
+                    const snap = {
+                        clipId: clip.id,
+                        start: clip.start, dur: clip.dur,
+                        track: clip.track, rot: clip.rot,
+                        lift: clip.lift, locked: clip.locked
+                    };
+                    _clipUndoStack.length = _clipUndoIndex + 1;
+                    _clipUndoStack.push(snap);
+                    if (_clipUndoStack.length > _clipUndoMax) _clipUndoStack.shift();
+                    _clipUndoIndex = _clipUndoStack.length - 1;
+                }
+
+                function clipUndo() {
+                    if (_clipUndoIndex < 0) { toast('NOTHING TO UNDO'); return; }
+                    const snap = _clipUndoStack[_clipUndoIndex];
+                    const c = clips.find(cl => cl.id === snap.clipId);
+                    if (c) {
+                        c.start = snap.start; c.dur = snap.dur;
+                        c.track = snap.track; c.rot = snap.rot;
+                        c.lift = snap.lift; c.locked = snap.locked;
+                        c.vStart = c.start; c.vDur = c.dur;
+                        c.vTrack = c.track; c.vLift = c.lift;
+                        select(c, 'undo');
+                    }
+                    _clipUndoIndex--;
+                    _wakeBus();
+                    toast('UNDO');
+                }
+
+                // Right-click undo on tunnel canvas
+                canvas.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    clipUndo();
+                });
+
+                // Cmd+Z / Ctrl+Z for clip undo
+                window.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        clipUndo();
+                    }
+                });
 
                 canvas.addEventListener('pointerdown', e => {
                     _wakeBus();
@@ -2447,11 +2700,13 @@
                         if (S.selected === h.clip && e.detail >= 2)
                             cycleUnit();
                         if (h.mode === 'split') {
+                            pushClipUndo(h.clip); // Snapshot before split
                             let ptr = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start + h.clip.dur / 2);
                             cutClip(h.clip, magneticSnap(ptr));
                             return;
                         }
                         select(h.clip, 'object');
+                        pushClipUndo(h.clip); // Snapshot BEFORE drag mutation
                         let ptrZ = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start);
                         S.drag = {
                             mode: h.mode,
@@ -2471,6 +2726,7 @@
                             axisLock: null,
                             lastSnapZ: h.clip.start
                         };
+                        tick('grab');
                         setStatus(String(h.mode).toUpperCase())
                     } else {
                         S.scrub = {
@@ -2563,9 +2819,13 @@
                             select(c, 'lane');
                             save()
                         } else if (d.mode === 'rotate') {
+                            // ROLL = angular rotation
+                            // Tube views: rotates clip around barrel axis
+                            // Bench/side views: tilts clip visually
                             c.rot = d.rot + dx * .012;
                             if (S.snap)
                                 c.rot = Math.round(c.rot / (Math.PI / 4)) * (Math.PI / 4);
+                            tick('ratchet', 0.9 + Math.abs(c.rot) * 0.3);
                             select(c, 'rot');
                             save()
                         } else if (d.mode === 'lift') {
@@ -2645,6 +2905,9 @@
                             tick('drop');
                             toast('ROUTED')
                         }
+                        // ── EMIT CLIP ARRANGEMENT TO ENGINE ──
+                        // Closes the one-way mirror: engine learns spatial order
+                        _busEmitArrangement();
                         S.drag = null
                     }
                     if (S.scrub) {
@@ -2936,6 +3199,29 @@
                 // ═══════════════════════════════════════════════════
                 const _BUSRX_ACTIVE = (window.parent !== window);
 
+                // ── SHARED: Emit full clip arrangement to engine ──
+                function _busEmitArrangement() {
+                    if (!_BUSRX_ACTIVE) return;
+                    const arrangement = clips
+                        .filter(c => c._frameIndex !== undefined)
+                        .sort((a, b) => a.vStart - b.vStart)
+                        .map(c => ({
+                            frameIndex: c._frameIndex,
+                            vStart: c.vStart,
+                            vDur: c.vDur,
+                            track: c.track,
+                            lift: c.lift || 0,
+                            rot: c.rot || 0
+                        }));
+                    window.parent.postMessage({
+                        type: 'CLIP_ARRANGE',
+                        _origin: 'tunnel',
+                        arrangement: arrangement,
+                        playOrder: arrangement.map(a => a.frameIndex)
+                    }, '*');
+                }
+
+
                 // ── TWO-TIER CACHE (LAW 7 — O(1) Memory) ──
                 // Tier 1: Raw grid data (cheap, unbounded)
                 const _busGridStore = new Map();  // index → { grid, version }
@@ -3008,6 +3294,40 @@
                 let _busFrameTotal = 0;
                 let _busCamLastFrame = -1;  // Last frame index emitted via camera sync
                 let _busCamLastEmit = 0;    // Timestamp of last camera sync emit
+                let _busActiveTrack = -1;   // -1 = all tracks, 0-3 = specific track
+
+                // ── HOLD-FRAME DERIVATION ──
+                // Replaces the old linear Math.round(S.cam / (SNAP * 2)).
+                // Walks clips to find which clip's [vStart, vStart+vDur) 
+                // contains the camera position, then returns that clip's
+                // source frame. Extending a clip = holding that frame longer.
+                function _busDeriveFrame(cam) {
+                    // Determine active track from selection
+                    const track = (S.selected && S.selected._frameIndex !== undefined)
+                        ? S.selected.track : _busActiveTrack;
+
+                    let best = -1, bestDist = Infinity;
+                    for (let i = 0; i < clips.length; i++) {
+                        const c = clips[i];
+                        if (c._frameIndex === undefined) continue;
+                        // Track filter: -1 = all tracks
+                        if (track >= 0 && c.track !== track) continue;
+                        const cStart = c.vStart;
+                        const cEnd = c.vStart + c.vDur;
+                        // Camera is inside this clip's range
+                        if (cam >= cStart && cam < cEnd) {
+                            return c._frameIndex;
+                        }
+                        // Track nearest clip for fallback
+                        const mid = (cStart + cEnd) / 2;
+                        const dist = Math.abs(cam - mid);
+                        if (dist < bestDist) { bestDist = dist; best = c._frameIndex; }
+                    }
+                    // Fallback: nearest clip, or linear
+                    if (best >= 0) return best;
+                    return Math.max(0, Math.min(_busFrameTotal - 1,
+                        Math.round(cam / (SNAP * 2))));
+                }
 
                 // Shade palette matching icaro-pro BEFLIX engine
                 const _BUS_SHADES = [
@@ -3046,6 +3366,8 @@
                     drawTracks();
                     drawOps();
                     toast(total + ' FRAMES RECEIVED');
+                    // Emit initial arrangement so engine knows spatial order
+                    _busEmitArrangement();
                 }
 
                 // ── INCREMENTAL CLIP SYNC (Non-Destructive) ──
@@ -3100,6 +3422,8 @@
                     if (total !== prevTotal) {
                         toast(total + ' FRAMES (' + (total > prevTotal ? '+' : '') + (total - prevTotal) + ')');
                     }
+                    // Emit arrangement so engine knows updated spatial order
+                    _busEmitArrangement();
                 }
 
                 // Rendering context: which clip is currently being drawn
@@ -3131,9 +3455,13 @@
 
                 window.addEventListener('message', e => {
                     const d = e.data;
-                    if (!d || !d.type) return;
+                    // ── MESSAGE VALIDATION (Structural) ──
+                    // Reject malformed messages. Makes type-error crashes impossible.
+                    if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+                    // Reject messages from self (echo prevention at protocol level)
+                    if (d._origin === 'tunnel') return;
                     _perf.busMsg++;
-                    _wakeBus(); // Any bus message requires re-render
+                    _wakeBus(); // Any valid bus message requires re-render
 
                     if (d.type === 'FRAMES_SYNC') {
                         _busGridW = d.gridW || 128;
@@ -3173,21 +3501,34 @@
                                 _wakeBus(); // trigger re-render with new thumbs
                                 // Dismiss loading overlay if engine is done
                                 if (_busRipDone) _dismissRipOverlay();
+                                // LAW 2: Navigate camera AFTER clips exist
+                                if (typeof d.cursor === 'number') {
+                                    const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                                    if (targetClip) {
+                                        S.cam = targetClip.vStart + targetClip.vDur / 2;
+                                    } else {
+                                        S.cam = d.cursor * SNAP * 2;
+                                    }
+                                    _busCamLastFrame = d.cursor;
+                                }
                             }
                         }
                         processBatch();
-
-                        // Navigate camera to cursor position
-                        if (typeof d.cursor === 'number') {
-                            S.cam = d.cursor * SNAP * 2;
-                            _busCamLastFrame = d.cursor; // Prevent echo back
-                        }
                     }
 
                     if (d.type === 'CURSOR_MOVE') {
-                        if (typeof d.cursor === 'number') {
-                            S.cam = d.cursor * SNAP * 2;
-                            _busCamLastFrame = d.cursor; // Prevent echo back
+                        // Don't fight the user's drag — skip cursor sync during interaction
+                        if (!S.drag && typeof d.cursor === 'number') {
+                            // LAW 2: Frame index is shared unit, position lookup is LOCAL
+                            const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                            if (targetClip) {
+                                S.cam = targetClip.vStart + targetClip.vDur / 2;
+                            } else {
+                                S.cam = d.cursor * SNAP * 2;
+                            }
+                            _busCamLastFrame = d.cursor;
+                            // SYNCHRONOUS RENDER — eliminate rAF delay
+                            render(performance.now());
                         }
                     }
 
@@ -3211,9 +3552,11 @@
                         if (d.playing && !S.play) {
                             S.play = true;
                             S.playRate = 1;
+                            tick('thud');
                             statusEl.textContent = 'PLAYING';
                         } else if (!d.playing && S.play) {
                             S.play = false;
+                            tick('thud');
                             statusEl.textContent = 'IDLE';
                         }
                     }
@@ -3222,7 +3565,34 @@
                         // Harness requested view change
                         if (typeof d.view === 'number') {
                             S.view = d.view % VIEWS.length;
+                            tick('mode');
+                            _wakeBus();
+                            render(performance.now());
                         }
+                    }
+
+                    // ── STRIP REORDER — engine reordered frames, reposition clips ──
+                    if (d.type === 'STRIP_REORDER' && Array.isArray(d.order)) {
+                        const newOrder = d.order;
+                        // Reposition clips to match engine's new order
+                        for (let pos = 0; pos < newOrder.length; pos++) {
+                            const fi = newOrder[pos];
+                            const clip = clips.find(c => c._frameIndex === fi);
+                            if (clip) {
+                                clip.start = pos * SNAP * 2;
+                                clip.vStart = clip.start;
+                                clip.vDur = SNAP * 2;
+                                clip.dur = SNAP * 2;
+                                clip.track = fi % 4;
+                                clip._userEdited = true;
+                            }
+                        }
+                        clips.sort((a, b) => a.start - b.start);
+                        drawTracks();
+                        drawOps();
+                        save();
+                        toast('STRIP REORDER');
+                        _wakeBus();
                     }
 
                     // ── LOADING OVERLAY ──
@@ -3329,12 +3699,14 @@
                         if (c._frameIndex !== undefined) {
                             window.parent.postMessage({
                                 type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
                                 cursor: c._frameIndex
                             }, '*');
                         }
                         // Broadcast clip info to harness for bus strip display
                         window.parent.postMessage({
                             type: 'CLIP_SELECT',
+                            _origin: 'tunnel',
                             name: c.name || ('SC-' + String(c.id).padStart(3,'0')),
                             track: c.track,
                             start: c.start,
