@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VideoChopper Mobile</title>
+    <style>
+        :root {
+            --bg: #FFFFFF;
+            --fg: #000000;
+            --border: 3px solid #000000;
+            --shadow: 5px 5px 0px #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: monospace;
+            margin: 0;
+            padding: 60px 0 100px 0;
+            line-height: 1.4;
+        }
+
+        /* Regions */
+        #top_status_bar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: var(--bg);
+            border-bottom: var(--border);
+            padding: 10px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        #bottom_command_rail {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: var(--bg);
+            border-top: var(--border);
+            padding: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Components */
+        .card {
+            background: var(--bg);
+            border: var(--border);
+            box-shadow: var(--shadow);
+            margin: 20px 15px;
+            padding: 15px;
+        }
+
+        .card-title {
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--fg);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            border-bottom: 1px dashed var(--fg);
+        }
+
+        /* Inputs & Buttons */
+        button,
+        input,
+        select {
+            width: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            border: var(--border);
+            padding: 12px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        .btn-primary {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        .btn-primary:active {
+            background: var(--bg);
+            color: var(--fg);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Drawers */
+        #logic_binding_drawer {
+            position: fixed;
+            bottom: 70px;
+            left: 0;
+            width: 100%;
+            background: var(--bg);
+            border-top: var(--border);
+            padding: 10px;
+            font-size: 12px;
+            z-index: 900;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="top_status_bar">
+        <span>VIDEOCHOPPER</span>
+        <span id="status_text">AWAITING SOURCE</span>
+    </div>
+
+    <!-- SOURCE STACK -->
+    <div id="source_stack" class="card">
+        <div class="card-title">1. Source Video</div>
+        <input type="file" id="video_upload" accept="video/mp4,video/webm,video/quicktime">
+        <p style="font-size:12px; text-transform:uppercase;">Browser cannot natively read exact FPS. Manually verify
+            below.</p>
+        <div class="data-row"><span>Filename</span><span id="lbl_filename">-</span></div>
+        <div class="data-row"><span>Duration (s)</span><span id="lbl_duration">-</span></div>
+        <div class="data-row"><span>Estimated FPS</span><input type="number" id="input_fps" value="30"
+                style="width:60px; padding:2px; margin:0;"></div>
+    </div>
+
+    <!-- FRAME POLICY PANEL -->
+    <div id="frame_policy_panel" class="card hidden">
+        <div class="card-title">2. Frame Policy</div>
+        <button id="btn_canonical" class="btn-primary">95-FRAME CANONICAL MODE</button>
+        <button id="btn_experimental">190-FRAME DOUBLE-WINDOW</button>
+        <div class="data-row" style="margin-top:15px;">
+            <span>Target Frames</span><input type="number" id="input_target_frames" value="95"
+                style="width:80px; padding:2px; margin:0;">
+        </div>
+        <div class="data-row">
+            <span>Overlap Frames</span><input type="number" id="input_overlap" value="0"
+                style="width:80px; padding:2px; margin:0;">
+        </div>
+        <label style="display:block; margin-top:10px;">Remainder Policy</label>
+        <select id="sel_remainder">
+            <option value="export">Export partial remainder clip</option>
+            <option value="pad">Pad remainder</option>
+            <option value="discard">Discard (Warning)</option>
+        </select>
+    </div>
+
+    <!-- SECTION STACK -->
+    <div id="section_stack_container" class="hidden">
+        <div class="card" style="border-color:transparent; box-shadow:none; margin-bottom:0;">
+            <div class="card-title">3. Section Stack</div>
+        </div>
+        <div id="section_stack"></div>
+    </div>
+
+    <!-- DOWNLOAD STACK -->
+    <div id="download_stack" class="card hidden">
+        <div class="card-title">4. Manifest Export</div>
+        <p style="font-size:12px;">[honesty_rule] In-browser processing cannot guarantee frame-exact extraction. Export
+            JSON for backend/Colab execution.</p>
+        <button id="btn_export_manifest" class="btn-primary">DOWNLOAD PROCESSING MANIFEST</button>
+    </div>
+
+    <div id="logic_binding_drawer">
+        [logic_line] <span id="logic_display">Waiting for operation...</span>
+    </div>
+
+    <div id="bottom_command_rail">
+        <button id="btn_main_action">INSPECT METADATA</button>
+    </div>
+
+    <video id="hidden_video" class="hidden"></video>
+
+    <script>
+        // Operational State
+        const state = {
+            step: 0,
+            video: null,
+            policy: { targetFrames: 95, overlap: 0, remainder: 'export' },
+            sections: []
+        };
+
+        const UI = {
+            upload: document.getElementById('video_upload'),
+            hiddenVid: document.getElementById('hidden_video'),
+            mainBtn: document.getElementById('btn_main_action'),
+            statusTxt: document.getElementById('status_text'),
+            logicTxt: document.getElementById('logic_display'),
+            policyPanel: document.getElementById('frame_policy_panel'),
+            sectionContainer: document.getElementById('section_stack_container'),
+            sectionStack: document.getElementById('section_stack'),
+            downloadStack: document.getElementById('download_stack')
+        };
+
+        function updateLogic(text) { UI.logicTxt.innerText = text; }
+
+        // 1. Load Video
+        UI.upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            updateLogic('[select_video] [creates] SourceVideoRecord.');
+            UI.statusTxt.innerText = "SOURCE LOADED";
+
+            document.getElementById('lbl_filename').innerText = file.name;
+            const url = URL.createObjectURL(file);
+            UI.hiddenVid.src = url;
+
+            UI.hiddenVid.onloadedmetadata = () => {
+                document.getElementById('lbl_duration').innerText = UI.hiddenVid.duration.toFixed(2);
+                state.video = { file: file.name, duration: UI.hiddenVid.duration, fps: 30 };
+                UI.mainBtn.innerText = "SET FRAME POLICY";
+                state.step = 1;
+            };
+        });
+
+        // Flow Controller
+        UI.mainBtn.addEventListener('click', () => {
+            if (state.step === 1) {
+                UI.policyPanel.classList.remove('hidden');
+                UI.mainBtn.innerText = "CALCULATE SECTIONS";
+                UI.statusTxt.innerText = "FRAME POLICY";
+                updateLogic('[select_frame_policy] [sets] targetFrames and remainderPolicy.');
+                state.step = 2;
+                window.scrollTo(0, document.body.scrollHeight);
+            } else if (state.step === 2) {
+                calculateSections();
+                UI.sectionContainer.classList.remove('hidden');
+                UI.downloadStack.classList.remove('hidden');
+                UI.mainBtn.innerText = "PLAN KEYFRAMES";
+                UI.statusTxt.innerText = "SECTIONS STACKED";
+                state.step = 3;
+                window.scrollTo(0, document.body.scrollHeight);
+            } else if (state.step === 3) {
+                updateLogic('[extract_keyframe_plan] [pairs] every SectionWindow with KeyframeInstruction.');
+                alert("Keyframe Planning & Style Assignment interface bound. Proceed to Manifest Export.");
+                UI.mainBtn.innerText = "EXPORT PIPELINE";
+                state.step = 4;
+            } else if (state.step === 4) {
+                exportManifest();
+            }
+        });
+
+        // Policy Buttons
+        document.getElementById('btn_canonical').onclick = () => {
+            document.getElementById('input_target_frames').value = 95;
+            updateLogic('[frame_policy] set to Canonical 95-frame mode.');
+        };
+        document.getElementById('btn_experimental').onclick = () => {
+            document.getElementById('input_target_frames').value = 190;
+            updateLogic('[frame_policy] set to Experimental 190-frame mode.');
+        };
+
+        // Calculate Sections
+        function calculateSections() {
+            updateLogic('[calculate_section_windows] [maps] SourceVideo into SectionWindowSet.');
+            state.video.fps = parseFloat(document.getElementById('input_fps').value) || 30;
+            state.policy.targetFrames = parseInt(document.getElementById('input_target_frames').value);
+
+            const totalFrames = Math.floor(state.video.duration * state.video.fps);
+            const chunkCount = Math.floor(totalFrames / state.policy.targetFrames);
+            const remainderFrames = totalFrames % state.policy.targetFrames;
+
+            UI.sectionStack.innerHTML = '';
+            state.sections = [];
+
+            for (let i = 0; i < chunkCount; i++) {
+                const start = i * state.policy.targetFrames;
+                const end = start + state.policy.targetFrames;
+                state.sections.push({ id: `SEC_${i.toString().padStart(3, '0')}`, startFrame: start, endFrame: end, remainder: false });
+            }
+            if (remainderFrames > 0) {
+                state.sections.push({
+                    id: `SEC_${chunkCount.toString().padStart(3, '0')}_REM`,
+                    startFrame: chunkCount * state.policy.targetFrames,
+                    endFrame: totalFrames,
+                    remainder: true
+                });
+            }
+
+            state.sections.forEach(sec => {
+                UI.sectionStack.innerHTML += `
+          <div class="card">
+            <div style="font-weight:bold;">${sec.id} ${sec.remainder ? '⚠️ REMAINDER' : ''}</div>
+            <div class="data-row"><span>Frames</span><span>${sec.startFrame} - ${sec.endFrame}</span></div>
+            <div class="data-row"><span>Total</span><span>${sec.endFrame - sec.startFrame}</span></div>
+          </div>
+        `;
+            });
+        }
+
+        // Export Manifest
+        document.getElementById('btn_export_manifest').onclick = exportManifest;
+        function exportManifest() {
+            updateLogic('[export_processing_manifest] [preserves] the whole pipeline as JSON.');
+            const manifest = JSON.stringify(state, null, 2);
+            const blob = new Blob([manifest], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "VideoChopper_Manifest.json";
+            a.click();
+        }
+    </script>
+</body>
+
+</html>
