@@ -69,7 +69,7 @@
     <!-- PRES CONTROL BAR -->
     <div id="pres-bar">
         <span class="pres-label">PRES</span>
-        <label>HOLD<input id="pres-hold" type="number" value="24" min="4" max="60" step="4"></label>
+        <label>HOLD<input id="pres-hold" type="number" value="36" min="4" max="60" step="4"></label>
         <label>TRANS<input id="pres-trans" type="number" value="6" min="2" max="12" step="2"></label>
         <label>SIZE<input id="pres-size" type="number" value="10" min="6" max="20" step="1"></label>
         <label>Y<input id="pres-y" type="number" value="30" min="0" max="80" step="4"></label>
@@ -232,7 +232,9 @@ function compile(code) {
     const pY = parseInt(document.getElementById('pres-y')?.value) || 30;
     const pInk = parseInt(document.getElementById('pres-ink')?.value) || 7;
     const pTrans = Math.min(parseInt(document.getElementById('pres-trans')?.value) || 6, 12);
-    const pHold = Math.min(parseInt(document.getElementById('pres-hold')?.value) || 24, 48);
+    const pHold = Math.min(parseInt(document.getElementById('pres-hold')?.value) || 24, 60);
+    let chapterCount = 0;
+    const chapterStarts = []; // frame index where each chapter begins
 
     for (let li = 0; li < lines.length; li++) {
         const l = lines[li].trim();
@@ -250,6 +252,10 @@ function compile(code) {
             // Chapter openers (STATE 01) and RESOLVE → ripple title cards
             const isChapter = /^STATE\s*0?1\s/i.test(txt);
             const isResolve = /^RESOLVE/i.test(txt);
+            if (isChapter) {
+                chapterCount++;
+                chapterStarts.push(res.length);
+            }
             if (isChapter || isResolve) {
                 let displayText = txt;
                 if (isChapter) displayText = txt.replace(/^STATE\s*0?1\s*/i, '').trim();
@@ -338,7 +344,7 @@ function compile(code) {
     }
 
     if (!res.length) { res.push(mat); meta.push({ text: null }); }
-    return { frames: res, meta: meta };
+    return { frames: res, meta: meta, chapterStarts: chapterStarts };
 }
 
 // ══════════════════════════════════════════════════
@@ -357,8 +363,11 @@ function playStep(now) {
     const el = now - lastT, dur = 1000 / BASE_FPS;
     if (el >= dur) {
         lastT = now - (el % dur);
+        const prevFrame = curFrame;
         curFrame = (curFrame + 1) % frames.length;
         renderFrame();
+        // Trigger chapter audio on boundary crossing
+        triggerChapterAudio(prevFrame, curFrame);
     }
 }
 
@@ -378,6 +387,46 @@ function togglePlay() {
 
 // Tap canvas to play/pause
 cvs.addEventListener('click', togglePlay);
+
+// ══════════════════════════════════════════════════
+// ██ CHAPTER AUDIO ENGINE
+// ══════════════════════════════════════════════════
+let chapterStarts = [];  // populated after compile
+let chapterAudios = [];  // Audio objects for ch01–ch10
+let lastChapterIdx = -1;
+
+// Preload chapter audio files
+function preloadAudio() {
+    chapterAudios = [];
+    for (let i = 1; i <= 10; i++) {
+        const a = new Audio('audio/ch' + String(i).padStart(2,'0') + '.m4a');
+        a.preload = 'auto';
+        chapterAudios.push(a);
+    }
+}
+
+function triggerChapterAudio(prevFrame, curFrame) {
+    if (!chapterStarts.length) return;
+    // Find which chapter we're in now
+    let chIdx = -1;
+    for (let i = chapterStarts.length - 1; i >= 0; i--) {
+        if (curFrame >= chapterStarts[i]) { chIdx = i; break; }
+    }
+    // If we crossed into a new chapter, play its audio
+    if (chIdx >= 0 && chIdx !== lastChapterIdx) {
+        lastChapterIdx = chIdx;
+        // Stop all other chapter audios
+        chapterAudios.forEach(a => { a.pause(); a.currentTime = 0; });
+        // Play this chapter's audio
+        if (chapterAudios[chIdx]) {
+            chapterAudios[chIdx].play().catch(() => {});
+        }
+    }
+    // Loop reset
+    if (curFrame === 0 && prevFrame > 0) {
+        lastChapterIdx = -1;
+    }
+}
 
 // ══════════════════════════════════════════════════
 // ██ TOAST
@@ -421,6 +470,7 @@ async function loadAndCompile() {
         const result = compile(rawBflix);
         frames = result.frames;
         frameMeta = result.meta;
+        chapterStarts = result.chapterStarts || [];
         curFrame = 0;
         renderFrame();
 
@@ -445,6 +495,7 @@ document.getElementById('btn-recompile').addEventListener('click', async () => {
     const result = compile(rawBflix);
     frames = result.frames;
     frameMeta = result.meta;
+    chapterStarts = result.chapterStarts || [];
     curFrame = 0;
     renderFrame();
     toast(frames.length + ' FRAMES — READY');
@@ -522,6 +573,7 @@ async function exportVideo() {
 }
 
 // ── BOOT ──
+preloadAudio();
 loadAndCompile();
 </script>
 </body>
