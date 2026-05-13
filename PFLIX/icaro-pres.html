@@ -94,7 +94,7 @@ let frames=[], chapterStarts=[], playing=false, curFrame=0, playRAF=null;
 let BASE_FPS=12, rawBflix='';
 
 // ── AUDIO STATE ──
-let audioCtx=null, masterBuffer=null, masterSource=null, audioStartTime=0;
+let audioCtx=null;
 
 function newGrid(){return new Uint8Array(G_ROWS*G_COLS)}
 function cloneGrid(g){return new Uint8Array(g)}
@@ -182,9 +182,13 @@ function compile(code){
 }
 
 // ══════════════════════════════════════════════════
-// AUDIO-DRIVEN PLAYBACK
-// Audio currentTime determines which frame to show.
+// BULKHEADED CHAPTER SEQUENCER
+// Each chapter is an independent sync unit.
+// Plays its audio + animates its frames. When BOTH
+// finish, next chapter starts clean. Zero drift leak.
 // ══════════════════════════════════════════════════
+let chapterAudioBuffers = []; // decoded AudioBuffers per chapter
+
 function renderFrame(){
     if(!frames.length)return;
     renderGrid(frames[curFrame]);
@@ -192,105 +196,110 @@ function renderFrame(){
         String(curFrame+1).padStart(3,'0')+'/'+String(frames.length).padStart(3,'0');
 }
 
-function audioDrivenLoop(){
-    if(!playing||!audioCtx||!masterBuffer){return;}
-    playRAF=requestAnimationFrame(audioDrivenLoop);
-    // Audio elapsed time determines frame
-    const elapsed=audioCtx.currentTime-audioStartTime;
-    const totalDuration=masterBuffer.duration;
-    if(elapsed>=totalDuration){
-        // Film finished
-        playing=false;
-        curFrame=frames.length-1;
-        renderFrame();
-        document.getElementById('st-status').textContent='FINISHED';
-        document.getElementById('st-status').style.color='#999';
-        return;
-    }
-    // Map audio position to frame index
-    const progress=elapsed/totalDuration;
-    const targetFrame=Math.min(Math.floor(progress*frames.length),frames.length-1);
-    if(targetFrame!==curFrame){
-        curFrame=targetFrame;
-        renderFrame();
-    }
-}
-
-async function buildMasterAudio(){
+async function loadChapterAudio(){
     if(!audioCtx) audioCtx=new AudioContext();
-    // Load and decode all chapter audio files
-    const buffers=[];
+    chapterAudioBuffers=[];
     for(let i=1;i<=10;i++){
         try{
             const resp=await fetch('audio/ch'+String(i).padStart(2,'0')+'.m4a');
             const ab=await resp.arrayBuffer();
-            const decoded=await audioCtx.decodeAudioData(ab);
-            buffers.push(decoded);
-        }catch(e){console.warn('Audio ch'+i+' failed:',e);}
+            chapterAudioBuffers.push(await audioCtx.decodeAudioData(ab));
+        }catch(e){chapterAudioBuffers.push(null);console.warn('Audio ch'+i,e);}
     }
-    if(!buffers.length)return null;
-
-    // Calculate chapter durations from frame counts
-    // Each chapter's animation duration = (chapterFrameCount / totalFrames) * totalAudioDuration
-    // But we want audio to fill chapter gaps proportionally.
-    // Simpler: concatenate with small gaps between chapters
-    const gap=0.3; // 300ms silence between chapters
-    let totalLen=0;
-    for(const b of buffers) totalLen+=b.length;
-    totalLen+=Math.round(gap*audioCtx.sampleRate*(buffers.length-1));
-
-    const sr=audioCtx.sampleRate;
-    const channels=buffers[0].numberOfChannels;
-    masterBuffer=audioCtx.createBuffer(channels,totalLen,sr);
-
-    let offset=0;
-    for(let i=0;i<buffers.length;i++){
-        for(let ch=0;ch<channels;ch++){
-            const src=buffers[i].getChannelData(ch);
-            const dst=masterBuffer.getChannelData(ch);
-            dst.set(src,offset);
-        }
-        offset+=buffers[i].length;
-        if(i<buffers.length-1) offset+=Math.round(gap*sr);
-    }
-    return masterBuffer;
 }
 
-function startPlayback(){
-    if(!masterBuffer||!frames.length)return;
-    if(masterSource){try{masterSource.stop();}catch(e){}}
-    masterSource=audioCtx.createBufferSource();
-    masterSource.buffer=masterBuffer;
-    masterSource.connect(audioCtx.destination);
-    audioStartTime=audioCtx.currentTime;
-    masterSource.start();
+// Play one chapter: audio + frames, wait for BOTH to finish
+function playChapter(chIdx){
+    return new Promise(resolve=>{
+        // Determine frame range for this chapter
+        const startFrame=chapterStarts[chIdx]||0;
+        const endFrame=(chIdx<chapterStarts.length-1)?chapterStarts[chIdx+1]:frames.length;
+        const chFrames=endFrame-startFrame;
+        if(chFrames<=0){resolve();return;}
+
+        // Audio for this chapter
+        const audioBuf=chapterAudioBuffers[chIdx]||null;
+        const audioDur=audioBuf?audioBuf.duration:0;
+
+        // Animation duration at BASE_FPS
+        const animDur=chFrames/BASE_FPS;
+
+        // The chapter lasts whichever is LONGER
+        const chDur=Math.max(audioDur,animDur);
+
+        // Start audio
+        let src=null;
+        if(audioBuf){
+            src=audioCtx.createBufferSource();
+            src.buffer=audioBuf;
+            src.connect(audioCtx.destination);
+            src.start();
+        }
+
+        // Animate frames: spread them evenly across chDur
+        const frameInterval=chDur/chFrames;
+        const chStartTime=performance.now();
+        let audioFinished=!audioBuf;
+        let animFinished=false;
+
+        if(src) src.onended=()=>{audioFinished=true;checkDone();};
+
+        function checkDone(){
+            if(audioFinished&&animFinished) resolve();
+        }
+
+        function tick(){
+            if(!playing){if(src)try{src.stop();}catch(e){}resolve();return;}
+            const elapsed=(performance.now()-chStartTime)/1000;
+            // Map elapsed time to frame within this chapter
+            const localFrame=Math.min(Math.floor(elapsed/frameInterval),chFrames-1);
+            curFrame=startFrame+localFrame;
+            renderFrame();
+            // Update chapter indicator
+            document.getElementById('st-status').textContent=
+                '▶ CH '+(chIdx+1)+'/'+chapterStarts.length;
+            if(localFrame>=chFrames-1){
+                animFinished=true;
+                checkDone();
+                return;
+            }
+            playRAF=requestAnimationFrame(tick);
+        }
+        playRAF=requestAnimationFrame(tick);
+    });
+}
+
+// Play all chapters sequentially
+async function playFilm(){
+    if(!frames.length)return;
     playing=true;
-    curFrame=0;
-    document.getElementById('st-status').textContent='▶ PLAYING';
     document.getElementById('st-status').style.color='#e60000';
-    playRAF=requestAnimationFrame(audioDrivenLoop);
+    for(let i=0;i<chapterStarts.length;i++){
+        if(!playing)break;
+        await playChapter(i);
+    }
+    playing=false;
+    document.getElementById('st-status').textContent='FINISHED';
+    document.getElementById('st-status').style.color='#999';
 }
 
 function stopPlayback(){
     playing=false;
     cancelAnimationFrame(playRAF);
-    if(masterSource){try{masterSource.stop();}catch(e){}}
     document.getElementById('st-status').textContent='⏸ STOPPED';
     document.getElementById('st-status').style.color='#999';
 }
 
-// Canvas tap = restart from beginning
 cvs.addEventListener('click',function(){
     if(playing) stopPlayback();
-    else startPlayback();
+    else playFilm();
 });
 
-// Start overlay
 document.getElementById('start-overlay').addEventListener('click',async function(){
     this.style.display='none';
     if(!audioCtx) audioCtx=new AudioContext();
     await audioCtx.resume();
-    if(masterBuffer&&frames.length) startPlayback();
+    if(frames.length) playFilm();
 });
 
 // ── TOAST ──
@@ -320,17 +329,11 @@ async function loadAndCompile(){
         chapterStarts=result.chapterStarts||[];
         curFrame=0;renderFrame();
 
-        st.textContent='BUILDING AUDIO…';
-        await buildMasterAudio();
-        if(masterBuffer){
-            const dur=masterBuffer.duration;
-            const effFps=(frames.length/dur).toFixed(1);
-            toast(frames.length+' FRAMES · '+dur.toFixed(1)+'s AUDIO · '+effFps+' eff.FPS');
-            st.textContent=frames.length+' FRAMES · '+Math.round(dur)+'s';
-        }else{
-            toast(frames.length+' FRAMES (NO AUDIO)');
-            st.textContent=frames.length+' FRAMES';
-        }
+        st.textContent='LOADING AUDIO…';
+        await loadChapterAudio();
+        const audioCount=chapterAudioBuffers.filter(Boolean).length;
+        toast(frames.length+' FRAMES · '+audioCount+' AUDIO TRACKS');
+        st.textContent=frames.length+' FRAMES · '+chapterStarts.length+' CHAPTERS';
     }catch(e){st.textContent='FAILED: '+e.message;toast('LOAD FAILED');console.error(e);}
 }
 
@@ -352,7 +355,6 @@ function adjustFPS(d){BASE_FPS=Math.max(1,Math.min(30,BASE_FPS+d));document.getE
 async function exportVideo(){
     if(!frames.length){toast('NO FRAMES');return;}
     if(playing)stopPlayback();
-    if(!masterBuffer){toast('NO AUDIO');return;}
     toast('EXPORTING…');
     const st=document.getElementById('st-status');
     st.textContent='EXPORTING…';st.style.color='#e60000';
@@ -360,50 +362,46 @@ async function exportVideo(){
     const expCtx=new AudioContext();
     const dest=expCtx.createMediaStreamDestination();
 
-    // Decode audio again for export context
-    const audioChunks=[];
+    // Decode audio buffers in export context
+    const expAudio=[];
     for(let i=1;i<=10;i++){
         try{
             const r=await fetch('audio/ch'+String(i).padStart(2,'0')+'.m4a');
-            const b=await r.arrayBuffer();
-            audioChunks.push(await expCtx.decodeAudioData(b));
-        }catch(e){audioChunks.push(null);}
+            expAudio.push(await expCtx.decodeAudioData(await r.arrayBuffer()));
+        }catch(e){expAudio.push(null);}
     }
-
-    // Build master buffer in export context
-    const gap=0.3,sr=expCtx.sampleRate;
-    let tl=0;for(const b of audioChunks)if(b)tl+=b.length;
-    tl+=Math.round(gap*sr*(audioChunks.filter(Boolean).length-1));
-    const expBuf=expCtx.createBuffer(1,tl,sr);
-    let off=0;
-    for(let i=0;i<audioChunks.length;i++){
-        if(!audioChunks[i])continue;
-        expBuf.getChannelData(0).set(audioChunks[i].getChannelData(0),off);
-        off+=audioChunks[i].length;
-        if(i<audioChunks.length-1)off+=Math.round(gap*sr);
-    }
-
-    const audioSrc=expCtx.createBufferSource();
-    audioSrc.buffer=expBuf;audioSrc.connect(dest);
 
     const vidStream=cvs.captureStream(0);
     const combined=new MediaStream([...vidStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
     const chunks=[];
-    const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')?'video/webm;codecs=vp9,opus':MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')?'video/webm;codecs=vp8,opus':'video/webm';
+    const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')?'video/webm;codecs=vp9,opus':'video/webm';
     const rec=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:2000000});
     rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>{rec.onstop=r;});
     rec.start();
-    audioSrc.start();
 
-    // Render frames synced to audio duration
-    const totalDur=expBuf.duration;
-    const interval=totalDur*1000/frames.length;
-    for(let i=0;i<frames.length;i++){
-        curFrame=i;renderFrame();
-        if(vidStream.getVideoTracks()[0].requestFrame)vidStream.getVideoTracks()[0].requestFrame();
-        await new Promise(r=>setTimeout(r,interval));
-        if(i%30===0)st.textContent='EXPORT '+Math.round(i/frames.length*100)+'%';
+    // Play chapters sequentially into the recording
+    for(let ci=0;ci<chapterStarts.length;ci++){
+        const sf=chapterStarts[ci]||0;
+        const ef=(ci<chapterStarts.length-1)?chapterStarts[ci+1]:frames.length;
+        const nf=ef-sf;if(nf<=0)continue;
+
+        const ab=expAudio[ci];
+        const aDur=ab?ab.duration:0;
+        const vDur=nf/BASE_FPS;
+        const chDur=Math.max(aDur,vDur);
+        const interval=chDur/nf;
+
+        // Start this chapter's audio
+        if(ab){const s=expCtx.createBufferSource();s.buffer=ab;s.connect(dest);s.start();}
+
+        // Render frames for this chapter
+        for(let fi=0;fi<nf;fi++){
+            curFrame=sf+fi;renderFrame();
+            if(vidStream.getVideoTracks()[0].requestFrame)vidStream.getVideoTracks()[0].requestFrame();
+            await new Promise(r=>setTimeout(r,interval*1000));
+        }
+        st.textContent='EXPORT CH '+(ci+1)+'/'+chapterStarts.length;
     }
 
     rec.stop();await done;expCtx.close();
