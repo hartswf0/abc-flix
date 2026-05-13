@@ -1302,6 +1302,17 @@
 
     <div id="app">
 
+        <!-- ── PRES CONTROL BAR ── -->
+        <div id="pres-bar" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#111;border-bottom:2px solid #e60000;flex-wrap:wrap;font-family:'DM Sans',Helvetica,sans-serif;font-size:10px;font-weight:900;color:#999;letter-spacing:0.08em;text-transform:uppercase">
+            <span style="color:#e60000;font-size:11px;letter-spacing:0.15em;margin-right:4px">PRES</span>
+            <label>HOLD<input id="pres-hold" type="number" value="36" min="4" max="120" step="4" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>TRANS<input id="pres-trans" type="number" value="10" min="2" max="30" step="2" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>SIZE<input id="pres-size" type="number" value="10" min="6" max="20" step="1" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>Y<input id="pres-y" type="number" value="20" min="0" max="80" step="4" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>INK<input id="pres-ink" type="number" value="7" min="1" max="7" step="1" style="width:32px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <button onclick="presRecompile()" style="padding:4px 12px;background:#e60000;color:#fff;border:none;font-weight:900;font-size:10px;letter-spacing:0.1em;cursor:pointer">RECOMPILE</button>
+        </div>
+
         <!-- ── STATUS BAR (mobile only, always shows state) ── -->
         <div id="status-bar">
             <div class="sb-group">
@@ -3610,11 +3621,15 @@ SHF 2 1 24</textarea>
                                     displayText = displayText.replace(/^STATE\s*\d+\s*/i, '').trim();
                                     if (!displayText) displayText = txt;
                                     // Rasterize text into grid using built-in text engine
-                                    const titleGrid = rasterizeText(displayText, 10, 4, 4, 7);
+                                    const _pSize = parseInt(document.getElementById('pres-size')?.value) || 10;
+                                    const _pY = parseInt(document.getElementById('pres-y')?.value) || 20;
+                                    const _pInk = parseInt(document.getElementById('pres-ink')?.value) || 7;
+                                    const titleGrid = rasterizeText(displayText, _pSize, 4, _pY, _pInk);
                                     const cx = G_COLS / 2, cy = G_ROWS / 2;
                                     const maxDist = Math.sqrt(cx * cx + cy * cy);
-                                    const transFrames = 8;
-                                    const holdFrames = upper.startsWith('RESOLVE') ? 10 : 6;
+                                    const transFrames = parseInt(document.getElementById('pres-trans')?.value) || 10;
+                                    const _holdBase = parseInt(document.getElementById('pres-hold')?.value) || 36;
+                                    const holdFrames = upper.startsWith('RESOLVE') ? Math.round(_holdBase * 1.3) : _holdBase;
                                     // Ripple reveal from center outward
                                     for (let fi = 0; fi < transFrames; fi++) {
                                         const t = fi / (transFrames - 1);
@@ -4903,6 +4918,21 @@ SHF 2 1 24</textarea>
                 });
             }
         });
+
+        // ══════════════════════════════════════════════════
+        // ██ ICARO-PRES: RECOMPILE WITH NEW SETTINGS
+        // ══════════════════════════════════════════════════
+        async function presRecompile() {
+            if (state.playing) engageSequence(); // stop playback
+            fireToast('RECOMPILING...');
+            setTimeout(async function() {
+                await executeMacro();
+                fireToast(state.frames.length + ' FRAMES — READY');
+                setTimeout(function() {
+                    if (!state.playing) engageSequence();
+                }, 400);
+            }, 100);
+        }
 
         // ══════════════════════════════════════════════════
         // ██ ICARO-PRES: AUTO-LOAD films.md ON STARTUP
