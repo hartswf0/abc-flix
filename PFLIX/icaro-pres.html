@@ -1305,8 +1305,8 @@
         <!-- ── PRES CONTROL BAR ── -->
         <div id="pres-bar" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#111;border-bottom:2px solid #e60000;flex-wrap:wrap;font-family:'DM Sans',Helvetica,sans-serif;font-size:10px;font-weight:900;color:#999;letter-spacing:0.08em;text-transform:uppercase">
             <span style="color:#e60000;font-size:11px;letter-spacing:0.15em;margin-right:4px">PRES</span>
-            <label>HOLD<input id="pres-hold" type="number" value="36" min="4" max="120" step="4" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
-            <label>TRANS<input id="pres-trans" type="number" value="10" min="2" max="30" step="2" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>HOLD<input id="pres-hold" type="number" value="24" min="4" max="48" step="4" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
+            <label>TRANS<input id="pres-trans" type="number" value="6" min="2" max="12" step="2" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
             <label>SIZE<input id="pres-size" type="number" value="10" min="6" max="20" step="1" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
             <label>Y<input id="pres-y" type="number" value="20" min="0" max="80" step="4" style="width:42px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
             <label>INK<input id="pres-ink" type="number" value="7" min="1" max="7" step="1" style="width:32px;margin:0 4px;background:#222;color:#fff;border:1px solid #444;padding:2px 4px;font-size:10px;font-family:monospace"></label>
@@ -3606,54 +3606,61 @@ SHF 2 1 24</textarea>
                         }
                         
                         const p = l.split(/\s+/), c = p[0], a = p.slice(1).map(Number);
-                        // PRES: C comments → inject ripple text title cards for section headers
+                        // PRES: C comments → inject ripple text title cards
+                        // ONLY for chapter openers (STATE 01) and RESOLVE lines
+                        // Other STATE lines are already visualized in the animation
                         if (c === 'C') {
                             const raw = fullCode[li].trim();
                             const txt = raw.substring(2).trim();
-                            if (txt && !txt.startsWith('═') && !txt.startsWith('---')) {
-                                _presComment = txt;
-                                // Section headers get rendered as in-canvas title cards
-                                const upper = txt.toUpperCase();
-                                if (upper.startsWith('STATE') || upper.startsWith('RESOLVE') || upper.startsWith('SOURCE')) {
-                                    // Clean the text for display
-                                    let displayText = txt;
-                                    // Strip STATE XX prefix for cleaner display
-                                    displayText = displayText.replace(/^STATE\s*\d+\s*/i, '').trim();
-                                    if (!displayText) displayText = txt;
-                                    // Rasterize text into grid using built-in text engine
-                                    const _pSize = parseInt(document.getElementById('pres-size')?.value) || 10;
-                                    const _pY = parseInt(document.getElementById('pres-y')?.value) || 20;
-                                    const _pInk = parseInt(document.getElementById('pres-ink')?.value) || 7;
-                                    const titleGrid = rasterizeText(displayText, _pSize, 4, _pY, _pInk);
-                                    const cx = G_COLS / 2, cy = G_ROWS / 2;
-                                    const maxDist = Math.sqrt(cx * cx + cy * cy);
-                                    const transFrames = parseInt(document.getElementById('pres-trans')?.value) || 10;
-                                    const _holdBase = parseInt(document.getElementById('pres-hold')?.value) || 36;
-                                    const holdFrames = upper.startsWith('RESOLVE') ? Math.round(_holdBase * 1.3) : _holdBase;
-                                    // Ripple reveal from center outward
-                                    for (let fi = 0; fi < transFrames; fi++) {
-                                        const t = fi / (transFrames - 1);
-                                        const phase = t * Math.PI * 4;
-                                        const titleMat = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
-                                        for (let gy = 0; gy < G_ROWS; gy++) {
-                                            for (let gx = 0; gx < G_COLS; gx++) {
-                                                const dist = Math.sqrt((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy));
-                                                const norm = dist / maxDist;
-                                                const textVal = titleGrid[gy] ? titleGrid[gy][gx] : 0;
-                                                if (textVal > 0 && norm < t * 1.5) {
-                                                    titleMat[gy][gx] = textVal;
-                                                } else if (t < 0.8) {
-                                                    const wave = Math.sin((dist / 15) * Math.PI * 2 - phase);
-                                                    titleMat[gy][gx] = Math.max(0, Math.min(2, Math.round((wave + 1) * 1)));
-                                                }
+                            if (!txt || txt.startsWith('═') || txt.startsWith('---')) { continue; }
+                            _presComment = txt;
+                            const upper = txt.toUpperCase();
+                            // Only chapter openers and resolve summaries become title cards
+                            const isChapterOpen = /^STATE\s*0?1\s/i.test(upper);
+                            const isResolve = upper.startsWith('RESOLVE');
+                            if (isChapterOpen || isResolve) {
+                                // For chapter openers, show the full text
+                                let displayText = txt;
+                                if (isChapterOpen) {
+                                    displayText = displayText.replace(/^STATE\s*0?1\s*/i, '').trim();
+                                } else {
+                                    displayText = displayText.replace(/^RESOLVE\s*/i, '').trim();
+                                }
+                                if (!displayText) displayText = txt;
+                                // Read presentation config from controls
+                                const _pSize = parseInt(document.getElementById('pres-size')?.value) || 10;
+                                const _pY = parseInt(document.getElementById('pres-y')?.value) || 20;
+                                const _pInk = parseInt(document.getElementById('pres-ink')?.value) || 7;
+                                const transFrames = Math.min(parseInt(document.getElementById('pres-trans')?.value) || 6, 12);
+                                const holdBase = Math.min(parseInt(document.getElementById('pres-hold')?.value) || 24, 48);
+                                const holdFrames = isResolve ? Math.round(holdBase * 1.3) : holdBase;
+                                // Rasterize text into grid
+                                const titleGrid = rasterizeText(displayText, _pSize, 4, _pY, _pInk);
+                                const cx = G_COLS / 2, cy = G_ROWS / 2;
+                                const maxDist = Math.sqrt(cx * cx + cy * cy);
+                                // Ripple reveal from center outward
+                                for (let fi = 0; fi < transFrames; fi++) {
+                                    const t = fi / (transFrames - 1);
+                                    const phase = t * Math.PI * 4;
+                                    const titleMat = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
+                                    for (let gy = 0; gy < G_ROWS; gy++) {
+                                        for (let gx = 0; gx < G_COLS; gx++) {
+                                            const dist = Math.sqrt((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy));
+                                            const norm = dist / maxDist;
+                                            const textVal = titleGrid[gy] ? titleGrid[gy][gx] : 0;
+                                            if (textVal > 0 && norm < t * 1.5) {
+                                                titleMat[gy][gx] = textVal;
+                                            } else if (t < 0.8) {
+                                                const wave = Math.sin((dist / 15) * Math.PI * 2 - phase);
+                                                titleMat[gy][gx] = Math.max(0, Math.min(2, Math.round((wave + 1) * 1)));
                                             }
                                         }
-                                        res.push(titleMat);
                                     }
-                                    // Hold frames with full text
-                                    for (let fi = 0; fi < holdFrames; fi++) {
-                                        res.push(titleGrid.map(r => [...r]));
-                                    }
+                                    res.push(titleMat);
+                                }
+                                // Hold frames
+                                for (let fi = 0; fi < holdFrames; fi++) {
+                                    res.push(titleGrid.map(r => [...r]));
                                 }
                             }
                             continue;
