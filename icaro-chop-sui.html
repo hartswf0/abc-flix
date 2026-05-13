@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>VideoChopper ABCD Blocks Save</title>
+    <style>
+        :root {
+            --paper: #f8f0dc;
+            --ink: #000;
+            --white: #fff;
+            --blue: #123cff;
+            --gold: #d9a900;
+            --red: #e00000;
+            --green: #087a2f;
+            --line: 4px;
+            --safe: env(safe-area-inset-bottom, 0px);
+            --blockw: 150px;
+        }
+
+        * {
+            box-sizing: border-box;
+            border-radius: 0 !important;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        button,
+        input {
+            font: inherit;
+            border: var(--line) solid var(--ink);
+            background: var(--white);
+            color: var(--ink);
+        }
+
+        button {
+            min-height: 54px;
+            padding: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .055em;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 var(--ink);
+        }
+
+        button:active {
+            transform: translate(4px, 4px);
+            box-shadow: none
+        }
+
+        button:disabled {
+            opacity: .45;
+            text-decoration: line-through
+        }
+
+        #app {
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: 44px 1fr 86px 172px 76px;
+            background: var(--paper);
+        }
+
+        #bar {
+            background: #000;
+            color: #fff;
+            display: grid;
+            grid-template-columns: 1.45fr .7fr .7fr 1fr;
+        }
+
+        .cell {
+            min-width: 0;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center
+        }
+
+        .cell:last-child {
+            border-right: 0
+        }
+
+        .cell b {
+            font-size: 8px;
+            color: #888;
+            letter-spacing: .08em
+        }
+
+        .cell span {
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-variant-numeric: tabular-nums
+        }
+
+        .ok {
+            background: var(--green);
+            padding: 1px 7px
+        }
+
+        .warn {
+            background: var(--gold);
+            color: #000;
+            padding: 1px 7px
+        }
+
+        .bad {
+            background: var(--red);
+            padding: 1px 7px
+        }
+
+        #stage {
+            position: relative;
+            background: #e7ddc7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-bottom: var(--line) solid #000;
+        }
+
+        #video {
+            max-width: 100%;
+            max-height: 100%;
+            background: #000;
+            border: var(--line) solid #000;
+            display: none
+        }
+
+        #drop {
+            width: calc(100% - 28px);
+            height: calc(100% - 28px);
+            background: #fff;
+            border: var(--line) dashed #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 18px;
+            cursor: pointer;
+        }
+
+        #drop.drag {
+            background: #fff4a3;
+            border-color: var(--red)
+        }
+
+        #drop h1 {
+            font-size: 30px;
+            line-height: 1;
+            margin: 0 0 10px;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        #drop p {
+            margin: 0 0 14px;
+            font-size: 14px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .05em
+        }
+
+        #file {
+            display: none
+        }
+
+        #rec {
+            background: var(--red);
+            color: #fff;
+            min-width: 140px
+        }
+
+        #hud {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            background: #000;
+            color: #fff;
+            padding: 9px 10px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        #length {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            background: #fff;
+            border-bottom: var(--line) solid #000;
+        }
+
+        #minus,
+        #plus {
+            width: 54px;
+            min-height: 54px;
+            box-shadow: none;
+            background: #000;
+            color: #fff;
+            font-size: 24px;
+            line-height: 1
+        }
+
+        #sliderWrap {
+            min-width: 0;
+            display: grid;
+            grid-template-rows: auto auto;
+            gap: 6px
+        }
+
+        #lengthTop {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: 12px
+        }
+
+        #lengthValue {
+            font-size: 22px
+        }
+
+        #slider {
+            width: 100%;
+            height: 40px;
+            border: 0;
+            background: transparent;
+            padding: 0;
+        }
+
+        #slider::-webkit-slider-runnable-track {
+            height: 16px;
+            background: #000
+        }
+
+        #slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 40px;
+            height: 40px;
+            background: var(--red);
+            border: 4px solid #000;
+            margin-top: -12px
+        }
+
+        #slider::-moz-range-track {
+            height: 16px;
+            background: #000
+        }
+
+        #slider::-moz-range-thumb {
+            width: 32px;
+            height: 32px;
+            background: var(--red);
+            border: 4px solid #000;
+            border-radius: 0
+        }
+
+        #blocksWrap {
+            background: var(--paper);
+            border-bottom: var(--line) solid #000;
+            display: grid;
+            grid-template-rows: 30px 1fr;
+        }
+
+        #blocksHead {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 10px;
+            border-bottom: 2px solid #000;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        #blocksScroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #d9cfb7;
+            scrollbar-width: none
+        }
+
+        #blocksScroll::-webkit-scrollbar {
+            display: none
+        }
+
+        #blocks {
+            height: 100%;
+            display: flex;
+            gap: 8px;
+            padding: 9px;
+            min-width: 100%;
+            touch-action: none
+        }
+
+        .seg {
+            flex: 0 0 var(--blockw);
+            height: 124px;
+            border: var(--line) solid #000;
+            background: #fff;
+            display: grid;
+            grid-template-rows: 28px 1fr;
+            position: relative;
+        }
+
+        .seg.active {
+            outline: 5px solid var(--red);
+            outline-offset: -5px
+        }
+
+        .segHead {
+            background: #000;
+            color: #fff;
+            font-weight: 900;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 6px;
+        }
+
+        .seg.rem .segHead {
+            background: #5a4300
+        }
+
+        .parts {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            height: 100%
+        }
+
+        .part {
+            border: 0;
+            border-right: 2px solid #000;
+            box-shadow: none;
+            min-height: 0;
+            height: 100%;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+
+        .part:last-child {
+            border-right: 0
+        }
+
+        .part.active {
+            background: var(--red);
+            color: #fff
+        }
+
+        .part[data-part="head"].active {
+            background: var(--blue)
+        }
+
+        .part[data-part="mid"].active {
+            background: var(--red)
+        }
+
+        .part[data-part="tail"].active {
+            background: #000;
+            color: #fff
+        }
+
+        #selectInfo {
+            position: absolute;
+            left: 6px;
+            right: 6px;
+            bottom: 4px;
+            background: var(--gold);
+            border: 2px solid #000;
+            font-size: 9px;
+            font-weight: 900;
+            text-align: center;
+            display: none;
+        }
+
+        .seg.active #selectInfo {
+            display: block
+        }
+
+        #actions {
+            background: #fff;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding-bottom: var(--safe)
+        }
+
+        .action {
+            border: 0;
+            border-right: 2px solid #000;
+            box-shadow: none;
+            min-height: 76px;
+            font-size: 11px
+        }
+
+        .action:last-child {
+            border-right: 0
+        }
+
+        .action b {
+            display: block;
+            font-size: 25px;
+            line-height: 1
+        }
+
+        .action[data-act="a"].on {
+            background: var(--blue);
+            color: #fff
+        }
+
+        .action[data-act="b"].on {
+            background: var(--gold);
+            color: #000
+        }
+
+        .action[data-act="c"].on {
+            background: var(--red);
+            color: #fff
+        }
+
+        .action[data-act="d"].on {
+            background: #000;
+            color: #fff
+        }
+
+        #drawerTab {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            z-index: 20;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl;
+            background: #000;
+            color: #fff;
+            border: var(--line) solid #000;
+            border-right: 0;
+            padding: 12px 7px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            cursor: pointer;
+        }
+
+        #drawer {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: min(390px, 90vw);
+            z-index: 30;
+            background: #fff;
+            border-left: var(--line) solid #000;
+            transform: translateX(100%);
+            transition: transform .16s ease;
+            display: grid;
+            grid-template-rows: 48px 1fr;
+        }
+
+        #drawer.open {
+            transform: translateX(0)
+        }
+
+        #drawerHead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--paper);
+            border-bottom: 2px solid #000;
+            padding: 8px
+        }
+
+        #drawerHead b {
+            text-transform: uppercase;
+            letter-spacing: .08em
+        }
+
+        #close {
+            box-shadow: none;
+            min-height: 32px;
+            padding: 3px 8px
+        }
+
+        #drawerBody {
+            overflow: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 9px
+        }
+
+        .card {
+            border: 3px solid #000;
+            padding: 8px;
+            font-weight: 900;
+            background: #fff
+        }
+
+        .card b {
+            display: block;
+            font-size: 9px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: .08em
+        }
+
+        .big {
+            font-size: 20px
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px
+        }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 7px
+        }
+
+        .profile {
+            min-height: 48px;
+            box-shadow: none;
+            border-width: 3px;
+            font-size: 10px;
+            padding: 6px;
+            background: #fff;
+        }
+
+        .profile.active {
+            background: #000;
+            color: #fff
+        }
+
+        .primary {
+            background: #000;
+            color: #fff
+        }
+
+        .green {
+            background: var(--green);
+            color: #fff
+        }
+
+        .blue {
+            background: var(--blue);
+            color: #fff
+        }
+
+        .red {
+            background: var(--red);
+            color: #fff
+        }
+
+        .gold {
+            background: var(--gold);
+            color: #000
+        }
+
+        pre {
+            margin: 0;
+            border: 2px solid #000;
+            padding: 7px;
+            max-height: 126px;
+            overflow: auto;
+            background: #fff;
+            font: 10px Menlo, Consolas, monospace
+        }
+
+        #previewImg {
+            width: 100%;
+            border: 3px solid #000;
+            background: #ddd;
+            display: none
+        }
+
+        .toast {
+            position: fixed;
+            top: 54px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            background: #fff;
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0 #000;
+            padding: 8px 12px;
+            opacity: 0;
+            pointer-events: none;
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            white-space: nowrap;
+        }
+
+        .toast.on {
+            opacity: 1
+        }
+
+        @media(min-width:900px) {
+            #app {
+                grid-template-columns: 1fr 390px;
+                grid-template-rows: 44px 1fr 86px 174px 76px
+            }
+
+            #bar,
+            #stage,
+            #length,
+            #blocksWrap,
+            #actions {
+                grid-column: 1
+            }
+
+            #drawerTab {
+                display: none
+            }
+
+            #drawer {
+                grid-column: 2;
+                grid-row: 1/6;
+                position: static;
+                width: auto;
+                transform: none;
+                border-left: var(--line) solid #000
+            }
+
+            #close {
+                display: none
+            }
+        }
+
+        @media(max-width:620px) {
+            #app {
+                grid-template-rows: 44px 1fr 82px 158px 76px
+            }
+
+            #drop h1 {
+                font-size: 25px
+            }
+
+            #drop p {
+                font-size: 12px
+            }
+
+            #drawer {
+                top: auto;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: 50vh;
+                border-left: 0;
+                border-top: var(--line) solid #000;
+                transform: translateY(100%)
+            }
+
+            #drawer.open {
+                transform: translateY(0)
+            }
+
+            #drawerTab {
+                right: 10px;
+                top: auto;
+                bottom: calc(82px + var(--safe));
+                transform: none;
+                writing-mode: horizontal-tb;
+                border: var(--line) solid #000;
+                padding: 8px 10px
+            }
+
+            :root {
+                --blockw: 136px
+            }
+
+            .grid3 {
+                grid-template-columns: 1fr 1fr
+            }
+
+            #length {
+                grid-template-columns: 44px 1fr 44px;
+                gap: 6px
+            }
+
+            #minus,
+            #plus {
+                width: 44px;
+                min-height: 44px;
+                font-size: 20px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="bar">
+            <div class="cell"><b>FILE</b><span id="fileName">NONE</span></div>
+            <div class="cell"><b>LEN</b><span id="segLen">3s</span></div>
+            <div class="cell"><b>CUTS</b><span id="cutCount">00</span></div>
+            <div class="cell"><b>STATE</b><span id="state" class="bad">PICK</span></div>
+        </div>
+
+        <main id="stage">
+            <video id="video" controls playsinline muted></video>
+            <div id="drop">
+                <h1>Drop Video</h1>
+                <p>Click, drag file, or record</p>
+                <input id="file" type="file" accept="video/*">
+                <button id="rec">Record</button>
+            </div>
+            <div id="hud">A — Pick video. B — Build blocks. C — Preview. D — Save.</div>
+        </main>
+
+        <section id="length">
+            <button id="minus">−</button>
+            <div id="sliderWrap">
+                <div id="lengthTop"><span>Segment length</span><span id="lengthValue">3s</span></div>
+                <input id="slider" type="range" min="0.5" max="12" step="0.5" value="3">
+            </div>
+            <button id="plus">+</button>
+        </section>
+
+        <section id="blocksWrap">
+            <div id="blocksHead"><span>Blocks</span><span id="blocksMeta">No blocks</span></div>
+            <div id="blocksScroll">
+                <div id="blocks"></div>
+            </div>
+        </section>
+
+        <nav id="actions">
+            <button class="action on" data-act="a"><b>A</b>Pick</button>
+            <button class="action" data-act="b"><b>B</b>Build</button>
+            <button class="action" data-act="c"><b>C</b>Preview</button>
+            <button class="action" data-act="d"><b>D</b>Save</button>
+        </nav>
+    </div>
+
+    <button id="drawerTab">SAVE</button>
+    <aside id="drawer">
+        <div id="drawerHead"><b id="drawerTitle">Selected</b><button id="close">×</button></div>
+        <div id="drawerBody"></div>
+    </aside>
+    <div id="toast" class="toast">READY</div>
+
+    <script>
+        (function () {
+            "use strict";
+            const STORE = "vc_abcd_blocks_save_v3";
+            let video = document.getElementById("video");
+            let file = document.getElementById("file");
+            let drop = document.getElementById("drop");
+            let videoUrl = null;
+            let stream = null;
+            let recorder = null;
+            let chunks = [];
+            let activeAct = "a";
+            let toastTimer = null;
+            let state = load();
+
+            function blank() { return { source: null, segmentSeconds: 3, sections: [], activeIndex: 0, activePart: "mid", exportProfile: "all", previewImage: null } }
+            function load() { try { return Object.assign(blank(), JSON.parse(localStorage.getItem(STORE) || "{}")) } catch (e) { return blank() } }
+            function save(msg) { localStorage.setItem(STORE, JSON.stringify(state)); if (msg) toast(msg); render() }
+            function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1000) }
+            function buzz(ms = 18) { try { navigator.vibrate && navigator.vibrate(ms) } catch (e) { } }
+            function esc(v) { return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[c])) }
+            function safeStem(n) { return String(n || "video").replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 54) || "video" }
+            function pad(n, w = 3) { return String(n).padStart(w, "0") }
+            function fmt(n, d = 2) { return Number.isFinite(Number(n)) ? Number(n).toFixed(d) : "0.00" }
+            function dur() { return state.source ? state.source.duration : 0 }
+            function active() { return state.sections[state.activeIndex] || null }
+            function partTime(sec, part) {
+                if (!sec) return 0;
+                if (part === "head") return sec.start;
+                if (part === "tail") return Math.max(sec.start, sec.end - .05);
+                return sec.start + (sec.end - sec.start) / 2;
+            }
+            function partLabel(p) { return p === "head" ? "HEAD" : p === "tail" ? "TAIL" : "MID" }
+            function filename(part, idx) {
+                const stem = state.source ? state.source.stem : "VIDEO";
+                return `${stem}__S${pad(idx)}__${part.toUpperCase()}.mp4`;
+            }
+
+            function pickFile(f) {
+                if (!f) return;
+                if (videoUrl) URL.revokeObjectURL(videoUrl);
+                videoUrl = URL.createObjectURL(f);
+                state.source = { fileName: f.name, stem: safeStem(f.name), duration: 0, size: f.size, type: f.type || "video" };
+                video.srcObject = null;
+                video.src = videoUrl;
+                video.style.display = "block";
+                drop.style.display = "none";
+                video.onloadedmetadata = () => { state.source.duration = video.duration || 0; build(false); buzz(); save("video picked"); setAct("b") };
+            }
+            async function record() {
+                if (recorder && recorder.state === "recording") {
+                    recorder.stop();
+                    document.getElementById("rec").textContent = "Record";
+                    return;
+                }
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    chunks = [];
+                    recorder = new MediaRecorder(stream);
+                    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data) };
+                    recorder.onstop = () => {
+                        stream.getTracks().forEach(t => t.stop());
+                        const blob = new Blob(chunks, { type: "video/webm" });
+                        pickFile(new File([blob], "recorded_video.webm", { type: "video/webm" }));
+                    };
+                    video.srcObject = stream;
+                    video.style.display = "block";
+                    drop.style.display = "none";
+                    await video.play();
+                    recorder.start();
+                    document.getElementById("rec").textContent = "Stop";
+                    buzz(30);
+                    toast("recording");
+                } catch (e) { toast("camera blocked") }
+            }
+            function build(show) {
+                if (!state.source) { if (show) toast("pick video first"); render(); return }
+                const out = []; let start = 0, i = 0;
+                while (start < dur()) {
+                    const end = Math.min(start + state.segmentSeconds, dur());
+                    const id = state.source.stem + "__S" + pad(i);
+                    out.push({ id, index: i, start, end, rem: end - start < state.segmentSeconds });
+                    if (end >= dur()) break;
+                    start = end; i++;
+                }
+                state.sections = out;
+                if (state.activeIndex >= out.length) state.activeIndex = 0;
+                if (show) { buzz(25); toast("blocks built") }
+            }
+            function choosePart(index, part) {
+                if (!state.sections[index]) return;
+                state.activeIndex = index;
+                state.activePart = part;
+                const t = partTime(active(), part);
+                if (video.src) video.currentTime = t;
+                buzz(12);
+                setAct("c");
+                openDrawer();
+                render();
+            }
+            function setAct(act) {
+                activeAct = act;
+                document.querySelectorAll(".action").forEach(b => b.classList.toggle("on", b.dataset.act === act));
+                buzz(10);
+                if (act === "a") { file.click() }
+                if (act === "b") { build(true) }
+                if (act === "c") { if (active()) video.currentTime = partTime(active(), state.activePart); openDrawer() }
+                if (act === "d") { openDrawer() }
+                render();
+            }
+            function openDrawer() { document.getElementById("drawer").classList.add("open") }
+            function closeDrawer() { document.getElementById("drawer").classList.remove("open") }
+            function changeLength(delta) {
+                const next = Math.max(.5, Math.min(12, Number((state.segmentSeconds + delta).toFixed(1))));
+                state.segmentSeconds = next;
+                build(false);
+                buzz(8);
+                save("length");
+            }
+            function render() {
+                document.getElementById("slider").value = state.segmentSeconds;
+                document.getElementById("lengthValue").textContent = state.segmentSeconds + "s";
+                document.getElementById("segLen").textContent = state.segmentSeconds + "s";
+                document.getElementById("fileName").textContent = state.source ? state.source.stem : "NONE";
+                document.getElementById("cutCount").textContent = pad(state.sections.length, 2);
+                const st = document.getElementById("state");
+                if (!state.source) { st.className = "bad"; st.textContent = "PICK" }
+                else if (!state.sections.length) { st.className = "warn"; st.textContent = "BUILD" }
+                else { st.className = "ok"; st.textContent = "READY" }
+                document.getElementById("hud").textContent = !state.source ? "A — pick video. Use the big box." : state.sections.length ? `${partLabel(state.activePart)} of block ${pad(state.activeIndex)} selected.` : "B — build blocks.";
+                renderBlocks();
+                renderDrawer();
+            }
+            function renderBlocks() {
+                const box = document.getElementById("blocks");
+                document.getElementById("blocksMeta").textContent = state.sections.length ? `${state.sections.length} blocks · HEAD / MID / TAIL` : "No blocks";
+                if (!state.sections.length) { box.innerHTML = `<div class="card"><b>No blocks</b><div class="big">Pick video. Press B.</div></div>`; return }
+                box.innerHTML = state.sections.map((s, i) => `
+    <div class="seg ${i === state.activeIndex ? "active" : ""} ${s.rem ? "rem" : ""}">
+      <div class="segHead"><span>${pad(i)}</span><span>${fmt(s.end - s.start, 1)}s</span></div>
+      <div class="parts">
+        <button class="part ${i === state.activeIndex && state.activePart === "head" ? "active" : ""}" data-i="${i}" data-p="head">HEAD</button>
+        <button class="part ${i === state.activeIndex && state.activePart === "mid" ? "active" : ""}" data-i="${i}" data-p="mid">MID</button>
+        <button class="part ${i === state.activeIndex && state.activePart === "tail" ? "active" : ""}" data-i="${i}" data-p="tail">TAIL</button>
+      </div>
+      <div id="selectInfo">${i === state.activeIndex ? partLabel(state.activePart) + " · " + fmt(partTime(s, state.activePart)) + "s" : ""}</div>
+    </div>`).join("");
+                box.querySelectorAll(".part").forEach(b => b.onclick = e => { e.stopPropagation(); choosePart(Number(b.dataset.i), b.dataset.p) });
+            }
+            function renderDrawer() {
+                document.getElementById("drawerTitle").textContent = activeAct === "d" ? "Save Videos" : "Selected";
+                const s = active();
+                const body = document.getElementById("drawerBody");
+                if (activeAct === "d") {
+                    body.innerHTML = `
+      <div class="card"><b>Export</b><div class="big">${profileTitle(state.exportProfile)}</div></div>
+      <div class="grid3">
+        ${profileButton("all", "ALL")}
+        ${profileButton("full", "FULL")}
+        ${profileButton("headtail", "H+T")}
+        ${profileButton("heads", "HEADS")}
+        ${profileButton("mids", "MIDS")}
+        ${profileButton("tails", "TAILS")}
+        ${profileButton("selected", "SELECTED")}
+      </div>
+      <div class="card"><b>Names</b>${esc(filename("full", 0))}<br>${esc(filename("head", 0))}<br>${esc(filename("mid", 0))}<br>${esc(filename("tail", 0))}</div>
+      <button class="green" id="saveRunner">Save MP4 Runner</button>
+      <button class="primary" id="saveManifest">Save Manifest</button>
+      <button class="blue" id="saveStill">Save Selected Still PNG</button>
+      <button class="red" id="saveWebm">Save Selected Preview WebM</button>
+      <pre>${esc(JSON.stringify(manifest(), null, 2))}</pre>`;
+                    body.querySelectorAll(".profile").forEach(b => b.onclick = () => { state.exportProfile = b.dataset.profile; buzz(12); save("export " + profileTitle(state.exportProfile)) });
+                    document.getElementById("saveRunner").onclick = () => download(`videochopper__${state.source ? state.source.stem : "video"}__${state.exportProfile}__mp4_runner.py`, "text/x-python", runner());
+                    document.getElementById("saveManifest").onclick = () => download(`videochopper__${state.source ? state.source.stem : "video"}__${state.exportProfile}__manifest.json`, "application/json", JSON.stringify(manifest(), null, 2));
+                    document.getElementById("saveStill").onclick = saveSelectedStill;
+                    document.getElementById("saveWebm").onclick = saveSelectedWebm;
+                    return;
+                }
+                if (!s) { body.innerHTML = `<div class="card"><b>No cut</b><div class="big">Pick and build.</div></div>`; return }
+                body.innerHTML = `
+    <div class="card"><b>Block</b><div class="big">${pad(s.index)} · ${partLabel(state.activePart)}</div></div>
+    <div class="grid2">
+      <div class="card"><b>Segment</b>${fmt(s.start)}s → ${fmt(s.end)}s</div>
+      <div class="card"><b>Point</b>${fmt(partTime(s, state.activePart))}s</div>
+    </div>
+    <img id="previewImg" alt="selected still preview">
+    <button class="blue" id="playCut">Play Point</button>
+    <button class="blue" id="previewStill">Preview Still</button>
+    <button class="green" id="goSave">D — Save</button>`;
+                document.getElementById("playCut").onclick = () => { video.currentTime = partTime(s, state.activePart); video.play?.(); buzz() };
+                document.getElementById("previewStill").onclick = previewStill;
+                document.getElementById("goSave").onclick = () => setAct("d");
+                if (state.previewImage) {
+                    const img = document.getElementById("previewImg");
+                    img.src = state.previewImage;
+                    img.style.display = "block";
+                }
+            }
+            function profileButton(key, label) { return `<button class="profile ${state.exportProfile === key ? "active" : ""}" data-profile="${key}">${label}</button>` }
+            function profileTitle(p) { return { all: "ALL PARTS", full: "FULL SEGMENTS", headtail: "HEAD + TAIL", heads: "HEADS ONLY", mids: "MIDS ONLY", tails: "TAILS ONLY", selected: "SELECTED CUT" }[p] || "ALL PARTS" }
+            function pieceWindow(sec, part) {
+                const length = sec.end - sec.start;
+                const third = length / 3;
+                if (part === "full") return [sec.start, sec.end];
+                if (part === "head") return [sec.start, Math.min(sec.end, sec.start + third)];
+                if (part === "mid") return [sec.start + third, Math.min(sec.end, sec.start + 2 * third)];
+                if (part === "tail") return [Math.max(sec.start, sec.end - third), sec.end];
+                return [sec.start, sec.end];
+            }
+            async function seekTo(t) {
+                return new Promise((resolve, reject) => {
+                    if (!video.src) { reject(new Error("no video")); return }
+                    const done = () => { video.removeEventListener("seeked", done); resolve() };
+                    video.addEventListener("seeked", done);
+                    video.currentTime = Math.max(0, Math.min(t, dur()));
+                });
+            }
+            async function captureStillAt(t) {
+                await seekTo(t);
+                const canvas = document.createElement("canvas");
+                const w = Math.min(1280, video.videoWidth || 1280);
+                const h = Math.max(1, Math.round(w * ((video.videoHeight || 720) / (video.videoWidth || 1280))));
+                canvas.width = w; canvas.height = h;
+                canvas.getContext("2d").drawImage(video, 0, 0, w, h);
+                return canvas.toDataURL("image/png");
+            }
+            async function previewStill() {
+                const s = active(); if (!s || !video.src) { toast("no video"); return }
+                state.previewImage = await captureStillAt(partTime(s, state.activePart));
+                buzz(20);
+                save("still preview");
+            }
+            async function saveSelectedStill() {
+                const s = active(); if (!s || !video.src) { toast("no video"); return }
+                const data = await captureStillAt(partTime(s, state.activePart));
+                downloadDataURL(`${state.source.stem}__S${pad(s.index)}__${partLabel(state.activePart)}__STILL.png`, data);
+                buzz(25);
+                toast("still saved");
+            }
+            async function saveSelectedWebm() {
+                const s = active(); if (!s || !video.src) { toast("no video"); return }
+                if (!video.captureStream && !video.mozCaptureStream) { toast("preview clip unsupported"); return }
+                const part = state.activePart;
+                const [start, end] = pieceWindow(s, part);
+                const stream = (video.captureStream || video.mozCaptureStream).call(video);
+                const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+                const rec = new MediaRecorder(stream, { mimeType: mime });
+                const data = [];
+                rec.ondataavailable = e => { if (e.data.size) data.push(e.data) };
+                rec.onstop = () => {
+                    const blob = new Blob(data, { type: "video/webm" });
+                    downloadBlob(`${state.source.stem}__S${pad(s.index)}__${partLabel(part)}__PREVIEW.webm`, blob);
+                    toast("webm saved");
+                };
+                await seekTo(start);
+                video.muted = true;
+                rec.start();
+                await video.play();
+                const stopAt = () => {
+                    if (video.currentTime >= end || video.ended) {
+                        video.removeEventListener("timeupdate", stopAt);
+                        video.pause();
+                        if (rec.state === "recording") rec.stop();
+                    }
+                };
+                video.addEventListener("timeupdate", stopAt);
+                setTimeout(() => { if (rec.state === "recording") { video.pause(); rec.stop() } }, Math.max(800, (end - start) * 1000 + 500));
+            }
+            function manifest() {
+                return { type: "VideoChopperABCDBlocksSave", version: "9.0", note: "Pure HTML can save still PNG and browser WebM preview clips. MP4 export is produced by the saved MoviePy runner. Naming: STEM__S000__PART.mp4", source: state.source, segmentSeconds: state.segmentSeconds, exportProfile: state.exportProfile, sections: state.sections, active: { index: state.activeIndex, part: state.activePart } };
+            }
+            function downloadBlob(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 800) }
+            function download(name, type, text) { downloadBlob(name, new Blob([text], { type })) }
+            function downloadDataURL(name, dataUrl) { const a = document.createElement("a"); a.href = dataUrl; a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 800) }
+            function b64(s) { return btoa(unescape(encodeURIComponent(s))) }
+            function runner() {
+                const enc = b64(JSON.stringify(manifest(), null, 2));
+                return `# VideoChopper ABCD Blocks MP4 Runner
+# Naming: STEM__S000__FULL.mp4, STEM__S000__HEAD.mp4, STEM__S000__MID.mp4, STEM__S000__TAIL.mp4
+from google.colab import drive, files
+drive.mount('/content/drive')
+from moviepy.video.io.VideoFileClip import VideoFileClip
+import json, base64, shutil
+from pathlib import Path
+
+MANIFEST = json.loads(base64.b64decode('${enc}').decode('utf-8'))
+uploaded = files.upload()
+video_path = next(iter(uploaded)) if uploaded else 'EDIT_ME.mp4'
+video = VideoFileClip(video_path)
+
+fps = float(video.fps)
+duration = float(video.duration)
+segment_seconds = float(MANIFEST['segmentSeconds'])
+profile = MANIFEST.get('exportProfile', 'all')
+active = MANIFEST.get('active', {'index': 0, 'part': 'mid'})
+stem = MANIFEST['source']['stem'] if MANIFEST.get('source') else Path(video_path).stem
+
+root = Path('VIDEOCHOPPER_EXPORT_' + stem + '_' + profile)
+dirs = {
+  'full': root / 'FULL',
+  'head': root / 'HEAD',
+  'mid': root / 'MID',
+  'tail': root / 'TAIL',
+  'selected': root / 'SELECTED',
+  'manifest': root / 'MANIFEST'
+}
+
+def want(part, idx):
+    if profile == 'all':
+        return part in ['full','head','mid','tail']
+    if profile == 'full':
+        return part == 'full'
+    if profile == 'headtail':
+        return part in ['head','tail']
+    if profile == 'heads':
+        return part == 'head'
+    if profile == 'mids':
+        return part == 'mid'
+    if profile == 'tails':
+        return part == 'tail'
+    if profile == 'selected':
+        return idx == int(active.get('index', 0)) and part == active.get('part', 'mid')
+    return part in ['full','head','mid','tail']
+
+for d in dirs.values():
+    d.mkdir(parents=True, exist_ok=True)
+
+sections = []
+start = 0.0
+i = 0
+
+while start < duration:
+    end = min(start + segment_seconds, duration)
+    sid = f'{stem}__S{i:03d}'
+    length = end - start
+    third = length / 3.0
+
+    pieces = {
+      'full': (start, end),
+      'head': (start, min(end, start + third)),
+      'mid': (start + third, min(end, start + 2.0 * third)),
+      'tail': (max(start, end - third), end)
+    }
+
+    record = {'id': sid, 'index': i, 'startTime': start, 'endTime': end, 'isRemainder': length < segment_seconds, 'pieces': {}}
+
+    for part, (a, b) in pieces.items():
+        filename = f'{sid}__{part.upper()}.mp4'
+        record['pieces'][part] = {'startTime': a, 'endTime': b, 'file': filename, 'exported': want(part, i)}
+        if want(part, i):
+            out_dir = dirs['selected'] if profile == 'selected' else dirs[part]
+            clip = video.subclip(float(a), float(b))
+            clip.write_videofile(str(out_dir / filename), codec='libx264', audio_codec='aac', fps=fps)
+
+    sections.append(record)
+    if end >= duration:
+        break
+    start = end
+    i += 1
+
+MANIFEST['verified'] = {'fps': fps, 'duration': duration, 'segmentSeconds': segment_seconds, 'exportProfile': profile, 'sections': sections}
+with open(dirs['manifest'] / f'{stem}__{profile}__verified_manifest.json', 'w') as f:
+    json.dump(MANIFEST, f, indent=2)
+
+for name, d in dirs.items():
+    if any(d.iterdir()):
+        files.download(shutil.make_archive(f'{stem}__{profile}__{name}', 'zip', str(root), d.name))
+
+print('Done. Export profile:', profile, 'FPS:', fps, 'Output root:', root)
+`;
+            }
+            function setup() {
+                document.querySelectorAll(".action").forEach(b => b.onclick = () => setAct(b.dataset.act));
+                document.getElementById("slider").oninput = e => { state.segmentSeconds = Number(e.target.value); build(false); buzz(6); save("length") };
+                document.getElementById("minus").onclick = () => changeLength(-.5);
+                document.getElementById("plus").onclick = () => changeLength(.5);
+                drop.onclick = e => { if (e.target.id !== "rec") file.click() };
+                file.onchange = e => pickFile(e.target.files[0]);
+                document.getElementById("rec").onclick = e => { e.stopPropagation(); record() };
+                document.getElementById("drawerTab").onclick = openDrawer;
+                document.getElementById("close").onclick = closeDrawer;
+                ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag") }));
+                ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag") }));
+                drop.addEventListener("drop", e => pickFile(e.dataTransfer.files[0]));
+                render();
+            }
+            setup();
+        })();
+    </script>
+</body>
+
+</html>
