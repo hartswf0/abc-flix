@@ -85,8 +85,13 @@
     <!-- STATUS -->
     <div id="status-bar">
         <span>FRAME <span class="st-val" id="st-frame">—</span></span>
-        <span>FPS <span class="st-val" id="st-fps">12</span></span>
+        <span style="display:flex;align-items:center;gap:4px">FPS
+            <button onclick="adjustFPS(-1)" style="width:22px;height:22px;background:#222;color:#fff;border:1px solid #444;font-weight:900;cursor:pointer">−</button>
+            <span class="st-val" id="st-fps">12</span>
+            <button onclick="adjustFPS(1)" style="width:22px;height:22px;background:#222;color:#fff;border:1px solid #444;font-weight:900;cursor:pointer">+</button>
+        </span>
         <span id="st-status" style="color:#999">LOADING…</span>
+        <button id="btn-export" onclick="exportVideo()" style="padding:4px 10px;background:#222;color:#e60000;border:1px solid #e60000;font-weight:900;font-size:10px;letter-spacing:0.1em;cursor:pointer">⬇ EXPORT</button>
     </div>
 </div>
 <div id="toast"></div>
@@ -445,6 +450,76 @@ document.getElementById('btn-recompile').addEventListener('click', async () => {
     toast(frames.length + ' FRAMES — READY');
     setTimeout(() => { if (!playing) togglePlay(); }, 400);
 });
+
+// ── FPS CONTROL ──
+function adjustFPS(d) {
+    BASE_FPS = Math.max(1, Math.min(30, BASE_FPS + d));
+    document.getElementById('st-fps').textContent = BASE_FPS;
+}
+
+// ══════════════════════════════════════════════════
+// ██ VIDEO EXPORT (WebM via MediaRecorder)
+// ══════════════════════════════════════════════════
+async function exportVideo() {
+    if (!frames.length) { toast('NO FRAMES'); return; }
+    const wasPlaying = playing;
+    if (playing) togglePlay();
+
+    toast('RECORDING ' + frames.length + ' FRAMES…');
+    const status = document.getElementById('st-status');
+    status.textContent = 'EXPORTING…';
+    status.style.color = '#e60000';
+
+    // Use captureStream + MediaRecorder
+    const stream = cvs.captureStream(0); // 0 = manual frame control
+    const chunks = [];
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2000000 });
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+    const done = new Promise(resolve => { recorder.onstop = resolve; });
+    recorder.start();
+
+    // Render each frame at the correct interval
+    const interval = 1000 / BASE_FPS;
+    for (let i = 0; i < frames.length; i++) {
+        curFrame = i;
+        renderFrame();
+        // Request a frame from captureStream
+        if (stream.getVideoTracks()[0].requestFrame) {
+            stream.getVideoTracks()[0].requestFrame();
+        }
+        // Wait the frame duration
+        await new Promise(r => setTimeout(r, interval));
+        // Update progress
+        if (i % 20 === 0) {
+            status.textContent = 'EXPORT ' + Math.round((i / frames.length) * 100) + '%';
+        }
+    }
+
+    recorder.stop();
+    await done;
+
+    // Build download blob
+    const blob = new Blob(chunks, { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pflix-film-' + frames.length + 'f.webm';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+    toast('EXPORTED · ' + sizeMB + 'MB');
+    status.textContent = frames.length + ' FRAMES';
+    status.style.color = '#999';
+
+    curFrame = 0;
+    renderFrame();
+    if (wasPlaying) setTimeout(() => togglePlay(), 500);
+}
 
 // ── BOOT ──
 loadAndCompile();
