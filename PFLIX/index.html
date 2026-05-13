@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>PFLIX · Program Theory Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f4f0;--ink:#111;--white:#fff;--paper:#ece9e2;--red:#e60000;--yellow:#c8a800;--blue:#0033cc;--bw:3px;--sh:3px;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;border-radius:0!important;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--white);font-family:'DM Sans',sans-serif;-webkit-user-select:none;user-select:none}
+#app{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+#hdr{flex:0 0 52px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#000;border-bottom:2px solid #333}
+#hdr-brand{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.1em;cursor:pointer}
+#hdr-brand em{color:var(--red);font-style:normal}
+#hdr-nav{display:flex;gap:6px}
+.nav-btn{height:36px;padding:0 14px;background:#222;border:2px solid #444;color:#fff;font-family:'DM Sans',sans-serif;font-weight:900;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px}
+.nav-btn:active{background:#555}
+.nav-btn[disabled]{opacity:.3;pointer-events:none}
+#main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+/* INDEX */
+#idx{padding:20px 16px 80px;display:none}
+#idx.on{display:block}
+#idx h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,8vw,56px);letter-spacing:.06em;line-height:1;margin:0 0 4px;color:var(--white)}
+#idx .sub{font-size:11px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:#666;margin-bottom:24px}
+.card{display:block;background:#1a1a1a;border:2px solid #333;margin-bottom:10px;padding:14px 16px;cursor:pointer;transition:border-color .1s}
+.card:active{border-color:var(--red)}
+.card-num{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--red);letter-spacing:.15em}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;line-height:1.15;margin:2px 0 6px}
+.card-desc{font-size:12px;color:#888;line-height:1.4}
+/* THEORY VIEW */
+#tv{display:none;padding:0 0 100px}
+#tv.on{display:block}
+#tv-head{position:sticky;top:0;z-index:10;background:#111;border-bottom:2px solid #333;padding:10px 16px;display:flex;align-items:center;gap:10px}
+#tv-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--red);letter-spacing:.12em;flex-shrink:0}
+#tv-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+#tv-body{padding:20px 16px;font-size:15px;line-height:1.7;color:#ddd}
+#tv-body h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.04em;color:var(--white);margin:32px 0 12px;border-bottom:2px solid #333;padding-bottom:8px}
+#tv-body h2{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--yellow);margin:28px 0 10px;letter-spacing:.04em}
+#tv-body h3{font-size:16px;font-weight:900;color:var(--red);margin:20px 0 8px;letter-spacing:.06em;text-transform:uppercase}
+#tv-body blockquote{margin:16px 0;padding:12px 16px;border-left:4px solid var(--red);background:#1a1a1a;color:#fff;font-weight:700;font-size:14px;line-height:1.5}
+#tv-body pre{margin:12px 0;padding:14px;background:#0a0a0a;border:1px solid #333;overflow-x:auto;font-family:'Space Mono',monospace;font-size:12px;line-height:1.5;color:#aaffaa;-webkit-user-select:text;user-select:text}
+#tv-body code{font-family:'Space Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 5px;color:#ffcc00}
+#tv-body pre code{background:none;padding:0;color:#aaffaa}
+#tv-body strong{color:var(--white)}
+#tv-body hr{border:none;border-top:2px solid #333;margin:28px 0}
+#tv-body ul,#tv-body ol{padding-left:20px}
+#tv-body li{margin:4px 0}
+#tv-body table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+#tv-body th{background:#222;padding:8px;text-align:left;border:1px solid #444;font-weight:900;text-transform:uppercase;font-size:11px;letter-spacing:.08em}
+#tv-body td{padding:8px;border:1px solid #333}
+/* BFLIX PLAYER */
+.bflix-player{margin:20px 0;background:#0a0a0a;border:2px solid #333;padding:10px}
+.bflix-canvas-wrap{display:flex;justify-content:center;background:#000;margin-bottom:8px}
+.bflix-canvas-wrap canvas{image-rendering:pixelated;width:100%;max-width:512px;aspect-ratio:128/96}
+.bflix-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bx-btn{height:30px;padding:0 10px;background:#222;border:2px solid #444;color:#fff;font-family:'DM Sans',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+.bx-btn:active{background:#555}
+.bx-btn.on{background:var(--red);border-color:var(--red)}
+.bx-info{font-family:'Space Mono',monospace;font-size:10px;color:#666;margin-left:auto}
+/* NAV FOOTER */
+#tv-nav{display:flex;gap:8px;padding:16px;border-top:2px solid #333;margin-top:24px}
+#tv-nav button{flex:1;height:48px;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:'DM Sans',sans-serif;font-weight:900;font-size:12px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+#tv-nav button:active{background:#333}
+#tv-nav button[disabled]{opacity:.3}
+/* LINKS */
+.pt-link{color:var(--yellow);text-decoration:underline;cursor:pointer;font-weight:700}
+.pt-link:active{color:var(--red)}
+</style>
+</head>
+<body>
+<div id="app">
+<header id="hdr">
+<div id="hdr-brand" onclick="showIndex()">P<em>FLIX</em></div>
+<div id="hdr-nav">
+<button class="nav-btn" id="btn-prev" onclick="goPrev()">◀ PREV</button>
+<button class="nav-btn" id="btn-next" onclick="goNext()">NEXT ▶</button>
+</div>
+</header>
+<main id="main">
+<div id="idx" class="on">
+<h1>P<em style="color:var(--red);font-style:normal">FLIX</em></h1>
+<div class="sub">Program Theory Reader · 10 Theories</div>
+<div id="cards"></div>
+</div>
+<div id="tv">
+<div id="tv-head"><span id="tv-num"></span><span id="tv-title"></span></div>
+<div id="tv-body"></div>
+<div id="tv-nav">
+<button id="nav-p" onclick="goPrev()">◀ PREV</button>
+<button id="nav-idx" onclick="showIndex()">INDEX</button>
+<button id="nav-n" onclick="goNext()">NEXT ▶</button>
+</div>
+</div>
+</main>
+</div>
+<script>
+const THEORIES=[
+{id:'PT-01',file:'PT-01_video-codec-engineering.md',title:'Video Codec Engineering',desc:'Controlled perceptual destruction under constraint.'},
+{id:'PT-02',file:'PT-02_flexcompute-hackathon.md',title:'Flexcompute Hackathon',desc:'Training-and-conversion system for photonic chip design.'},
+{id:'PT-03',file:'PT-03_unified-signal-platforms.md',title:'Unified Signal Platforms',desc:'Both codec and photonic design are signal governance.'},
+{id:'PT-04',file:'PT-04_photonic-codec-hackathon.md',title:'Photonic Codec Hackathon',desc:'A photonic transform primitive for codec preprocessing.'},
+{id:'PT-05',file:'PT-05_beflix-photoncodec.md',title:'BEFLIX PhotonCodec',desc:'Historical animation meets photonic compression.'},
+{id:'PT-06',file:'PT-06_beflix-sanity-check.md',title:'BEFLIX Sanity Check',desc:'Stripping overclaims. Finding the defensible kernel.'},
+{id:'PT-07',file:'PT-07_first-principles-optical-precoder.md',title:'First Principles Optical Pre-Codec',desc:'Ground-zero rebuild from light to measurement.'},
+{id:'PT-08',file:'PT-08_final-prompted-optical-precoder.md',title:'Final Prompted Optical Pre-Codec',desc:'The definitive condensed version.'},
+{id:'PT-09',file:'PT-09_pflix-photonic-flicks.md',title:'PFLIX Photonic Flicks',desc:'From codec accelerator to photonic programming language.'},
+{id:'PT-10',file:'PT-10_pflix-world-model.md',title:'PFLIX World Model',desc:'Schmidhuber synthesis: compression is understanding.'}
+];
+let cur=-1,cache={};
+const $=id=>document.getElementById(id);
+function showIndex(){cur=-1;$('idx').classList.add('on');$('tv').classList.remove('on');$('btn-prev').disabled=$('btn-next').disabled=true;$('main').scrollTop=0;renderCards()}
+function renderCards(){let h='';THEORIES.forEach((t,i)=>{h+=`<div class="card" onclick="showTheory(${i})"><div class="card-num">${t.id}</div><div class="card-title">${t.title}</div><div class="card-desc">${t.desc}</div></div>`});$('cards').innerHTML=h}
+async function showTheory(i){
+cur=i;const t=THEORIES[i];
+$('idx').classList.remove('on');$('tv').classList.add('on');
+$('tv-num').textContent=t.id;$('tv-title').textContent=t.title;
+$('btn-prev').disabled=i===0;$('btn-next').disabled=i===THEORIES.length-1;
+$('nav-p').disabled=i===0;$('nav-n').disabled=i===THEORIES.length-1;
+if(!cache[t.file]){try{const r=await fetch(t.file);cache[t.file]=await r.text()}catch(e){cache[t.file]='# Error\nCould not load '+t.file}}
+$('tv-body').innerHTML=renderMD(cache[t.file],i);$('main').scrollTop=0;
+initBflixPlayers()
+}
+function goPrev(){if(cur>0)showTheory(cur-1)}
+function goNext(){if(cur<THEORIES.length-1)showTheory(cur+1)}
+// Minimal markdown renderer
+function renderMD(md,idx){
+let html=md
+.replace(/^### (.+)$/gm,'<h3>$1</h3>')
+.replace(/^## (.+)$/gm,'<h2>$1</h2>')
+.replace(/^# (.+)$/gm,'<h1>$1</h1>')
+.replace(/^---$/gm,'<hr>')
+.replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+.replace(/`([^`]+)`/g,'<code>$1</code>');
+// Code blocks
+html=html.replace(/```(\w*)\n([\s\S]*?)```/g,(m,lang,code)=>{
+return '<pre><code>'+code.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</code></pre>'});
+// Lists
+html=html.replace(/^- (.+)$/gm,'<li>$1</li>');
+html=html.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+// Paragraphs
+html=html.replace(/\n{2,}/g,'\n<p>\n');
+// Cross-links
+THEORIES.forEach((t,i)=>{if(i!==idx){
+const re=new RegExp('('+t.id.replace('-','[-–]')+')', 'g');
+html=html.replace(re,`<span class="pt-link" onclick="showTheory(${i})">$1</span>`)}});
+// Merge adjacent blockquotes
+html=html.replace(/<\/blockquote>\s*<blockquote>/g,'<br>');
+// Add BFLIX player for this theory
+html+=renderBflixBlock(idx);
+return html
+}
+// BFLIX code cache (fetched from .md files)
+const BFLIX_CACHE={};
+const BFLIX_FILES=['01.md','02.md','03.md','04.md','05.md','06.md','07.md','08.md','09.md','10.md'];
+async function fetchBflix(idx){
+if(BFLIX_CACHE[idx])return BFLIX_CACHE[idx];
+try{const r=await fetch(BFLIX_FILES[idx]);BFLIX_CACHE[idx]=await r.text();return BFLIX_CACHE[idx]}
+catch(e){return null}
+}
+function extractNarration(code){
+if(!code)return[];
+return code.split('\n').filter(l=>l.trim().startsWith('C ')).map(l=>l.trim().substring(2)).filter(l=>!l.startsWith('═'))
+}
+function renderBflixBlock(idx){
+return `<div class="bflix-player" data-idx="${idx}">
+<div class="bflix-canvas-wrap"><canvas width="128" height="96"></canvas></div>
+<div class="bflix-controls">
+<button class="bx-btn" data-act="play">▶ PLAY</button>
+<button class="bx-btn" data-act="stop">■ STOP</button>
+<button class="bx-btn" data-act="copy">COPY FOR ICARO-PRO</button>
+<button class="bx-btn" data-act="open" style="background:var(--red);border-color:var(--red)">OPEN IN ICARO-PRO</button>
+<span class="bx-info">F:<span data-fr>0</span></span>
+</div>
+<div class="bx-narration" style="margin-top:8px;font-size:12px;color:#888;line-height:1.5;font-style:italic"></div>
+</div>`}
+// BFLIX Engine
+async function initBflixPlayers(){
+for(const el of document.querySelectorAll('.bflix-player')){
+const idx=+el.dataset.idx,c=el.querySelector('canvas'),ctx=c.getContext('2d');
+const playBtn=el.querySelector('[data-act="play"]'),stopBtn=el.querySelector('[data-act="stop"]');
+const copyBtn=el.querySelector('[data-act="copy"]'),openBtn=el.querySelector('[data-act="open"]');
+const frSpan=el.querySelector('[data-fr]'),narEl=el.querySelector('.bx-narration');
+const code=await fetchBflix(idx);
+if(!code){narEl.textContent='Could not load animation.';continue}
+// Show narration from C comments
+const narr=extractNarration(code);
+if(narr.length)narEl.innerHTML=narr.map(l=>'<div>'+l+'</div>').join('');
+let grid=new Uint8Array(128*96),frames=[],playing=false,fi=0,tid=null;
+function parse(){
+grid.fill(0);frames=[];
+code.split('\n').forEach(ln=>{
+ln=ln.trim();if(!ln||ln[0]==='C')return;
+const p=ln.split(/\s+/),cmd=p[0];
+if(cmd==='CLR'){grid.fill(+p[1]||0)}
+else if(cmd==='PNT'){const x=+p[1],y=+p[2],w=+p[3],h=+p[4],v=+p[5];for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){const px=x+dx,py=y+dy;if(px>=0&&px<128&&py>=0&&py<96)grid[py*128+px]=v}}
+else if(cmd==='LIN'){let x0=+p[1],y0=+p[2],x1=+p[3],y1=+p[4],v=+p[5];const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx-dy;while(true){if(x0>=0&&x0<128&&y0>=0&&y0<96)grid[y0*128+x0]=v;if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>-dy){e-=dy;x0+=sx}if(e2<dx){e+=dx;y0+=sy}}}
+else if(cmd==='REC'){const n=+p[1]||1;for(let i=0;i<n;i++)frames.push(new Uint8Array(grid))}
+else if(cmd==='SHF'){const sx=+p[1],sy=+p[2],n=+p[3]||1;const tmp=new Uint8Array(128*96);for(let y=0;y<96;y++)for(let x=0;x<128;x++){const nx=x-sx,ny=y-sy;tmp[y*128+x]=(nx>=0&&nx<128&&ny>=0&&ny<96)?grid[ny*128+nx]:0}grid.set(tmp);for(let i=0;i<n;i++)frames.push(new Uint8Array(grid))}
+})}
+function draw(f){
+if(!f)return;const id=ctx.createImageData(128,96);
+for(let i=0;i<128*96;i++){const v=f[i],b=Math.round((7-v)/7*255);id.data[i*4]=b;id.data[i*4+1]=b;id.data[i*4+2]=b;id.data[i*4+3]=255}
+ctx.putImageData(id,0,0);
+}
+function play(){if(playing)return;parse();if(!frames.length)return;playing=true;fi=0;playBtn.classList.add('on');tick()}
+function tick(){if(!playing)return;draw(frames[fi]);frSpan.textContent=fi+1+'/'+frames.length;fi=(fi+1)%frames.length;tid=setTimeout(tick,100)}
+function stop(){playing=false;clearTimeout(tid);playBtn.classList.remove('on')}
+playBtn.onclick=play;stopBtn.onclick=stop;
+copyBtn.onclick=()=>{navigator.clipboard.writeText(code).then(()=>copyBtn.textContent='COPIED!');setTimeout(()=>copyBtn.textContent='COPY FOR ICARO-PRO',1500)};
+openBtn.onclick=()=>{const url='../icaro-pro.html#script='+encodeURIComponent(BFLIX_FILES[idx]);window.open(url,'_blank')};
+parse();if(frames.length)draw(frames[0]);
+}}
+// Init
+renderCards();
+if(location.hash){const m=location.hash.match(/PT-(\d+)/i);if(m){const i=parseInt(m[1])-1;if(i>=0&&i<THEORIES.length)showTheory(i)}}
+</script>
+</body>
+</html>

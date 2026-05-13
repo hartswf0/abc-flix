@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<title>PFLIX · Theory Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0d;--card:#161616;--border:#2a2a2a;--text:#ccc;--bright:#fff;--red:#e60000;--yellow:#c8a800;--blue:#0033cc;--green:#00c853;--code-bg:#0a0a0a;--safe:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0!important}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:2px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nav-brand{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.1em;color:var(--bright);text-decoration:none}
+.nav-brand em{color:var(--red);font-style:normal}
+.nav-links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;justify-content:flex-end}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-pill{flex-shrink:0;padding:4px 10px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#666;background:transparent;border:1.5px solid #333;text-decoration:none;white-space:nowrap;transition:all .15s}
+.nav-pill:active,.nav-pill.on{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* CONTENT */
+main{max-width:720px;margin:0 auto;padding:20px 16px calc(60px + var(--safe))}
+
+/* INDEX */
+#index{display:block}
+#index.off{display:none}
+.idx-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,10vw,64px);letter-spacing:.06em;line-height:1;color:var(--bright);margin-bottom:4px}
+.idx-title em{color:var(--red);font-style:normal}
+.idx-sub{font-size:11px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:#555;margin-bottom:28px}
+.idx-card{display:flex;gap:14px;align-items:flex-start;background:var(--card);border:1.5px solid var(--border);padding:14px 16px;margin-bottom:8px;text-decoration:none;color:inherit;transition:border-color .15s}
+.idx-card:active{border-color:var(--red)}
+.idx-num{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--red);line-height:1;flex-shrink:0;width:36px}
+.idx-body{flex:1;min-width:0}
+.idx-name{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.03em;color:var(--bright);line-height:1.2;margin-bottom:4px}
+.idx-desc{font-size:12px;color:#777;line-height:1.4}
+.idx-bflix{display:inline-block;margin-top:6px;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--yellow);border:1px solid var(--yellow);padding:2px 6px;opacity:.6}
+
+/* ARTICLE */
+article{display:none}
+article.on{display:block}
+.art-header{margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--border)}
+.art-num{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--red);letter-spacing:.15em;margin-bottom:2px}
+.art-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(24px,6vw,40px);letter-spacing:.03em;line-height:1.1;color:var(--bright)}
+.art-content h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.04em;color:var(--bright);margin:32px 0 12px;padding-bottom:8px;border-bottom:1.5px solid var(--border)}
+.art-content h2{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--yellow);margin:28px 0 10px;letter-spacing:.04em}
+.art-content h3{font-size:14px;font-weight:900;color:var(--red);margin:20px 0 8px;letter-spacing:.08em;text-transform:uppercase}
+.art-content p{margin:12px 0}
+.art-content blockquote{margin:16px 0;padding:12px 16px;border-left:3px solid var(--red);background:var(--card);color:var(--bright);font-weight:700;font-size:14px;line-height:1.6}
+.art-content pre{margin:14px 0;padding:14px;background:var(--code-bg);border:1px solid var(--border);overflow-x:auto;font-family:'Space Mono',monospace;font-size:12px;line-height:1.6;color:#aaffaa;-webkit-user-select:text;user-select:text}
+.art-content code{font-family:'Space Mono',monospace;font-size:13px;background:var(--card);padding:2px 5px;color:var(--yellow)}
+.art-content pre code{background:none;padding:0;color:#aaffaa}
+.art-content strong{color:var(--bright)}
+.art-content em{color:var(--yellow);font-style:italic}
+.art-content hr{border:none;border-top:1.5px solid var(--border);margin:28px 0}
+.art-content ul,.art-content ol{padding-left:20px;margin:10px 0}
+.art-content li{margin:4px 0}
+.art-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+.art-content th{background:#1a1a1a;padding:8px 10px;text-align:left;border:1px solid var(--border);font-weight:900;text-transform:uppercase;font-size:10px;letter-spacing:.08em;color:var(--bright)}
+.art-content td{padding:8px 10px;border:1px solid var(--border)}
+
+/* PREV/NEXT */
+.art-nav{display:flex;gap:8px;margin-top:32px;padding-top:16px;border-top:2px solid var(--border)}
+.art-nav a{flex:1;display:flex;flex-direction:column;padding:12px 14px;background:var(--card);border:1.5px solid var(--border);text-decoration:none;color:var(--text);transition:border-color .15s}
+.art-nav a:active{border-color:var(--red)}
+.art-nav .an-dir{font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#555;margin-bottom:2px}
+.art-nav .an-title{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--bright);letter-spacing:.03em}
+.art-nav .an-mid{text-align:center}
+</style>
+</head>
+<body>
+<nav>
+<a class="nav-brand" href="#" onclick="go(-1);return false">P<em>FLIX</em></a>
+<div class="nav-links" id="pills"></div>
+</nav>
+<main>
+<div id="index">
+<div class="idx-title">P<em>FLIX</em></div>
+<div class="idx-sub">Program Theory Reader</div>
+<div id="cards"></div>
+</div>
+</main>
+<script>
+const T=[
+{id:'PT-01',f:'PT-01_video-codec-engineering.md',b:'01.md',t:'Video Codec Engineering',d:'Controlled perceptual destruction under constraint.'},
+{id:'PT-02',f:'PT-02_flexcompute-hackathon.md',b:'02.md',t:'Flexcompute Hackathon',d:'Training-and-conversion system for photonic chip design.'},
+{id:'PT-03',f:'PT-03_unified-signal-platforms.md',b:'03.md',t:'Unified Signal Platforms',d:'Both codec and photonic design are signal governance.'},
+{id:'PT-04',f:'PT-04_photonic-codec-hackathon.md',b:'04.md',t:'Photonic Codec Hackathon',d:'A photonic transform primitive for codec preprocessing.'},
+{id:'PT-05',f:'PT-05_beflix-photoncodec.md',b:'05.md',t:'BEFLIX PhotonCodec',d:'Historical animation meets photonic compression.'},
+{id:'PT-06',f:'PT-06_beflix-sanity-check.md',b:'06.md',t:'BEFLIX Sanity Check',d:'Stripping overclaims. Finding the defensible kernel.'},
+{id:'PT-07',f:'PT-07_first-principles-optical-precoder.md',b:'07.md',t:'First Principles Optical Pre-Codec',d:'Ground-zero rebuild from light to measurement.'},
+{id:'PT-08',f:'PT-08_final-prompted-optical-precoder.md',b:'08.md',t:'Final Prompted Optical Pre-Codec',d:'The definitive condensed version.'},
+{id:'PT-09',f:'PT-09_pflix-photonic-flicks.md',b:'09.md',t:'PFLIX Photonic Flicks',d:'From codec accelerator to photonic programming language.'},
+{id:'PT-10',f:'PT-10_pflix-world-model.md',b:'10.md',t:'PFLIX World Model',d:'Schmidhuber synthesis: compression is understanding.'}
+];
+let cur=-1,cache={};
+const main=document.querySelector('main');
+
+function buildPills(){
+const c=document.getElementById('pills');
+c.innerHTML=T.map((t,i)=>`<a class="nav-pill" href="#" onclick="go(${i});return false" data-i="${i}">${t.id.replace('PT-','')}</a>`).join('');
+}
+
+function buildCards(){
+document.getElementById('cards').innerHTML=T.map((t,i)=>`<a class="idx-card" href="#" onclick="go(${i});return false">
+<div class="idx-num">${String(i+1).padStart(2,'0')}</div>
+<div class="idx-body"><div class="idx-name">${t.t}</div><div class="idx-desc">${t.d}</div><div class="idx-bflix">BFLIX · ${t.b}</div></div>
+</a>`).join('');
+}
+
+function renderMD(md){
+let h=md
+.replace(/^### (.+)$/gm,'<h3>$1</h3>')
+.replace(/^## (.+)$/gm,'<h2>$1</h2>')
+.replace(/^# (.+)$/gm,'<h1>$1</h1>')
+.replace(/^---$/gm,'<hr>')
+.replace(/^> \*\*(.+?)\*\*$/gm,'<blockquote><strong>$1</strong></blockquote>')
+.replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+.replace(/\*(.+?)\*/g,'<em>$1</em>')
+.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+h=h.replace(/```(\w*)\n([\s\S]*?)```/g,(m,lang,code)=>
+'<pre><code>'+code.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</code></pre>');
+h=h.replace(/^- (.+)$/gm,'<li>$1</li>');
+h=h.replace(/(<li>[\s\S]*?<\/li>(\s*\n)?)+/g,m=>'<ul>'+m+'</ul>');
+h=h.replace(/\n{2,}/g,'\n<p>\n');
+h=h.replace(/<\/blockquote>\s*<blockquote>/g,'<br>');
+// Table support
+h=h.replace(/^\|(.+)\|$/gm,(m,row)=>{
+const cells=row.split('|').map(c=>c.trim());
+if(cells.every(c=>/^[-:]+$/.test(c)))return'<!--sep-->';
+const tag=cells.some(c=>/^[-:]+$/.test(c))?'td':'td';
+return'<tr>'+cells.map(c=>`<${tag}>${c}</${tag}>`).join('')+'</tr>';
+});
+h=h.replace(/((<tr>[\s\S]*?<\/tr>\s*)+)/g,'<table>$1</table>');
+h=h.replace(/<!--sep-->\s*/g,'');
+return h;
+}
+
+async function go(i){
+// Remove old articles
+document.querySelectorAll('article').forEach(a=>a.remove());
+document.querySelectorAll('.nav-pill').forEach(p=>p.classList.remove('on'));
+if(i<0){
+cur=-1;
+document.getElementById('index').classList.remove('off');
+window.scrollTo(0,0);
+return;
+}
+cur=i;
+document.getElementById('index').classList.add('off');
+document.querySelectorAll(`.nav-pill[data-i="${i}"]`).forEach(p=>p.classList.add('on'));
+const t=T[i];
+if(!cache[t.f]){try{const r=await fetch(t.f);cache[t.f]=await r.text()}catch(e){cache[t.f]='# Error\nCould not load '+t.f}}
+const art=document.createElement('article');
+art.className='on';
+const prev=i>0?T[i-1]:null;
+const next=i<T.length-1?T[i+1]:null;
+art.innerHTML=`<div class="art-header"><div class="art-num">${t.id}</div><div class="art-title">${t.t}</div></div>
+<div class="art-content">${renderMD(cache[t.f])}</div>
+<div class="art-nav">
+${prev?`<a href="#" onclick="go(${i-1});return false"><span class="an-dir">◀ Previous</span><span class="an-title">${prev.t}</span></a>`:'<span></span>'}
+<a href="#" onclick="go(-1);return false" class="an-mid"><span class="an-dir">Index</span><span class="an-title">All Theories</span></a>
+${next?`<a href="#" onclick="go(${i+1});return false"><span class="an-dir">Next ▶</span><span class="an-title">${next.t}</span></a>`:'<span></span>'}
+</div>`;
+main.appendChild(art);
+window.scrollTo(0,0);
+}
+
+buildPills();
+buildCards();
+if(location.hash){const m=location.hash.match(/(\d+)/);if(m){const i=parseInt(m[1])-1;if(i>=0&&i<T.length)go(i)}}
+</script>
+</body>
+</html>
