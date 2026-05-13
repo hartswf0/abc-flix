@@ -80,6 +80,12 @@
     <!-- CANVAS -->
     <div id="canvas-zone">
         <canvas id="screen" width="640" height="480"></canvas>
+        <div id="start-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);cursor:pointer;z-index:50">
+            <div style="text-align:center">
+                <div style="font-size:48px;color:#e60000">▶</div>
+                <div style="font-size:14px;font-weight:900;letter-spacing:0.2em;color:#fff;margin-top:8px">TAP TO START</div>
+            </div>
+        </div>
     </div>
 
     <!-- STATUS -->
@@ -380,6 +386,8 @@ function togglePlay() {
         document.getElementById('st-status').style.color = '#e60000';
     } else {
         cancelAnimationFrame(playRAF);
+        // Stop all audio when pausing
+        chapterAudios.forEach(a => { a.pause(); });
         document.getElementById('st-status').textContent = '⏸ PAUSED';
         document.getElementById('st-status').style.color = '#999';
     }
@@ -387,6 +395,15 @@ function togglePlay() {
 
 // Tap canvas to play/pause
 cvs.addEventListener('click', togglePlay);
+
+// Start overlay — unlocks audio context via user gesture
+document.getElementById('start-overlay').addEventListener('click', function() {
+    // Unlock audio by playing+pausing all chapters
+    chapterAudios.forEach(a => { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); });
+    this.style.display = 'none';
+    // Start playback
+    if (!playing && frames.length) togglePlay();
+});
 
 // ══════════════════════════════════════════════════
 // ██ CHAPTER AUDIO ENGINE
@@ -478,8 +495,8 @@ async function loadAndCompile() {
         toast(frames.length + ' FRAMES · ' + memKB + 'KB');
         status.textContent = frames.length + ' FRAMES';
 
-        // Auto-play after a beat
-        setTimeout(() => { if (!playing) togglePlay(); }, 800);
+        // Don't auto-play — wait for user tap on start overlay
+        // setTimeout(() => { if (!playing) togglePlay(); }, 800);
     } catch (e) {
         status.textContent = 'FAILED: ' + e.message;
         toast('LOAD FAILED');
@@ -509,11 +526,10 @@ function adjustFPS(d) {
 }
 
 // ══════════════════════════════════════════════════
-// ██ VIDEO EXPORT (WebM via MediaRecorder)
+// ██ VIDEO EXPORT (WebM+Audio via MediaRecorder)
 // ══════════════════════════════════════════════════
 async function exportVideo() {
     if (!frames.length) { toast('NO FRAMES'); return; }
-    const wasPlaying = playing;
     if (playing) togglePlay();
 
     toast('RECORDING ' + frames.length + ' FRAMES…');
@@ -521,44 +537,72 @@ async function exportVideo() {
     status.textContent = 'EXPORTING…';
     status.style.color = '#e60000';
 
-    // Use captureStream + MediaRecorder
-    const stream = cvs.captureStream(0); // 0 = manual frame control
-    const chunks = [];
-    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9'
-        : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2000000 });
-    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    // Create AudioContext to mix chapter audio into the stream
+    const audioCtx = new AudioContext();
+    const dest = audioCtx.createMediaStreamDestination();
 
+    // Decode and prepare chapter audio buffers
+    const audioBuffers = [];
+    for (let i = 0; i < chapterAudios.length; i++) {
+        try {
+            const resp = await fetch('audio/ch' + String(i+1).padStart(2,'0') + '.m4a');
+            const buf = await resp.arrayBuffer();
+            const decoded = await audioCtx.decodeAudioData(buf);
+            audioBuffers.push(decoded);
+        } catch(e) { audioBuffers.push(null); }
+    }
+
+    // Combine canvas video + audio streams
+    const videoStream = cvs.captureStream(0);
+    const combined = new MediaStream([
+        ...videoStream.getVideoTracks(),
+        ...dest.stream.getAudioTracks()
+    ]);
+
+    const chunks = [];
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+        ? 'video/webm;codecs=vp9,opus'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
+    const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 2000000 });
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
     const done = new Promise(resolve => { recorder.onstop = resolve; });
     recorder.start();
 
-    // Render each frame at the correct interval
+    // Schedule chapter audio sources at their correct start times
     const interval = 1000 / BASE_FPS;
+    for (let ci = 0; ci < chapterStarts.length; ci++) {
+        if (!audioBuffers[ci]) continue;
+        const startSec = chapterStarts[ci] * (1 / BASE_FPS);
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuffers[ci];
+        src.connect(dest);
+        src.start(audioCtx.currentTime + startSec);
+    }
+
+    // Render each frame
     for (let i = 0; i < frames.length; i++) {
         curFrame = i;
         renderFrame();
-        // Request a frame from captureStream
-        if (stream.getVideoTracks()[0].requestFrame) {
-            stream.getVideoTracks()[0].requestFrame();
+        if (videoStream.getVideoTracks()[0].requestFrame) {
+            videoStream.getVideoTracks()[0].requestFrame();
         }
-        // Wait the frame duration
         await new Promise(r => setTimeout(r, interval));
-        // Update progress
-        if (i % 20 === 0) {
+        if (i % 30 === 0) {
             status.textContent = 'EXPORT ' + Math.round((i / frames.length) * 100) + '%';
         }
     }
 
     recorder.stop();
     await done;
+    audioCtx.close();
 
-    // Build download blob
     const blob = new Blob(chunks, { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'pflix-film-' + frames.length + 'f.webm';
+    a.download = 'pflix-film.mp4';
     a.click();
     URL.revokeObjectURL(url);
 
@@ -566,10 +610,8 @@ async function exportVideo() {
     toast('EXPORTED · ' + sizeMB + 'MB');
     status.textContent = frames.length + ' FRAMES';
     status.style.color = '#999';
-
     curFrame = 0;
     renderFrame();
-    if (wasPlaying) setTimeout(() => togglePlay(), 500);
 }
 
 // ── BOOT ──

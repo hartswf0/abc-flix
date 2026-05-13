@@ -1,80 +1,64 @@
 #!/bin/bash
-# PFLIX voiceover — trimmed to fit 10-15s animation windows
-# ~40 words per chapter at 180 WPM ≈ 13-14s each
-
+# PFLIX voiceover — optimized ~280 words total at 130 WPM
 VOICE="Samantha"
-RATE=180
+RATE=130
 DIR="/Users/gaia/ABC FLIX/PFLIX/audio"
+mkdir -p "$DIR"
 
-echo "Generating trimmed PFLIX voiceover..."
-echo ""
+echo "Generating PFLIX voiceover (130 WPM, ~280 words total)..."
 
-# CH01 — Video Codec Engineering (target: 13.6s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch01.aiff" \
-"Raw video enters the machine. The codec cuts it into frames, separates light from color, and tessellates each frame into blocks. A prediction engine finds what moved. Only the error is stored. The quantization guillotine destroys what the eye will forgive. Plausible motion survives."
+"Raw video floods the machine. The pipeline tessellates frames, predicting motion to store only residual error. Frequency transforms and quantization compress data, leaving plausible motion for the eye."
 
-# CH02 — FlexCompute Hackathon (target: 10.0s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch02.aiff" \
-"An invitation opens the funnel. Outsiders become participants. PhotonForge turns a chip idea into layout. Tidy 3D simulates light through geometry. Seventy-two hours of pressure. The submission proves competence."
+"An open call converts curiosity into action. Through seventy-two hours of pressure, PhotonForge and FlexAgent translate raw ideas into simulated microscopic geometry."
 
-# CH03 — Unified Signal Platforms (target: 13.2s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch03.aiff" \
-"Two systems share one signal problem. Video floods the left. Photonics floods the right. Both decompose into computable units. The codec asks what the eye forgives. The photonic platform asks what light will do. Two pipelines merge into one governance structure."
+"Video and photonic light present a unified problem. Both decompose into computable units. Mathematical models align hardware constraints, bridging the control of captured and designed light."
 
-# CH04 — Photonic Codec Hackathon (target: 13.7s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch04.aiff" \
-"Four pixels become optical amplitudes. Couplers mix them into sum and difference paths. Mach Zehnder interference separates structure from detail. Uniform blocks yield strong averages. Edge blocks activate difference ports. Output powers become coefficients. Light performs the first act of compression."
+"Entering the PhotonCodec, pixels become optical amplitudes. Mach-Zehnder interference separates structure from detail. Light performs the first act of compression before software even touches the signal."
 
-# CH05 — BEFLIX PhotonCodec (target: 14.3s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch05.aiff" \
-"BEFLIX is not camera footage. It is flat fields, hard edges, raster logic. Sparse graphics decompose into cells: flat, edge, empty, delta. The photonic transform separates structure from detail. Commands and coefficients are stored. A playback engine reconstructs motion."
+"BEFLIX provides historical computer animation. Flat fields and hard edges. The photonic transform separates this structure from detail, allowing a modern engine to reconstruct the frame."
 
-# CH06 — Sanity Check (target: 14.0s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch06.aiff" \
-"The grand claim appears too large. A sanity check crushes it. A tiny transform cell is not a full codec. The honest kernel emerges: an optical raster decomposer. Two by two patches enter a Haar cell. Outputs classify: field, edge, checker, delta. A pre-codec primitive. Not a codec."
+"The grand claim collapses into a sanity check. BEFLIX is a test signal, not a codec target. The honest kernel emerges: a foundational optical raster decomposer."
 
-# CH07 — First Principles Optical Precoder (target: 14.9s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch07.aiff" \
-"Light hits a sensor, becomes pixels, becomes too much data. A normal codec compresses after measurement. The optical pre-codec moves work upstream. Raw light passes through an optical transform. Structure and detail separate before digitization. A theory of what not to measure."
+"Standard codecs compress after measurement. This optical pre-codec moves work upstream, classifying flat fields and edges before digitization. It is a theory of what not to measure."
 
-# CH08 — Final Prompted Optical Precoder (target: 14.8s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch08.aiff" \
-"The working claim enters as a small machine. Not a full codec. Photonics is wave plumbing. Three test patterns: flat, edge, detail. Output port powers classify each one. A codec decides what not to store. An optical pre-codec decides what not to measure."
+"Photonics is wave plumbing. Using BEFLIX as a test world, AI bridges theory to simulation. A normal codec decides what not to store. This decides what not to measure."
 
-# CH09 — PFLIX Photonic Flicks (target: 14.6s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch09.aiff" \
-"BEFLIX writes code for images. PFLIX writes code for waveguides. It is not a codec. It is a language. Wave creates light. Guide routes it. Split divides. Phase delays. Mix recombines. Constructive interference outputs strong. Destructive cancels. PFLIX makes light programmable."
+"PFLIX is not a codec. It is a language. Waveguides route, split, and mix light. A beginner-facing grammar, PFLIX makes light wave interference visible, programmable, and legible."
 
-# CH10 — PFLIX World Model (target: 15.0s)
 say -v "$VOICE" -r $RATE -o "$DIR/ch10.aiff" \
-"A world model loop: observe, compress, predict, act. PFLIX commands generate photonic scenes. The model compresses command-outcome relations. A prediction frame appears ahead of the present. Curiosity reward: surprise, then learnable. Compression is understanding. Predict light, then choose a new experiment."
+"The stack forms a world model loop: observe, compress, predict, act. A latent vector predicts the next photonic experiment. Compression is understanding. Predict light, then choose."
 
 echo ""
-echo "Measuring durations..."
-echo ""
-printf "%s | %7s | %7s | %s\n" "CH" "AUDIO" "TARGET" "STATUS"
-echo "---+--------+--------+--------"
-
-targets=(13.6 10.0 13.2 13.7 14.3 14.0 14.9 14.8 14.6 15.0)
+echo "Converting to M4A..."
 for i in 01 02 03 04 05 06 07 08 09 10; do
-    dur=$(afinfo "$DIR/ch$i.aiff" 2>/dev/null | grep "estimated duration" | awk '{print $3}')
-    idx=$((10#$i - 1))
-    target=${targets[$idx]}
-    # Compare
-    ok=$(python3 -c "d=$dur; t=$target; print('OK' if d <= t+1 else 'LONG' if d <= t+3 else 'CUT')")
-    printf "%s | %6.1fs | %6.1fs | %s\n" "$i" "$dur" "$target" "$ok"
+    afconvert -d aac -f m4af "$DIR/ch$i.aiff" "$DIR/ch$i.m4a"
 done
 
-# Total
-total=$(python3 -c "
-import subprocess
-t=0
-for i in range(1,11):
-    r=subprocess.run(['afinfo',f'/Users/gaia/ABC FLIX/PFLIX/audio/ch{i:02d}.aiff'],capture_output=True,text=True)
-    for l in r.stdout.split('\n'):
-        if 'estimated duration' in l:
-            t+=float(l.split()[2])
-print(f'Total audio: {t:.1f}s ({t/60:.1f}min)')
-")
 echo ""
-echo "$total"
+echo "TIMING REPORT:"
+echo ""
+printf "%-4s | %7s | %7s\n" "CH" "AUDIO" "TARGET"
+echo "-----+---------+--------"
+targets=(13.6 10.0 13.2 13.7 14.3 14.0 14.9 14.8 14.6 15.0)
+total=0
+for i in 01 02 03 04 05 06 07 08 09 10; do
+    dur=$(afinfo "$DIR/ch$i.m4a" 2>/dev/null | grep "estimated duration" | awk '{print $3}')
+    idx=$((10#$i - 1))
+    target=${targets[$idx]}
+    total=$(python3 -c "print($total + $dur)")
+    printf "%-4s | %6.1fs | %6.1fs\n" "$i" "$dur" "$target"
+done
+echo "-----+---------+--------"
+echo "TOTAL: ${total}s ($(python3 -c "print(f'{$total/60:.1f}')") min)"
+
+# Clean up AIFF
+rm -f "$DIR"/*.aiff
