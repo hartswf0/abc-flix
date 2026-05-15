@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ICARO-STAGE · Scene→BEFLIX</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#fff;color:#000;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+#app{display:grid;grid-template-rows:48px 1fr 36px;height:100dvh;border:2px solid #000}
+header{display:grid;grid-template-columns:200px 1fr auto;align-items:center;border-bottom:2px solid #000;background:#000;color:#fff}
+.brand{padding:0 14px;font-size:20px;font-weight:1000;letter-spacing:.04em}
+.brand small{font-size:10px;display:block;font-weight:800;letter-spacing:.08em;color:#999}
+.hud{padding:0 14px;font-size:11px;font-weight:900;text-transform:uppercase}
+.hdr-actions{display:flex;gap:6px;padding:0 10px}
+.hdr-actions button{background:#fff;color:#000;border:2px solid #fff;font:inherit;font-size:10px;font-weight:900;padding:6px 10px;cursor:pointer;text-transform:uppercase}
+.workspace{display:grid;grid-template-columns:320px 1fr 340px;min-height:0}
+.panel{border-right:2px solid #000;display:flex;flex-direction:column;min-height:0}
+.panel:last-child{border-right:0}
+.phead{padding:8px 10px;border-bottom:2px solid #000;font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.04em;background:#f4f4f0;display:flex;justify-content:space-between;align-items:center}
+.pbody{flex:1;overflow:auto;padding:10px;background:#fff}
+footer{border-top:2px solid #000;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:900;gap:12px;background:#f4f4f0}
+.dot{width:10px;height:10px;background:#000;border-radius:50%;display:inline-block}
+button{font:inherit;cursor:pointer}
+.chat-feed{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.msg{border:1.5px solid #000;padding:8px;font-size:11px;line-height:1.35}
+.msg.you{margin-left:30px;background:#fff}
+.msg.sys{margin-right:15px;background:#f4f4f0}
+.who{font-size:9px;font-weight:1000;text-transform:uppercase;margin-bottom:3px}
+.composer{display:grid;grid-template-columns:1fr 36px;gap:6px}
+.composer input{border:2px solid #000;padding:8px;font:inherit;font-size:11px}
+.composer button{border:2px solid #000;background:#000;color:#fff;font-size:16px;font-weight:900}
+.suggestions{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px}
+.suggestions button{border:1.5px solid #000;background:#fff;padding:6px;font-size:9px;font-weight:800;text-align:left;cursor:pointer}
+.suggestions button:hover{background:#000;color:#fff}
+canvas{image-rendering:pixelated;max-width:100%;max-height:100%;display:block;margin:auto;border:2px solid #000}
+.canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:#f4f4f0;padding:10px;min-height:0}
+.scene-list{margin-bottom:10px}
+.scene-item{border:1.5px solid #000;padding:6px 8px;margin-bottom:4px;font-size:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.scene-item.active{background:#000;color:#fff}
+.scene-item .num{font-weight:1000;margin-right:6px}
+.code-out{border:2px solid #000;padding:10px;font-size:10px;line-height:1.5;white-space:pre-wrap;min-height:200px;background:#f8f8f4;overflow:auto;max-height:calc(100vh - 300px)}
+.code-actions{display:flex;gap:6px;margin-top:8px}
+.code-actions button{border:2px solid #000;background:#fff;padding:6px 10px;font-size:10px;font-weight:900;text-transform:uppercase;flex:1}
+.code-actions button.primary{background:#000;color:#fff}
+.playback{display:flex;gap:6px;align-items:center;margin-top:8px;justify-content:center}
+.playback button{border:2px solid #000;background:#fff;width:32px;height:32px;font-size:14px;font-weight:900}
+.playback button.on{background:#000;color:#fff}
+.playback span{font-size:10px;font-weight:900;min-width:60px;text-align:center}
+@media(max-width:1100px){.workspace{grid-template-columns:1fr}.panel{border-right:0;border-bottom:2px solid #000;min-height:340px}}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">ICARO-STAGE<small>Scene → BEFLIX</small></div>
+  <div class="hud" id="hud">0 scenes · 0 frames</div>
+  <div class="hdr-actions">
+    <button id="btn-export">Export films.md</button>
+    <button id="btn-clear">Clear</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <!-- PANEL 1: CHAT -->
+  <section class="panel">
+    <div class="phead"><span>① Chat</span><span style="font-size:9px;font-weight:700">describe scenes</span></div>
+    <div class="pbody">
+      <div class="suggestions" id="suggestions"></div>
+      <div class="chat-feed" id="chatFeed"></div>
+      <div class="composer">
+        <input id="chatInput" placeholder="describe a scene…" autocomplete="off">
+        <button id="sendBtn">↗</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PANEL 2: CANVAS -->
+  <section class="panel">
+    <div class="phead"><span>② Preview</span><span id="frameLabel" style="font-size:9px;font-weight:700">—</span></div>
+    <div class="canvas-wrap"><canvas id="screen" width="640" height="480"></canvas></div>
+    <div class="playback">
+      <button id="btn-prev">◀</button>
+      <button id="btn-play">▶</button>
+      <button id="btn-next">▶▶</button>
+      <span id="playStatus">0/0</span>
+    </div>
+  </section>
+
+  <!-- PANEL 3: CODE + SCENES -->
+  <section class="panel" style="border-right:0">
+    <div class="phead"><span>③ BEFLIX Code</span><span style="font-size:9px;font-weight:700" id="codeCount">0 lines</span></div>
+    <div class="pbody">
+      <div class="scene-list" id="sceneList"></div>
+      <div class="code-out" id="codeOut">C ICARO-STAGE — no scenes yet</div>
+      <div class="code-actions">
+        <button onclick="copyCode()">Copy</button>
+        <button class="primary" onclick="recompile()">Recompile</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="dot"></span>
+  <span id="footStatus">Ready</span>
+</footer>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// BEFLIX RENDERER (from icaro-pro/icaro-pres)
+// ═══════════════════════════════════════════
+const G_ROWS=96,G_COLS=128,B_SZ=5;
+const W=G_COLS*B_SZ,H=G_ROWS*B_SZ;
+const cvs=document.getElementById('screen');
+cvs.width=W;cvs.height=H;
+const ctx=cvs.getContext('2d');
+
+const INKS=[
+  {rgb:[245,240,235]},{rgb:[40,35,30]},{rgb:[70,62,55]},{rgb:[105,95,85]},
+  {rgb:[145,132,120]},{rgb:[185,172,158]},{rgb:[215,205,195]},{rgb:[10,10,10]}
+];
+const DOT_STAMPS=[];
+(function(){
+  for(let i=0;i<8;i++){
+    const c=document.createElement('canvas');c.width=B_SZ;c.height=B_SZ;
+    const cx=c.getContext('2d'),r=INKS[i].rgb,rad=B_SZ/2-.3;
+    const g=cx.createRadialGradient(B_SZ/2,B_SZ/2,0,B_SZ/2,B_SZ/2,rad);
+    g.addColorStop(0,`rgba(${r[0]},${r[1]},${r[2]},1)`);
+    g.addColorStop(.85,`rgba(${r[0]},${r[1]},${r[2]},.95)`);
+    g.addColorStop(1,`rgba(${r[0]},${r[1]},${r[2]},.3)`);
+    cx.fillStyle=g;cx.beginPath();cx.arc(B_SZ/2,B_SZ/2,rad,0,Math.PI*2);cx.fill();
+    DOT_STAMPS[i]=c;
+  }
+})();
+
+function newGrid(){return new Uint8Array(G_ROWS*G_COLS)}
+function cloneGrid(g){return new Uint8Array(g)}
+function renderGrid(grid){
+  ctx.fillStyle='#f4f4f0';ctx.fillRect(0,0,W,H);
+  for(let y=0;y<G_ROWS;y++)for(let x=0;x<G_COLS;x++)
+    ctx.drawImage(DOT_STAMPS[grid[y*G_COLS+x]],x*B_SZ,y*B_SZ);
+}
+
+// ═══════════════════════════════════════════
+// SCENE → BEFLIX TEMPLATE LIBRARY
+// ═══════════════════════════════════════════
+const TEMPLATES={
+  establish:{
+    desc:'Wide establishing shot — horizon line, ground plane',
+    code:'CLR 0\nPNT 0 70 128 26 2\nLIN 0 70 128 70 4\nREC 24'
+  },
+  swarm:{
+    desc:'Moving cluster of dots — insect/crowd movement',
+    code:'CLR 0\nPNT 50 30 6 6 7\nPNT 52 32 3 3 5\nREC 6\nSHF 2 1 12\nPNT 54 28 4 4 6\nSHF -1 2 8'
+  },
+  tension:{
+    desc:'Dividing line — split, conflict, boundary',
+    code:'CLR 0\nLIN 0 48 128 48 6\nREC 12\nPNT 0 0 128 48 1\nREC 12'
+  },
+  chaos:{
+    desc:'Rapid shifting blocks — disorder, panic',
+    code:'CLR 0\nPNT 10 10 30 30 5\nPNT 70 50 25 20 6\nREC 4\nSHF -3 2 6\nPNT 40 20 15 15 7\nSHF 2 -3 6\nREC 4'
+  },
+  calm:{
+    desc:'Slow fade, large gentle fill — peace, resolution',
+    code:'CLR 0\nPNT 0 0 128 96 1\nREC 12\nPNT 20 20 88 56 2\nREC 18\nPNT 30 30 68 36 3\nREC 12'
+  },
+  dark:{
+    desc:'Black fill with small light — isolation, fear',
+    code:'CLR 7\nREC 6\nPNT 58 42 12 12 0\nREC 18\nPNT 60 44 8 8 1\nREC 12'
+  },
+  reveal:{
+    desc:'Expanding rectangle — discovery, opening',
+    code:'CLR 0\nPNT 62 46 4 4 6\nREC 6\nPNT 56 40 16 16 5\nREC 6\nPNT 44 32 40 32 4\nREC 6\nPNT 24 16 80 64 3\nREC 12'
+  },
+  motion:{
+    desc:'Diagonal sweep — travel, journey, transit',
+    code:'CLR 0\nLIN 0 0 128 96 5\nREC 6\nSHF 3 0 12\nLIN 0 0 128 96 3\nSHF 3 0 12'
+  },
+  interior:{
+    desc:'Rectangular frame — room, vehicle, enclosure',
+    code:'CLR 0\nPNT 10 8 108 80 2\nPNT 14 12 100 72 0\nLIN 10 8 118 8 5\nLIN 10 88 118 88 5\nLIN 10 8 10 88 5\nLIN 118 8 118 88 5\nREC 24'
+  },
+  crowd:{
+    desc:'Scattered dots — people, particles, swarm at rest',
+    code:'CLR 0\nPNT 20 60 4 4 6\nPNT 35 55 3 3 5\nPNT 50 62 5 5 7\nPNT 65 58 3 4 6\nPNT 80 60 4 3 5\nPNT 95 56 3 5 6\nPNT 45 70 4 4 5\nPNT 70 72 3 3 6\nREC 24'
+  },
+  closeup:{
+    desc:'Large centered shape — face, detail, focus',
+    code:'CLR 0\nPNT 34 18 60 60 3\nPNT 44 28 40 40 5\nPNT 54 38 20 20 7\nREC 24'
+  },
+  transition:{
+    desc:'Wipe effect — scene change',
+    code:'CLR 0\nREC 6\nPNT 0 0 16 96 7\nREC 2\nPNT 0 0 32 96 7\nREC 2\nPNT 0 0 48 96 7\nREC 2\nPNT 0 0 64 96 7\nREC 2\nPNT 0 0 80 96 7\nREC 2\nPNT 0 0 96 96 7\nREC 2\nPNT 0 0 112 96 7\nREC 2\nPNT 0 0 128 96 7\nREC 6'
+  }
+};
+
+// ═══════════════════════════════════════════
+// SCENE COMPILER
+// ═══════════════════════════════════════════
+const scenes=[];
+let allCode='';
+let frames=[];
+let curFrame=0;
+let playing=false;
+let playRAF=null;
+let BASE_FPS=12;
+
+function matchTemplate(text){
+  const t=text.toLowerCase();
+  const keywords={
+    swarm:['swarm','bees','flies','insects','buzz','hive','flock'],
+    chaos:['chaos','panic','disorder','crash','explosion','frantic','shake'],
+    tension:['tension','split','divide','conflict','versus','boundary','wall'],
+    calm:['calm','peace','quiet','gentle','serene','still','rest','sleep'],
+    dark:['dark','shadow','night','fear','horror','black','alone','silent'],
+    reveal:['reveal','discover','open','unfold','emerge','appear','surprise'],
+    motion:['motion','travel','journey','train','move','sweep','drive','fly','run'],
+    interior:['interior','room','inside','cabin','car','vehicle','compartment','corridor'],
+    crowd:['crowd','people','passengers','group','gather','scatter','audience'],
+    closeup:['closeup','close','face','detail','eye','focus','macro','zoom'],
+    transition:['transition','wipe','cut','fade','change','switch','next'],
+    establish:['establish','wide','landscape','overview','horizon','opening','vista']
+  };
+  let best=null,bestScore=0;
+  for(const[tmpl,words]of Object.entries(keywords)){
+    let score=0;
+    for(const w of words)if(t.includes(w))score++;
+    if(score>bestScore){bestScore=score;best=tmpl;}
+  }
+  return best||'establish';
+}
+
+function sceneToBeflix(scene){
+  const tmpl=TEMPLATES[scene.template]||TEMPLATES.establish;
+  let code=`C STATE 01 ${scene.title.toUpperCase()}\n`;
+  code+=tmpl.code;
+  return code;
+}
+
+function buildFullCode(){
+  if(!scenes.length){allCode='C ICARO-STAGE — no scenes yet';return allCode;}
+  const parts=[];
+  parts.push('C ═══════════════════════════════════════════');
+  parts.push('C ICARO-STAGE GENERATED FILM');
+  parts.push('C ═══════════════════════════════════════════');
+  for(const s of scenes){
+    parts.push('');
+    parts.push(sceneToBeflix(s));
+  }
+  allCode=parts.join('\n');
+  return allCode;
+}
+
+// ═══════════════════════════════════════════
+// BEFLIX COMPILER (from icaro-pres)
+// ═══════════════════════════════════════════
+function compile(code){
+  const lines=code.toUpperCase().split('\n'),res=[];
+  let mat=newGrid();
+  for(const l of lines){
+    const t=l.trim();if(!t)continue;
+    const parts=t.split(/\s+/),cmd=parts[0],a=parts.slice(1).map(Number);
+    if(cmd==='C')continue;
+    if(cmd==='CLR')mat.fill(a[0]||0);
+    else if(cmd==='PNT'){for(let y=a[1];y<a[1]+a[3];y++)for(let x=a[0];x<a[0]+a[2];x++)if(y>=0&&y<G_ROWS&&x>=0&&x<G_COLS)mat[y*G_COLS+x]=a[4];}
+    else if(cmd==='LIN'){let lx=a[0],ly=a[1],ex=a[2],ey=a[3],v=a[4],dx=Math.abs(ex-lx),sx=lx<ex?1:-1,dy=-Math.abs(ey-ly),sy=ly<ey?1:-1,err=dx+dy,n=2000;while(n-->0){if(lx>=0&&lx<G_COLS&&ly>=0&&ly<G_ROWS)mat[ly*G_COLS+lx]=v;if(lx===ex&&ly===ey)break;let e2=2*err;if(e2>=dy){err+=dy;lx+=sx;}if(e2<=dx){err+=dx;ly+=sy;}}}
+    else if(cmd==='REC'){const n=Math.min(a[0]||1,2000);for(let i=0;i<n;i++)res.push(cloneGrid(mat));}
+    else if(cmd==='SHF'){const sdx=a[0],sdy=a[1],sn=Math.min(a[2]||1,2000);for(let f=0;f<sn;f++){const ng=newGrid();for(let y=0;y<G_ROWS;y++)for(let x=0;x<G_COLS;x++){let nx=x-sdx,ny=y-sdy;if(nx>=0&&nx<G_COLS&&ny>=0&&ny<G_ROWS)ng[y*G_COLS+x]=mat[ny*G_COLS+nx];}mat=ng;res.push(cloneGrid(mat));}}
+  }
+  if(!res.length)res.push(mat);
+  return res;
+}
+
+function recompile(){
+  buildFullCode();
+  document.getElementById('codeOut').textContent=allCode;
+  document.getElementById('codeCount').textContent=allCode.split('\n').length+' lines';
+  frames=compile(allCode);
+  curFrame=0;
+  if(frames.length)renderGrid(frames[0]);
+  updateHUD();
+  updatePlayStatus();
+}
+
+// ═══════════════════════════════════════════
+// CHAT ENGINE (BEEDANCE-style local parser)
+// ═══════════════════════════════════════════
+const chatMessages=[];
+
+function addScene(title,text){
+  const template=matchTemplate(text);
+  scenes.push({title,text,template});
+  recompile();
+  renderSceneList();
+}
+
+function processChat(raw){
+  const t=raw.trim();if(!t)return;
+  chatMessages.push({who:'you',body:t});
+
+  // Parse intent
+  const lower=t.toLowerCase();
+  let reply='';
+
+  if(lower.includes('clear all')||lower.includes('reset')){
+    scenes.length=0;recompile();renderSceneList();
+    reply='Cleared all scenes. Start fresh.';
+  }else if(lower.includes('delete last')||lower.includes('remove last')){
+    if(scenes.length){scenes.pop();recompile();renderSceneList();reply='Removed last scene.';}
+    else reply='No scenes to remove.';
+  }else if(lower.includes('export')){
+    exportFilmsMd();reply='Exported films.md — ready for icaro-pres.';
+  }else{
+    // Extract title from first few words, use full text for template matching
+    const words=t.split(/\s+/);
+    const title=words.slice(0,Math.min(4,words.length)).join(' ');
+    addScene(title,t);
+    const tmpl=scenes[scenes.length-1].template;
+    reply=`Added scene "${title}" using [${tmpl}] template (${TEMPLATES[tmpl].desc}). ${scenes.length} scenes total, ${frames.length} frames.`;
+  }
+
+  chatMessages.push({who:'stage',body:reply});
+  renderChat();
+}
+
+function renderChat(){
+  const feed=document.getElementById('chatFeed');
+  feed.innerHTML=chatMessages.map(m=>
+    `<div class="msg ${m.who==='you'?'you':'sys'}"><div class="who">${m.who}</div>${m.body}</div>`
+  ).join('');
+  feed.scrollTop=feed.scrollHeight;
+}
+
+function renderSceneList(){
+  const el=document.getElementById('sceneList');
+  el.innerHTML=scenes.map((s,i)=>
+    `<div class="scene-item${i===scenes.length-1?' active':''}" onclick="selectScene(${i})">
+      <span><span class="num">${i+1}</span>${s.title} <small>[${s.template}]</small></span>
+      <button onclick="event.stopPropagation();removeScene(${i})" style="border:1px solid;background:none;font-size:9px;padding:2px 5px;cursor:pointer">×</button>
+    </div>`
+  ).join('');
+}
+
+function selectScene(i){
+  // Jump to first frame of this scene
+  let frameIdx=0;
+  for(let j=0;j<i;j++){
+    const code=sceneToBeflix(scenes[j]);
+    frameIdx+=compile(code).length;
+  }
+  curFrame=Math.min(frameIdx,frames.length-1);
+  if(frames.length)renderGrid(frames[curFrame]);
+  updatePlayStatus();
+  renderSceneList();
+}
+
+function removeScene(i){
+  scenes.splice(i,1);recompile();renderSceneList();
+}
+
+// ═══════════════════════════════════════════
+// SUGGESTIONS
+// ═══════════════════════════════════════════
+const SUGGESTIONS=[
+  'wide establishing shot of a train crossing farmland',
+  'bees swarm out of a crate in the cargo car',
+  'passengers panic in the corridor',
+  'dark interior of the dining car',
+  'close-up of a single bee on glass',
+  'calm resolution — train arrives at station',
+  'transition wipe to next scene',
+  'chaotic shaking as train brakes hard'
+];
+
+function renderSuggestions(){
+  document.getElementById('suggestions').innerHTML=
+    SUGGESTIONS.slice(0,6).map(s=>
+      `<button onclick="document.getElementById('chatInput').value='${s}';document.getElementById('chatInput').focus()">${s}</button>`
+    ).join('');
+}
+
+// ═══════════════════════════════════════════
+// PLAYBACK
+// ═══════════════════════════════════════════
+function updatePlayStatus(){
+  document.getElementById('playStatus').textContent=
+    frames.length?(curFrame+1)+'/'+frames.length:'0/0';
+  document.getElementById('frameLabel').textContent=
+    frames.length?'FRAME '+(curFrame+1)+'/'+frames.length:'—';
+}
+
+function updateHUD(){
+  document.getElementById('hud').textContent=
+    scenes.length+' scenes · '+frames.length+' frames · '+allCode.split('\n').length+' lines';
+  document.getElementById('footStatus').textContent=
+    frames.length?frames.length+' frames compiled':'Ready';
+}
+
+let lastT=0;
+function playStep(ts){
+  if(!playing)return;
+  playRAF=requestAnimationFrame(playStep);
+  if(ts-lastT<1000/BASE_FPS)return;
+  lastT=ts;
+  curFrame=(curFrame+1)%frames.length;
+  renderGrid(frames[curFrame]);
+  updatePlayStatus();
+}
+
+function togglePlay(){
+  playing=!playing;
+  const btn=document.getElementById('btn-play');
+  if(playing){btn.textContent='⏸';btn.classList.add('on');lastT=0;playRAF=requestAnimationFrame(playStep);}
+  else{btn.textContent='▶';btn.classList.remove('on');cancelAnimationFrame(playRAF);}
+}
+
+// ═══════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════
+function exportFilmsMd(){
+  buildFullCode();
+  const blob=new Blob([allCode],{type:'text/markdown'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='films.md';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function copyCode(){
+  navigator.clipboard.writeText(allCode).catch(()=>{});
+}
+
+// ═══════════════════════════════════════════
+// WIRING
+// ═══════════════════════════════════════════
+document.getElementById('sendBtn').addEventListener('click',()=>{
+  processChat(document.getElementById('chatInput').value);
+  document.getElementById('chatInput').value='';
+});
+document.getElementById('chatInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();document.getElementById('sendBtn').click();}
+});
+document.getElementById('btn-play').addEventListener('click',togglePlay);
+document.getElementById('btn-prev').addEventListener('click',()=>{
+  if(!frames.length)return;
+  curFrame=(curFrame-1+frames.length)%frames.length;
+  renderGrid(frames[curFrame]);updatePlayStatus();
+});
+document.getElementById('btn-next').addEventListener('click',()=>{
+  if(!frames.length)return;
+  curFrame=(curFrame+1)%frames.length;
+  renderGrid(frames[curFrame]);updatePlayStatus();
+});
+document.getElementById('btn-export').addEventListener('click',exportFilmsMd);
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  scenes.length=0;chatMessages.length=0;
+  recompile();renderChat();renderSceneList();
+  chatMessages.push({who:'stage',body:'Cleared. Describe your first scene.'});
+  renderChat();
+});
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+renderSuggestions();
+renderSceneList();
+recompile();
+chatMessages.push({who:'stage',body:'ICARO-STAGE ready. Describe a scene and I will compile it to BEFLIX. Try: "bees swarm out of a cargo crate" or click a suggestion above.'});
+renderChat();
+renderGrid(newGrid());
+</script>
+</body>
+</html>
