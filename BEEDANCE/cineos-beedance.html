@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>CINEOS — Chat-First Film Engine</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#fff;--fg:#000;--soft:#f5f5f5;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:Inter,system-ui,sans-serif;--r:10px;--tap:44px}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--sans)}
+button,input,textarea,select{font:inherit;border:2px solid var(--fg);background:var(--bg);color:var(--fg);border-radius:var(--r);padding:8px 12px;cursor:pointer}
+button:hover,button.on{background:var(--fg);color:var(--bg)}
+#app{display:grid;grid-template-rows:auto 1fr auto;height:100dvh}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:3px solid var(--fg)}
+.logo{font:900 20px/1 var(--mono);text-transform:uppercase;letter-spacing:-.04em}
+.logo small{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;color:#888}
+.hdr-r{display:flex;gap:6px;align-items:center}
+.pill{border:2px solid var(--fg);border-radius:999px;padding:4px 10px;font:900 10px var(--mono);text-transform:uppercase}
+.workspace{display:grid;grid-template-columns:320px 1fr 280px;min-height:0;overflow:hidden}
+.col{display:flex;flex-direction:column;min-height:0;border-right:2px solid var(--fg)}
+.col:last-child{border-right:0}
+.col-head{padding:8px 12px;border-bottom:2px solid var(--fg);font:900 12px var(--mono);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;background:var(--soft)}
+.col-body{flex:1;overflow-y:auto;padding:12px}
+nav{display:none;border-top:3px solid var(--fg);background:var(--bg)}
+nav .tabs{display:grid;grid-template-columns:repeat(3,1fr)}
+nav button{border:0;border-right:2px solid var(--fg);border-radius:0;padding:12px;font:900 11px var(--mono);text-transform:uppercase}
+nav button:last-child{border-right:0}
+.chat-feed{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.msg{border:2px solid var(--fg);border-radius:var(--r);padding:10px;font-size:13px;line-height:1.4}
+.msg.user{margin-left:32px;background:var(--fg);color:var(--bg)}
+.msg .who{font:900 9px var(--mono);text-transform:uppercase;margin-bottom:4px;opacity:.7}
+.msg .stamp{font:10px var(--mono);opacity:.6;margin-top:4px;display:block}
+.composer{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px}
+.composer input{min-width:0}
+.composer button{font-size:16px;padding:8px 14px}
+.quick{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.quick button{font-size:10px;padding:6px 8px;font-weight:800}
+.surf-tabs{display:flex;gap:0;border:2px solid var(--fg);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.surf-tabs button{flex:1;border:0;border-right:2px solid var(--fg);border-radius:0;font-size:10px;padding:6px}
+.surf-tabs button:last-child{border-right:0}
+.card{border:2px solid var(--fg);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.card h2{font:900 18px var(--mono);text-transform:uppercase;margin-bottom:8px}
+.card h3{font:900 13px var(--mono);text-transform:uppercase;margin-bottom:4px}
+.card p{font-size:13px;line-height:1.4;margin-bottom:6px}
+.script-block{border:2px solid var(--fg);border-radius:var(--r);padding:14px;font:13px/1.5 var(--mono);margin-bottom:10px}
+.script-block b{display:block;margin:10px 0 4px;text-transform:uppercase}
+.scene-card{border:2px solid var(--fg);border-radius:var(--r);padding:10px;margin-bottom:8px;display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start}
+.scene-num{width:32px;height:32px;border:2px solid var(--fg);border-radius:50%;display:grid;place-items:center;font:900 13px var(--mono)}
+.shot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.shot{border:2px solid var(--fg);border-radius:var(--r);overflow:hidden}
+.shot-art{min-height:80px;padding:8px;font:11px/1.3 var(--mono);background:var(--soft);border-bottom:2px solid var(--fg)}
+.shot-cap{padding:8px;font-size:12px}
+.shot-type{font:900 9px var(--mono);border:1.5px solid var(--fg);border-radius:4px;padding:2px 5px;display:inline-block;margin-top:4px}
+.issue{border-bottom:2px solid var(--fg);padding:8px 0;display:grid;grid-template-columns:24px 1fr;gap:8px;font-size:12px}
+.issue:last-child{border-bottom:0}
+.ico{width:20px;height:20px;background:var(--fg);color:var(--bg);display:grid;place-items:center;font:900 11px var(--mono);border-radius:4px}
+.stack-item{border:2px solid var(--fg);border-radius:var(--r);padding:10px;margin-bottom:6px;font-size:12px}
+.stack-item b{font:900 11px var(--mono);text-transform:uppercase;display:block;margin-bottom:3px}
+.hero{display:grid;place-items:center;min-height:300px;text-align:center}
+.hero h2{font:900 clamp(24px,4vw,42px)/1 var(--mono);margin-bottom:12px}
+.settings{display:none;position:fixed;inset:0;background:rgba(255,255,255,.95);z-index:50;padding:20px;overflow:auto}
+.settings.open{display:block}
+.settings .field{margin-bottom:10px}
+.settings label{display:block;font:900 10px var(--mono);text-transform:uppercase;margin-bottom:4px}
+.settings input,.settings textarea{width:100%;border-radius:var(--r)}
+.settings textarea{min-height:100px;font:12px var(--mono);resize:vertical}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font:900 11px var(--mono);opacity:0;transition:.2s;z-index:60}
+.toast.show{opacity:1}
+@media(max-width:900px){
+  .workspace{grid-template-columns:1fr}
+  .col{display:none;border-right:0}
+  body[data-tab="chat"] .col-chat{display:flex}
+  body[data-tab="surface"] .col-surface{display:flex}
+  body[data-tab="stack"] .col-stack{display:flex}
+  nav{display:block}
+}
+</style>
+</head>
+<body data-tab="chat">
+<div id="app">
+<header>
+  <div class="logo">CINEOS<small>Chat-First Film Engine</small></div>
+  <div class="hdr-r">
+    <span class="pill" id="stagePill">blank</span>
+    <button style="font-size:11px;padding:6px 10px" onclick="openSettings()">⚙</button>
+    <button style="font-size:11px;padding:6px 10px" onclick="exportProject()">↓</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <section class="col col-chat">
+    <div class="col-head"><span>Chat</span><span id="aiPill" class="pill" style="font-size:9px">local</span></div>
+    <div class="col-body">
+      <div class="quick" id="quick"></div>
+      <div class="chat-feed" id="chat"></div>
+      <div class="composer"><input id="input" placeholder="Tell me your idea..." autocomplete="off"><button onclick="send()">↗</button></div>
+    </div>
+  </section>
+
+  <section class="col col-surface">
+    <div class="col-head"><span>Surface</span><span id="surfLabel" style="font-size:9px;font-weight:700">—</span></div>
+    <div class="col-body">
+      <div class="surf-tabs" id="surfTabs"></div>
+      <div id="surfBody"></div>
+    </div>
+  </section>
+
+  <section class="col col-stack">
+    <div class="col-head"><span>Stack</span><span style="font-size:9px;font-weight:700" id="stackCount">0 items</span></div>
+    <div class="col-body" id="stackBody"></div>
+  </section>
+</main>
+
+<nav><div class="tabs">
+  <button class="on" onclick="tab('chat')">Chat</button>
+  <button onclick="tab('surface')">Surface</button>
+  <button onclick="tab('stack')">Stack</button>
+</div></nav>
+</div>
+
+<div class="settings" id="settingsPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <b style="font:900 16px var(--mono);text-transform:uppercase">AI Settings</b>
+    <button onclick="closeSettings()" style="font-size:11px">Close</button>
+  </div>
+  <div class="field"><label>Endpoint</label><input id="aiEndpoint" value="https://api.openai.com/v1/chat/completions"></div>
+  <div class="field"><label>Model</label><input id="aiModel" value="gpt-4o-mini"></div>
+  <div class="field"><label>API Key</label><input id="aiKey" type="password" placeholder="sk-..."></div>
+  <div class="field"><label>System Prompt</label><textarea id="aiPrompt"></textarea></div>
+  <button onclick="saveAI()" style="width:100%;background:var(--fg);color:var(--bg)">Save</button>
+  <button onclick="resetAll()" style="width:100%;margin-top:8px;border-style:dashed">Reset Everything</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const STAGES=['blank','idea','plan','script','scenes','storyboard','export'];
+const SURFACES=['script','board','storyboard','diagram','diagnostics'];
+const SYS_PROMPT=`You are CINEOS, a chat-first film engine. Return ONLY valid JSON:
+{"assistant_message":"...","stage":"idea|plan|script|scenes|storyboard|export","project":{
+"title":"","idea":"","tone":"","genre":"","logline":"","characters":[""],
+"script":[{"heading":"","action":"","dialogue":""}],
+"scenes":[{"title":"","description":"","icon":""}],
+"storyboard":[{"caption":"","shot":"WIDE|MEDIUM|CLOSE|DETAIL","image_prompt":""}]}}
+Advance one stage per request. Preserve existing material unless asked to change.`;
+
+let S={stage:'blank',surface:'script',project:{title:'',idea:'',tone:'',genre:'',logline:'',characters:[],script:[],scenes:[],storyboard:[]},messages:[],ai:{endpoint:'https://api.openai.com/v1/chat/completions',model:'gpt-4o-mini',key:'',prompt:SYS_PROMPT}};
+
+function load(){try{const d=JSON.parse(localStorage.getItem('cineos'));if(d)S=d;}catch(e){}}
+function save(){localStorage.setItem('cineos',JSON.stringify(S));}
+function now(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);}
+
+function tab(t){document.body.dataset.tab=t;document.querySelectorAll('nav button').forEach((b,i)=>{b.classList.toggle('on',['chat','surface','stack'][i]===t);});}
+function openSettings(){const p=document.getElementById('settingsPanel');p.classList.add('open');document.getElementById('aiEndpoint').value=S.ai.endpoint;document.getElementById('aiModel').value=S.ai.model;document.getElementById('aiKey').value=S.ai.key;document.getElementById('aiPrompt').value=S.ai.prompt;}
+function closeSettings(){document.getElementById('settingsPanel').classList.remove('open');}
+function saveAI(){S.ai.endpoint=document.getElementById('aiEndpoint').value.trim();S.ai.model=document.getElementById('aiModel').value.trim();S.ai.key=document.getElementById('aiKey').value.trim();S.ai.prompt=document.getElementById('aiPrompt').value.trim()||SYS_PROMPT;save();closeSettings();toast('AI saved');renderAll();}
+function resetAll(){localStorage.removeItem('cineos');location.reload();}
+
+function addMsg(role,text){S.messages.push({role,text,time:now()});save();}
+function renderChat(){
+  document.getElementById('chat').innerHTML=S.messages.map(m=>`<div class="msg${m.role==='user'?' user':''}"><div class="who">${m.role}</div>${esc(m.text)}<span class="stamp">${m.time}</span></div>`).join('');
+  document.getElementById('chat').scrollTop=9e9;
+}
+
+function getQuick(){
+  if(S.stage==='blank')return['a thriller about strangers on a ferry','a comedy about AI making a movie','a horror film in a library at night','bees on a train, funny but sweet'];
+  return['next','make it darker','add a twist','add a character','make it funnier','show the storyboard','export'];
+}
+function renderQuick(){
+  document.getElementById('quick').innerHTML=getQuick().map(q=>`<button onclick="doQuick('${esc(q)}')">${esc(q)}</button>`).join('');
+}
+function doQuick(q){document.getElementById('input').value=q;send();}
+
+function nextStage(){const i=STAGES.indexOf(S.stage);return i<STAGES.length-1?STAGES[i+1]:S.stage;}
+
+// LOCAL PARSER
+function localParse(text){
+  const t=text.toLowerCase(),p=S.project,r={assistant_message:'',stage:S.stage,project:{}};
+  if(S.stage==='blank'){
+    r.stage='idea';
+    r.project={title:text.split(/[.!?,]/)[0].slice(0,40).trim()||'Untitled',idea:text,tone:t.includes('funny')||t.includes('comedy')?'Comedy':t.includes('horror')||t.includes('dark')?'Dark/Suspense':'Drama',genre:t.includes('comedy')?'Comedy':t.includes('horror')?'Horror':t.includes('thriller')?'Thriller':'Drama',logline:'A story about: '+text.slice(0,80)};
+    r.assistant_message=`Got it. "${r.project.title}" — ${r.project.tone}. Say "next" to build the plan.`;
+  }else if(t==='next'||t.includes('next step')){
+    r.stage=nextStage();
+    if(r.stage==='plan'){
+      r.project={characters:[p.title+' protagonist','Ally','Antagonist','Mentor'],logline:p.logline||'A story emerges.'};
+      r.assistant_message='Plan built with 4 characters. Say "next" for the script.';
+    }else if(r.stage==='script'){
+      r.project={script:[{heading:'EXT. OPENING — '+p.tone.toUpperCase(),action:'The world is established. We sense '+p.tone.toLowerCase()+' in the air.',dialogue:''},{heading:'INT. CONFRONTATION',action:'The protagonist faces the first obstacle. Tension rises.',dialogue:'This changes everything.'},{heading:'EXT. CLIMAX',action:'Everything converges. The central conflict erupts.',dialogue:''},{heading:'INT. RESOLUTION',action:'The aftermath. A new equilibrium.',dialogue:''}]};
+      r.assistant_message='Script drafted: 4 beats. Say "next" for scenes.';
+    }else if(r.stage==='scenes'){
+      r.project={scenes:(p.script||[]).map((s,i)=>({title:s.heading||'Scene '+(i+1),description:s.action||'',icon:['🎬','⚡','🔥','🌅'][i%4]}))};
+      r.assistant_message=r.project.scenes.length+' scenes built. Say "next" for storyboard.';
+    }else if(r.stage==='storyboard'){
+      r.project={storyboard:(p.scenes||[]).map((s,i)=>({caption:s.description||s.title,shot:['WIDE','MEDIUM','CLOSE','DETAIL'][i%4],image_prompt:'Cinematic frame: '+s.description+'. '+p.tone+' tone, dramatic lighting.'}))};
+      r.assistant_message='Storyboard complete with '+r.project.storyboard.length+' shots. Say "export" to download.';
+    }else if(r.stage==='export'){
+      r.assistant_message='Project complete. Click ↓ to download JSON.';
+    }
+  }else if(t.includes('export')){r.stage='export';r.assistant_message='Ready to export. Click ↓ in the header.';}
+  else if(t.includes('dark')||t.includes('scarier')||t.includes('horror')){r.project={tone:'Dark/Horror'};r.assistant_message='Shifted tone to dark/horror. The atmosphere thickens.';}
+  else if(t.includes('funny')||t.includes('funnier')||t.includes('comedy')){r.project={tone:'Comedy'};r.assistant_message='Shifted to comedy. Lighter, sharper, funnier.';}
+  else if(t.includes('character')||t.includes('add a')){const name=text.replace(/add a (character|person|figure)?\s*/i,'').trim()||'New Character';r.project={characters:[...(p.characters||[]),name]};r.assistant_message=`Added "${name}" to the cast.`;}
+  else if(t.includes('twist')){r.project={logline:(p.logline||'')+' But nothing is what it seems.'};r.assistant_message='Added a twist to the narrative spine.';}
+  else if(t.includes('storyboard')){r.stage='storyboard';if(!p.storyboard?.length)r.project={storyboard:[{caption:'Opening',shot:'WIDE',image_prompt:'Wide establishing shot. '+p.tone}]};r.assistant_message='Showing storyboard surface.';}
+  else{
+    if(S.stage==='blank'){r.stage='idea';r.project={title:text.slice(0,40),idea:text,tone:'Drama',genre:'Drama',logline:text};r.assistant_message=`Captured your idea: "${text.slice(0,40)}". Say "next" to continue.`;}
+    else{r.assistant_message='Applied: "'+text.slice(0,60)+'". Say "next" to advance or ask me to change something.';}
+  }
+  return r;
+}
+
+async function callAI(text){
+  const res=await fetch(S.ai.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.ai.key},body:JSON.stringify({model:S.ai.model,temperature:.7,response_format:{type:'json_object'},messages:[{role:'system',content:S.ai.prompt},{role:'user',content:JSON.stringify({user_message:text,current_stage:S.stage,project:S.project})}]})});
+  if(!res.ok)throw new Error(res.status);
+  const d=await res.json();
+  const c=d.choices?.[0]?.message?.content;
+  return JSON.parse(typeof c==='string'?c:JSON.stringify(c));
+}
+
+function applyResult(r){
+  if(r.stage&&STAGES.includes(r.stage))S.stage=r.stage;
+  if(r.project)Object.keys(r.project).forEach(k=>{if(r.project[k]!==undefined)S.project[k]=r.project[k];});
+  if(!S.project.title)S.project.title='Untitled';
+}
+
+async function send(){
+  const inp=document.getElementById('input'),text=inp.value.trim();if(!text)return;
+  inp.value='';addMsg('user',text);renderChat();
+  try{
+    const r=(S.ai.key)?await callAI(text):localParse(text);
+    applyResult(r);addMsg('cineos',r.assistant_message||'Done.');
+  }catch(e){
+    const r=localParse(text);applyResult(r);addMsg('cineos',(r.assistant_message||'')+(S.ai.key?' (AI failed, used local)':''));
+  }
+  save();renderAll();
+}
+
+document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send();}});
+
+// SURFACES
+function renderSurfTabs(){
+  document.getElementById('surfTabs').innerHTML=SURFACES.map(s=>`<button class="${s===S.surface?'on':''}" onclick="switchSurf('${s}')">${s}</button>`).join('');
+}
+function switchSurf(s){S.surface=s;save();renderSurface();}
+
+function renderSurface(){
+  renderSurfTabs();
+  const b=document.getElementById('surfBody'),p=S.project;
+  document.getElementById('surfLabel').textContent=S.surface.toUpperCase();
+  if(S.stage==='blank'){b.innerHTML='<div class="hero"><div><h2>Tell me your idea.</h2><p>Type anything in Chat. I\'ll build the film.</p></div></div>';return;}
+  if(S.surface==='script'){
+    if(!p.script?.length){b.innerHTML='<div class="card"><p>No script yet. Say "next" until we reach the script stage.</p></div>';return;}
+    b.innerHTML='<div class="script-block"><h2 style="text-align:center;margin-bottom:16px">'+esc(p.title||'UNTITLED')+'</h2>'+p.script.map(s=>'<b>'+esc(s.heading)+'</b><p>'+esc(s.action)+'</p>'+(s.dialogue?'<p style="text-align:center;font-style:italic">'+esc(s.dialogue)+'</p>':'')).join('')+'</div>';
+  }else if(S.surface==='board'){
+    b.innerHTML='<div class="card"><h2>'+esc(p.title)+'</h2><p>'+esc(p.logline)+'</p></div>'+'<div class="card"><h3>Tone</h3><p>'+esc(p.tone)+'</p></div>'+'<div class="card"><h3>Genre</h3><p>'+esc(p.genre)+'</p></div>'+(p.characters?.length?'<div class="card"><h3>Characters</h3><ul>'+p.characters.map(c=>'<li>'+esc(c)+'</li>').join('')+'</ul></div>':'');
+  }else if(S.surface==='storyboard'){
+    if(!p.storyboard?.length){b.innerHTML='<div class="card"><p>No storyboard yet. Advance to storyboard stage.</p></div>';return;}
+    b.innerHTML='<div class="shot-grid">'+p.storyboard.map((s,i)=>'<div class="shot"><div class="shot-art">'+esc(s.image_prompt)+'</div><div class="shot-cap"><b>'+(i+1)+'</b> '+esc(s.caption)+'<br><span class="shot-type">'+esc(s.shot)+'</span></div></div>').join('')+'</div>';
+  }else if(S.surface==='diagram'){
+    if(!p.scenes?.length){b.innerHTML='<div class="card"><p>No scenes to diagram. Advance to scenes stage.</p></div>';return;}
+    b.innerHTML=p.scenes.map((s,i)=>'<div class="scene-card"><div class="scene-num">'+(i+1)+'</div><div><b>'+esc(s.icon||'')+' '+esc(s.title)+'</b><p style="font-size:12px;margin-top:4px">'+esc(s.description)+'</p></div></div>').join('');
+  }else if(S.surface==='diagnostics'){
+    const issues=[];
+    if(!p.logline)issues.push({t:'Missing Logline',d:'No logline defined yet.'});
+    if(!p.characters?.length)issues.push({t:'No Characters',d:'Add characters to populate the world.'});
+    if(p.script?.length<3)issues.push({t:'Thin Script',d:'Script has fewer than 3 beats.'});
+    if(!p.storyboard?.length)issues.push({t:'No Storyboard',d:'Generate a storyboard for visual planning.'});
+    (p.scenes||[]).forEach((s,i)=>{if((s.description||'').length<20)issues.push({t:'Thin Scene '+(i+1),d:s.title+' needs more detail.'});});
+    b.innerHTML=issues.length?issues.map(i=>'<div class="issue"><div class="ico">!</div><div><b>'+esc(i.t)+'</b><br>'+esc(i.d)+'</div></div>').join(''):'<div class="card" style="text-align:center"><p>✓ All clear. No issues detected.</p></div>';
+  }
+}
+
+function renderStack(){
+  const items=[];
+  if(S.project.title)items.push({label:'Project',val:S.project.title});
+  if(S.project.tone)items.push({label:'Tone',val:S.project.tone});
+  if(S.project.characters?.length)items.push({label:'Characters',val:S.project.characters.length+' cast'});
+  if(S.project.script?.length)items.push({label:'Script',val:S.project.script.length+' beats'});
+  if(S.project.scenes?.length)items.push({label:'Scenes',val:S.project.scenes.length+' scenes'});
+  if(S.project.storyboard?.length)items.push({label:'Storyboard',val:S.project.storyboard.length+' shots'});
+  document.getElementById('stackBody').innerHTML=items.length?items.map(i=>'<div class="stack-item"><b>'+esc(i.label)+'</b>'+esc(i.val)+'</div>').join(''):'<div class="card"><p>Your project stack will grow as you build.</p></div>';
+  document.getElementById('stackCount').textContent=items.length+' items';
+}
+
+function renderAll(){
+  document.getElementById('stagePill').textContent=S.stage;
+  document.getElementById('aiPill').textContent=S.ai.key?'AI':'local';
+  renderQuick();renderChat();renderSurface();renderStack();
+}
+
+function exportProject(){
+  const blob=new Blob([JSON.stringify(S.project,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(S.project.title||'cineos-project').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.json';
+  a.click();URL.revokeObjectURL(a.href);toast('Exported');
+}
+
+// BOOT
+load();
+if(!S.messages.length)addMsg('cineos','Hi. I\'m CINEOS. Tell me any film idea — messy, vague, wild. I\'ll turn it into script, scenes, and storyboard. No expert prompting needed.');
+renderAll();
+</script>
+</body>
+</html>
