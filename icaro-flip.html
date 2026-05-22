@@ -5330,6 +5330,44 @@ SHF 2 1 24</textarea>
             document.getElementById('fb-zoom-wrapper').style.transform = 'scale(' + zoom + ')';
         }
 
+        function getVisualPrimitivesForFrame(frameIdx) {
+            if (typeof state === 'undefined' || !state.frames || !state.frames[frameIdx]) return null;
+            var f = state.frames[frameIdx];
+            var minX = 9999, minY = 9999, maxX = -9999, maxY = -9999;
+            var count = 0;
+            var sumX = 0, sumY = 0;
+            
+            for (var gy = 0; gy < G_ROWS; gy++) {
+                for (var gx = 0; gx < G_COLS; gx++) {
+                    var sX = gx * B_SZ + 2;
+                    var sY = gy * B_SZ + 2;
+                    var sIdx = (sY * W + sX) * 4;
+                    
+                    var val = 0;
+                    if (f.handLayer && f.handLayer[sIdx + 3] >= 16) {
+                        val = 1;
+                    } else if (f.scriptLayer && f.scriptLayer[sIdx + 3] >= 16) {
+                        val = 1;
+                    }
+                    
+                    if (val > 0) {
+                        if (gx < minX) minX = gx;
+                        if (gx > maxX) maxX = gx;
+                        if (gy < minY) minY = gy;
+                        if (gy > maxY) maxY = gy;
+                        sumX += gx;
+                        sumY += gy;
+                        count++;
+                    }
+                }
+            }
+            if (count === 0) return null;
+            return {
+                boundingBox: { minX: minX, minY: minY, maxX: maxX, maxY: maxY },
+                centroid: { x: Math.round(sumX / count), y: Math.round(sumY / count) }
+            };
+        }
+
         function fbRenderFlipbook() {
             var cols = Math.max(1, parseInt(document.getElementById('fb-cols').value) || 3);
             var rows = Math.max(1, parseInt(document.getElementById('fb-rows').value) || 5);
@@ -5385,7 +5423,8 @@ SHF 2 1 24</textarea>
                                 if (bindAssist === 'holes' || bindAssist === 'both') {
                                     assistHTML += '<div class="fb-hole-mark"></div><div class="fb-hole-mark"></div>';
                                 }
-                                bindHTML = '<div class="fb-binding-safe-zone" style="width: 12mm;">' + assistHTML + '</div>';
+                                var bindSizeVal = document.getElementById('fb-bind-size') ? document.getElementById('fb-bind-size').value : '12';
+                                bindHTML = '<div class="fb-binding-safe-zone" style="width: ' + bindSizeVal + 'mm;">' + assistHTML + '</div>';
                             } else if (bindSide === 'top') {
                                 var assistHTML = '';
                                 if (bindAssist === 'staples' || bindAssist === 'both') {
@@ -5394,13 +5433,44 @@ SHF 2 1 24</textarea>
                                 if (bindAssist === 'holes' || bindAssist === 'both') {
                                     assistHTML += '<div class="fb-hole-mark"></div><div class="fb-hole-mark"></div>';
                                 }
-                                bindHTML = '<div class="fb-binding-safe-zone top-bind">' + assistHTML + '</div>';
+                                var bindSizeVal = document.getElementById('fb-bind-size') ? document.getElementById('fb-bind-size').value : '12';
+                                bindHTML = '<div class="fb-binding-safe-zone top-bind" style="height: ' + bindSizeVal + 'mm;">' + assistHTML + '</div>';
                                 cardEl.style.flexDirection = 'column';
                             }
 
+                            // Thinking with Visual Primitives: Neon grounding overlays
+                            var primsHTML = '';
+                            if (document.getElementById('fb-primitives-toggle') && document.getElementById('fb-primitives-toggle').checked) {
+                                var prims = getVisualPrimitivesForFrame(frameIdx);
+                                if (prims) {
+                                    var bbox = prims.boundingBox;
+                                    var cent = prims.centroid;
+                                    var rectW = bbox.maxX - bbox.minX + 1;
+                                    var rectH = bbox.maxY - bbox.minY + 1;
+                                    
+                                    primsHTML = '<svg class="fb-prim-overlay" viewBox="0 0 128 96" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15;">' +
+                                        '<rect x="' + bbox.minX + '" y="' + bbox.minY + '" width="' + rectW + '" height="' + rectH + '" fill="rgba(0, 255, 0, 0.08)" stroke="#00cc00" stroke-width="1.2" stroke-dasharray="2,2"/>' +
+                                        '<text x="' + bbox.minX + '" y="' + Math.max(9, bbox.minY - 2) + '" fill="#00cc00" font-family="monospace" font-size="6.5" font-weight="900">[' + bbox.minX + ',' + bbox.minY + '] ' + rectW + 'x' + rectH + '</text>' +
+                                        '<circle cx="' + cent.x + '" cy="' + cent.y + '" r="3.5" fill="none" stroke="#00e5ff" stroke-width="1"/>' +
+                                        '<circle cx="' + cent.x + '" cy="' + cent.y + '" r="1" fill="#00e5ff"/>' +
+                                        '<text x="' + Math.min(90, cent.x + 5) + '" y="' + (cent.y + 2) + '" fill="#00e5ff" font-family="monospace" font-size="6.5" font-weight="900">(' + cent.x + ',' + cent.y + ')</text>';
+                                        
+                                    if (frameIdx + 1 < state.frames.length) {
+                                        var nextPrims = getVisualPrimitivesForFrame(frameIdx + 1);
+                                        if (nextPrims) {
+                                            var nCent = nextPrims.centroid;
+                                            primsHTML += '<line x1="' + cent.x + '" y1="' + cent.y + '" x2="' + nCent.x + '" y2="' + nCent.y + '" stroke="#ff007f" stroke-width="0.8" stroke-dasharray="1.5,1.5"/>' +
+                                                '<circle cx="' + nCent.x + '" cy="' + nCent.y + '" r="1.5" fill="#ff007f" opacity="0.8"/>';
+                                        }
+                                    }
+                                    primsHTML += '</svg>';
+                                }
+                            }
+
                             cardEl.innerHTML = bindHTML + 
-                                '<div class="fb-card-body">' +
+                                '<div class="fb-card-body" style="position: relative;">' +
                                     '<div class="fb-frame-img-container"><img src="' + f.dataUrl + '"></div>' +
+                                    primsHTML +
                                     '<div class="fb-card-meta">' +
                                         '<span class="idx">#' + String(f.index).padStart(3, '0') + '</span>' +
                                     '</div>' +
@@ -5439,6 +5509,7 @@ SHF 2 1 24</textarea>
                         <select id="fb-grid-preset" onchange="fbApplyPreset()">
                             <option value="3x6">3x6 (18/pg)</option>
                             <option value="3x5" selected>3x5 (15/pg)</option>
+                            <option value="3x4">3x4 (12/pg)</option>
                             <option value="2x4">2x4 (8/pg)</option>
                         </select>
                     </div>
@@ -5464,6 +5535,14 @@ SHF 2 1 24</textarea>
                             <option value="both">Both</option>
                         </select>
                     </div>
+                    <div class="input-row" style="margin-top: 4px;">
+                        <select id="fb-bind-size" onchange="fbRenderFlipbook()">
+                            <option value="12">Standard Spine (12mm)</option>
+                            <option value="16" selected>Thick Spine (16mm) - Recommended</option>
+                            <option value="20">Extra Thick Spine (20mm)</option>
+                            <option value="24">Max Spine (24mm)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="control-group">
@@ -5473,6 +5552,14 @@ SHF 2 1 24</textarea>
                             <option value="stack-cut">Stack-Cut Optimised (PRO)</option>
                             <option value="sequential">Sequential Grid (Normal)</option>
                         </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Cognitive Grounding</span>
+                    <div class="input-row" style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+                        <input type="checkbox" id="fb-primitives-toggle" onchange="fbRenderFlipbook()" style="width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: var(--act-c);">
+                        <label for="fb-primitives-toggle" style="font-size: 10px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; color: var(--black);">Visual Primitives</label>
                     </div>
                 </div>
 
