@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Bees on a Train — Chat-Native Film Builder</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #000000;
+      --soft: #f5f5f5;
+      --tap: 44px;
+      --radius: 10px;
+      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--sans);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: clamp(0px, 2vw, 18px);
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    textarea,
+    select { font: inherit; }
+
+    .shell {
+      width: min(430px, 100vw);
+      height: min(920px, calc(100dvh - clamp(0px, 4vw, 36px)));
+      border: 2px solid var(--fg);
+      border-radius: 26px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr auto auto auto;
+      background: var(--bg);
+      box-shadow: 8px 8px 0 var(--fg);
+    }
+
+    .chat-rail {
+      display: none;
+      min-height: 0;
+      overflow: auto;
+      background: var(--bg);
+      border-right: 2px solid var(--fg);
+      padding: 12px;
+    }
+
+    .chat-rail-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+      font: 900 12px/1 var(--font);
+      text-transform: uppercase;
+    }
+
+    .command-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 8px 0 0;
+    }
+
+    .command-chips button {
+      min-height: 30px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      font-size: 9px;
+    }
+
+    .topbar {
+      border-bottom: 2px solid var(--fg);
+      padding: 12px 14px 10px;
+      display: grid;
+      gap: 8px;
+      background: var(--bg);
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-input {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: var(--bg);
+      color: var(--fg);
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      min-width: 0;
+      width: 100%;
+      padding: 2px 0;
+    }
+
+    .title-input:focus {
+      outline: 0;
+      border-bottom-color: var(--fg);
+    }
+
+    .state-pill {
+      border: 2px solid var(--fg);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font: 800 11px/1 var(--font);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .progress {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border: 2px solid var(--fg);
+      border-radius: 999px;
+      overflow: hidden;
+      height: 28px;
+    }
+
+    .progress button {
+      min-height: 0;
+      border: 0;
+      border-right: 2px solid var(--fg);
+      border-radius: 0;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      font: 800 9px/1 var(--font);
+      text-transform: uppercase;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    .progress button:last-child { border-right: 0; }
+    .progress button.active { background: var(--fg); color: var(--bg); }
+
+    main {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+      background:
+        linear-gradient(var(--soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--soft) 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+
+    .screen { display: none; animation: enter .16s linear; }
+    .screen.active { display: grid; gap: 12px; }
+
+    @keyframes enter {
+      from { opacity: .001; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: var(--bg);
+      border: 2px solid var(--fg);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0 0 8px;
+      font: 900 13px/1.15 var(--font);
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .card p {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .muted { font-size: 12px; line-height: 1.35; opacity: .85; }
+
+    .input-big,
+    .edit-area {
+      width: 100%;
+      border: 2px solid var(--fg);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--bg);
+      color: var(--fg);
+      resize: vertical;
+    }
+
+    .input-big { min-height: 86px; font: 600 16px/1.3 var(--sans); }
+    .edit-area { min-height: 160px; font: 12px/1.45 var(--font); }
+
+    .button-grid { display: grid; gap: 8px; }
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    button {
+      min-height: var(--tap);
+      border: 2px solid var(--fg);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 9px 12px;
+      font: 900 12px/1 var(--font);
+      text-transform: uppercase;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button.primary,
+    button:active { background: var(--fg); color: var(--bg); }
+    button.small { min-height: 34px; padding: 7px 9px; font-size: 10px; }
+    button:disabled { opacity: .35; cursor: not-allowed; }
+
+    .chat-list { display: grid; gap: 10px; }
+
+    .bubble {
+      border: 2px solid var(--fg);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--bg);
+      max-width: 94%;
+    }
+
+    .bubble.user { margin-left: auto; border-radius: 12px 12px 0 12px; }
+    .bubble.ai { margin-right: auto; border-radius: 12px 12px 12px 0; }
+
+    .speaker {
+      font: 900 10px/1 var(--font);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .bubble p { margin: 0; font-size: 14px; line-height: 1.35; white-space: pre-wrap; }
+
+    .fact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .fact {
+      border: 2px solid var(--fg);
+      border-radius: 8px;
+      padding: 9px;
+      min-height: 62px;
+    }
+
+    .fact b { display: block; font: 900 10px/1 var(--font); text-transform: uppercase; margin-bottom: 5px; }
+    .fact span { font-size: 13px; line-height: 1.25; }
+
+    .script-page {
+      background: var(--bg);
+      border: 2px solid var(--fg);
+      padding: 16px;
+      font: 12px/1.45 var(--font);
+      white-space: pre-wrap;
+      min-height: 420px;
+      outline: 0;
+    }
+
+    .script-page:focus { box-shadow: inset 0 0 0 2px var(--fg); }
+
+    .shot-list-wrap { display: grid; gap: 10px; }
+
+    .shot-card {
+      background: var(--bg);
+      border: 2px solid var(--fg);
+      border-radius: 10px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .shot-num {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      background: var(--fg);
+      color: var(--bg);
+      font: 900 14px/1 var(--font);
+      border-radius: 6px;
+    }
+
+    .shot-fields { display: grid; gap: 6px; min-width: 0; }
+    .shot-fields input,
+    .shot-fields textarea,
+    .shot-fields select {
+      width: 100%;
+      border: 2px solid var(--fg);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 7px;
+      font: 700 12px/1.25 var(--font);
+    }
+
+    .shot-fields textarea { min-height: 54px; resize: vertical; }
+    .shot-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .story-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(142px, 1fr)); gap: 10px; }
+
+    .panel {
+      border: 2px solid var(--fg);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .panel-art {
+      height: 112px;
+      border-bottom: 2px solid var(--fg);
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .panel-art svg { width: 100%; height: 100%; display: block; }
+
+    .panel-caption { padding: 7px; font: 800 10px/1.25 var(--font); text-transform: uppercase; }
+    .panel-prompt { border-top: 2px solid var(--fg); padding: 7px; font: 10px/1.3 var(--font); max-height: 78px; overflow: auto; }
+
+    .export-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+    .export-list li { border: 2px solid var(--fg); border-radius: 8px; padding: 10px; font: 800 13px/1.2 var(--font); }
+
+    .artifact-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mini-doc { border: 2px solid var(--fg); background: var(--bg); min-height: 120px; padding: 8px; font: 8px/1.35 var(--font); white-space: pre-wrap; overflow: hidden; }
+
+    .composer {
+      border-top: 2px solid var(--fg);
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      background: var(--bg);
+    }
+
+    .composer input {
+      border: 2px solid var(--fg);
+      border-radius: 999px;
+      padding: 0 14px;
+      height: var(--tap);
+      font: 600 13px/1 var(--sans);
+      color: var(--fg);
+      background: var(--bg);
+      min-width: 0;
+    }
+
+    .send { width: var(--tap); border-radius: 999px; padding: 0; font-size: 18px; }
+
+    .tabs {
+      border-top: 2px solid var(--fg);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      background: var(--bg);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .tab {
+      min-height: 56px;
+      border: 0;
+      border-right: 2px solid var(--fg);
+      border-radius: 0;
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      padding: 7px 2px;
+      font: 900 9px/1 var(--font);
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    .tab:last-child { border-right: 0; }
+    .tab.active { background: var(--fg); color: var(--bg); }
+    .tab .icon { font-size: 16px; line-height: 1; }
+
+    .status-strip {
+      border-top: 2px solid var(--fg);
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font: 900 9px/1.2 var(--font);
+      text-transform: uppercase;
+      background: var(--bg);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(120px);
+      background: var(--fg);
+      color: var(--bg);
+      border: 2px solid var(--fg);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: 900 12px/1 var(--font);
+      transition: transform .18s linear;
+      z-index: 5;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 600px) {
+      body { padding: 0; }
+      .shell {
+        width: 100vw;
+        height: 100dvh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .topbar { padding-top: calc(10px + env(safe-area-inset-top)); }
+      main { padding: 10px; }
+      .card { padding: 10px; border-radius: 8px; }
+      .story-grid { grid-template-columns: 1fr; }
+      .artifact-preview { grid-template-columns: 1fr; }
+      .button-row button { flex: 1 1 130px; }
+    }
+
+    @media (min-width: 720px) and (max-width: 919px) {
+      .shell {
+        width: min(700px, calc(100vw - 24px));
+        height: min(900px, calc(100dvh - 24px));
+      }
+      .story-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (min-width: 920px) {
+      .shell {
+        width: min(1240px, calc(100vw - 36px));
+        height: min(840px, calc(100dvh - 36px));
+        border-radius: 12px;
+        grid-template-columns: minmax(330px, 400px) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+      }
+
+      .topbar { grid-column: 1 / -1; }
+      .chat-rail {
+        display: block;
+        grid-column: 1;
+        grid-row: 2;
+        padding-bottom: 76px;
+      }
+      main { grid-column: 2; grid-row: 2; }
+      .composer { grid-column: 1; grid-row: 2; border-top: 2px solid var(--fg); border-right: 2px solid var(--fg); align-self: end; z-index: 2; }
+      .tabs { grid-column: 1 / -1; grid-row: 3; }
+      .status-strip { grid-column: 1 / -1; }
+      .screen[data-screen="chat"] .card:last-child { display: none; }
+      .story-grid { grid-template-columns: repeat(3, 1fr); }
+      .artifact-preview { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (min-width: 1320px) {
+      .shell { width: min(1360px, calc(100vw - 48px)); }
+      .story-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media print {
+      body { display: block; padding: 0; }
+      .shell { width: 100%; height: auto; border: 0; box-shadow: none; border-radius: 0; display: block; }
+      .topbar, .composer, .tabs, .status-strip, .toast { display: none !important; }
+      main { overflow: visible; background: #fff; padding: 0; }
+      .screen { display: none !important; }
+      .screen[data-screen="export"] { display: grid !important; }
+      button { display: none; }
+      .card { break-inside: avoid; border: 1px solid #000; margin: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" role="application" aria-label="Bees on a Train film builder">
+    <header class="topbar">
+      <div class="title-row">
+        <input class="title-input" id="projectTitle" value="BEES ON A TRAIN" aria-label="Project title" />
+        <div class="state-pill" id="statePill">Blank</div>
+      </div>
+      <nav class="progress" aria-label="Flow progress">
+        <button type="button" data-tab="chat" class="active">Idea</button>
+        <button type="button" data-tab="script">Script</button>
+        <button type="button" data-tab="shots">Shots</button>
+        <button type="button" data-tab="storyboard">Board</button>
+        <button type="button" data-tab="export">Export</button>
+      </nav>
+    </header>
+
+    <aside class="chat-rail" aria-label="Persistent desktop chat">
+      <div class="chat-rail-head">
+        <span>Live Chat</span>
+        <span>Desktop</span>
+      </div>
+      <div class="card">
+        <h2>Fast commands</h2>
+        <p class="muted">Use sloppy language or tap a command. This rail stays visible on desktop.</p>
+        <div class="command-chips">
+          <button type="button" data-command="make script">Make script</button>
+          <button type="button" data-command="break into shots">Shots</button>
+          <button type="button" data-command="make storyboard">Storyboard</button>
+          <button type="button" data-command="finish package">Finish</button>
+          <button type="button" data-command="copy">Copy</button>
+        </div>
+      </div>
+      <div class="chat-list" id="railChatList"></div>
+    </aside>
+
+    <main id="screens">
+      <section class="screen active" data-screen="chat" aria-label="Chat screen">
+        <div class="card">
+          <h2>What are we making?</h2>
+          <textarea class="input-big" id="ideaBox">bees on a train</textarea>
+          <div class="button-grid" style="margin-top:10px">
+            <button type="button" class="primary" data-action="movieIdea">Make a movie idea</button>
+            <button type="button" data-action="makeScript">Turn notes into a script</button>
+            <button type="button" data-action="makeStoryboard">Make storyboard</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Project State</h2>
+          <div class="fact-grid">
+            <div class="fact"><b>Premise</b><span id="premiseFact">Not made yet.</span></div>
+            <div class="fact"><b>Script</b><span id="scriptFact">No script.</span></div>
+            <div class="fact"><b>Shots</b><span id="shotsFact">0 shots.</span></div>
+            <div class="fact"><b>Board</b><span id="boardFact">No panels.</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Live Chat</h2>
+          <div class="chat-list" id="chatList"></div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="script" aria-label="Script screen">
+        <div class="card">
+          <h2>Script</h2>
+          <p class="muted">Editable. Any change becomes the source for shots and export.</p>
+          <div class="script-page" id="scriptText" contenteditable="true" spellcheck="true">No script yet. Ask chat to make one.</div>
+          <div class="button-row" style="margin-top:10px">
+            <button type="button" class="primary" data-action="breakShots">Break into shots</button>
+            <button type="button" data-action="rewriteSimple">Rewrite simpler</button>
+            <button type="button" data-action="saveScriptEdits">Save script edits</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="shots" aria-label="Shots screen">
+        <div class="card">
+          <h2>Shots</h2>
+          <p class="muted">Editable cards. Move, delete, rewrite, or generate storyboard panels.</p>
+          <div class="shot-list-wrap" id="shotList"></div>
+          <div class="button-row" style="margin-top:10px">
+            <button type="button" class="primary" data-action="makeStoryboard">Make storyboard</button>
+            <button type="button" data-action="addShot">Add shot</button>
+            <button type="button" data-action="fewerShots">Make fewer shots</button>
+            <button type="button" data-action="rewriteShotText">Rewrite shot text</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="storyboard" aria-label="Storyboard screen">
+        <div class="card">
+          <h2>Storyboard</h2>
+          <p class="muted">Panels are generated as inline SVG. Prompts are visible and exportable.</p>
+          <div class="story-grid" id="storyGrid"></div>
+          <div class="button-row" style="margin-top:10px">
+            <button type="button" data-action="revisePanels">Revise panels</button>
+            <button type="button" data-action="copyPrompts">Copy prompts</button>
+            <button type="button" class="primary" data-action="finishPackage">Finish package</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="export" aria-label="Export screen">
+        <div class="card">
+          <h2>Finished Package 🎉</h2>
+          <ul class="export-list" id="exportChecklist"></ul>
+          <div class="button-row" style="margin-top:12px">
+            <button type="button" class="primary" data-action="copyAll">Copy all</button>
+            <button type="button" data-action="downloadText">Download .txt</button>
+            <button type="button" data-action="downloadHTML">Download .html</button>
+            <button type="button" data-action="downloadPDF">Print / PDF</button>
+            <button type="button" data-action="resetApp">Reset</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Artifact Preview</h2>
+          <div class="artifact-preview">
+            <div class="mini-doc" id="miniScript"></div>
+            <div class="mini-doc" id="miniShots"></div>
+            <div class="mini-doc" id="miniBoard"></div>
+            <div class="mini-doc" id="miniPrompts"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <form class="composer" id="composer">
+      <input id="chatInput" autocomplete="off" placeholder="Say what you want changed..." />
+      <button class="send primary" aria-label="Send">➜</button>
+    </form>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="chat"><span class="icon">▣</span>Chat</button>
+      <button type="button" class="tab" data-tab="script"><span class="icon">▤</span>Script</button>
+      <button type="button" class="tab" data-tab="shots"><span class="icon">▦</span>Shots</button>
+      <button type="button" class="tab" data-tab="storyboard"><span class="icon">▧</span>Board</button>
+      <button type="button" class="tab" data-tab="export"><span class="icon">⇧</span>Export</button>
+    </nav>
+
+    <div class="status-strip">
+      <span id="saveStatus">Saved locally</span>
+      <span>Chat changes state</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Updated</div>
+
+  <script>
+    const STORAGE_KEY = 'bees-on-a-train-builder-v2';
+
+    const defaultChat = [
+      { who: 'ai', text: 'Paste messy notes. I’ll turn them into a short film package.', time: 'ready' }
+    ];
+
+    const baseState = {
+      screen: 'chat',
+      title: 'BEES ON A TRAIN',
+      idea: 'bees on a train',
+      premise: '',
+      script: '',
+      shots: [],
+      prompts: [],
+      storyboardReady: false,
+      packageReady: false,
+      log: defaultChat
+    };
+
+    let state = loadState();
+
+    const scriptDraft = `BEES ON A TRAIN\n\nINT. LATE-NIGHT TRAIN CAR - NIGHT\n\nA nearly empty train rattles through darkness. Fluorescent lights buzz overhead.\n\nNATE, 32, exhausted, damp from rain, and clearly losing a fight with his gas-station coffee, sits alone near the middle of the car.\n\nHe tries to drink. The lid leaks onto his shirt.\n\nNATE\nGreat. Perfect. Thank you.\n\nAcross the aisle, MARA, 28, headphones on, scrolls through her phone with the concentration of someone refusing the entire world.\n\nAt the far end of the car sits MR. VOSS, 60s, immaculate suit, leather gloves, tiny silver briefcase on his lap.\n\nHe is too composed for public transportation.\n\nA faint HUM rises beneath the seats. Nate hears it. He looks around. Nobody else reacts.\n\nUnder the seat across from him: a small wooden crate. It vibrates softly, like something inside is breathing.\n\nNATE\nNope.\n\nHe leans toward Mara.\n\nNATE\nSorry. Hey. Do you hear bees?\n\nMARA\nI am begging you not to be my problem tonight.\n\nAt the end of the car, Mr. Voss watches them. He gives a small smile. Not friendly.\n\nThe crate cracks. Bees crawl out in a line.\n\nA bee lands on Nate's coffee lid.\n\nNATE\nThis was four dollars.\n\nThe lights flicker.\n\nCUT TO BLACK.`;
+
+    const defaultShots = [
+      ['WIDE', 'Last train car at night', 'Nate sits alone with bad coffee and worse confidence.'],
+      ['INSERT', 'Crate under seat', 'The crate vibrates like it is breathing.'],
+      ['MEDIUM', 'Nate tries to warn Mara', 'She ignores him with headphones.'],
+      ['CLOSE', 'Voss watches Nate', 'He smiles faintly under flickering light.'],
+      ['INSERT', 'Bees escape', 'A line of bees crawls out.'],
+      ['CLOSE', 'Bee on coffee lid', 'Nate whispers, completely defeated.']
+    ];
+
+    const defaultPrompts = [
+      'Black-and-white storyboard panel, wide shot of a nearly empty late-night train car, exhausted commuter with coffee, practical low-budget lighting, no text.',
+      'Black-and-white storyboard panel, insert shot of a small wooden crate under a train seat, vibrating, grimy floor, suspenseful, no text.',
+      'Black-and-white storyboard panel, medium shot of nervous man warning woman with headphones, awkward comedy suspense, no text.',
+      'Black-and-white storyboard panel, close shot of older man in immaculate suit, faint unsettling smile, flickering fluorescent train light, no text.',
+      'Black-and-white storyboard panel, insert shot of wooden crate cracking open, bees crawling out in organized line, no text.',
+      'Black-and-white storyboard panel, close shot of bee on coffee cup lid, exhausted man frozen in fear, funny and scared, no text.'
+    ];
+
+    const el = {
+      screens: document.querySelectorAll('.screen'),
+      tabs: document.querySelectorAll('.tab'),
+      progress: document.querySelectorAll('.progress button'),
+      title: document.getElementById('projectTitle'),
+      statePill: document.getElementById('statePill'),
+      ideaBox: document.getElementById('ideaBox'),
+      premiseFact: document.getElementById('premiseFact'),
+      scriptFact: document.getElementById('scriptFact'),
+      shotsFact: document.getElementById('shotsFact'),
+      boardFact: document.getElementById('boardFact'),
+      chatList: document.getElementById('chatList'),
+      railChatList: document.getElementById('railChatList'),
+      scriptText: document.getElementById('scriptText'),
+      shotList: document.getElementById('shotList'),
+      storyGrid: document.getElementById('storyGrid'),
+      chatInput: document.getElementById('chatInput'),
+      composer: document.getElementById('composer'),
+      toast: document.getElementById('toast'),
+      saveStatus: document.getElementById('saveStatus')
+    };
+
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+
+    function loadState() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return clone(baseState);
+        return { ...clone(baseState), ...JSON.parse(stored) };
+      } catch {
+        return clone(baseState);
+      }
+    }
+
+    function saveState() {
+      state.idea = el.ideaBox.value;
+      state.title = el.title.value || 'UNTITLED FILM';
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      el.saveStatus.textContent = 'Saved locally ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function setScreen(name) {
+      state.screen = name;
+      render();
+      saveState();
+    }
+
+    function notify(msg) {
+      el.toast.textContent = msg;
+      el.toast.classList.add('show');
+      setTimeout(() => el.toast.classList.remove('show'), 1200);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+    }
+
+    function addChat(who, text) {
+      state.log.push({ who, text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+      renderChat();
+      saveState();
+    }
+
+    function makeMovieIdea() {
+      const idea = el.ideaBox.value.trim() || 'bees on a train';
+      state.idea = idea;
+      if (!state.log.some(m => m.who === 'you' && m.text === idea)) addChat('you', idea);
+      state.premise = 'A tired commuter notices a swarm of bees escaping from a broken research container on a late-night train. Everyone thinks he is overreacting until the bees begin moving with terrifying purpose.';
+      addChat('ai', 'Rough movie created: suspense comedy, 5 minutes, one train car, three characters. I can make the script now.');
+      notify('Movie idea created');
+      render();
+    }
+
+    function makeScript() {
+      if (!state.premise) makeMovieIdea();
+      state.script = scriptDraft.replaceAll('BEES ON A TRAIN', state.title.toUpperCase());
+      addChat('ai', 'Script created. I kept it short, cheap to shoot, funny, and scary.');
+      setScreen('script');
+      notify('Script ready');
+    }
+
+    function saveScriptEdits() {
+      const text = el.scriptText.innerText.trim();
+      if (text && !text.startsWith('No script yet')) state.script = text;
+      addChat('ai', 'Script edits saved as the new source of truth.');
+      notify('Script saved');
+      saveState();
+      render();
+    }
+
+    function rewriteSimple() {
+      state.script = (state.script || scriptDraft)
+        .replaceAll('emotionally defeated by a gas-station coffee', 'clearly losing a fight with his gas-station coffee')
+        .replaceAll('too composed for public transportation', 'way too clean for this train');
+      addChat('ai', 'Rewritten simpler. Nate is more pathetic. Voss is cleaner and creepier.');
+      setScreen('script');
+      notify('Script revised');
+    }
+
+    function breakShots() {
+      if (!state.script) state.script = scriptDraft.replaceAll('BEES ON A TRAIN', state.title.toUpperCase());
+      state.shots = defaultShots.map((s, i) => ({ id: cryptoId(), order: i + 1, type: s[0], title: s[1], desc: s[2] }));
+      state.prompts = [];
+      state.storyboardReady = false;
+      state.packageReady = false;
+      addChat('ai', 'I split the script into 6 simple, shootable shots. You can edit, reorder, delete, or storyboard them.');
+      setScreen('shots');
+      notify('Shots created');
+    }
+
+    function fewerShots() {
+      if (!state.shots.length) breakShots();
+      if (state.shots.length > 4) state.shots = state.shots.filter((_, i) => ![2, 4].includes(i)).map((s, i) => ({ ...s, order: i + 1 }));
+      addChat('ai', 'Tightened the shot list. I kept only the beats that carry story or payoff.');
+      notify('Shot list tightened');
+      saveState();
+      render();
+    }
+
+    function rewriteShotText() {
+      if (!state.shots.length) breakShots();
+      state.shots = state.shots.map(s => ({ ...s, desc: s.desc.replace('terrible coffee', 'bad coffee and worse confidence').replace('A line of bees crawls out.', 'A line of bees crawls out with disgusting order.') }));
+      addChat('ai', 'Shot text rewritten in cleaner production language.');
+      notify('Shot text updated');
+      saveState();
+      render();
+    }
+
+    function addShot() {
+      const n = state.shots.length + 1;
+      state.shots.push({ id: cryptoId(), order: n, type: 'SHOT', title: 'New beat', desc: 'Describe what the audience sees.' });
+      state.storyboardReady = false;
+      addChat('ai', 'Added a new editable shot card.');
+      notify('Shot added');
+      saveState();
+      render();
+    }
+
+    function updateShot(id, field, value) {
+      state.shots = state.shots.map(s => s.id === id ? { ...s, [field]: value } : s);
+      state.storyboardReady = false;
+      saveState();
+    }
+
+    function moveShot(id, dir) {
+      const i = state.shots.findIndex(s => s.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= state.shots.length) return;
+      [state.shots[i], state.shots[j]] = [state.shots[j], state.shots[i]];
+      state.shots = state.shots.map((s, idx) => ({ ...s, order: idx + 1 }));
+      state.storyboardReady = false;
+      saveState();
+      render();
+    }
+
+    function deleteShot(id) {
+      state.shots = state.shots.filter(s => s.id !== id).map((s, idx) => ({ ...s, order: idx + 1 }));
+      state.storyboardReady = false;
+      addChat('ai', 'Deleted the shot and renumbered the list.');
+      notify('Shot deleted');
+      saveState();
+      render();
+    }
+
+    function generatePromptForShot(shot, index) {
+      const fallback = defaultPrompts[index % defaultPrompts.length];
+      return `Black-and-white storyboard panel, ${shot.type.toLowerCase()} shot, ${shot.title.toLowerCase()}, ${shot.desc.toLowerCase()}, cheap practical late-night train location, clear shootable composition, no text.` || fallback;
+    }
+
+    function makeStoryboard() {
+      if (!state.shots.length) breakShots();
+      state.prompts = state.shots.map(generatePromptForShot);
+      state.storyboardReady = true;
+      state.packageReady = false;
+      addChat('ai', 'Storyboard generated: panels and prompts are now attached to each shot.');
+      setScreen('storyboard');
+      notify('Storyboard ready');
+    }
+
+    function revisePanels() {
+      if (!state.storyboardReady) makeStoryboard();
+      state.prompts = state.prompts.map((p, i) => {
+        if (i === 3) return p + ' Make the older man creepier, with faint smile and hard overhead light.';
+        if (i === state.prompts.length - 1) return p + ' Make the final coffee-bee moment funnier and more pathetic.';
+        return p;
+      });
+      addChat('ai', 'Updated the creepiest panel and the funniest panel while keeping them cheap to shoot.');
+      notify('Panels revised');
+      saveState();
+      render();
+    }
+
+    function copyPrompts() {
+      copyText(state.prompts.map((p, i) => `${i + 1}. ${p}`).join('\n\n'));
+      addChat('ai', 'Copied all storyboard prompts.');
+      notify('Prompts copied');
+    }
+
+    function finishPackage() {
+      if (!state.storyboardReady) makeStoryboard();
+      state.packageReady = true;
+      addChat('ai', 'Finished package ready: script, shot list, storyboard panels, prompts, and production notes.');
+      setScreen('export');
+      notify('Package finished');
+    }
+
+    function buildExportText() {
+      return `${state.title.toUpperCase()}\n\nLOGLINE\n${state.premise || 'A short film generated from messy notes.'}\n\nSCRIPT\n${state.script || scriptDraft}\n\nSHOT LIST\n${state.shots.map((s, i) => `${i + 1}. ${s.type} — ${s.title}: ${s.desc}`).join('\n')}\n\nIMAGE PROMPTS\n${state.prompts.map((p, i) => `${i + 1}. ${p}`).join('\n\n')}\n\nPRODUCTION NOTES\nOne train car. Three actors. One crate. Bees may be suggested with sound, inserts, macro cutaways, or minimal VFX.`;
+    }
+
+    function buildExportHTML() {
+      const panels = state.shots.map((s, i) => `<section style="break-inside:avoid;border:2px solid #000;margin:12px 0;padding:12px"><h3>${i + 1}. ${escapeHtml(s.type)} — ${escapeHtml(s.title)}</h3><div style="border:2px solid #000;height:180px">${panelSvg(i)}</div><p>${escapeHtml(s.desc)}</p><p><b>Prompt:</b> ${escapeHtml(state.prompts[i] || '')}</p></section>`).join('');
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(state.title)}</title><style>body{font-family:monospace;max-width:800px;margin:40px auto;color:#000;background:#fff}pre{white-space:pre-wrap;border:2px solid #000;padding:16px}h1,h2{text-transform:uppercase}</style></head><body><h1>${escapeHtml(state.title)}</h1><h2>Logline</h2><p>${escapeHtml(state.premise || '')}</p><h2>Script</h2><pre>${escapeHtml(state.script || scriptDraft)}</pre><h2>Storyboard</h2>${panels}</body></html>`;
+    }
+
+    function copyAll() {
+      copyText(buildExportText());
+      addChat('ai', 'Copied the full package.');
+      notify('Copied');
+    }
+
+    function downloadText() {
+      downloadFile(slug(state.title) + '-package.txt', buildExportText(), 'text/plain');
+      notify('Text downloaded');
+    }
+
+    function downloadHTML() {
+      downloadFile(slug(state.title) + '-storyboard.html', buildExportHTML(), 'text/html');
+      notify('HTML downloaded');
+    }
+
+    function downloadPDF() {
+      finishPackageIfNeeded();
+      window.print();
+    }
+
+    function finishPackageIfNeeded() {
+      if (!state.packageReady) {
+        if (!state.storyboardReady) makeStoryboard();
+        state.packageReady = true;
+        render();
+      }
+    }
+
+    function resetApp() {
+      if (!confirm('Reset this film package?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      state = clone(baseState);
+      render();
+      notify('Reset');
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard) navigator.clipboard.writeText(text);
+      else {
+        const area = document.createElement('textarea');
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+      }
+    }
+
+    function downloadFile(filename, text, type) {
+      const blob = new Blob([text], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function slug(text) {
+      return String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'film';
+    }
+
+    function cryptoId() {
+      if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'id-' + Math.random().toString(36).slice(2);
+    }
+
+    function render() {
+      el.title.value = state.title;
+      el.ideaBox.value = state.idea || el.ideaBox.value;
+      el.screens.forEach(s => s.classList.toggle('active', s.dataset.screen === state.screen));
+      el.tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === state.screen));
+      el.progress.forEach(p => p.classList.toggle('active', p.dataset.tab === state.screen));
+      el.statePill.textContent = state.screen;
+      el.premiseFact.textContent = state.premise ? 'Created.' : 'Not made yet.';
+      el.scriptFact.textContent = state.script ? `${state.script.split(/\s+/).length} words.` : 'No script.';
+      el.shotsFact.textContent = `${state.shots.length} shots.`;
+      el.boardFact.textContent = state.storyboardReady ? `${state.shots.length} panels.` : 'No panels.';
+      renderChat();
+      renderScript();
+      renderShots();
+      renderStoryboard();
+      renderExport();
+      saveState();
+    }
+
+    function renderChat() {
+      const html = state.log.map(m => `<div class="bubble ${m.who === 'you' ? 'user' : 'ai'}"><div class="speaker">${m.who === 'you' ? 'YOU' : 'CINEOS'} <span>${escapeHtml(m.time || '')}</span></div><p>${escapeHtml(m.text)}</p></div>`).join('');
+      el.chatList.innerHTML = html;
+      if (el.railChatList) el.railChatList.innerHTML = html;
+    }
+
+    function renderScript() {
+      if (document.activeElement === el.scriptText) return;
+      el.scriptText.textContent = state.script || 'No script yet. Ask chat to make one.';
+    }
+
+    function renderShots() {
+      if (!state.shots.length) {
+        el.shotList.innerHTML = '<p>No shots yet. Ask chat to break the script into shots.</p>';
+        return;
+      }
+      el.shotList.innerHTML = state.shots.map((s, i) => `
+        <article class="shot-card" data-shot-id="${s.id}">
+          <div class="shot-num">${i + 1}</div>
+          <div class="shot-fields">
+            <select data-shot-field="type">
+              ${['WIDE','INSERT','MEDIUM','CLOSE','OTS','POV','TWO-SHOT','SHOT'].map(t => `<option ${s.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+            <input data-shot-field="title" value="${escapeHtml(s.title)}" />
+            <textarea data-shot-field="desc">${escapeHtml(s.desc)}</textarea>
+            <div class="shot-actions">
+              <button type="button" class="small" data-shot-action="up">↑</button>
+              <button type="button" class="small" data-shot-action="down">↓</button>
+              <button type="button" class="small" data-shot-action="delete">Delete</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderStoryboard() {
+      if (!state.storyboardReady) {
+        el.storyGrid.innerHTML = '<p>No storyboard yet. Make shots, then make storyboard.</p>';
+        return;
+      }
+      el.storyGrid.innerHTML = state.shots.map((s, i) => `
+        <article class="panel">
+          <div class="panel-art">${panelSvg(i)}</div>
+          <div class="panel-caption">${i + 1}. ${escapeHtml(s.type)} — ${escapeHtml(s.title)}</div>
+          <div class="panel-prompt">${escapeHtml(state.prompts[i] || generatePromptForShot(s, i))}</div>
+        </article>
+      `).join('');
+    }
+
+    function renderExport() {
+      const checklist = document.getElementById('exportChecklist');
+      checklist.innerHTML = `
+        <li>${state.script ? '✓' : '□'} Short script</li>
+        <li>${state.shots.length ? '✓' : '□'} ${state.shots.length || 0}-shot list</li>
+        <li>${state.storyboardReady ? '✓' : '□'} ${state.storyboardReady ? state.shots.length : 0} storyboard panels</li>
+        <li>${state.prompts.length ? '✓' : '□'} Image prompts for each panel</li>
+        <li>✓ Simple production notes</li>
+      `;
+      document.getElementById('miniScript').textContent = (state.script || scriptDraft).slice(0, 520) + '...';
+      document.getElementById('miniShots').textContent = state.shots.map((s, i) => `${i + 1}. ${s.type} — ${s.title}\n${s.desc}`).join('\n\n') || 'No shots yet.';
+      document.getElementById('miniBoard').innerHTML = `<b>STORYBOARD</b><br>${state.storyboardReady ? state.shots.length : 0} generated panels<br><br>${state.shots.map((s, i) => `${i + 1}. ${escapeHtml(s.title)}`).join('<br>')}`;
+      document.getElementById('miniPrompts').textContent = (state.prompts.length ? state.prompts : defaultPrompts).map((p, i) => `${i + 1}. ${p}`).join('\n\n').slice(0, 700) + '...';
+    }
+
+    function panelSvg(i) {
+      const svgs = [
+        `<svg viewBox="0 0 160 100"><rect x="0" y="0" width="160" height="100" fill="white"/><path d="M5 20 H155 M5 80 H155 M20 10 V90 M140 10 V90" stroke="black" fill="none"/><circle cx="78" cy="55" r="8" fill="black"/><path d="M78 63 v18 M65 72 h26" stroke="black" stroke-width="4"/><rect x="70" y="72" width="24" height="12" fill="white" stroke="black"/></svg>`,
+        `<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="white"/><path d="M0 75 H160" stroke="black"/><rect x="55" y="36" width="55" height="32" fill="white" stroke="black" stroke-width="3"/><path d="M55 36 L110 68 M110 36 L55 68" stroke="black"/><path d="M40 80 q40 -8 85 0" stroke="black" fill="none" stroke-dasharray="3 4"/></svg>`,
+        `<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="white"/><circle cx="50" cy="38" r="12" fill="white" stroke="black" stroke-width="3"/><path d="M50 50 v30 M32 63 h35" stroke="black" stroke-width="4"/><circle cx="112" cy="38" r="12" fill="white" stroke="black" stroke-width="3"/><circle cx="112" cy="38" r="18" fill="none" stroke="black"/><path d="M112 55 v28 M94 66 h35" stroke="black" stroke-width="4"/><path d="M62 30 q22 -10 38 0" stroke="black" fill="none"/></svg>`,
+        `<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="white"/><circle cx="80" cy="36" r="20" fill="white" stroke="black" stroke-width="4"/><path d="M60 70 q20 18 40 0" stroke="black" fill="none" stroke-width="4"/><path d="M55 35 h50 M65 48 h30" stroke="black"/><path d="M20 0 L80 100 M140 0 L80 100" stroke="black"/></svg>`,
+        `<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="white"/><rect x="44" y="25" width="72" height="38" fill="white" stroke="black" stroke-width="3"/><path d="M44 25 L116 63 M116 25 L44 63" stroke="black"/><path d="M78 63 q-25 10 -45 25 M88 63 q20 8 45 23" stroke="black" fill="none"/><g fill="black"><circle cx="32" cy="85" r="3"/><circle cx="42" cy="80" r="3"/><circle cx="55" cy="78" r="3"/><circle cx="118" cy="82" r="3"/><circle cx="130" cy="87" r="3"/></g></svg>`,
+        `<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="white"/><ellipse cx="80" cy="58" rx="48" ry="18" fill="white" stroke="black" stroke-width="3"/><ellipse cx="80" cy="54" rx="35" ry="10" fill="white" stroke="black"/><g fill="black"><ellipse cx="78" cy="50" rx="7" ry="4"/><circle cx="70" cy="50" r="3"/><circle cx="86" cy="50" r="3"/></g><path d="M50 22 q30 -18 60 0" stroke="black" fill="none" stroke-width="3"/></svg>`
+      ];
+      return svgs[i % svgs.length];
+    }
+
+    function handleAction(action) {
+      const map = {
+        movieIdea: makeMovieIdea,
+        makeScript,
+        makeStoryboard,
+        breakShots,
+        rewriteSimple,
+        saveScriptEdits,
+        fewerShots,
+        rewriteShotText,
+        addShot,
+        revisePanels,
+        copyPrompts,
+        finishPackage,
+        copyAll,
+        downloadText,
+        downloadHTML,
+        downloadPDF,
+        resetApp
+      };
+      if (map[action]) map[action]();
+    }
+
+    function interpretChat(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes('reset')) return resetApp();
+      if (lower.includes('copy')) return copyAll();
+      if (lower.includes('download') || lower.includes('export') || lower.includes('finish') || lower.includes('package')) return finishPackage();
+      if (lower.includes('story') || lower.includes('panel') || lower.includes('picture') || lower.includes('image') || lower.includes('frame')) return makeStoryboard();
+      if (lower.includes('shot') || lower.includes('break') || lower.includes('coverage')) return breakShots();
+      if (lower.includes('script') || lower.includes('scene') || lower.includes('page')) return makeScript();
+      if (lower.includes('simple') || lower.includes('shorter') || lower.includes('pathetic') || lower.includes('creep') || lower.includes('funnier') || lower.includes('scarier')) {
+        if (state.screen === 'shots') return rewriteShotText();
+        if (state.screen === 'storyboard') return revisePanels();
+        return rewriteSimple();
+      }
+      if (!state.premise) return makeMovieIdea();
+      addChat('ai', 'Noted. I saved that as a creative direction. Try: make script, break into shots, make storyboard, finish package, copy, download, or reset.');
+      notify('Note saved');
+    }
+
+    document.body.addEventListener('click', e => {
+      const tab = e.target.closest('[data-tab]');
+      const action = e.target.closest('[data-action]');
+      const command = e.target.closest('[data-command]');
+      const shotAction = e.target.closest('[data-shot-action]');
+      if (tab) setScreen(tab.dataset.tab);
+      if (action) handleAction(action.dataset.action);
+      if (command) {
+        addChat('you', command.dataset.command);
+        interpretChat(command.dataset.command);
+      }
+      if (shotAction) {
+        const card = shotAction.closest('[data-shot-id]');
+        const id = card.dataset.shotId;
+        const act = shotAction.dataset.shotAction;
+        if (act === 'up') moveShot(id, -1);
+        if (act === 'down') moveShot(id, 1);
+        if (act === 'delete') deleteShot(id);
+      }
+    });
+
+    document.body.addEventListener('input', e => {
+      if (e.target === el.title) {
+        state.title = e.target.value;
+        saveState();
+      }
+      if (e.target === el.ideaBox) {
+        state.idea = e.target.value;
+        saveState();
+      }
+      const field = e.target.closest('[data-shot-field]');
+      if (field) {
+        const card = field.closest('[data-shot-id]');
+        updateShot(card.dataset.shotId, field.dataset.shotField, field.value);
+      }
+    });
+
+    el.scriptText.addEventListener('blur', saveScriptEdits);
+
+    el.composer.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = el.chatInput.value.trim();
+      if (!text) return;
+      addChat('you', text);
+      el.chatInput.value = '';
+      interpretChat(text);
+    });
+
+    render();
+  </script>
+</body>
+</html>

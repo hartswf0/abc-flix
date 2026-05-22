@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Prime Blocking Engine — Real AI Adapter</title>
+  <style>
+    :root{
+      --bg:#fff; --ink:#000; --green:#dcfce7; --blue:#dbeafe; --yellow:#fef3c7; --purple:#ede9fe; --red:#fee2e2;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:#fff;color:#000;font-family:var(--sans)}
+    button,input,textarea,select{font:inherit;color:#000;background:#fff;border:2px solid #000}
+    button{cursor:pointer;touch-action:manipulation}
+    textarea{resize:vertical}
+    .app{min-height:100svh;border:3px solid #000;display:grid;grid-template-columns:320px minmax(0,1fr)}
+    .side{border-right:3px solid #000;display:flex;flex-direction:column;min-height:100svh;min-width:0}
+    .brand{padding:14px;border-bottom:3px solid #000}
+    .brand h1{margin:0 0 6px;font-size:18px;text-transform:uppercase}
+    .brand p{margin:0;font:11px/1.3 var(--mono);text-transform:uppercase}
+    .tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .tools button{border-radius:99px;padding:7px 9px;font:900 10px var(--sans);text-transform:uppercase}
+    .nav{display:grid;gap:7px;padding:10px;border-bottom:3px solid #000}
+    .nav button{border-radius:99px;padding:10px 12px;text-align:left;text-transform:uppercase;font-weight:900;font-size:12px;display:flex;justify-content:space-between}
+    .nav button.active{background:#000;color:#fff}
+    .badge{font:10px var(--mono);border:1px solid currentColor;border-radius:99px;padding:2px 6px}
+    .chatTitle{padding:10px 12px;border-bottom:2px solid #000;font:900 11px var(--mono);text-transform:uppercase;display:flex;justify-content:space-between}
+    .messages{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .msg{border:2px solid #000;border-radius:14px;padding:10px;font-size:13px;line-height:1.3;white-space:pre-wrap;max-width:98%}
+    .msg small{display:block;font:900 10px var(--mono);text-transform:uppercase;margin-bottom:5px}
+    .msg.user{align-self:flex-end;background:var(--green)}
+    .msg.ai{align-self:flex-start;background:#fff}
+    .msg.err{align-self:center;background:#000;color:#fff;font-family:var(--mono);font-size:11px;text-transform:uppercase}
+    .chips{padding:10px;border-top:2px solid #000;display:flex;gap:6px;flex-wrap:wrap}
+    .chips button{border-radius:99px;padding:7px 9px;font-size:10px;font-weight:900;text-transform:uppercase}
+    .composer{display:flex;gap:8px;padding:10px;border-top:3px solid #000}
+    .composer input{flex:1;min-width:0;border-radius:99px;padding:12px 14px}
+    .composer button{width:44px;border-radius:50%;background:#000;color:#fff;font-weight:900}
+    .main{min-width:0;display:flex;flex-direction:column;min-height:100svh}
+    .top{min-height:64px;border-bottom:3px solid #000;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px}
+    .top h2{font-size:18px;text-transform:uppercase;margin:0}
+    .pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .pill{border:2px solid #000;border-radius:99px;padding:5px 8px;font:10px var(--mono);text-transform:uppercase;background:#fff}
+    .pill.live{background:var(--green)} .pill.mock{background:var(--red)}
+    .screen{display:none;flex:1;padding:16px;overflow:auto}
+    .screen.active{display:block}
+    .grid{display:grid;gap:14px}.two{grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr)}
+    .card{border:2px solid #000;border-radius:18px;overflow:hidden;background:#fff}
+    .cardH{border-bottom:2px solid #000;padding:12px 14px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .cardH h3{margin:0;font-size:13px;text-transform:uppercase}.cardH span{font:10px var(--mono);text-transform:uppercase}
+    .cardB{padding:14px}.muted{font-size:12px;line-height:1.35}.tiny{font:10px/1.3 var(--mono);text-transform:uppercase}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .actions button,.primary{border-radius:12px;padding:10px 12px;font-size:12px;font-weight:900;text-transform:uppercase}
+    .primary{background:#000;color:#fff}
+    .field{display:grid;gap:5px;margin-bottom:10px}
+    .field label{font:900 10px var(--mono);text-transform:uppercase}.field input,.field textarea,.field select{width:100%;border-radius:12px;padding:10px;font-size:13px}.field textarea{min-height:90px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .empty{min-height:420px;display:grid;place-items:center;text-align:center}.empty h3{font-size:28px;margin:0 0 8px;text-transform:uppercase}.empty p{max-width:380px;margin:0 auto 14px;font:12px/1.35 var(--mono);text-transform:uppercase}
+    .sceneHero{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
+    .viz{border:2px solid #000;border-radius:14px;min-height:280px;position:relative;overflow:hidden;background:linear-gradient(#eee 1px,transparent 1px),linear-gradient(90deg,#eee 1px,transparent 1px),#fff;background-size:26px 26px;touch-action:none;user-select:none}
+    .viz .box{position:absolute;border:3px solid #000;border-radius:12px;inset:34px 40px}
+    .dot{position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;border:3px solid #000;border-radius:50%;display:grid;place-items:center;background:#fff;font:900 10px var(--sans);z-index:4;touch-action:none}
+    .dot.selected{background:#000;color:#fff}.cam{position:absolute;transform:translate(-50%,-50%);width:42px;height:28px;border:3px solid #155eef;color:#155eef;background:#fff;display:grid;place-items:center;font:900 11px var(--mono);z-index:5}
+    .path{position:absolute;inset:0;pointer-events:none;z-index:2}.swarm{position:absolute;transform:translate(-50%,-50%);width:110px;height:82px;pointer-events:none;z-index:3}.swarm i{position:absolute;width:5px;height:5px;background:#000;border-radius:50%}
+    .stat{border:2px solid #000;border-radius:12px;padding:10px;display:flex;justify-content:space-between;gap:8px;font-size:13px}.stat b{text-transform:uppercase}.stat span{text-align:right}
+    .list{display:grid;gap:10px}.item{border:2px solid #000;border-radius:14px;padding:10px}.item.active{background:#000;color:#fff}.item h4{margin:0 0 4px;text-transform:uppercase;font-size:13px}.item p{margin:0;font-size:12px;line-height:1.3}
+    .shot{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center}.thumb{height:44px;border:2px solid currentColor;border-radius:9px;background:linear-gradient(135deg,#fff,#eee)}.time{font:10px var(--mono);text-align:right}
+    .timeline{border:2px solid #000;border-radius:16px;padding:14px;overflow:auto}.timeGrid{min-width:760px;display:grid;grid-template-columns:120px repeat(8,1fr);gap:6px;align-items:center}.tick{font:10px var(--mono);text-align:center;border-bottom:2px solid #000;padding-bottom:5px}.track{font-weight:900;text-transform:uppercase;font-size:12px}.bar{height:30px;border:2px solid #000;border-radius:7px;display:grid;place-items:center;font:10px var(--mono);text-transform:uppercase}.green{background:var(--green)}.blue{background:var(--blue)}.yellow{background:var(--yellow)}.purple{background:var(--purple)}.red{background:var(--red)}
+    .frames{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.frame{border:2px solid #000;border-radius:14px;overflow:hidden}.frameArt{height:150px;border-bottom:2px solid #000;position:relative;background:#fff}.frameArt:before{content:"";position:absolute;left:16px;right:16px;top:18px;height:38px;border:2px solid #000}.head{position:absolute;width:34px;height:34px;border:3px solid #000;border-radius:50%;bottom:28px;background:#fff}.h1{left:30px}.h2{right:40px}.dots{position:absolute;left:45%;top:42%;width:80px;height:58px}.dots i{position:absolute;width:4px;height:4px;background:#000;border-radius:50%}.frameText{padding:10px}
+    .script{border:2px solid #000;border-radius:16px;padding:18px;width:100%;min-height:540px;font:13px/1.45 var(--mono);white-space:pre-wrap}.script:focus{outline:4px solid #000}
+    .promptBox{font:11px/1.4 var(--mono);white-space:pre-wrap;background:#fff;border:2px solid #000;border-radius:12px;padding:10px;max-height:260px;overflow:auto}.assetGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.asset{border:2px solid #000;border-radius:14px;padding:10px}.asset b{display:block;text-transform:uppercase;font-size:12px;margin-bottom:5px}.asset code{font:10px var(--mono);white-space:pre-wrap}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#000;color:#fff;border-radius:99px;padding:12px 16px;font:11px var(--mono);text-transform:uppercase;display:none;z-index:100}.toast.show{display:block} input[type=file]{display:none}
+    @media(max-width:900px){.app{display:block;border:0}.side{position:fixed;left:0;right:0;bottom:0;min-height:0;border-right:0;border-top:3px solid #000;z-index:20;background:#fff}.brand,.chatTitle,.messages,.chips{display:none}.nav{display:flex;overflow:auto;border-bottom:0;padding:7px}.nav button{white-space:nowrap;font-size:10px;padding:8px}.badge{display:none}.composer{border-top:2px solid #000;padding:8px}.main{min-height:calc(100svh - 94px);padding-bottom:94px}.top{min-height:56px;padding:9px 10px}.top h2{font-size:15px}.pill{font-size:9px}.screen{padding:10px}.two,.sceneHero{grid-template-columns:1fr}.frames{grid-template-columns:1fr}.empty{min-height:calc(100svh - 170px)}.viz{min-height:430px}.row{grid-template-columns:1fr}.toast{bottom:104px;max-width:92%;text-align:center}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <h1>Prime Blocking Engine</h1>
+      <p>Real AI adapter · editable system prompts · generic project model</p>
+      <div class="tools">
+        <button data-action="reset">Reset</button>
+        <button data-action="save">Save</button>
+        <button data-action="import">Import</button>
+        <button data-go="settings">AI Setup</button>
+      </div>
+      <input id="importFile" type="file" accept="application/json" />
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="chatTitle"><span>Chat</span><span id="scope">Blank</span></div>
+    <div class="messages" id="messages"></div>
+    <div class="chips" id="chips"></div>
+    <form class="composer" id="composer"><input id="promptInput" placeholder="Ask the AI to build or revise anything..." /><button type="submit">↗</button></form>
+  </aside>
+  <main class="main">
+    <header class="top"><h2 id="screenTitle">Blank</h2><div class="pills" id="pills"></div></header>
+    <section class="screen active" data-screen="blank"></section>
+    <section class="screen" data-screen="overview"></section>
+    <section class="screen" data-screen="diagram"></section>
+    <section class="screen" data-screen="shots"></section>
+    <section class="screen" data-screen="timeline"></section>
+    <section class="screen" data-screen="storyboard"></section>
+    <section class="screen" data-screen="script"></section>
+    <section class="screen" data-screen="assets"></section>
+    <section class="screen" data-screen="settings"></section>
+    <section class="screen" data-screen="export"></section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  const STORAGE_KEY = 'prime.realAiBlocking.v2';
+  const screens = [
+    ['blank','Blank'], ['overview','Overview'], ['diagram','Diagram'], ['shots','Shots'], ['timeline','Timeline'],
+    ['storyboard','Storyboard'], ['script','Script'], ['assets','Prompts'], ['settings','AI Setup'], ['export','Export']
+  ];
+
+  const defaultSystemPrompt = [
+    'You are PRIME BLOCKING ENGINE, a film/story planning AI.',
+    'You convert messy user prompts into structured production state.',
+    'You are not locked to bees, trains, film, or any single genre. Adapt to the user project.',
+    'Return ONLY valid JSON matching this contract:',
+    '{',
+    '  "assistant_message": "short user-facing summary",',
+    '  "patch": {',
+    '    "project": "title string optional",',
+    '    "logline": "one sentence optional",',
+    '    "tone": "tone string optional",',
+    '    "duration_seconds": 60,',
+    '    "characters": [{"id":"stable_slug","name":"Name","role":"filmable role","x":50,"y":50}],',
+    '    "cameras": [{"id":"A","name":"CAM A","type":"Wide","x":50,"y":8}],',
+    '    "beats": ["ordered action beats"],',
+    '    "shots": [{"id":"01","title":"Shot title","camera":"CAM A","type":"Wide","purpose":"why this shot exists","time":"00:00 - 00:06"}],',
+    '    "script": "complete script text optional",',
+    '    "asset_prompts": {"environment":"prompt","storyboard":"prompt","diagram":"prompt","style":"prompt"},',
+    '    "change_log": ["concrete changes"],',
+    '    "active_screen": "overview"',
+    '  }',
+    '}',
+    'Rules:',
+    '- Preserve locked items if model.locks says they are locked.',
+    '- Treat existing model as source of truth.',
+    '- If user asks for images, create asset_prompts.storyboard rather than pretending you rendered an image.',
+    '- If user asks for code-rendered environment, create asset_prompts.environment and diagram instructions.',
+    '- Be specific and production-usable.'
+  ].join('\n');
+
+  function defaultModel(){
+    return {
+      activeScreen:'blank', generated:false, aiBusy:false, lastError:'',
+      ai:{mode:'api', endpoint:'/api/ai', provider:'openai-compatible', model:'gpt-4.1-mini', apiKey:'', temperature:0.7, useDirectBrowser:false, systemPrompt:defaultSystemPrompt},
+      project:'Untitled Project', logline:'', tone:'', duration_seconds:60,
+      characters:[], cameras:[{id:'A',name:'CAM A',type:'Wide',x:50,y:8},{id:'B',name:'CAM B',type:'Medium',x:50,y:92}], beats:[], shots:[],
+      script:'', asset_prompts:{environment:'',storyboard:'',diagram:'',style:'absolute black and white operational storyboard wireframe'},
+      selectedActor:'', selectedShot:'', selectedStoryboard:'', locks:{},
+      messages:[{from:'ai',text:'Blank project. Configure AI Setup, then type what you want to make. Example: make a short film about bees on a train.'}],
+      changeLog:[], versions:[], seed:10
+    };
+  }
+
+  let model = loadState() || defaultModel();
+  let drag = null;
+
+  const el = (s, root=document) => root.querySelector(s);
+  const all = (s, root=document) => Array.from(root.querySelectorAll(s));
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : a));
+  const slug = s => String(s || 'item').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,32) || 'item';
+  const esc = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  function safeJSON(value){
+    try { return JSON.stringify(value, null, 2); } catch { return '[unserializable]'; }
+  }
+
+  function setText(selector, text){
+    const node = el(selector);
+    if (node) node.textContent = text;
+  }
+
+  function toast(t){
+    const node = el('#toast');
+    node.textContent = String(t);
+    node.classList.add('show');
+    clearTimeout(window.__primeToast);
+    window.__primeToast = setTimeout(() => node.classList.remove('show'), 1700);
+  }
+
+  function push(from, text){ model.messages.push({from, text:String(text ?? '')}); }
+  function saveState(show=false){ localStorage.setItem(STORAGE_KEY, JSON.stringify(model)); if(show) toast('saved locally'); }
+  function loadState(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } }
+  function resetApp(){ if(confirm('Reset project and local state?')){ model = defaultModel(); saveState(); render(); } }
+  function go(id){ if(screens.some(s => s[0] === id)){ model.activeScreen = id; render(); } }
+  function fmt(sec=model.duration_seconds || 60){ const n=Math.max(0, Number(sec)||0); const m=Math.floor(n/60); const s=Math.round(n%60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+  function screenName(){ return (screens.find(x => x[0] === model.activeScreen) || screens[0])[1]; }
+
+  function render(){
+    renderNav(); renderChat(); renderChips(); renderPills(); renderScreens(); bindDynamicEvents();
+    all('.screen').forEach(s => s.classList.toggle('active', s.dataset.screen === model.activeScreen));
+    setText('#screenTitle', screenName());
+    setText('#scope', screenName());
+    saveState(false);
+  }
+
+  function renderNav(){
+    el('#nav').innerHTML = screens.map((s,i) => `<button class="${model.activeScreen===s[0]?'active':''}" data-go="${esc(s[0])}"><span>${esc(s[1])}</span><span class="badge">${String(i+1).padStart(2,'0')}</span></button>`).join('');
+  }
+
+  function renderChat(){
+    el('#messages').innerHTML = model.messages.map(m => {
+      const cls = ['user','ai','err'].includes(m.from) ? m.from : 'ai';
+      const label = cls === 'user' ? 'You' : cls === 'err' ? 'Error' : 'Prime AI';
+      return `<div class="msg ${cls}"><small>${label}</small>${esc(m.text)}</div>`;
+    }).join('');
+    el('#messages').scrollTop = el('#messages').scrollHeight;
+  }
+
+  function renderChips(){
+    const chips = ['make a short film about bees on a train','make a noir scene in a laundromat','generate storyboard prompts','revise the shot list','make it usable on a phone','export'];
+    el('#chips').innerHTML = chips.map(c => `<button data-prompt="${esc(c)}">${esc(c)}</button>`).join('');
+  }
+
+  function renderPills(){
+    const live = model.ai.mode === 'api' ? `API: ${model.ai.endpoint || 'unset'}` : 'mock fallback';
+    const pills = [model.generated ? model.project : 'blank', fmt(), `${model.shots.length} shots`, model.ai.model || 'no model', live];
+    el('#pills').innerHTML = pills.map((p,i) => `<span class="pill ${i===4 ? (model.ai.mode==='api'?'live':'mock') : ''}">${esc(p)}</span>`).join('');
+  }
+
+  function dots(n=22, seed=model.seed){
+    let out='';
+    for(let i=0;i<n;i++){
+      let x=(Math.sin(seed*99+i*17)*9999)%1; if(x<0)x*=-1;
+      let y=(Math.sin(seed*37+i*29)*9999)%1; if(y<0)y*=-1;
+      out += `<i style="left:${8+x*84}%;top:${8+y*70}%"></i>`;
+    }
+    return out;
+  }
+
+  function charByName(n){ return model.characters.find(c => c.name === n) || model.characters[0]; }
+
+  function renderViz(){
+    const chars = model.characters.length ? model.characters : [{name:'A',x:35,y:55},{name:'B',x:68,y:48}];
+    const cams = model.cameras.length ? model.cameras : [];
+    let path = '';
+    if(chars.length >= 2){
+      path = `<path d="M ${Number(chars[0].x)||50} ${Number(chars[0].y)||50} C 35 35, 60 35, ${Number(chars[1].x)||50} ${Number(chars[1].y)||50}" fill="none" stroke="#000" stroke-width=".8" stroke-dasharray="2 2"/>`;
+    }
+    return `<div class="viz" id="viz"><div class="box"></div><svg class="path" viewBox="0 0 100 100" preserveAspectRatio="none">${path}</svg><div class="swarm" style="left:50%;top:48%">${dots(26)}</div>${chars.map(c => `<div class="dot ${model.selectedActor===c.name?'selected':''}" style="left:${clamp(Number(c.x),5,95)}%;top:${clamp(Number(c.y),5,95)}%" data-actor="${esc(c.name)}">${esc((c.name||'X').slice(0,3).toUpperCase())}</div>`).join('')}${cams.map(c => `<div class="cam" style="left:${clamp(Number(c.x),4,96)}%;top:${clamp(Number(c.y),4,96)}%">${esc(c.id||'C')}</div>`).join('')}</div>`;
+  }
+
+  function renderScreens(){
+    el('[data-screen="blank"]').innerHTML = `<div class="card empty"><div><h3>Blank Means Blank</h3><p>No canned bees. No fake parser. Type a project. AI returns a JSON patch. The interface becomes that patch.</p><div class="actions" style="justify-content:center"><button class="primary" data-prompt="make a short film about bees on a train">Generate with AI</button><button data-go="settings">AI Setup</button></div></div></div>`;
+
+    el('[data-screen="overview"]').innerHTML = `<div class="grid two"><div class="card"><div class="cardH"><h3>${esc(model.project)}</h3><span>${model.generated?'AI generated':'empty'}</span></div><div class="cardB sceneHero">${renderViz()}<div class="list"><div class="stat"><b>Logline</b><span>${esc(model.logline||'—')}</span></div><div class="stat"><b>Tone</b><span>${esc(model.tone||'—')}</span></div><div class="stat"><b>Runtime</b><span>${fmt()}</span></div><div class="actions"><button data-go="diagram" class="primary">Diagram</button><button data-prompt="improve this project and make the next patch more specific">Improve</button></div></div></div></div><div class="card"><div class="cardH"><h3>Characters</h3><span>${model.characters.length}</span></div><div class="cardB list">${model.characters.map(c => `<div class="item ${model.selectedActor===c.name?'active':''}" data-select-actor="${esc(c.name)}"><h4>${esc(c.name)}</h4><p>${esc(c.role)}</p></div>`).join('') || '<p class="muted">No characters yet.</p>'}</div></div></div>`;
+
+    el('[data-screen="diagram"]').innerHTML = `<div class="grid two"><div>${renderViz()}</div><div class="card"><div class="cardH"><h3>Diagram Inspector</h3><span>real state</span></div><div class="cardB"><p class="muted">Drag characters. Their coordinates are saved into the same model sent to AI.</p><div class="actions"><button data-prompt="reblock the scene using the current dragged positions as constraints" class="primary">AI Reblock</button><button data-action="toggle-lock">${model.locks[model.selectedActor]?'Unlock':'Lock'} Selected</button></div><pre class="promptBox">${esc(safeJSON({selectedActor:model.selectedActor,characters:model.characters,cameras:model.cameras}))}</pre></div></div></div>`;
+
+    el('[data-screen="shots"]').innerHTML = `<div class="grid two"><div class="card"><div class="cardH"><h3>Shots</h3><span>${model.shots.length}</span></div><div class="cardB list">${model.shots.map(s => `<div class="item shot ${model.selectedShot===s.id?'active':''}" data-select-shot="${esc(s.id)}"><div class="thumb"></div><div><h4>${esc(s.id)} ${esc(s.title)}</h4><p>${esc(s.camera)} · ${esc(s.type)} · ${esc(s.purpose)}</p></div><div class="time">${esc(s.time)}</div></div>`).join('') || '<p class="muted">No shots yet.</p>'}<div class="actions"><button class="primary" data-prompt="generate a better production shot list from the current model">AI Shot List</button><button data-action="add-shot">Manual Add</button></div></div></div>${shotEditor()}</div>`;
+
+    el('[data-screen="timeline"]').innerHTML = `<div class="timeline"><div class="timeGrid"><div></div>${['00:00','00:10','00:20','00:30','00:40','00:50','01:00','01:10'].map(t => `<div class="tick">${t}</div>`).join('')}${(model.characters.length ? model.characters : [{name:'Track'}]).slice(0,5).map((c,i) => `<div class="track">${esc(c.name)}</div><div class="bar ${['green','yellow','purple','blue','red'][i%5]}" style="grid-column:span ${2+i%3}">beat</div><div class="bar ${['blue','green','yellow','purple','red'][(i+1)%5]}" style="grid-column:span ${6-i%3}">action</div>`).join('')}</div></div><div class="actions"><button class="primary" data-prompt="retime the scene into a clear beat timeline">AI Retime</button></div>`;
+
+    el('[data-screen="storyboard"]').innerHTML = `<div class="frames">${(model.shots.length ? model.shots : [{id:'01',title:'No shot yet',purpose:'Generate shots first'}]).map((s,i) => `<div class="frame"><div class="frameArt"><div class="head h1"></div><div class="head h2"></div><div class="dots">${dots(12+i*3,model.seed+i)}</div></div><div class="frameText"><h4>${esc(s.id)} ${esc(s.title)}</h4><p>${esc(s.purpose)}</p></div></div>`).join('')}</div><div class="actions"><button class="primary" data-prompt="write storyboard image prompts for each shot in asset_prompts.storyboard">AI Storyboard Prompts</button></div>`;
+
+    el('[data-screen="script"]').innerHTML = `<div class="script" contenteditable="true" id="scriptText">${esc(model.script || '')}</div><div class="actions" style="justify-content:center"><button class="primary" data-prompt="write or revise the full script from the current model">AI Write Script</button><button data-action="copy-script">Copy</button></div>`;
+
+    el('[data-screen="assets"]').innerHTML = `<div class="grid two"><div class="card"><div class="cardH"><h3>Asset System Prompts</h3><span>AI generated</span></div><div class="cardB assetGrid">${Object.entries(model.asset_prompts || {}).map(([k,v]) => `<div class="asset"><b>${esc(k)}</b><code>${esc(v || '—')}</code></div>`).join('')}</div></div><div class="card"><div class="cardH"><h3>Prompt Provenance</h3><span>source</span></div><div class="cardB"><pre class="promptBox">${esc(safeJSON({last_messages:model.messages.slice(-4),changeLog:model.changeLog.slice(-8)}))}</pre><div class="actions"><button class="primary" data-prompt="generate reusable system instruction prompts for environment, diagram, storyboard, and script generation">Generate Prompts</button></div></div></div></div>`;
+
+    el('[data-screen="settings"]').innerHTML = settingsHTML();
+
+    el('[data-screen="export"]').innerHTML = `<div class="grid two"><div class="card"><div class="cardH"><h3>Export</h3><span>real files</span></div><div class="cardB list"><button class="primary" data-action="download-json">Download Full Project JSON</button><button data-action="download-script">Download Script TXT</button><button data-action="download-system">Download System Prompt</button><button data-action="copy-json">Copy JSON</button><button data-action="run-tests">Run Self Tests</button></div></div><div class="card"><div class="cardH"><h3>Change Log</h3><span>${model.changeLog.length}</span></div><div class="cardB list">${model.changeLog.map(x => `<div class="item"><p>${esc(x)}</p></div>`).join('') || '<p class="muted">No changes yet.</p>'}</div></div></div>`;
+  }
+
+  function settingsHTML(){
+    return `<div class="grid two"><div class="card"><div class="cardH"><h3>Real AI Connection</h3><span>${esc(model.ai.mode)}</span></div><div class="cardB"><div class="field"><label>Mode</label><select data-field="ai.mode"><option value="api" ${model.ai.mode==='api'?'selected':''}>Real API</option><option value="mock" ${model.ai.mode==='mock'?'selected':''}>Local Mock Fallback</option></select></div><div class="field"><label>Endpoint</label><input data-field="ai.endpoint" value="${esc(model.ai.endpoint)}" placeholder="/api/ai or OpenAI-compatible URL" /></div><div class="row"><div class="field"><label>Model</label><input data-field="ai.model" value="${esc(model.ai.model)}" /></div><div class="field"><label>Temperature</label><input data-field="ai.temperature" type="number" step="0.1" min="0" max="2" value="${esc(model.ai.temperature)}" /></div></div><div class="field"><label>API Key (optional; safer to keep server-side)</label><input data-field="ai.apiKey" type="password" value="${esc(model.ai.apiKey)}" placeholder="Only for your own proxy/testing" /></div><div class="field"><label><input data-field="ai.useDirectBrowser" type="checkbox" ${model.ai.useDirectBrowser?'checked':''} /> Use OpenAI-compatible direct browser call</label></div><p class="muted">Best real setup: create a tiny server endpoint at <b>/api/ai</b> that calls your model provider. This avoids exposing keys in browser code. Direct mode exists for local prototypes only.</p><div class="actions"><button class="primary" data-action="test-ai">Test AI</button><button data-action="run-tests">Run Self Tests</button></div></div></div><div class="card"><div class="cardH"><h3>System Instruction</h3><span>editable contract</span></div><div class="cardB"><div class="field"><label>System Prompt</label><textarea style="min-height:520px" data-field="ai.systemPrompt">${esc(model.ai.systemPrompt)}</textarea></div></div></div></div>`;
+  }
+
+  function shotEditor(){
+    const s = model.shots.find(x => x.id === model.selectedShot) || model.shots[0];
+    if(!s) return `<div class="card"><div class="cardH"><h3>Shot Editor</h3></div><div class="cardB muted">No selected shot.</div></div>`;
+    return `<div class="card"><div class="cardH"><h3>Edit Shot ${esc(s.id)}</h3><span>manual</span></div><div class="cardB"><div class="field"><label>Title</label><input data-shot-field="title" data-shot-id="${esc(s.id)}" value="${esc(s.title)}" /></div><div class="field"><label>Purpose</label><textarea data-shot-field="purpose" data-shot-id="${esc(s.id)}">${esc(s.purpose)}</textarea></div><div class="row"><div class="field"><label>Camera</label><input data-shot-field="camera" data-shot-id="${esc(s.id)}" value="${esc(s.camera)}" /></div><div class="field"><label>Type</label><input data-shot-field="type" data-shot-id="${esc(s.id)}" value="${esc(s.type)}" /></div></div><div class="actions"><button data-delete-shot="${esc(s.id)}">Delete</button><button class="primary" data-prompt="revise selected shot ${esc(s.id)}: make it more filmable and specific">AI Revise Shot</button></div></div></div>`;
+  }
+
+  function bindDynamicEvents(){
+    all('[data-go]').forEach(node => node.onclick = () => go(node.dataset.go));
+    all('[data-prompt]').forEach(node => node.onclick = () => submitPrompt(node.dataset.prompt));
+    all('[data-select-actor]').forEach(node => node.onclick = () => { model.selectedActor = node.dataset.selectActor; render(); });
+    all('[data-select-shot]').forEach(node => node.onclick = () => { model.selectedShot = node.dataset.selectShot; model.selectedStoryboard = node.dataset.selectShot; render(); });
+    all('[data-delete-shot]').forEach(node => node.onclick = () => deleteShot(node.dataset.deleteShot));
+    all('[data-shot-field]').forEach(node => node.oninput = () => editShot(node.dataset.shotId, node.dataset.shotField, node.value));
+    all('[data-field]').forEach(node => node.oninput = node.onchange = () => setByPath(node.dataset.field, node.type === 'checkbox' ? node.checked : node.value));
+    all('.dot').forEach(node => node.onpointerdown = e => dragStart(e, node.dataset.actor));
+    const viz = el('#viz');
+    if(viz){ viz.onpointermove = dragMove; viz.onpointerup = dragEnd; viz.onpointercancel = dragEnd; }
+  }
+
+  document.addEventListener('click', e => {
+    const action = e.target && e.target.dataset ? e.target.dataset.action : '';
+    if(!action) return;
+    if(action === 'reset') resetApp();
+    if(action === 'save') saveState(true);
+    if(action === 'import') el('#importFile').click();
+    if(action === 'toggle-lock') toggleLock(model.selectedActor);
+    if(action === 'add-shot') addShot();
+    if(action === 'copy-script') copyText(model.script, 'Script copied');
+    if(action === 'download-json') download('prime_project.json', safeJSON(model), 'application/json');
+    if(action === 'download-script') download('script.txt', model.script || '', 'text/plain');
+    if(action === 'download-system') download('system_prompt.txt', model.ai.systemPrompt || '', 'text/plain');
+    if(action === 'copy-json') copyText(safeJSON(model), 'JSON copied');
+    if(action === 'test-ai') submitPrompt('test connection: return a tiny project called API TEST with one character and one shot');
+    if(action === 'run-tests') runSelfTests(true);
+  });
+
+  function setByPath(path, value){
+    const parts = path.split('.');
+    let target = model;
+    for(let i=0;i<parts.length-1;i++) target = target[parts[i]];
+    const key = parts[parts.length-1];
+    target[key] = key === 'temperature' ? Number(value || 0.7) : value;
+    saveState(false);
+    renderPills();
+  }
+
+  function editShot(id,k,v){ const s=model.shots.find(x => x.id === id); if(s){ s[k]=v; saveState(false); } }
+  function addShot(){ const n=String(model.shots.length+1).padStart(2,'0'); model.shots.push({id:n,title:'New Shot',camera:'CAM A',type:'Medium',purpose:'Manual placeholder',time:'00:00 - 00:05'}); model.selectedShot=n; render(); }
+  function deleteShot(id){ model.shots = model.shots.filter(s => s.id !== id); model.selectedShot = model.shots[0]?.id || ''; render(); }
+  function toggleLock(n){ if(!n) return; model.locks[n] = !model.locks[n]; toast(`${n} ${model.locks[n]?'locked':'unlocked'}`); render(); }
+
+  function dragStart(e,name){ if(!name) return; if(model.locks[name]){ toast('locked'); return; } const viz = el('#viz'); if(!viz) return; drag={name,rect:viz.getBoundingClientRect()}; model.selectedActor=name; e.preventDefault(); }
+  function dragMove(e){ if(!drag) return; const c = charByName(drag.name); if(!c) return; c.x = clamp((e.clientX-drag.rect.left)/drag.rect.width*100,5,95); c.y = clamp((e.clientY-drag.rect.top)/drag.rect.height*100,5,95); render(); }
+  function dragEnd(){ if(drag){ model.changeLog.push(`${drag.name} moved by drag`); drag=null; render(); } }
+
+  async function submitPrompt(prompt){
+    const input = el('#promptInput');
+    input.value = prompt;
+    el('#composer').dispatchEvent(new Event('submit', {bubbles:true, cancelable:true}));
+  }
+
+  el('#composer').addEventListener('submit', async e => {
+    e.preventDefault();
+    const input = el('#promptInput');
+    const v = input.value.trim();
+    if(!v) return;
+    input.value = '';
+    push('user', v);
+    model.aiBusy = true;
+    render();
+    try{
+      const res = await callAI(v);
+      applyAIPatch(res);
+      push('ai', res.assistant_message || 'Applied AI patch.');
+    }catch(err){
+      push('err', String(err && err.message ? err.message : err));
+    }finally{
+      model.aiBusy = false;
+      render();
+    }
+  });
+
+  function buildAIPayload(userPrompt){
+    return {
+      model:model.ai.model,
+      temperature:model.ai.temperature,
+      system:model.ai.systemPrompt,
+      user:userPrompt,
+      state:{
+        project:model.project, logline:model.logline, tone:model.tone, duration_seconds:model.duration_seconds,
+        characters:model.characters, cameras:model.cameras, beats:model.beats, shots:model.shots, script:model.script,
+        asset_prompts:model.asset_prompts, locks:model.locks, active_screen:model.activeScreen,
+        selectedActor:model.selectedActor, selectedShot:model.selectedShot
+      }
+    };
+  }
+
+  async function callAI(userPrompt){
+    if(model.ai.mode === 'mock') return mockAI(userPrompt);
+    const payload = buildAIPayload(userPrompt);
+    const url = model.ai.endpoint || '/api/ai';
+    const headers = {'Content-Type':'application/json'};
+    if(model.ai.apiKey) headers.Authorization = 'Bearer ' + model.ai.apiKey;
+    if(model.ai.useDirectBrowser) return callOpenAICompatible(url, payload, headers);
+    const r = await fetch(url, {method:'POST', headers, body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error(`AI endpoint ${r.status}: ${await r.text()}`);
+    return normalizeAIResponse(await r.json());
+  }
+
+  async function callOpenAICompatible(url, payload, headers){
+    const messages = [
+      {role:'system', content:payload.system},
+      {role:'user', content:`USER PROMPT:\n${payload.user}\n\nCURRENT STATE:\n${JSON.stringify(payload.state)}`}
+    ];
+    const r = await fetch(url, {
+      method:'POST',
+      headers,
+      body:JSON.stringify({model:payload.model, temperature:payload.temperature, messages, response_format:{type:'json_object'}})
+    });
+    if(!r.ok) throw new Error(`OpenAI-compatible call failed ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    const txt = data.choices?.[0]?.message?.content || data.output_text || '';
+    return JSON.parse(txt);
+  }
+
+  function normalizeAIResponse(data){
+    if(data && data.assistant_message && data.patch) return data;
+    if(data && data.output_text) return JSON.parse(data.output_text);
+    if(data && data.choices?.[0]?.message?.content) return JSON.parse(data.choices[0].message.content);
+    return data;
+  }
+
+  function applyAIPatch(res){
+    const p = res && res.patch ? res.patch : {};
+    if(p.project !== undefined){ model.project=String(p.project); model.generated=true; }
+    if(p.logline !== undefined) model.logline=String(p.logline);
+    if(p.tone !== undefined) model.tone=String(p.tone);
+    if(p.duration_seconds !== undefined) model.duration_seconds=Number(p.duration_seconds) || 60;
+    if(Array.isArray(p.characters)){
+      model.characters = p.characters.map((c,i) => ({id:c.id || slug(c.name), name:c.name || `Character ${i+1}`, role:c.role || '', x:clamp(Number(c.x ?? (20+i*16)),5,95), y:clamp(Number(c.y ?? 50),5,95)}));
+      model.selectedActor = model.characters[0]?.name || '';
+    }
+    if(Array.isArray(p.cameras)){
+      model.cameras = p.cameras.map((c,i) => ({id:c.id || String.fromCharCode(65+i), name:c.name || `CAM ${c.id || String.fromCharCode(65+i)}`, type:c.type || 'Wide', x:clamp(Number(c.x ?? 50),4,96), y:clamp(Number(c.y ?? (i?92:8)),4,96)}));
+    }
+    if(Array.isArray(p.beats)) model.beats = p.beats.map(String);
+    if(Array.isArray(p.shots)){
+      model.shots = p.shots.map((s,i) => ({id:s.id || String(i+1).padStart(2,'0'), title:s.title || 'Shot', camera:s.camera || 'CAM A', type:s.type || 'Medium', purpose:s.purpose || '', time:s.time || ''}));
+      model.selectedShot = model.shots[0]?.id || '';
+    }
+    if(p.script !== undefined) model.script = String(p.script);
+    if(p.asset_prompts && typeof p.asset_prompts === 'object') model.asset_prompts = {...model.asset_prompts, ...p.asset_prompts};
+    if(Array.isArray(p.change_log)) model.changeLog.push(...p.change_log.map(String));
+    if(p.active_screen && screens.some(s => s[0] === p.active_screen)) model.activeScreen = p.active_screen;
+    model.generated = true;
+    model.seed += 3;
+  }
+
+  function mockAI(prompt){
+    let title = (prompt.match(/about (.*)$/i)?.[1] || prompt.replace(/make|create|film|movie|short/gi,'').trim() || 'Untitled Scene');
+    title = title.split(/[.!?]/)[0].trim();
+    title = title ? title.replace(/^./, c => c.toUpperCase()) : 'Untitled Scene';
+    const chars = ['Protagonist','Witness','Obstacle','Environment'].map((n,i) => ({id:slug(n), name:n, role:`${n} function derived from: ${prompt}`, x:[24,72,50,50][i], y:[58,42,30,68][i]}));
+    return Promise.resolve({
+      assistant_message:'Mock patch applied. Switch AI Setup to Real API for model output.',
+      patch:{
+        project:title,
+        logline:`A generated scene from: ${prompt}`,
+        tone:'User-directed / adaptable',
+        duration_seconds:60,
+        characters:chars,
+        beats:['Establish the world','Introduce pressure','Complicate the path','Reveal the turn','Resolve the beat'],
+        shots:[
+          {id:'01',title:'Establish',camera:'CAM A',type:'Wide',purpose:'Set geography',time:'00:00 - 00:08'},
+          {id:'02',title:'Pressure',camera:'CAM B',type:'Medium',purpose:'Show the active conflict',time:'00:08 - 00:22'},
+          {id:'03',title:'Turn',camera:'CAM A',type:'Close',purpose:'Reveal the change',time:'00:22 - 00:40'}
+        ],
+        script:`${title.toUpperCase()}\n\nGenerated draft from prompt:\n${prompt}\n\n[Connect a real AI endpoint in AI Setup to replace this mock text.]`,
+        asset_prompts:{environment:`Generate a clean operational diagram for: ${prompt}`, storyboard:`Generate storyboard frames for: ${prompt}`, diagram:`SVG/canvas blocking diagram for: ${prompt}`},
+        change_log:['Generated adaptable mock project'],
+        active_screen:'overview'
+      }
+    });
+  }
+
+  function download(name,text,type='text/plain'){
+    const blob = new Blob([String(text ?? '')], {type});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyText(t,msg){ navigator.clipboard?.writeText(String(t ?? '')).then(() => toast(msg || 'copied')).catch(() => toast('copy unavailable')); }
+
+  function runSelfTests(showToast=false){
+    const results = [];
+    function test(name, fn){
+      try { fn(); results.push({name, ok:true}); }
+      catch(err){ results.push({name, ok:false, err:String(err.message || err)}); }
+    }
+    test('esc escapes dangerous HTML', () => {
+      const out = esc('<img src=x onerror=alert(1)>"\'&');
+      if(out.includes('<') || out.includes('>') || out.includes

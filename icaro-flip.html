@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ABC FLIX · STAGE</title>
+    <title>ABC FLIX · PRO</title>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Crect x='10' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='18' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='26' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='34' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='42' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='50' y='49' width='4' height='4' fill='%23000'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
 
@@ -1295,6 +1295,389 @@
                 padding: 2px 5px;
             }
         }
+
+        /* ── FLIPBOOK MODAL OVERLAY ── */
+        #flipbook-modal {
+            position: fixed;
+            inset: 0;
+            background: #d8d8d2;
+            z-index: 99999;
+            display: none;
+            flex-direction: row;
+            color: #000000;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 700;
+        }
+
+        #flipbook-modal.on {
+            display: flex;
+        }
+
+        #fb-sidebar {
+            width: 340px;
+            background: #f4f4f0;
+            border-right: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex-shrink: 0;
+        }
+
+        #fb-sidebar .header-title {
+            background: #000;
+            color: #fff;
+            padding: 16px;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #fb-sidebar .header-title span {
+            color: #e60000;
+        }
+
+        #fb-sidebar .scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #fb-sidebar .control-group {
+            margin-bottom: 20px;
+            border-bottom: 1.5px dashed #ccc;
+            padding-bottom: 16px;
+        }
+
+        #fb-sidebar .label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #666;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        #fb-sidebar .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        #fb-sidebar select, #fb-sidebar input {
+            flex: 1;
+            background: #fff;
+            border: 2px solid #000;
+            padding: 8px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            outline: none;
+        }
+
+        #fb-sidebar select:focus, #fb-sidebar input:focus {
+            border-color: #e60000;
+        }
+
+        #fb-sidebar .desc-text {
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1.4;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        #fb-sidebar .btn {
+            display: block;
+            width: 100%;
+            background: #fff;
+            border: 2px solid #000;
+            color: #000;
+            padding: 12px;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            transition: all 0.1s;
+        }
+
+        #fb-sidebar .btn:hover {
+            background: #000;
+            color: #fff;
+        }
+
+        #fb-sidebar .btn-accent {
+            background: #e60000;
+            border-color: #e60000;
+            color: #fff;
+        }
+
+        #fb-sidebar .btn-accent:hover {
+            background: #000;
+            border-color: #000;
+            color: #fff;
+        }
+
+        #fb-sidebar .stats-banner {
+            background: #e1e1d8;
+            border: 2px solid #000;
+            padding: 10px;
+            margin-bottom: 16px;
+        }
+
+        #fb-sidebar table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #fb-sidebar td {
+            font-size: 11px;
+            padding: 2px 0;
+        }
+
+        #fb-sidebar td:last-child {
+            text-align: right;
+            font-weight: 900;
+        }
+
+        #fb-preview-pane {
+            flex: 1;
+            background: #d8d8d2;
+            overflow-y: auto;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .fb-zoom-wrapper {
+            transform-origin: top center;
+            transition: transform 0.2s ease;
+        }
+
+        .fb-a4-page {
+            background: #fff;
+            width: 210mm;
+            height: 297mm;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 2px solid #000;
+            margin-bottom: 40px;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: grid;
+            padding: 10mm;
+        }
+
+        /* A4 Standard */
+        .fb-a4-page.paper-a4 {
+            width: 210mm !important;
+            height: 297mm !important;
+        }
+        .fb-a4-page.paper-a4.landscape-page {
+            width: 297mm !important;
+            height: 210mm !important;
+        }
+
+        /* US Letter Standard */
+        .fb-a4-page.paper-letter {
+            width: 215.9mm !important;
+            height: 279.4mm !important;
+        }
+        .fb-a4-page.paper-letter.landscape-page {
+            width: 279.4mm !important;
+            height: 215.9mm !important;
+        }
+
+        .fb-a4-page:last-child {
+            margin-bottom: 0;
+        }
+
+        .fb-flip-card {
+            border: 1px dashed #999;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            overflow: hidden;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .fb-flip-card::after {
+            content: "✂";
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 10px;
+            color: #999;
+            z-index: 10;
+        }
+
+        .fb-binding-safe-zone {
+            background: #fdfdfa;
+            border-right: 1.5px dashed #ccc;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 4px 2px;
+            position: relative;
+        }
+
+        .fb-binding-safe-zone.top-bind {
+            width: 100%;
+            height: 8mm;
+            border-right: none;
+            border-bottom: 1.5px dashed #ccc;
+            flex-direction: row;
+        }
+
+        .fb-staple-mark {
+            width: 8px;
+            height: 2px;
+            background: #777;
+            position: relative;
+        }
+
+        .fb-staple-mark::before {
+            content: "[ STAPLE ]";
+            font-size: 5px;
+            color: #888;
+            position: absolute;
+            left: 12px;
+            top: -3px;
+            white-space: nowrap;
+        }
+
+        .fb-hole-mark {
+            width: 5px;
+            height: 5px;
+            border-radius: 50% !important;
+            border: 1px solid #777;
+        }
+
+        .fb-card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .fb-frame-img-container {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .fb-frame-img-container img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .fb-card-meta {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 10;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            opacity: 0.35;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 1px 3px;
+            border-radius: 1px;
+            border: 0.5px solid rgba(0, 0, 0, 0.05);
+            pointer-events: none;
+        }
+
+        .fb-card-meta .idx {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 7px;
+            font-weight: 600;
+            color: #000;
+            letter-spacing: 0.05em;
+        }
+
+        @media print {
+            @page {
+                margin: 0;
+            }
+            html, body {
+                position: static !important;
+                inset: auto !important;
+                width: auto !important;
+                height: auto !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+            body > *:not(#flipbook-modal) {
+                display: none !important;
+            }
+            #flipbook-modal {
+                position: relative !important;
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: none !important;
+                color: #000 !important;
+            }
+            #fb-sidebar {
+                display: none !important;
+            }
+            #fb-preview-pane {
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: none !important;
+            }
+            .fb-zoom-wrapper {
+                transform: none !important;
+                width: 100% !important;
+                height: auto !important;
+                display: block !important;
+            }
+            #fb-pages-container {
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+            .fb-a4-page {
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                border: none !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                padding: 10mm !important;
+                overflow: hidden !important;
+            }
+        }
     </style>
 </head>
 
@@ -1437,6 +1820,13 @@
         </div>
         <div class="sheet-body">
             <button class="sh-btn" style="background:var(--act-a);color:var(--white);" onclick="document.getElementById('file-input').click()">LOAD CLIPS</button>
+            <div style="margin: 4px 0 8px 0; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; color: #555; font-family: monospace;">Video Import Fit</span>
+                <select id="video-fit-select" onchange="state.videoFit = this.value" style="width: 100%; height: 26px; border: 2px solid var(--black); background: var(--bg); font-size: 10px; font-weight: 900; font-family: monospace; outline: none; padding: 0 4px; box-sizing: border-box;">
+                    <option value="cover" selected>COVER (Zoom to Fill 4:3 Card)</option>
+                    <option value="contain">CONTAIN (White Ink-Safe Margins)</option>
+                </select>
+            </div>
             <div class="sh-row">
                 <button class="sh-btn" onclick="toggleCamera(); closeAllSheets()">CAMERA</button>
                 <button class="sh-btn" onclick="loadTestSequence(); closeAllSheets()">FILM LEADER</button>
@@ -1444,13 +1834,6 @@
             <button class="sh-btn" onclick="document.getElementById('script-input').click(); closeAllSheets()"
                 style="font-size:10px;">LOAD SCRIPT FILE</button>
             <button class="sh-btn" onclick="cleanupMemory()" style="font-size:9px; color:#999;">CLEAN MEMORY</button>
-
-            <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
-                <div class="sh-label" style="color:var(--act-a);">IMPORT BEEDANCE PACKET</div>
-                <textarea id="bd-packet-input" placeholder='Paste ICARO_REEL_PACKET or ICARO_CLIP_UNIT JSON here...' style="width:100%;min-height:60px;max-height:120px;border:2px solid var(--black);padding:8px;font-family:monospace;font-size:10px;font-weight:700;background:var(--bg);resize:vertical;outline:none;"></textarea>
-                <button class="sh-btn" onclick="importBeeDancePacket()" style="margin-top:4px; background:var(--act-a); color:var(--white); font-size:10px;">IMPORT PACKET</button>
-                <div id="bd-import-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;margin-top:4px;"></div>
-            </div>
 
             <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
                 <div class="sh-label">CLIP BIN</div>
@@ -1614,50 +1997,16 @@
                 </div>
             </details>
 
-            <!-- AI SCENE BUILDER -->
-            <details open>
-                <summary style="min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:900;">🎬 AI SCENE BUILDER</summary>
+            <!-- AI PROMPT -->
+            <details>
+                <summary style="min-height:44px; display:flex; align-items:center; font-size:12px;">AI PROMPT</summary>
                 <div style="display:flex; flex-direction:column; gap:6px; padding-top:6px;">
-                    <!-- BEEDANCE CLIP QUEUE -->
-                    <div id="bd-clip-queue" style="display:none;">
-                        <div class="sh-label" style="color:var(--act-a);">BEEDANCE CLIP QUEUE</div>
-                        <div id="bd-clip-list" style="max-height:180px;overflow-y:auto;border:2px solid var(--black);padding:6px;background:var(--bg);display:flex;flex-direction:column;gap:4px;"></div>
-                        <button class="sh-btn" onclick="clearClipQueue()" style="margin-top:4px;font-size:9px;color:#999;">CLEAR QUEUE</button>
-                    </div>
-                    <div class="sh-label">API KEY</div>
-                    <input type="password" id="b-key" placeholder="sk-..." style="width:100%;height:36px;border:2px solid var(--black);font-size:11px;padding:0 8px;">
+                    <textarea id="b-idea" placeholder="e.g. A red ball bouncing..."></textarea>
                     <div class="sh-row">
-                        <div style="flex:1;"><div class="sh-label">CHAT MODEL</div>
-                            <select id="ai-chat-model" style="width:100%;height:34px;border:2px solid var(--black);font-size:10px;font-weight:900;padding:0 6px;">
-                                <option value="gpt-4o">gpt-4o</option>
-                                <option value="gpt-4o-mini">gpt-4o-mini</option>
-                                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-                            </select>
-                        </div>
-                        <div style="flex:1;"><div class="sh-label">BUILD MODEL</div>
-                            <select id="ai-build-model" style="width:100%;height:34px;border:2px solid var(--black);font-size:10px;font-weight:900;padding:0 6px;">
-                                <option value="o4-mini" selected>o4-mini</option>
-                                <option value="o3">o3</option>
-                                <option value="gpt-4o">gpt-4o</option>
-                            </select>
-                        </div>
+                        <button class="sh-btn" onclick="copySystemPrompt()" style="font-size:10px;">COPY</button>
+                        <button class="sh-btn primary" onclick="generateCodeFromIdea()" style="font-size:10px;">GENERATE</button>
                     </div>
-                    <div class="sh-label">DESCRIBE SCENE</div>
-                    <textarea id="b-idea" placeholder="e.g. A train crossing farmland at dusk, bees swarming from cargo..." style="min-height:100px;"></textarea>
-                    <div class="sh-row">
-                        <button class="sh-btn" onclick="copySystemPrompt()" style="font-size:10px;">COPY PROMPT</button>
-                        <button class="sh-btn primary" onclick="generateCodeFromIdea()" style="font-size:10px;">⚡ BUILD SCENE</button>
-                    </div>
-                    <div class="sh-row" id="bd-receipt-row" style="display:none;">
-                        <button class="sh-btn" onclick="copyClipReceipt()" style="font-size:10px; background:var(--act-b); color:var(--black);">COPY CLIP RECEIPT</button>
-                    </div>
-                    <div class="sh-label" style="margin-top:6px;">CHAT — ask about your scene</div>
-                    <div id="ai-chat-feed" style="max-height:200px;overflow-y:auto;border:2px solid var(--black);padding:8px;font-size:11px;line-height:1.4;background:var(--bg);min-height:60px;"></div>
-                    <div style="display:grid;grid-template-columns:1fr auto;gap:4px;">
-                        <input id="ai-chat-input" placeholder="ask about timing, pacing, composition..." style="height:36px;border:2px solid var(--black);font-size:11px;padding:0 8px;">
-                        <button class="sh-btn" onclick="sendAIChat()" style="font-size:14px;padding:0 12px;min-height:36px;">↗</button>
-                    </div>
-                    <div id="ai-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;"></div>
+                    <details><summary>API KEY</summary><input type="password" id="b-key" placeholder="sk-..."></details>
                 </div>
             </details>
 
@@ -1732,7 +2081,7 @@ SHF 2 1 24</textarea>
                         <button class="sh-btn" onclick="compileGIF()" style="font-size:10px;">GIF</button>
                         <button class="sh-btn" onclick="compileContactSheet()" style="font-size:10px;">CONTACT SHEET</button>
                     </div>
-                    <button class="sh-btn" onclick="openFlipbookGenerator()" style="font-size:10px; background:var(--act-c); color:var(--white); border-color:var(--act-c); margin-top:4px;">PRINT FLIPBOOK (A4)</button>
+                    <button class="sh-btn" onclick="openFlipbookGenerator()" style="font-size:10px; background:var(--act-c); color:var(--white); border-color:var(--act-c); margin-top: 4px;">PRINT FLIPBOOK (A4)</button>
                 </div>
             </details>
 
@@ -1907,7 +2256,7 @@ SHF 2 1 24</textarea>
             if (a < 240) return 6;
             return 7;
         }
-        let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0, patchBox: null };
+        let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0, patchBox: null, videoFit: 'cover' };
 
         // ══════════════════════════════════════════════════
         // ██ ANTIFRAGILE ENGINE: UNDO · AUTOSAVE · GUARD
@@ -2090,7 +2439,6 @@ SHF 2 1 24</textarea>
             window.addEventListener('resize', rescaleWorkspace);
             rescaleWorkspace();
             // Autosave removed (NSDK) — BEFLIX export is the save mechanism
-            initBusBridge();
         };
         function toggleManual() { playTick(); document.getElementById('manual-modal').classList.toggle('on'); }
 
@@ -2782,262 +3130,24 @@ SHF 2 1 24</textarea>
             }
         }
 
-        // ── AI DUAL-MODEL ENGINE ──
-        let aiChatHistory = [];
-
-        function getAIKey() { return (document.getElementById('b-key')?.value || '').trim(); }
-        function getChatModel() { return document.getElementById('ai-chat-model')?.value || 'gpt-4o'; }
-        function getBuildModel() { return document.getElementById('ai-build-model')?.value || 'o4-mini'; }
-
-        function renderAIChat() {
-            const feed = document.getElementById('ai-chat-feed');
-            if (!feed) return;
-            feed.innerHTML = aiChatHistory.map(m => {
-                const isUser = m.role === 'user';
-                return '<div style="margin-bottom:6px;' + (isUser ? 'text-align:right;' : '') + '"><span style="font-size:9px;font-weight:900;text-transform:uppercase;opacity:.6;">' + m.role + '</span><br>' + m.content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
-            }).join('');
-            feed.scrollTop = feed.scrollHeight;
-        }
-
-        async function sendAIChat() {
-            const input = document.getElementById('ai-chat-input');
-            const text = input?.value?.trim(); if (!text) return;
-            const key = getAIKey(); if (!key) { fireToast('ADD API KEY FIRST'); return; }
-            input.value = '';
-            aiChatHistory.push({ role: 'user', content: text });
-            renderAIChat();
-            document.getElementById('ai-status').textContent = 'THINKING...';
-            try {
-                const currentScript = document.getElementById('b-script')?.value || '';
-                const messages = [{ role: 'system', content: 'You are ICARO-STAGE, an expert BEFLIX-128 animation assistant. The user is building a dot-matrix film. Current BEFLIX script:\n' + currentScript.slice(0, 2000) + '\n\nHelp them with composition, timing, pacing, and BEFLIX commands. Be concise.' }];
-                aiChatHistory.forEach(m => messages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
-                const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: getChatModel(), messages, temperature: 0.7 }) });
-                if (!res.ok) throw new Error('API ' + res.status);
-                const data = await res.json();
-                const reply = data.choices?.[0]?.message?.content || 'No response.';
-                aiChatHistory.push({ role: 'assistant', content: reply });
-                renderAIChat();
-                document.getElementById('ai-status').textContent = 'READY';
-            } catch (e) {
-                aiChatHistory.push({ role: 'assistant', content: 'Error: ' + e.message });
-                renderAIChat();
-                document.getElementById('ai-status').textContent = 'CHAT FAILED';
-            }
-        }
-
-        document.getElementById('ai-chat-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendAIChat(); } });
-
         async function generateCodeFromIdea() {
             playThud();
             const ideaEl = document.getElementById('b-idea');
             const idea = ideaEl ? ideaEl.value.trim() : '';
             if (!idea) { fireToast('TYPE IDEA FIRST'); return; }
-            const key = getAIKey();
+            const keyEl = document.getElementById('b-key');
+            const key = keyEl ? keyEl.value.trim() : '';
             if (!key) { copySystemPrompt(); return; }
-            const buildModel = getBuildModel();
-            lockSystem('BUILDING WITH ' + buildModel.toUpperCase() + '...', 0);
-            document.getElementById('ai-status').textContent = 'REASONING MODEL WORKING...';
+            lockSystem('CONSULTING AI...', 0);
             try {
-                const roleKey = buildModel.startsWith('o') ? 'developer' : 'system';
-                const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: buildModel, messages: [{ role: roleKey, content: BEFLIX_SYSTEM_PROMPT }, { role: 'user', content: idea }] }) });
+                const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: 'o4-mini', messages: [{ role: 'developer', content: BEFLIX_SYSTEM_PROMPT }, { role: 'user', content: idea }] }) });
                 if (!res.ok) throw new Error('API ' + res.status);
                 const data = await res.json();
                 let result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
                 result = result.replace(/```[A-Za-z-]*\n?/g, '').replace(/```/g, '').trim();
                 setScriptText(result);
-                await executeMacro(); releaseSystem(); fireToast('SCENE BUILT');
-                document.getElementById('ai-status').textContent = 'SCENE COMPLETE';
-                aiChatHistory.push({ role: 'assistant', content: '✓ Scene built: "' + idea.slice(0, 60) + '" using ' + buildModel });
-                renderAIChat();
-            } catch (e) { console.error(e); releaseSystem(); fireToast('BUILD FAILED — CHECK KEY'); document.getElementById('ai-status').textContent = 'FAILED: ' + e.message; }
-        }
-
-        // ── BEEDANCE PACKET IMPORT ──
-        let bdClipQueue = []; // Array of clip units from BeeDance
-        let bdCurrentClipIdx = -1;
-
-        function importBeeDancePacket() {
-            const input = document.getElementById('bd-packet-input');
-            const statusEl = document.getElementById('bd-import-status');
-            const raw = (input?.value || '').trim();
-            if (!raw) { fireToast('PASTE PACKET FIRST'); return; }
-            try {
-                const data = JSON.parse(raw);
-                if (data.type === 'ICARO_REEL_PACKET' && data.reel) {
-                    // Full reel packet — extract all clip units
-                    bdClipQueue = [];
-                    for (const sc of data.reel) {
-                        for (const bt of (sc.beats || [])) {
-                            bdClipQueue.push({
-                                sceneId: sc.sceneId,
-                                sceneTitle: sc.sceneTitle,
-                                ...bt,
-                                grid: data.grid || '128x96',
-                                fps: data.fps || 12,
-                                style: data.style
-                            });
-                        }
-                    }
-                    if (statusEl) statusEl.textContent = bdClipQueue.length + ' CLIPS IMPORTED';
-                    fireToast(bdClipQueue.length + ' CLIPS FROM BEEDANCE');
-                } else if (data.type === 'ICARO_CLIP_UNIT' || data.beflixPrompt) {
-                    // Single clip unit
-                    bdClipQueue.push(data);
-                    if (statusEl) statusEl.textContent = '1 CLIP IMPORTED';
-                    fireToast('CLIP UNIT IMPORTED');
-                } else {
-                    fireToast('UNKNOWN PACKET FORMAT'); return;
-                }
-                input.value = '';
-                renderClipQueue();
-                // Auto-load first clip if queue was empty
-                if (bdClipQueue.length === 1) loadClipToBuilder(0);
-                playThud();
-                closeAllSheets();
-                execNav('B');
-            } catch (e) {
-                fireToast('INVALID JSON');
-                if (statusEl) statusEl.textContent = 'PARSE ERROR';
-            }
-        }
-
-        function renderClipQueue() {
-            const container = document.getElementById('bd-clip-queue');
-            const list = document.getElementById('bd-clip-list');
-            if (!container || !list) return;
-            if (!bdClipQueue.length) { container.style.display = 'none'; return; }
-            container.style.display = 'block';
-            // Show receipt button when queue is active
-            const receiptRow = document.getElementById('bd-receipt-row');
-            if (receiptRow) receiptRow.style.display = bdCurrentClipIdx >= 0 ? 'flex' : 'none';
-            list.innerHTML = bdClipQueue.map((clip, i) => {
-                const isActive = i === bdCurrentClipIdx;
-                const st = clip.status || 'not_sent';
-                const stColor = st === 'rendered' ? '#44ff77' : st === 'sent' ? '#44aaff' : '#999';
-                return `<div style="display:flex;align-items:center;gap:6px;padding:6px;border:2px solid ${isActive ? 'var(--act-a)' : 'var(--black)'};background:${isActive ? '#e8eeff' : 'var(--white)'};cursor:pointer;" onclick="loadClipToBuilder(${i})">`
-                    + `<div style="width:20px;height:20px;border:2px solid var(--black);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0;">${i + 1}</div>`
-                    + `<div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:900;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(clip.clipTitle || clip.beatId || 'Clip ' + (i+1)).replace(/</g,'&lt;')}</div>`
-                    + `<div style="font-size:9px;color:#999;font-weight:700;">${clip.sceneTitle ? clip.sceneTitle.replace(/</g,'&lt;') + ' · ' : ''}${clip.durationFrames || '?'}f</div></div>`
-                    + `<div style="width:8px;height:8px;border-radius:50%;background:${stColor};flex-shrink:0;"></div>`
-                    + `</div>`;
-            }).join('');
-        }
-
-        function loadClipToBuilder(idx) {
-            if (idx < 0 || idx >= bdClipQueue.length) return;
-            bdCurrentClipIdx = idx;
-            const clip = bdClipQueue[idx];
-            // Populate the idea box with the beflixPrompt
-            const ideaEl = document.getElementById('b-idea');
-            if (ideaEl) ideaEl.value = clip.beflixPrompt || clip.visualIntent || '';
-            // Update status display
-            const aiStatus = document.getElementById('ai-status');
-            if (aiStatus) aiStatus.textContent = 'CLIP ' + (idx + 1) + '/' + bdClipQueue.length + ': ' + (clip.clipTitle || clip.beatId || '');
-            renderClipQueue();
-            playTick();
-        }
-
-        function clearClipQueue() {
-            bdClipQueue = [];
-            bdCurrentClipIdx = -1;
-            renderClipQueue();
-            fireToast('QUEUE CLEARED');
-        }
-
-        function generateClipReceipt() {
-            if (bdCurrentClipIdx < 0 || !bdClipQueue[bdCurrentClipIdx]) return null;
-            const clip = bdClipQueue[bdCurrentClipIdx];
-            const scriptEl = document.getElementById('b-script');
-            const code = scriptEl ? scriptEl.value : '';
-            return {
-                type: 'ICARO_CLIP_RECEIPT',
-                clipId: 'clip_' + (clip.sceneId || 'sc') + '_' + (clip.beatId || 'bt'),
-                sceneId: clip.sceneId || '',
-                beatId: clip.beatId || '',
-                clipTitle: clip.clipTitle || '',
-                frames: state.frames.length,
-                fps: BASE_FPS,
-                durationSeconds: Math.round(state.frames.length / BASE_FPS * 10) / 10,
-                beflixCode: code.slice(0, 5000),
-                exportStatus: 'ready',
-                notes: []
-            };
-        }
-
-        function copyClipReceipt() {
-            const receipt = generateClipReceipt();
-            if (!receipt) { fireToast('NO ACTIVE CLIP'); return; }
-            // Mark as rendered in queue
-            bdClipQueue[bdCurrentClipIdx].status = 'rendered';
-            const json = JSON.stringify(receipt, null, 2);
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(json).then(() => fireToast('RECEIPT COPIED')).catch(() => fallbackCopy(json));
-            } else {
-                fallbackCopy(json);
-            }
-            // Also broadcast to parent harness via postMessage
-            try { window.parent.postMessage(receipt, '*'); } catch(e) {}
-            renderClipQueue();
-            // Auto-advance to next unrendered clip
-            const nextIdx = bdClipQueue.findIndex((c, i) => i > bdCurrentClipIdx && c.status !== 'rendered');
-            if (nextIdx >= 0) loadClipToBuilder(nextIdx);
-        }
-
-        // ── POSTMESSAGE BUS BRIDGE ──
-        function initBusBridge() {
-            window.addEventListener('message', async (e) => {
-                const msg = e.data;
-                if (!msg || !msg.type) return;
-
-                switch (msg.type) {
-                    case 'ICARO_CLIP_UNIT':
-                        // Single clip unit from BeeDance → import into queue
-                        bdClipQueue.push(msg);
-                        if (bdClipQueue.length === 1) loadClipToBuilder(0);
-                        renderClipQueue();
-                        fireToast('CLIP RECEIVED: ' + (msg.clipTitle || msg.beatId || ''));
-                        // Auto-open Build sheet if not open
-                        if (state.activeNav !== 'B') execNav('B');
-                        break;
-
-                    case 'ICARO_APPEND_SCRIPT':
-                        // Accumulated BEFLIX code from harness → append and run
-                        if (msg.beflixCode) {
-                            fireToast('APPENDING ' + (msg.clipCount || '?') + ' CLIPS...');
-                            setScriptText(msg.beflixCode);
-                            await executeMacro();
-                            // Notify parent of total frames
-                            try {
-                                window.parent.postMessage({
-                                    type: 'ICARO_FRAMES_APPENDED',
-                                    frameCount: state.frames.length
-                                }, '*');
-                            } catch(e) {}
-                        }
-                        break;
-
-                    case 'STUDIO_CAPTURE_FRAME':
-                        // Capture current canvas and send back to parent
-                        if (state.frames.length) {
-                            try {
-                                const capBuf = document.createElement('canvas');
-                                capBuf.width = W; capBuf.height = H;
-                                renderCompositeFrame(state.frames[state.cur], capBuf);
-                                const dataUrl = capBuf.toDataURL('image/png');
-                                window.parent.postMessage({
-                                    type: 'STUDIO_FRAME_CAPTURED',
-                                    dataUrl: dataUrl,
-                                    label: 'F' + String(state.cur + 1).padStart(3, '0'),
-                                    frameIndex: state.cur,
-                                    totalFrames: state.frames.length
-                                }, '*');
-                            } catch(e) {
-                                console.error('Capture failed:', e);
-                            }
-                        }
-                        break;
-                }
-            });
+                await executeMacro(); releaseSystem(); fireToast('CODE BUILT');
+            } catch (e) { console.error(e); releaseSystem(); fireToast('AI FAILED — CHECK KEY'); }
         }
 
         // ── FRAME CORE ──
@@ -3965,7 +4075,41 @@ SHF 2 1 24</textarea>
             }
         }
 
-        function fitSource(src, sw, sh) { const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d'); cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H); const a = sw / sh; let dw = W, dh = H, dx = 0, dy = 0; if (a > W / H) { dh = W / a; dy = (H - dh) / 2; } else { dw = H * a; dx = (W - dw) / 2; } cx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh); return c; }
+        function fitSource(src, sw, sh) {
+            const c = document.createElement('canvas'); c.width = W; c.height = H;
+            const cx = c.getContext('2d');
+            
+            // Clean up drawing surface with paper-white to ensure zero black letterboxing ink waste on print
+            cx.fillStyle = '#ffffff';
+            cx.fillRect(0, 0, W, H);
+            
+            const a = sw / sh;
+            let dw = W, dh = H, dx = 0, dy = 0;
+            
+            const fitMode = state.videoFit || 'cover';
+            if (fitMode === 'cover') {
+                // Cover: zoom image to completely fill the 4:3 canvas (clips sides/top depending on aspect)
+                if (a > W / H) {
+                    dw = H * a;
+                    dx = (W - dw) / 2;
+                } else {
+                    dh = W / a;
+                    dy = (H - dh) / 2;
+                }
+            } else {
+                // Contain: preserve composition, using the pure white background for zero-ink borders
+                if (a > W / H) {
+                    dh = W / a;
+                    dy = (H - dh) / 2;
+                } else {
+                    dw = H * a;
+                    dx = (W - dw) / 2;
+                }
+            }
+            
+            cx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh);
+            return c;
+        }
 
         async function ingestMedia(e) {
             const f = e.target.files[0]; if (!f) return; e.target.value = ''; playThud();
@@ -4146,33 +4290,6 @@ SHF 2 1 24</textarea>
         }
         function compileGIF() { if (!state.frames.length) return; playThud(); if (typeof GIF === 'undefined') return fireToast('GIF UNAVAILABLE'); lockSystem('ENCODING GIF', 0); var gif = new GIF({ workers: 1, quality: 12, width: EW, height: EH, workerScript: GIF_WORKER_URL }); var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; for (var i = 0; i < state.frames.length; i++) { renderCompositeFrame(state.frames[i], tmp); var fc = document.createElement('canvas'); fc.width = EW; fc.height = EH; fc.getContext('2d').drawImage(tmp, 0, 0, EW, EH); gif.addFrame(fc, { delay: 1000 / BASE_FPS, copy: true }); } gif.on('progress', function (p) { updateLockCount(Math.round(p * 100) + '%'); }); gif.on('finished', function (blob) { var l = document.createElement('a'); l.download = 'ABC_FLIX_' + Date.now() + '.gif'; l.href = URL.createObjectURL(blob); l.click(); setTimeout(function () { URL.revokeObjectURL(l.href); }, 2000); releaseSystem(); fireToast('GIF EXPORTED'); }); gif.render(); }
         function compileContactSheet() { if (!state.frames.length) return; playThud(); lockSystem('PRINTING SHEET', 0); setTimeout(function () { const cols = Math.min(5, state.frames.length), rows = Math.ceil(state.frames.length / cols); const sc = document.createElement('canvas'); sc.width = cols * W; sc.height = rows * H; const sctx = sc.getContext('2d'); for (let i = 0; i < state.frames.length; i++) { const tc = document.createElement('canvas'); tc.width = W; tc.height = H; renderCompositeFrame(state.frames[i], tc); sctx.drawImage(tc, (i % cols) * W, Math.floor(i / cols) * H); } const l = document.createElement('a'); l.download = 'ABC_SHEET_' + state.frames.length + 'f.png'; l.href = sc.toDataURL('image/png'); l.click(); releaseSystem(); fireToast('SHEET EXPORTED'); }, 50); }
-        function openFlipbookGenerator() {
-            if (!state.frames.length) return;
-            playThud();
-            lockSystem('PREPARING FLIPBOOK', 0);
-            setTimeout(function () {
-                var renderedFrames = [];
-                for (var i = 0; i < state.frames.length; i++) {
-                    var tmp = document.createElement('canvas');
-                    tmp.width = W;
-                    tmp.height = H;
-                    renderCompositeFrame(state.frames[i], tmp);
-                    renderedFrames.push({
-                        index: i + 1,
-                        dataUrl: tmp.toDataURL('image/png'),
-                        duration: state.frames[i].duration || 1
-                    });
-                }
-                try {
-                    localStorage.setItem('icaro_flipbook_frames', JSON.stringify(renderedFrames));
-                    localStorage.setItem('icaro_flipbook_title', document.title || 'ABC FLIX');
-                } catch (e) {
-                    console.error("Could not write frames to localStorage", e);
-                }
-                releaseSystem();
-                window.open('icaro-flip.html', '_blank');
-            }, 50);
-        }
 
         // ── BEFLIX PROCESSING TECHNIQUES ──
         function getProcessMode() { var sel = document.getElementById('process-mode'); return sel ? sel.value : 'posterize'; }
@@ -5161,7 +5278,246 @@ SHF 2 1 24</textarea>
                 });
             }
         });
+
+        // ── FLIPBOOK CONTROLLER LOGIC ──
+        var fbRenderedFrames = [];
+
+        function openFlipbookGenerator() {
+            if (!state.frames.length) return fireToast('NO FRAMES');
+            lockSystem('PREPARING FLIPBOOK', 0);
+            
+            setTimeout(function() {
+                try {
+                    fbRenderedFrames = [];
+                    for (var i = 0; i < state.frames.length; i++) {
+                        var tmp = document.createElement('canvas');
+                        tmp.width = W; 
+                        tmp.height = H;
+                        renderCompositeFrame(state.frames[i], tmp);
+                        fbRenderedFrames.push({
+                            index: i + 1,
+                            dataUrl: tmp.toDataURL('image/png')
+                        });
+                    }
+                    
+                    document.getElementById('fb-stat-frames').textContent = fbRenderedFrames.length;
+                    document.getElementById('flipbook-modal').classList.add('on');
+                    fbRenderFlipbook();
+                    releaseSystem();
+                    fireToast('FLIPBOOK READY');
+                } catch (e) {
+                    console.error(e);
+                    releaseSystem();
+                    fireToast('PREPARATION FAILED');
+                }
+            }, 50);
+        }
+
+        function fbCloseModal() {
+            document.getElementById('flipbook-modal').classList.remove('on');
+        }
+
+        function fbApplyPreset() {
+            var val = document.getElementById('fb-grid-preset').value;
+            var parts = val.split('x');
+            document.getElementById('fb-cols').value = parseInt(parts[0]);
+            document.getElementById('fb-rows').value = parseInt(parts[1]);
+            fbRenderFlipbook();
+        }
+
+        function fbAdjustZoom() {
+            var zoom = document.getElementById('fb-zoom-level').value;
+            document.getElementById('fb-zoom-wrapper').style.transform = 'scale(' + zoom + ')';
+        }
+
+        function fbRenderFlipbook() {
+            var cols = Math.max(1, parseInt(document.getElementById('fb-cols').value) || 3);
+            var rows = Math.max(1, parseInt(document.getElementById('fb-rows').value) || 5);
+            var bindSide = document.getElementById('fb-bind-side').value;
+            var bindAssist = document.getElementById('fb-bind-assist').value;
+            var pagMode = document.getElementById('fb-pag-mode').value;
+            var orientation = document.getElementById('fb-orientation').value;
+            var paperSize = document.getElementById('fb-paper-size').value;
+
+            // Update dynamic page orientation and dimension styles for print engine (forces margin-free 100% scale fit)
+            var styleEl = document.getElementById('fb-print-style');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'fb-print-style';
+                document.head.appendChild(styleEl);
+            }
+            var pageSpec = (paperSize === 'letter' ? 'letter' : 'A4') + (orientation === 'landscape' ? ' landscape' : ' portrait');
+            styleEl.innerHTML = '@media print { @page { size: ' + pageSpec + '; margin: 0; } }';
+
+            var cardsPerPage = cols * rows;
+            var totalPages = Math.ceil(fbRenderedFrames.length / cardsPerPage);
+
+            document.getElementById('fb-stat-pages').textContent = totalPages;
+            document.getElementById('fb-stat-cards').textContent = cardsPerPage;
+
+            var container = document.getElementById('fb-pages-container');
+            container.innerHTML = '';
+
+            for (var p = 0; p < totalPages; p++) {
+                var pageEl = document.createElement('div');
+                pageEl.className = 'fb-a4-page paper-' + paperSize + (orientation === 'landscape' ? ' landscape-page' : '');
+                pageEl.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+                pageEl.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+
+                for (var r = 0; r < rows; r++) {
+                    for (var c = 0; c < cols; c++) {
+                        var cardIndex = r * cols + c;
+                        var frameIdx = pagMode === 'sequential' 
+                            ? (p * cardsPerPage + cardIndex)
+                            : (cardIndex * totalPages + p);
+
+                        var cardEl = document.createElement('div');
+                        cardEl.className = 'fb-flip-card';
+
+                        if (frameIdx < fbRenderedFrames.length) {
+                            var f = fbRenderedFrames[frameIdx];
+                            var bindHTML = '';
+                            if (bindSide === 'left') {
+                                var assistHTML = '';
+                                if (bindAssist === 'staples' || bindAssist === 'both') {
+                                    assistHTML += '<div class="fb-staple-mark" style="top: 20%"></div><div class="fb-staple-mark" style="top: 80%"></div>';
+                                }
+                                if (bindAssist === 'holes' || bindAssist === 'both') {
+                                    assistHTML += '<div class="fb-hole-mark"></div><div class="fb-hole-mark"></div>';
+                                }
+                                bindHTML = '<div class="fb-binding-safe-zone" style="width: 12mm;">' + assistHTML + '</div>';
+                            } else if (bindSide === 'top') {
+                                var assistHTML = '';
+                                if (bindAssist === 'staples' || bindAssist === 'both') {
+                                    assistHTML += '<div class="fb-staple-mark"></div>';
+                                }
+                                if (bindAssist === 'holes' || bindAssist === 'both') {
+                                    assistHTML += '<div class="fb-hole-mark"></div><div class="fb-hole-mark"></div>';
+                                }
+                                bindHTML = '<div class="fb-binding-safe-zone top-bind">' + assistHTML + '</div>';
+                                cardEl.style.flexDirection = 'column';
+                            }
+
+                            cardEl.innerHTML = bindHTML + 
+                                '<div class="fb-card-body">' +
+                                    '<div class="fb-frame-img-container"><img src="' + f.dataUrl + '"></div>' +
+                                    '<div class="fb-card-meta">' +
+                                        '<span class="idx">#' + String(f.index).padStart(3, '0') + '</span>' +
+                                    '</div>' +
+                                '</div>';
+                        } else {
+                            cardEl.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; background:#fafafa; opacity:0.3;"><span style="font-size:8px;">EMPTY</span></div>';
+                        }
+                        pageEl.appendChild(cardEl);
+                    }
+                }
+                container.appendChild(pageEl);
+            }
+        }
     </script>
+
+    <!-- ── FLIPBOOK OVERLAY MODAL ── -->
+    <div id="flipbook-modal" class="no-print">
+        <div id="fb-sidebar">
+            <div class="header-title">
+                <div>ICARO<span>FLIP</span></div>
+                <div style="font-size: 9px; opacity:0.6;">A4 FLIPBOOK</div>
+            </div>
+
+            <div class="scroll-content">
+                <div class="stats-banner">
+                    <table>
+                        <tr><td>Total Frames:</td><td id="fb-stat-frames">0</td></tr>
+                        <tr><td>A4 Sheets:</td><td id="fb-stat-pages">0</td></tr>
+                        <tr><td>Cards Per Page:</td><td id="fb-stat-cards">0</td></tr>
+                    </table>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Grid Preset</span>
+                    <div class="input-row">
+                        <select id="fb-grid-preset" onchange="fbApplyPreset()">
+                            <option value="3x6">3x6 (18/pg)</option>
+                            <option value="3x5" selected>3x5 (15/pg)</option>
+                            <option value="2x4">2x4 (8/pg)</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="fb-cols" value="3" onchange="fbRenderFlipbook()">
+                        <input type="number" id="fb-rows" value="5" onchange="fbRenderFlipbook()">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Binding safe margin</span>
+                    <div class="input-row">
+                        <select id="fb-bind-side" onchange="fbRenderFlipbook()">
+                            <option value="left">Left Margin (Horizontal Flip)</option>
+                            <option value="top">Top Margin (Vertical Flip)</option>
+                            <option value="none">No Binding Margin</option>
+                        </select>
+                    </div>
+                    <div class="input-row">
+                        <select id="fb-bind-assist" onchange="fbRenderFlipbook()">
+                            <option value="staples">Staples Guides Only</option>
+                            <option value="holes">Punch Holes Only</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Pagination flow</span>
+                    <div class="input-row">
+                        <select id="fb-pag-mode" onchange="fbRenderFlipbook()">
+                            <option value="stack-cut">Stack-Cut Optimised (PRO)</option>
+                            <option value="sequential">Sequential Grid (Normal)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Page Orientation</span>
+                    <div class="input-row">
+                        <select id="fb-orientation" onchange="fbRenderFlipbook()">
+                            <option value="portrait" selected>Portrait (Vertical)</option>
+                            <option value="landscape">Landscape (Horizontal)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Target Paper Size</span>
+                    <div class="input-row">
+                        <select id="fb-paper-size" onchange="fbRenderFlipbook()">
+                            <option value="a4" selected>A4 Standard (210 × 297 mm)</option>
+                            <option value="letter">US Letter (216 × 279 mm)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">Preview zoom</span>
+                    <div class="input-row">
+                        <select id="fb-zoom-level" onchange="fbAdjustZoom()">
+                            <option value="0.5">50% Scale</option>
+                            <option value="0.6" selected>60% Scale</option>
+                            <option value="1.0">100% Scale</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-accent" onclick="window.print()">Print Flipbook</button>
+                <button class="btn" onclick="fbCloseModal()">Close</button>
+            </div>
+        </div>
+
+        <div id="fb-preview-pane">
+            <div class="fb-zoom-wrapper" id="fb-zoom-wrapper">
+                <div id="fb-pages-container"></div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

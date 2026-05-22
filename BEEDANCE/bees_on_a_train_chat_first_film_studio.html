@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bees on a Train - Real AI Film Studio</title>
+<style>
+:root{
+  --bg:#fff;
+  --fg:#000;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden}
+body{display:grid;grid-template-rows:auto 1fr}
+header{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 14px;border-bottom:3px solid var(--fg)}
+h1{margin:0;font-family:var(--mono);font-size:clamp(16px,2vw,24px);text-transform:uppercase;letter-spacing:-.05em}
+.sub{font-family:var(--mono);font-size:11px;text-transform:uppercase}
+.logo{width:38px;height:38px;border:3px solid var(--fg);display:grid;place-items:center;font-family:var(--mono);font-weight:900}
+button,input,textarea{font:inherit}
+button{border:2px solid var(--fg);background:var(--bg);color:var(--fg);border-radius:6px;font-family:var(--mono);font-weight:900;text-transform:uppercase;padding:10px 12px;cursor:pointer}
+button:hover,button.active{background:var(--fg);color:var(--bg)}
+button:disabled{opacity:.35;cursor:not-allowed;background:var(--bg)!important;color:var(--fg)!important}
+.small{font-size:11px;padding:7px 9px}
+.primary{background:var(--fg);color:var(--bg);font-size:14px;padding:12px 14px}
+.primary:hover{background:var(--bg)!important;color:var(--fg)!important}
+.workspace{height:100%;min-height:0;display:grid;grid-template-columns:340px minmax(0,1fr) 340px}
+.panel{min-height:0;display:flex;flex-direction:column;border-right:3px solid var(--fg);background:var(--bg)}
+.right{border-right:0;border-left:3px solid var(--fg)}
+.head{padding:10px 12px;border-bottom:2px solid var(--fg);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.head b{font-family:var(--mono);font-size:13px;text-transform:uppercase}
+.pill{border:2px solid var(--fg);border-radius:999px;padding:5px 8px;font-family:var(--mono);font-size:11px;white-space:nowrap}
+.chat{flex:1;overflow:auto;padding:12px;display:grid;align-content:start;gap:10px}
+.msg{display:grid;grid-template-columns:34px 1fr;gap:8px}
+.msg.user{grid-template-columns:1fr 34px}
+.msg.user .avatar{grid-column:2}
+.msg.user .bubble{grid-column:1;grid-row:1;background:var(--fg);color:var(--bg)}
+.avatar{width:34px;height:34px;border:2px solid var(--fg);border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:900}
+.bubble{border:2px solid var(--fg);border-radius:10px;padding:10px;white-space:pre-wrap;line-height:1.35;font-size:14px}
+.stamp{display:block;margin-top:6px;font-family:var(--mono);font-size:10px;opacity:.75}
+.composer{border-top:2px solid var(--fg);padding:10px;display:grid;grid-template-columns:1fr auto;gap:8px}
+.composer input{border:2px solid var(--fg);border-radius:8px;padding:12px;min-width:0}
+.quick{border-top:2px solid var(--fg);padding:8px;display:flex;gap:7px;flex-wrap:wrap}
+.stage{min-height:0;overflow:auto;padding:14px;background:var(--bg)}
+.shell{min-height:100%;border:3px solid var(--fg);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+.screen-head{padding:12px 14px;border-bottom:3px solid var(--fg);display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.screen-title{font-family:var(--mono);font-weight:900;text-transform:uppercase;font-size:clamp(15px,1.7vw,21px);letter-spacing:-.04em}
+.body{padding:14px;display:grid;gap:12px;align-content:start}
+.actions{border-top:3px solid var(--fg);padding:12px 14px;display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.note{margin-right:auto;font-size:13px}
+.card{border:2px solid var(--fg);border-radius:10px;padding:13px;background:var(--bg)}
+.card h2,.card h3{margin:0 0 8px;font-family:var(--mono);text-transform:uppercase;letter-spacing:-.03em}
+.hero{min-height:450px;display:grid;place-items:center}
+.hero .card{max-width:720px;border-width:3px;padding:26px}
+.hero h2{font-size:clamp(30px,4vw,52px);line-height:1;margin:0 0 12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stack{display:grid;gap:10px}
+.script{border:3px solid var(--fg);border-radius:10px;padding:20px;max-width:780px;margin:auto;font-family:var(--mono);box-shadow:7px 7px 0 var(--fg);background:var(--bg)}
+.script h2{text-align:center;margin:0 0 16px}
+.script b{display:block;margin:12px 0 5px;text-transform:uppercase}
+.script p{margin:0 0 7px;line-height:1.35;font-size:13px}
+.scene{border:2px solid var(--fg);border-radius:10px;padding:12px;display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start}
+.num{width:38px;height:38px;border:2px solid var(--fg);border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-weight:900}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.frame{border:2px solid var(--fg);border-radius:10px;overflow:hidden;background:var(--bg)}
+.frame-art{min-height:145px;border-bottom:2px solid var(--fg);padding:10px;display:grid;place-items:center;text-align:left;font-size:12px;font-family:var(--mono);white-space:pre-wrap;line-height:1.35}
+.cap{padding:10px;font-size:13px;display:grid;grid-template-columns:32px 1fr auto;gap:8px;align-items:start}
+.shot{font-family:var(--mono);font-size:11px;border:2px solid var(--fg);border-radius:5px;padding:5px;white-space:nowrap}
+.final{display:grid;grid-template-columns:.85fr 1.15fr;gap:12px}
+.settings{padding:12px;overflow:auto;display:grid;gap:10px}
+.field{display:grid;gap:5px}
+.field label{font-family:var(--mono);font-size:11px;text-transform:uppercase;font-weight:900}
+.field input,.field textarea{border:2px solid var(--fg);border-radius:7px;padding:9px;background:var(--bg)}
+.field textarea{min-height:120px;resize:vertical;font-family:var(--mono);font-size:12px}
+.warn{border:3px solid var(--fg);padding:10px;font-family:var(--mono);font-size:12px;background:var(--bg)}
+.trace{font-family:var(--mono);font-size:11px;white-space:pre-wrap;border:2px solid var(--fg);border-radius:8px;padding:10px;min-height:140px}
+.tabs{display:none;grid-template-columns:repeat(3,1fr);border-top:3px solid var(--fg);background:var(--bg)}
+.tabs button{border:0;border-right:2px solid var(--fg);border-radius:0}
+.tabs button:last-child{border-right:0}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:999px;font-family:var(--mono);font-size:12px;opacity:0;transition:.2s;z-index:50}
+.toast.show{opacity:1}
+@media(max-width:1120px){
+  .workspace{grid-template-columns:300px minmax(0,1fr)}
+  .right{display:none}
+  .board{grid-template-columns:repeat(2,1fr)}
+  .final{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  header{grid-template-columns:auto 1fr;padding:8px 10px}
+  .top{display:none}
+  .sub{font-size:9px}
+  .workspace{grid-template-columns:1fr;grid-template-rows:1fr auto;height:calc(100dvh - 55px)}
+  .panel,.stage,.right{display:none;border:0}
+  body[data-tab="story"] .stage{display:block;overflow:auto;padding:8px}
+  body[data-tab="chat"] .left{display:flex}
+  body[data-tab="ai"] .right{display:flex;border:0}
+  .tabs{display:grid}
+  .shell{min-height:calc(100dvh - 133px);border-width:2px}
+  .body{padding:10px}
+  .grid2,.board,.final{grid-template-columns:1fr}
+  .script{box-shadow:none;padding:12px}
+  .actions{position:sticky;bottom:0;background:var(--bg)}
+  .note{display:none}
+  .primary{width:100%}
+}
+</style>
+</head>
+<body data-tab="story">
+<header>
+  <div class="logo">AI</div>
+  <div>
+    <h1>Bees on a Train - Real AI Film Studio</h1>
+    <div class="sub">OpenAI-compatible chat completion - structured JSON - no fake local brain</div>
+  </div>
+  <div class="top">
+    <button class="small" id="resetBtn" type="button">Reset</button>
+    <button class="small" id="exportBtn" type="button">Export</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <section class="panel left">
+    <div class="head"><b>Chat</b><span class="pill" id="aiPill">AI off</span></div>
+    <div class="chat" id="chat"></div>
+    <div class="quick" id="quick"></div>
+    <form class="composer" id="composer">
+      <input id="input" placeholder="Ask the model to build the film..." autocomplete="off">
+      <button class="primary" type="submit">Send</button>
+    </form>
+  </section>
+
+  <main class="stage">
+    <div class="shell">
+      <div class="screen-head">
+        <div class="screen-title" id="title">Blank</div>
+        <span class="pill" id="stagePill">waiting</span>
+      </div>
+      <div class="body" id="body"></div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </main>
+
+  <aside class="panel right">
+    <div class="head"><b>AI Wiring</b><span class="pill" id="wirePill">not saved</span></div>
+    <div class="settings">
+      <div class="warn"><b>REAL INTEGRATION:</b> this browser calls your OpenAI-compatible endpoint directly. For production, route through your own backend so API keys are not exposed.</div>
+      <div class="field"><label for="endpoint">Chat completions endpoint</label><input id="endpoint" placeholder="https://api.openai.com/v1/chat/completions"></div>
+      <div class="field"><label for="model">Model</label><input id="model" placeholder="gpt-4o-mini"></div>
+      <div class="field"><label for="apiKey">API key / bearer token</label><input id="apiKey" type="password" placeholder="sk-... or proxy token"></div>
+      <div class="field"><label for="systemPrompt">System instruction</label><textarea id="systemPrompt"></textarea></div>
+      <button id="saveAI" class="primary" type="button">Save AI Settings</button>
+      <button id="testAI" type="button">Test Model</button>
+      <button id="clearKey" type="button">Clear Key</button>
+      <div class="field"><label>Generation trace</label><div class="trace" id="trace">No request yet.</div></div>
+    </div>
+  </aside>
+
+  <nav class="tabs">
+    <button data-tab="story" class="active" type="button">Story</button>
+    <button data-tab="chat" type="button">Chat</button>
+    <button data-tab="ai" type="button">AI</button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  var els = {
+    chat: byId("chat"),
+    quick: byId("quick"),
+    input: byId("input"),
+    composer: byId("composer"),
+    title: byId("title"),
+    body: byId("body"),
+    actions: byId("actions"),
+    aiPill: byId("aiPill"),
+    stagePill: byId("stagePill"),
+    endpoint: byId("endpoint"),
+    model: byId("model"),
+    apiKey: byId("apiKey"),
+    systemPrompt: byId("systemPrompt"),
+    saveAI: byId("saveAI"),
+    testAI: byId("testAI"),
+    clearKey: byId("clearKey"),
+    trace: byId("trace"),
+    wirePill: byId("wirePill"),
+    toast: byId("toast"),
+    resetBtn: byId("resetBtn"),
+    exportBtn: byId("exportBtn")
+  };
+
+  var STAGES = ["blank", "idea", "plan", "script", "scenes", "storyboard", "final"];
+
+  var DEFAULT_SYSTEM_PROMPT = [
+    "You are a practical film-story AI inside a chat-first film studio.",
+    "Generate usable artifacts from messy novice prompts.",
+    "Return ONLY valid JSON. No markdown.",
+    "Schema:",
+    "{",
+    "  \"assistant_message\": \"short user-facing message\",",
+    "  \"stage\": \"idea|plan|script|scenes|storyboard|final\",",
+    "  \"project\": {",
+    "    \"title\": \"string\",",
+    "    \"idea\": \"string\",",
+    "    \"tone\": \"string\",",
+    "    \"length\": \"string\",",
+    "    \"ending\": \"string\",",
+    "    \"logline\": \"string\",",
+    "    \"characters\": [\"3-6 strings\"],",
+    "    \"script\": [{\"heading\":\"string\",\"action\":\"string\",\"dialogue\":\"optional string\"}],",
+    "    \"scenes\": [{\"title\":\"string\",\"description\":\"string\",\"icon\":\"one emoji\"}],",
+    "    \"storyboard\": [{\"caption\":\"string\",\"shot\":\"WIDE|MEDIUM|CLOSE|DETAIL\",\"image_prompt\":\"concrete black-and-white storyboard image prompt\"}]",
+    "  }",
+    "}",
+    "If the user asks for the next step, advance one stage.",
+    "Preserve existing good material unless asked to change it."
+  ].join("\n");
+
+  function makeBlankProject() {
+    return {
+      title: "Untitled",
+      idea: "",
+      tone: "",
+      length: "short film",
+      ending: "",
+      logline: "",
+      characters: [],
+      script: [],
+      scenes: [],
+      storyboard: []
+    };
+  }
+
+  var state = {
+    stage: "blank",
+    project: makeBlankProject(),
+    messages: [],
+    busy: false,
+    settings: {
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      model: "gpt-4o-mini",
+      apiKey: "",
+      systemPrompt: DEFAULT_SYSTEM_PROMPT
+    }
+  };
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function showToast(text) {
+    els.toast.textContent = text;
+    els.toast.classList.add("show");
+    setTimeout(function () {
+      els.toast.classList.remove("show");
+    }, 1400);
+  }
+
+  function isConfigured() {
+    return Boolean(state.settings.endpoint && state.settings.model && state.settings.apiKey);
+  }
+
+  function syncSettingsUI() {
+    els.aiPill.textContent = isConfigured() ? "AI ready" : "AI off";
+    els.wirePill.textContent = isConfigured() ? "saved" : "missing key";
+    els.aiPill.classList.toggle("active", isConfigured());
+  }
+
+  function loadSettings() {
+    try {
+      var saved = JSON.parse(sessionStorage.getItem("filmStudioAI") || "{}");
+      if (saved && typeof saved === "object") {
+        state.settings.endpoint = saved.endpoint || state.settings.endpoint;
+        state.settings.model = saved.model || state.settings.model;
+        state.settings.apiKey = saved.apiKey || state.settings.apiKey;
+        state.settings.systemPrompt = saved.systemPrompt || state.settings.systemPrompt;
+      }
+    } catch (err) {
+      console.warn("Could not load saved settings", err);
+    }
+
+    els.endpoint.value = state.settings.endpoint;
+    els.model.value = state.settings.model;
+    els.apiKey.value = state.settings.apiKey;
+    els.systemPrompt.value = state.settings.systemPrompt;
+    syncSettingsUI();
+  }
+
+  function saveSettings() {
+    state.settings.endpoint = els.endpoint.value.trim();
+    state.settings.model = els.model.value.trim();
+    state.settings.apiKey = els.apiKey.value.trim();
+    state.settings.systemPrompt = els.systemPrompt.value.trim() || DEFAULT_SYSTEM_PROMPT;
+    sessionStorage.setItem("filmStudioAI", JSON.stringify(state.settings));
+    syncSettingsUI();
+    showToast("AI settings saved");
+  }
+
+  function addMessage(role, text) {
+    state.messages.push({ role: role, text: text, time: now() });
+    renderChat();
+  }
+
+  function renderChat() {
+    els.chat.innerHTML = state.messages.map(function (m) {
+      var cls = m.role === "user" ? "msg user" : "msg";
+      var avatar = m.role === "user" ? "O" : "AI";
+      return [
+        "<div class=\"" + cls + "\">",
+        "<div class=\"avatar\">" + avatar + "</div>",
+        "<div class=\"bubble\">" + escapeHtml(m.text) + "<span class=\"stamp\">" + escapeHtml(m.time) + "</span></div>",
+        "</div>"
+      ].join("");
+    }).join("");
+    els.chat.scrollTop = els.chat.scrollHeight;
+  }
+
+  function getNextStage() {
+    var i = STAGES.indexOf(state.stage);
+    if (i < 0) return "idea";
+    if (i >= STAGES.length - 1) return "final";
+    return STAGES[i + 1];
+  }
+
+  function getQuickPrompts() {
+    if (state.stage === "blank") {
+      return [
+        "bees on a train, funny but sweet",
+        "weird short about bees commuting",
+        "make a kid-friendly bee train story"
+      ];
+    }
+    return [
+      "next",
+      "make it less generic",
+      "make it more visual",
+      "make it funnier"
+    ];
+  }
+
+  function renderQuick() {
+    els.quick.innerHTML = getQuickPrompts().map(function (q) {
+      return "<button class=\"small\" type=\"button\" data-q=\"" + escapeHtml(q) + "\">" + escapeHtml(q) + "</button>";
+    }).join("");
+
+    Array.prototype.forEach.call(els.quick.querySelectorAll("button"), function (button) {
+      button.addEventListener("click", function () {
+        var target = state.stage === "blank" ? "idea" : getNextStage();
+        runAI(button.getAttribute("data-q"), target);
+      });
+    });
+  }
+
+  function getStageTitle() {
+    var titles = {
+      blank: "Blank - connect AI and type an idea",
+      idea: "Idea",
+      plan: "Film Plan",
+      script: "Script Draft",
+      scenes: "Scene List",
+      storyboard: "Storyboard",
+      final: "Finished Script + Storyboard"
+    };
+    return titles[state.stage] || state.stage;
+  }
+
+  function renderScreen() {
+    els.stagePill.textContent = state.busy ? "generating..." : state.stage;
+    els.title.textContent = getStageTitle();
+    els.body.innerHTML = getStageHtml();
+
+    var target = getNextStage();
+    var disabled = state.busy || !isConfigured();
+    var label = state.busy ? "Generating..." : "Generate " + target;
+    els.actions.innerHTML = [
+      "<span class=\"note\">" + (isConfigured() ? "Calls the configured model." : "Configure AI first. No fake fallback.") + "</span>",
+      "<button class=\"primary\" id=\"nextBtn\" type=\"button\"" + (disabled ? " disabled" : "") + ">" + escapeHtml(label) + "</button>"
+    ].join("");
+
+    var nextBtn = byId("nextBtn");
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        runAI("Generate the next artifact from the current project.", target);
+      });
+    }
+  }
+
+  function getStageHtml() {
+    var p = state.project;
+
+    if (state.stage === "blank") {
+      return [
+        "<div class=\"hero\"><div class=\"card\">",
+        "<h2>Real AI or nothing.</h2>",
+        "<p>Configure the model on the AI panel. Then type a messy idea. The app sends the current project state to your endpoint and expects structured JSON back.</p>",
+        "<div class=\"card\"><b>Try:</b> bees on a train, funny but sweet, maybe a commuter has to save everyone</div>",
+        "</div></div>"
+      ].join("");
+    }
+
+    if (state.stage === "idea") {
+      return [
+        "<div class=\"stack\">",
+        "<div class=\"card\"><h2>" + escapeHtml(p.title) + "</h2><p>" + escapeHtml(p.idea) + "</p></div>",
+        "<div class=\"grid2\">",
+        "<div class=\"card\"><h3>Tone</h3><p>" + escapeHtml(p.tone) + "</p></div>",
+        "<div class=\"card\"><h3>Length</h3><p>" + escapeHtml(p.length) + "</p></div>",
+        "<div class=\"card\"><h3>Ending</h3><p>" + escapeHtml(p.ending) + "</p></div>",
+        "<div class=\"card\"><h3>Logline</h3><p>" + escapeHtml(p.logline) + "</p></div>",
+        "</div></div>"
+      ].join("");
+    }
+
+    if (state.stage === "plan") {
+      return [
+        "<div class=\"stack\">",
+        "<div class=\"card\"><h2>" + escapeHtml(p.title) + "</h2><p>" + escapeHtml(p.logline) + "</p></div>",
+        "<div class=\"card\"><h3>Characters</h3><ul>" + listItems(p.characters) + "</ul></div>",
+        "<div class=\"grid2\">",
+        "<div class=\"card\"><h3>Tone</h3><p>" + escapeHtml(p.tone) + "</p></div>",
+        "<div class=\"card\"><h3>Ending</h3><p>" + escapeHtml(p.ending) + "</p></div>",
+        "</div></div>"
+      ].join("");
+    }
+
+    if (state.stage === "script") {
+      return renderScriptHtml(p);
+    }
+
+    if (state.stage === "scenes") {
+      return renderScenesHtml(p);
+    }
+
+    if (state.stage === "storyboard") {
+      return renderStoryboardHtml(p);
+    }
+
+    if (state.stage === "final") {
+      return renderFinalHtml(p);
+    }
+
+    return "<div class=\"card\">Unknown stage.</div>";
+  }
+
+  function listItems(items) {
+    if (!Array.isArray(items) || !items.length) return "<li>No characters returned yet.</li>";
+    return items.map(function (item) {
+      return "<li>" + escapeHtml(item) + "</li>";
+    }).join("");
+  }
+
+  function renderScriptHtml(project) {
+    var script = Array.isArray(project.script) ? project.script : [];
+    if (!script.length) {
+      return "<div class=\"script\"><h2>" + escapeHtml((project.title || "Untitled").toUpperCase()) + "</h2><p>No script returned yet.</p></div>";
+    }
+
+    return [
+      "<div class=\"script\"><h2>" + escapeHtml((project.title || "Untitled").toUpperCase()) + "</h2>",
+      script.map(function (s) {
+        return [
+          "<b>" + escapeHtml(s.heading || "Scene") + "</b>",
+          "<p>" + escapeHtml(s.action || "") + "</p>",
+          s.dialogue ? "<p style=\"text-align:center\">" + escapeHtml(s.dialogue) + "</p>" : ""
+        ].join("");
+      }).join(""),
+      "</div>"
+    ].join("");
+  }
+
+  function renderScenesHtml(project) {
+    var scenes = Array.isArray(project.scenes) ? project.scenes : [];
+    if (!scenes.length) {
+      return "<div class=\"card\">No scenes returned yet.</div>";
+    }
+
+    return [
+      "<div class=\"stack\">",
+      scenes.map(function (s, i) {
+        return [
+          "<div class=\"scene\">",
+          "<div class=\"num\">" + (i + 1) + "</div>",
+          "<div><h3>" + escapeHtml(s.icon || "") + " " + escapeHtml(s.title || "Scene") + "</h3>",
+          "<p>" + escapeHtml(s.description || "") + "</p></div>",
+          "</div>"
+        ].join("");
+      }).join(""),
+      "</div>"
+    ].join("");
+  }
+
+  function renderStoryboardHtml(project) {
+    var items = Array.isArray(project.storyboard) ? project.storyboard : [];
+    if (!items.length) {
+      return "<div class=\"card\">No storyboard returned yet.</div>";
+    }
+
+    return [
+      "<div class=\"board\">",
+      items.map(function (s, i) {
+        return [
+          "<div class=\"frame\">",
+          "<div class=\"frame-art\">" + escapeHtml(s.image_prompt || "No image prompt returned") + "</div>",
+          "<div class=\"cap\">",
+          "<span class=\"num\">" + (i + 1) + "</span>",
+          "<span>" + escapeHtml(s.caption || "") + "</span>",
+          "<span class=\"shot\">" + escapeHtml(s.shot || "SHOT") + "</span>",
+          "</div></div>"
+        ].join("");
+      }).join(""),
+      "</div>"
+    ].join("");
+  }
+
+  function renderFinalHtml(project) {
+    return [
+      "<div class=\"final\">",
+      "<div class=\"card\"><h2>" + escapeHtml(project.title || "Untitled") + " - Script</h2>",
+      renderScriptHtml(project),
+      "</div>",
+      "<div class=\"card\"><h2>Storyboard Prompts</h2>",
+      renderStoryboardHtml(project),
+      "</div>",
+      "</div>"
+    ].join("");
+  }
+
+  function renderAll() {
+    renderChat();
+    syncSettingsUI();
+    renderQuick();
+    renderScreen();
+  }
+
+  function applyAIResult(result) {
+    if (!result || typeof result !== "object") {
+      throw new Error("AI result must be an object.");
+    }
+
+    if (result.stage && STAGES.indexOf(result.stage) !== -1) {
+      state.stage = result.stage;
+    }
+
+    var incoming = result.project && typeof result.project === "object" ? result.project : {};
+    Object.keys(incoming).forEach(function (key) {
+      state.project[key] = incoming[key];
+    });
+
+    ["characters", "script", "scenes", "storyboard"].forEach(function (key) {
+      if (Array.isArray(incoming[key])) {
+        state.project[key] = incoming[key];
+      }
+    });
+
+    if (!state.project.title) {
+      state.project.title = "Untitled";
+    }
+  }
+
+  function parseAIContent(content) {
+    if (typeof content === "object" && content !== null) {
+      return content;
+    }
+
+    if (typeof content !== "string") {
+      throw new Error("Model message content was not a string or object.");
+    }
+
+    try {
+      return JSON.parse(content);
+    } catch (err) {
+      var trimmed = content.trim();
+      var first = trimmed.indexOf("{");
+      var last = trimmed.lastIndexOf("}");
+      if (first !== -1 && last !== -1 && last > first) {
+        return JSON.parse(trimmed.slice(first, last + 1));
+      }
+      throw new Error("Model message content was not valid JSON.");
+    }
+  }
+
+  async function callAI(userText, targetStage) {
+    if (!isConfigured()) {
+      throw new Error("AI is not configured. Add endpoint, model, and key in the AI panel.");
+    }
+
+    var payload = {
+      model: state.settings.model,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: state.settings.systemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify({
+            requested_stage: targetStage,
+            current_stage: state.stage,
+            current_project: state.project,
+            user_message: userText
+          }, null, 2)
+        }
+      ]
+    };
+
+    els.trace.textContent = [
+      "POST " + state.settings.endpoint,
+      "model: " + state.settings.model,
+      "target: " + targetStage,
+      "request: " + new Date().toISOString()
+    ].join("\n");
+
+    var response = await fetch(state.settings.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + state.settings.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+
+    var rawText = await response.text();
+
+    if (!response.ok) {
+      throw new Error("Model request failed (" + response.status + "): " + rawText.slice(0, 500));
+    }
+
+    var data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (err) {
+      throw new Error("Endpoint did not return valid JSON.");
+    }
+
+    var content = data && data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
+      : null;
+
+    if (!content) {
+      throw new Error("Model returned no message content.");
+    }
+
+    var parsed = parseAIContent(content);
+
+    els.trace.textContent += "\nresponse ok: " + new Date().toISOString();
+    els.trace.textContent += "\nfinish_reason: " + ((data.choices && data.choices[0] && data.choices[0].finish_reason) || "unknown");
+
+    return parsed;
+  }
+
+  async function runAI(userText, targetStage) {
+    try {
+      state.busy = true;
+      renderAll();
+      addMessage("user", userText);
+
+      var result = await callAI(userText, targetStage);
+      applyAIResult(result);
+      addMessage("assistant", result.assistant_message || ("Generated " + state.stage + "."));
+    } catch (err) {
+      addMessage("assistant", "AI ERROR: " + err.message);
+      els.trace.textContent += "\nERROR: " + err.message;
+    } finally {
+      state.busy = false;
+      renderAll();
+      switchTab("story");
+    }
+  }
+
+  function exportProject() {
+    var text = JSON.stringify(state.project, null, 2);
+    var blob = new Blob([text], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = (state.project.title || "film-project").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetApp() {
+    state.stage = "blank";
+    state.project = makeBlankProject();
+    state.messages = [];
+    state.busy = false;
+    addMessage("assistant", "Configure AI, then type the messy film idea. I will call the model and fill the interface from structured JSON.");
+    renderAll();
+  }
+
+  function switchTab(tab) {
+    document.body.setAttribute("data-tab", tab);
+    Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (button) {
+      button.classList.toggle("active", button.getAttribute("data-tab") === tab);
+    });
+  }
+
+  function runSelfTests() {
+    var results = [];
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push("PASS: " + name);
+      } catch (err) {
+        results.push("FAIL: " + name + " -> " + err.message);
+      }
+    }
+
+    test("escapeHtml escapes tags", function () {
+      if (escapeHtml("<script>") !== "&lt;script&gt;") {
+        throw new Error("tag escaping failed");
+      }
+    });
+
+    test("getNextStage after blank is idea", function () {
+      var oldStage = state.stage;
+      state.stage = "blank";
+      if (getNextStage() !== "idea") {
+        throw new Error("wrong next stage");
+      }
+      state.stage = oldStage;
+    });
+
+    test("applyAIResult sets stage and title", function () {
+      var oldStage = state.stage;
+      var oldProject = JSON.parse(JSON.stringify(state.project));
+      applyAIResult({ stage: "idea", project: { title: "Bees on a Train", idea: "messy" } });
+      if (state.stage !== "idea") throw new Error("stage not set");
+      if (state.project.title !== "Bees on a Train") throw new Error("title not set");
+      state.stage = oldStage;
+      state.project = oldProject;
+    });
+
+    test("parseAIContent parses plain JSON string", function () {
+      var parsed = parseAIContent("{\"assistant_message\":\"ok\",\"stage\":\"idea\",\"project\":{\"title\":\"T\"}}");
+      if (parsed.stage !== "idea") throw new Error("parse failed");
+    });
+
+    test("parseAIContent extracts JSON from wrapped text", function () {
+      var parsed = parseAIContent("Here is JSON: {\"stage\":\"plan\",\"project\":{\"title\":\"T\"}} done");
+      if (parsed.stage !== "plan") throw new Error("wrapped parse failed");
+    });
+
+    test("renderStoryboardHtml has fallback", function () {
+      if (renderStoryboardHtml({ storyboard: [] }).indexOf("No storyboard returned yet") === -1) {
+        throw new Error("missing fallback");
+      }
+    });
+
+    console.log(results.join("\n"));
+    els.trace.textContent = "Self-tests:\n" + results.join("\n");
+  }
+
+  els.composer.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var text = els.input.value.trim();
+    if (!text) return;
+    els.input.value = "";
+    runAI(text, state.stage === "blank" ? "idea" : getNextStage());
+  });
+
+  els.saveAI.addEventListener("click", saveSettings);
+  els.testAI.addEventListener("click", function () {
+    runAI("Test connection. Return a minimal idea for Bees on a Train.", "idea");
+  });
+  els.clearKey.addEventListener("click", function () {
+    state.settings.apiKey = "";
+    els.apiKey.value = "";
+    sessionStorage.removeItem("filmStudioAI");
+    syncSettingsUI();
+    showToast("Key cleared");
+  });
+  els.resetBtn.addEventListener("click", resetApp);
+  els.exportBtn.addEventListener("click", exportProject);
+
+  Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (button) {
+    button.addEventListener("click", function () {
+      switchTab(button.getAttribute("data-tab"));
+    });
+  });
+
+  loadSettings();
+  resetApp();
+  runSelfTests();
+})();
+</script>
+</body>
+</html>

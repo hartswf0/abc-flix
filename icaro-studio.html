@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ABC FLIX · STUDIO</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica' font-size='9' font-weight='900'%3ESTUDIO%3C/text%3E%3C/svg%3E">
+    <style>
+        /* ══ ICARO-UNIFIED STUDIO ══ */
+
+        :root {
+            --bg: #f4f4f0;
+            --panel: #ffffff;
+            --surface: #e8e6e0;
+            --ink: #000000;
+            --muted: #777777;
+            --dim: #aaaaaa;
+            --line: #000000;
+            --accent: #e60000;
+            --bee: #c48800;
+            --good: #3ddc84;
+            --stage-red: #e60000;
+            --blue: #0033cc;
+            --mono: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --bw: 3px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important }
+
+        html, body {
+            height: 100%; overflow: hidden;
+            background: var(--bg); color: var(--ink);
+            font-family: var(--mono);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ═══ WORKSPACE GRID ═══ */
+        .workspace {
+            height: 100dvh;
+            display: grid;
+            grid-template-rows: 40px 1fr auto;
+            grid-template-columns: 1fr;
+        }
+
+        .topbar {
+            display: flex; align-items: center;
+            padding: 0 10px;
+            background: var(--ink);
+            color: var(--bg);
+            border-bottom: var(--bw) solid var(--ink);
+            gap: 2px;
+            z-index: 100;
+        }
+
+        .logo {
+            font: 900 11px/1 var(--mono);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--accent);
+            padding-right: 10px;
+            margin-right: 4px;
+            border-right: 1px solid #444;
+            white-space: nowrap;
+        }
+
+        .mode-group {
+            display: flex; gap: 1px;
+            margin-right: auto;
+        }
+
+        .mode-btn {
+            height: 28px; padding: 0 12px;
+            border: none;
+            background: transparent;
+            color: #888;
+            font: 800 9px/1 var(--mono);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            cursor: pointer;
+            border-radius: 0;
+            transition: all .15s;
+            position: relative;
+        }
+
+        .mode-btn:hover { color: var(--bg); background: #333 }
+
+        .mode-btn.on {
+            color: var(--bg);
+            background: #333;
+        }
+
+        .mode-btn.on::after {
+            content: '';
+            position: absolute;
+            bottom: -7px; left: 50%; transform: translateX(-50%);
+            width: 16px; height: 2px;
+            background: var(--accent);
+            border-radius: 0;
+        }
+
+        .tb-sep { width: 1px; height: 18px; background: #444; margin: 0 4px; flex-shrink: 0 }
+
+        .tb-pill {
+            display: flex; align-items: center; gap: 5px;
+            padding: 4px 8px;
+            font: 800 8px/1 var(--mono);
+            text-transform: uppercase;
+            color: #888;
+            border: 1.5px solid #444;
+            border-radius: 0;
+            white-space: nowrap;
+        }
+
+        .tb-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--good);
+            box-shadow: 0 0 6px var(--good);
+            transition: all .3s;
+        }
+
+        .tb-dot.off { background: var(--dim); box-shadow: none }
+
+        .tb-btn {
+            height: 26px; padding: 0 8px;
+            border: 1.5px solid #444;
+            border-radius: 0;
+            background: transparent;
+            color: #888;
+            font: 800 9px/1 var(--mono);
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+
+        .tb-btn:hover { color: var(--bg); border-color: var(--accent) }
+        .tb-btn.active { color: var(--accent); border-color: var(--accent) }
+
+        /* ═══ MAIN AREA ═══ */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Icaro Stage — always present, fills viewport */
+        .stage {
+            grid-column: 1; grid-row: 1;
+            min-height: 0; min-width: 0;
+            z-index: 1;
+            transition: margin-right .3s cubic-bezier(.22,.61,.36,1);
+        }
+
+        .stage iframe {
+            width: 100%; height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* BeeDance — slide-out panel from right */
+        .planner {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 540px;
+            max-width: 90vw;
+            z-index: 10;
+            background: var(--bg);
+            border-left: var(--bw) solid var(--ink);
+            transform: translateX(100%);
+            transition: transform .3s cubic-bezier(.22,.61,.36,1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .planner.open {
+            transform: translateX(0);
+        }
+
+        /* When planner is docked (not overlaying), split space */
+        .main.docked .stage {
+            flex: 1;
+            min-width: 280px;
+            margin-right: 0;
+        }
+
+        .main.docked .planner {
+            position: relative;
+            transform: none;
+            flex: 1;
+            width: auto;
+            min-width: 340px;
+            max-width: 60vw;
+        }
+
+        .main.docked {
+            display: flex;
+        }
+
+        .planner iframe {
+            flex: 1;
+            width: 100%; border: none;
+            min-height: 0;
+        }
+
+        .planner-handle {
+            height: 32px;
+            display: flex; align-items: center;
+            padding: 0 8px;
+            background: var(--ink);
+            color: var(--bg);
+            border-bottom: var(--bw) solid var(--ink);
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .planner-handle span {
+            font: 900 9px/1 var(--mono);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--accent);
+        }
+
+        .planner-handle .spacer { flex: 1 }
+
+        .ph-btn {
+            width: 24px; height: 24px;
+            border: 1.5px solid #444;
+            border-radius: 0;
+            background: transparent;
+            color: #888;
+            font: 700 12px/1 var(--mono);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .ph-btn:hover { color: var(--bg); border-color: var(--accent) }
+
+        /* ═══ STORYBOARD RAIL ═══ */
+        .rail {
+            height: 0;
+            background: var(--bg);
+            border-top: var(--bw) solid var(--ink);
+            overflow: hidden;
+            transition: height .3s cubic-bezier(.22,.61,.36,1);
+        }
+
+        .rail.open { height: 110px }
+
+        .rail-inner {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            height: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .rail-inner::-webkit-scrollbar { display: none }
+
+        .rail-capture {
+            width: 80px; height: 60px;
+            border: 2px dashed var(--muted);
+            border-radius: 0;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+            gap: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color .15s;
+        }
+
+        .rail-capture:hover { border-color: var(--accent) }
+
+        .rail-capture span {
+            font: 800 18px/1 var(--mono);
+            color: var(--muted);
+        }
+
+        .rail-capture small {
+            font: 700 7px/1 var(--mono);
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .rail-frame {
+            width: 80px; height: 60px;
+            border: 2px solid var(--ink);
+            border-radius: 0;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color .15s;
+        }
+
+        .rail-frame:hover { border-color: var(--accent) }
+        .rail-frame.active { border-color: var(--bee) }
+
+        .rail-frame img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .rail-frame .rf-label {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 2px 4px;
+            background: rgba(0,0,0,.7);
+            font: 700 6px/1 var(--mono);
+            text-transform: uppercase;
+            color: #fff;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rail-frame .rf-close {
+            position: absolute; top: 2px; right: 2px;
+            width: 14px; height: 14px;
+            border: none; border-radius: 0;
+            background: rgba(0,0,0,.6);
+            color: #fff;
+            font: 700 9px/1 var(--mono);
+            cursor: pointer;
+            display: none;
+            align-items: center; justify-content: center;
+        }
+
+        .rail-frame:hover .rf-close { display: flex }
+
+        .rail-info {
+            display: flex; flex-direction: column;
+            gap: 4px; padding: 0 6px;
+            flex-shrink: 0;
+        }
+
+        .rail-info span {
+            font: 800 8px/1 var(--mono);
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .rail-info strong {
+            font: 900 11px/1 var(--mono);
+            color: var(--ink);
+        }
+
+        .rail-sep {
+            width: 1px; height: 40px;
+            background: var(--line);
+            flex-shrink: 0;
+        }
+
+        .rail-btn {
+            height: 28px; padding: 0 10px;
+            border: 2px solid var(--ink);
+            border-radius: 0;
+            background: var(--panel);
+            color: var(--ink);
+            font: 800 8px/1 var(--mono);
+            text-transform: uppercase;
+            cursor: pointer;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .rail-btn:hover { border-color: var(--accent); color: var(--accent) }
+        .rail-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent) }
+        .rail-btn.primary:hover { opacity: .85 }
+
+        /* ═══ TOAST ═══ */
+        .studio-toast {
+            position: fixed;
+            bottom: 120px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            padding: 8px 16px;
+            background: var(--panel);
+            border: 2px solid var(--ink);
+            border-radius: 0;
+            box-shadow: 3px 3px 0 var(--ink);
+            font: 800 10px/1.2 var(--mono);
+            text-transform: uppercase;
+            color: var(--ink);
+            opacity: 0;
+            transition: all .2s;
+            z-index: 999;
+            pointer-events: none;
+            max-width: 90vw;
+            white-space: nowrap;
+        }
+
+        .studio-toast.on {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 700px) {
+            .planner { width: 100vw; max-width: 100vw }
+            .main.docked .stage { margin-right: 0 }
+            .main.docked .planner { position: absolute; width: 100vw }
+            .logo { display: none }
+        }
+    </style>
+</head>
+<body>
+    <div class="workspace">
+        <!-- ══ TOPBAR ══ -->
+        <header class="topbar">
+            <span class="logo">ABC FLIX</span>
+            <div class="mode-group">
+                <button class="mode-btn on" data-mode="build" id="m-build">Build</button>
+                <button class="mode-btn" data-mode="plan" id="m-plan">Plan</button>
+                <button class="mode-btn" data-mode="review" id="m-review">Review</button>
+            </div>
+            <div class="tb-sep"></div>
+            <div class="tb-pill"><div class="tb-dot off" id="busDot"></div><span id="busLabel">IDLE</span></div>
+            <div class="tb-sep"></div>
+            <div class="tb-pill"><span id="clipProgress">0/0</span></div>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" id="btnPlanner" title="Toggle plan panel">◈ Plan</button>
+            <button class="tb-btn" id="btnRail" title="Toggle storyboard rail">▧ Board</button>
+            <button class="tb-btn" id="btnCapture" title="Capture current Icaro frame">⊙ Capture</button>
+        </header>
+
+        <!-- ══ MAIN ══ -->
+        <div class="main" id="main">
+            <div class="stage" id="stage">
+                <iframe id="iframe-ic" src="icaro-stage.html"></iframe>
+            </div>
+            <div class="planner" id="planner">
+                <div class="planner-handle">
+                    <span>◈ BeeDance</span>
+                    <div class="spacer"></div>
+                    <button class="ph-btn" id="btnDock" title="Dock / undock">⊞</button>
+                    <button class="ph-btn" id="btnClosePlanner" title="Close">×</button>
+                </div>
+                <iframe id="iframe-bd" src="icaro-stage-beedance.html"></iframe>
+            </div>
+        </div>
+
+        <!-- ══ STORYBOARD RAIL ══ -->
+        <div class="rail" id="rail">
+            <div class="rail-inner" id="railInner">
+                <div class="rail-info">
+                    <span>Boards</span>
+                    <strong id="railCount">0</strong>
+                </div>
+                <div class="rail-sep"></div>
+                <div class="rail-capture" id="railCapture">
+                    <span>+</span>
+                    <small>Capture</small>
+                </div>
+                <!-- captured frames go here -->
+                <div id="railFrames" style="display:contents"></div>
+                <div class="rail-sep"></div>
+                <button class="rail-btn primary" id="btnSendBoards">Send boards to plan →</button>
+                <button class="rail-btn" id="btnClearBoards">Clear</button>
+            </div>
+        </div>
+
+        <div class="studio-toast" id="studioToast"></div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════
+        // ██ ABC FLIX STUDIO — UNIFIED WORKSPACE
+        // ═══════════════════════════════════════════
+
+        const iframeIc = document.getElementById('iframe-ic');
+        const iframeBd = document.getElementById('iframe-bd');
+        const mainEl = document.getElementById('main');
+        const plannerEl = document.getElementById('planner');
+        const railEl = document.getElementById('rail');
+        const stageEl = document.getElementById('stage');
+
+        // ── STATE ──
+        const studio = {
+            plannerOpen: false,
+            plannerDocked: false,
+            railOpen: false,
+            mode: 'build', // build | plan | review
+            boards: [],    // captured frames: { dataUrl, label, time }
+            clipTotal: 0,
+            clipDone: 0,
+            filmFrames: 0,
+            receipts: []
+        };
+
+        // ═══ MODE SWITCHING ═══
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.onclick = () => setMode(btn.dataset.mode);
+        });
+
+        function setMode(mode) {
+            studio.mode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+
+            switch (mode) {
+                case 'build':
+                    // Full Icaro, planner closed, rail closed
+                    closePlanner();
+                    closeRail();
+                    break;
+                case 'plan':
+                    // Icaro + docked planner + rail
+                    openPlanner(true);
+                    openRail();
+                    break;
+                case 'review':
+                    // Rail open for reviewing boards
+                    closePlanner();
+                    openRail();
+                    break;
+            }
+        }
+
+        // ═══ PLANNER PANEL ═══
+        function openPlanner(docked) {
+            studio.plannerOpen = true;
+            studio.plannerDocked = !!docked;
+            plannerEl.classList.add('open');
+            if (docked) {
+                mainEl.classList.add('docked');
+            } else {
+                mainEl.classList.remove('docked');
+            }
+            document.getElementById('btnPlanner').classList.add('active');
+        }
+
+        function closePlanner() {
+            studio.plannerOpen = false;
+            studio.plannerDocked = false;
+            plannerEl.classList.remove('open');
+            mainEl.classList.remove('docked');
+            document.getElementById('btnPlanner').classList.remove('active');
+        }
+
+        function togglePlanner() {
+            if (studio.plannerOpen) closePlanner();
+            else openPlanner(false); // overlay by default from button
+        }
+
+        document.getElementById('btnPlanner').onclick = togglePlanner;
+        document.getElementById('btnClosePlanner').onclick = closePlanner;
+        document.getElementById('btnDock').onclick = () => {
+            if (studio.plannerDocked) {
+                // Undock → overlay
+                mainEl.classList.remove('docked');
+                studio.plannerDocked = false;
+            } else {
+                // Dock
+                mainEl.classList.add('docked');
+                studio.plannerDocked = true;
+            }
+        };
+
+        // ═══ STORYBOARD RAIL ═══
+        function openRail() {
+            studio.railOpen = true;
+            railEl.classList.add('open');
+            document.getElementById('btnRail').classList.add('active');
+        }
+
+        function closeRail() {
+            studio.railOpen = false;
+            railEl.classList.remove('open');
+            document.getElementById('btnRail').classList.remove('active');
+        }
+
+        document.getElementById('btnRail').onclick = () => {
+            if (studio.railOpen) closeRail(); else openRail();
+        };
+
+        // ═══ FRAME CAPTURE ═══
+        document.getElementById('btnCapture').onclick = captureFrame;
+        document.getElementById('railCapture').onclick = captureFrame;
+
+        function captureFrame() {
+            iframeIc.contentWindow.postMessage({ type: 'STUDIO_CAPTURE_FRAME' }, '*');
+            showToast('CAPTURING...');
+        }
+
+        function addBoard(dataUrl, label) {
+            studio.boards.push({
+                dataUrl,
+                label: label || 'Frame ' + (studio.boards.length + 1),
+                time: Date.now()
+            });
+            renderRail();
+            if (!studio.railOpen) openRail();
+            showToast('CAPTURED · ' + studio.boards.length + ' BOARDS');
+        }
+
+        function removeBoard(idx) {
+            studio.boards.splice(idx, 1);
+            renderRail();
+        }
+
+        function renderRail() {
+            const container = document.getElementById('railFrames');
+            container.innerHTML = '';
+            document.getElementById('railCount').textContent = studio.boards.length;
+
+            studio.boards.forEach((board, i) => {
+                const el = document.createElement('div');
+                el.className = 'rail-frame';
+                el.innerHTML = `<img src="${board.dataUrl}" alt="${board.label}">
+                    <div class="rf-label">${board.label}</div>
+                    <button class="rf-close" title="Remove">×</button>`;
+                el.querySelector('.rf-close').onclick = (e) => { e.stopPropagation(); removeBoard(i); };
+                el.onclick = () => {
+                    // Click board → send to BeeDance as context
+                    iframeBd.contentWindow.postMessage({
+                        type: 'STUDIO_BOARD_CONTEXT',
+                        dataUrl: board.dataUrl,
+                        label: board.label,
+                        index: i
+                    }, '*');
+                    showToast('SENT TO PLAN: ' + board.label);
+                    document.querySelectorAll('.rail-frame').forEach(f => f.classList.remove('active'));
+                    el.classList.add('active');
+                };
+                container.appendChild(el);
+            });
+        }
+
+        // Send all boards to BeeDance
+        document.getElementById('btnSendBoards').onclick = () => {
+            if (!studio.boards.length) { showToast('NO BOARDS'); return; }
+            iframeBd.contentWindow.postMessage({
+                type: 'STUDIO_BOARDS_BATCH',
+                boards: studio.boards.map(b => ({ dataUrl: b.dataUrl, label: b.label }))
+            }, '*');
+            showToast('SENT ' + studio.boards.length + ' BOARDS TO PLAN');
+        };
+
+        document.getElementById('btnClearBoards').onclick = () => {
+            studio.boards = [];
+            renderRail();
+            showToast('BOARDS CLEARED');
+        };
+
+        // ═══ MESSAGE BUS ═══
+        window.addEventListener('message', (e) => {
+            const msg = e.data;
+            if (!msg || !msg.type) return;
+            const fromIc = e.source === iframeIc.contentWindow;
+            const fromBd = e.source === iframeBd.contentWindow;
+            if (!fromIc && !fromBd) return;
+
+            busFlash();
+
+            switch (msg.type) {
+                // ── Frame capture response from Icaro ──
+                case 'STUDIO_FRAME_CAPTURED':
+                    if (msg.dataUrl) addBoard(msg.dataUrl, msg.label || 'Frame');
+                    break;
+
+                // ── BeeDance → Icaro: clip unit ──
+                case 'ICARO_CLIP_UNIT':
+                    iframeIc.contentWindow.postMessage(msg, '*');
+                    showToast('→ ' + (msg.clipTitle || msg.beatId || 'CLIP'));
+                    break;
+
+                // ── BeeDance → Harness: reel packet ──
+                case 'ICARO_REEL_PACKET':
+                    studio.clipTotal = 0;
+                    studio.clipDone = 0;
+                    if (msg.reel) msg.reel.forEach(sc => studio.clipTotal += (sc.beats || []).length);
+                    updateProgress();
+                    break;
+
+                // ── Icaro → BeeDance: clip receipt ──
+                case 'ICARO_CLIP_RECEIPT':
+                    studio.receipts.push(msg);
+                    studio.clipDone = studio.receipts.length;
+                    if (msg.frames) studio.filmFrames += msg.frames;
+                    iframeBd.contentWindow.postMessage(msg, '*');
+                    updateProgress();
+                    showToast('✓ ' + (msg.clipTitle || msg.beatId || 'CLIP'));
+                    break;
+
+                // ── Icaro → Harness: frames appended ──
+                case 'ICARO_FRAMES_APPENDED':
+                    if (msg.frameCount) studio.filmFrames = msg.frameCount;
+                    updateProgress();
+                    break;
+
+                // ── BeeDance → Icaro: append script ──
+                case 'ICARO_APPEND_SCRIPT':
+                    iframeIc.contentWindow.postMessage(msg, '*');
+                    break;
+            }
+        });
+
+        function busFlash() {
+            const dot = document.getElementById('busDot');
+            const lbl = document.getElementById('busLabel');
+            dot.classList.remove('off');
+            lbl.textContent = 'LIVE';
+            clearTimeout(busFlash._t);
+            busFlash._t = setTimeout(() => { lbl.textContent = 'READY'; }, 2000);
+        }
+
+        function updateProgress() {
+            const el = document.getElementById('clipProgress');
+            el.textContent = `${studio.clipDone}/${studio.clipTotal}`;
+        }
+
+        // ═══ TOAST ═══
+        function showToast(msg) {
+            const t = document.getElementById('studioToast');
+            t.textContent = msg;
+            t.classList.add('on');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => t.classList.remove('on'), 1800);
+        }
+
+        // ═══ KEYBOARD ═══
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePlanner(); }
+            if (e.key === 'b' || e.key === 'B') { e.preventDefault(); studio.railOpen ? closeRail() : openRail(); }
+            if (e.key === 'c' || e.key === 'C') { e.preventDefault(); captureFrame(); }
+        });
+
+        // ═══ INIT ═══
+        let bdReady = false, icReady = false;
+        iframeBd.onload = () => { bdReady = true; checkReady(); };
+        iframeIc.onload = () => { icReady = true; checkReady(); };
+
+        function checkReady() {
+            if (bdReady && icReady) {
+                document.getElementById('busDot').classList.remove('off');
+                document.getElementById('busLabel').textContent = 'READY';
+            }
+        }
+    </script>
+</body>
+</html>

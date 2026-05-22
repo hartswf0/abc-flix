@@ -1446,13 +1446,6 @@
             <button class="sh-btn" onclick="cleanupMemory()" style="font-size:9px; color:#999;">CLEAN MEMORY</button>
 
             <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
-                <div class="sh-label" style="color:var(--act-a);">IMPORT BEEDANCE PACKET</div>
-                <textarea id="bd-packet-input" placeholder='Paste ICARO_REEL_PACKET or ICARO_CLIP_UNIT JSON here...' style="width:100%;min-height:60px;max-height:120px;border:2px solid var(--black);padding:8px;font-family:monospace;font-size:10px;font-weight:700;background:var(--bg);resize:vertical;outline:none;"></textarea>
-                <button class="sh-btn" onclick="importBeeDancePacket()" style="margin-top:4px; background:var(--act-a); color:var(--white); font-size:10px;">IMPORT PACKET</button>
-                <div id="bd-import-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;margin-top:4px;"></div>
-            </div>
-
-            <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
                 <div class="sh-label">CLIP BIN</div>
                 <div id="clip-bin" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; min-height:40px; background:var(--bg); border:2px solid var(--black); padding:6px;">
                     <div style="font-size:10px; color:#999; font-weight:900; text-align:center; padding:12px;">NO CLIPS — LOAD OR DRAG ONTO TIMELINE</div>
@@ -1618,12 +1611,6 @@
             <details open>
                 <summary style="min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:900;">🎬 AI SCENE BUILDER</summary>
                 <div style="display:flex; flex-direction:column; gap:6px; padding-top:6px;">
-                    <!-- BEEDANCE CLIP QUEUE -->
-                    <div id="bd-clip-queue" style="display:none;">
-                        <div class="sh-label" style="color:var(--act-a);">BEEDANCE CLIP QUEUE</div>
-                        <div id="bd-clip-list" style="max-height:180px;overflow-y:auto;border:2px solid var(--black);padding:6px;background:var(--bg);display:flex;flex-direction:column;gap:4px;"></div>
-                        <button class="sh-btn" onclick="clearClipQueue()" style="margin-top:4px;font-size:9px;color:#999;">CLEAR QUEUE</button>
-                    </div>
                     <div class="sh-label">API KEY</div>
                     <input type="password" id="b-key" placeholder="sk-..." style="width:100%;height:36px;border:2px solid var(--black);font-size:11px;padding:0 8px;">
                     <div class="sh-row">
@@ -1648,9 +1635,6 @@
                         <button class="sh-btn" onclick="copySystemPrompt()" style="font-size:10px;">COPY PROMPT</button>
                         <button class="sh-btn primary" onclick="generateCodeFromIdea()" style="font-size:10px;">⚡ BUILD SCENE</button>
                     </div>
-                    <div class="sh-row" id="bd-receipt-row" style="display:none;">
-                        <button class="sh-btn" onclick="copyClipReceipt()" style="font-size:10px; background:var(--act-b); color:var(--black);">COPY CLIP RECEIPT</button>
-                    </div>
                     <div class="sh-label" style="margin-top:6px;">CHAT — ask about your scene</div>
                     <div id="ai-chat-feed" style="max-height:200px;overflow-y:auto;border:2px solid var(--black);padding:8px;font-size:11px;line-height:1.4;background:var(--bg);min-height:60px;"></div>
                     <div style="display:grid;grid-template-columns:1fr auto;gap:4px;">
@@ -1658,6 +1642,26 @@
                         <button class="sh-btn" onclick="sendAIChat()" style="font-size:14px;padding:0 12px;min-height:36px;">↗</button>
                     </div>
                     <div id="ai-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;"></div>
+                </div>
+            </details>
+
+            <!-- BEEDANCE PACKET IMPORT -->
+            <details>
+                <summary style="min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:900;">🐝 BEEDANCE → ICARO</summary>
+                <div style="display:flex; flex-direction:column; gap:6px; padding-top:6px;">
+                    <div class="sh-label">ICARO_REEL_PACKET</div>
+                    <textarea id="bd-packet" placeholder='Paste ICARO_REEL_PACKET JSON from BeeDance...' style="min-height:86px;"></textarea>
+                    <div class="sh-row">
+                        <button class="sh-btn primary" onclick="importBeeDancePacket()" style="font-size:10px;">IMPORT PACKET</button>
+                        <button class="sh-btn" onclick="copyBeeDanceReceipt()" style="font-size:10px;">COPY RECEIPT</button>
+                    </div>
+                    <div class="sh-label">CURRENT CLIP</div>
+                    <select id="bd-clip-select" onchange="selectBeeDanceClip()" style="width:100%;height:34px;border:2px solid var(--black);font-size:10px;font-weight:900;padding:0 6px;"></select>
+                    <div class="sh-row">
+                        <button class="sh-btn" onclick="loadBeeDanceClipPrompt()" style="font-size:10px;">LOAD PROMPT</button>
+                        <button class="sh-btn primary" onclick="buildBeeDanceClip()" style="font-size:10px;">BUILD CLIP</button>
+                    </div>
+                    <div id="bd-status" style="font-size:9px;font-weight:900;color:#999;text-align:center;text-transform:uppercase;">NO BEEDANCE PACKET</div>
                 </div>
             </details>
 
@@ -1732,7 +1736,6 @@ SHF 2 1 24</textarea>
                         <button class="sh-btn" onclick="compileGIF()" style="font-size:10px;">GIF</button>
                         <button class="sh-btn" onclick="compileContactSheet()" style="font-size:10px;">CONTACT SHEET</button>
                     </div>
-                    <button class="sh-btn" onclick="openFlipbookGenerator()" style="font-size:10px; background:var(--act-c); color:var(--white); border-color:var(--act-c); margin-top:4px;">PRINT FLIPBOOK (A4)</button>
                 </div>
             </details>
 
@@ -2090,7 +2093,6 @@ SHF 2 1 24</textarea>
             window.addEventListener('resize', rescaleWorkspace);
             rescaleWorkspace();
             // Autosave removed (NSDK) — BEFLIX export is the save mechanism
-            initBusBridge();
         };
         function toggleManual() { playTick(); document.getElementById('manual-modal').classList.toggle('on'); }
 
@@ -2852,193 +2854,182 @@ SHF 2 1 24</textarea>
             } catch (e) { console.error(e); releaseSystem(); fireToast('BUILD FAILED — CHECK KEY'); document.getElementById('ai-status').textContent = 'FAILED: ' + e.message; }
         }
 
-        // ── BEEDANCE PACKET IMPORT ──
-        let bdClipQueue = []; // Array of clip units from BeeDance
-        let bdCurrentClipIdx = -1;
+        // ── BEEDANCE ↔ ICARO HANDOFF ──
+        let beeDancePacket = null;
+        let beeDanceClipIndex = 0;
+
+        function parseBeeDanceJSON(text) {
+            const raw = String(text || '').trim();
+            if (!raw) return null;
+            const a = raw.indexOf('{');
+            const b = raw.lastIndexOf('}');
+            const body = a >= 0 && b > a ? raw.slice(a, b + 1) : raw;
+            return JSON.parse(body);
+        }
 
         function importBeeDancePacket() {
-            const input = document.getElementById('bd-packet-input');
-            const statusEl = document.getElementById('bd-import-status');
-            const raw = (input?.value || '').trim();
-            if (!raw) { fireToast('PASTE PACKET FIRST'); return; }
+            const box = document.getElementById('bd-packet');
             try {
-                const data = JSON.parse(raw);
-                if (data.type === 'ICARO_REEL_PACKET' && data.reel) {
-                    // Full reel packet — extract all clip units
-                    bdClipQueue = [];
-                    for (const sc of data.reel) {
-                        for (const bt of (sc.beats || [])) {
-                            bdClipQueue.push({
-                                sceneId: sc.sceneId,
-                                sceneTitle: sc.sceneTitle,
-                                ...bt,
-                                grid: data.grid || '128x96',
-                                fps: data.fps || 12,
-                                style: data.style
-                            });
-                        }
-                    }
-                    if (statusEl) statusEl.textContent = bdClipQueue.length + ' CLIPS IMPORTED';
-                    fireToast(bdClipQueue.length + ' CLIPS FROM BEEDANCE');
-                } else if (data.type === 'ICARO_CLIP_UNIT' || data.beflixPrompt) {
-                    // Single clip unit
-                    bdClipQueue.push(data);
-                    if (statusEl) statusEl.textContent = '1 CLIP IMPORTED';
-                    fireToast('CLIP UNIT IMPORTED');
-                } else {
-                    fireToast('UNKNOWN PACKET FORMAT'); return;
-                }
-                input.value = '';
-                renderClipQueue();
-                // Auto-load first clip if queue was empty
-                if (bdClipQueue.length === 1) loadClipToBuilder(0);
-                playThud();
-                closeAllSheets();
-                execNav('B');
+                const parsed = parseBeeDanceJSON(box ? box.value : '');
+                const packet = parsed && parsed.type === 'ICARO_REEL_PACKET' ? parsed : parsed?.packet;
+                loadBeeDancePacketObject(packet);
+                fireToast('BEEDANCE PACKET IMPORTED');
             } catch (e) {
-                fireToast('INVALID JSON');
-                if (statusEl) statusEl.textContent = 'PARSE ERROR';
+                fireToast('BAD BEEDANCE PACKET');
+                const status = document.getElementById('bd-status');
+                if (status) status.textContent = 'IMPORT FAILED: ' + e.message;
             }
         }
 
-        function renderClipQueue() {
-            const container = document.getElementById('bd-clip-queue');
-            const list = document.getElementById('bd-clip-list');
-            if (!container || !list) return;
-            if (!bdClipQueue.length) { container.style.display = 'none'; return; }
-            container.style.display = 'block';
-            // Show receipt button when queue is active
-            const receiptRow = document.getElementById('bd-receipt-row');
-            if (receiptRow) receiptRow.style.display = bdCurrentClipIdx >= 0 ? 'flex' : 'none';
-            list.innerHTML = bdClipQueue.map((clip, i) => {
-                const isActive = i === bdCurrentClipIdx;
-                const st = clip.status || 'not_sent';
-                const stColor = st === 'rendered' ? '#44ff77' : st === 'sent' ? '#44aaff' : '#999';
-                return `<div style="display:flex;align-items:center;gap:6px;padding:6px;border:2px solid ${isActive ? 'var(--act-a)' : 'var(--black)'};background:${isActive ? '#e8eeff' : 'var(--white)'};cursor:pointer;" onclick="loadClipToBuilder(${i})">`
-                    + `<div style="width:20px;height:20px;border:2px solid var(--black);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0;">${i + 1}</div>`
-                    + `<div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:900;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(clip.clipTitle || clip.beatId || 'Clip ' + (i+1)).replace(/</g,'&lt;')}</div>`
-                    + `<div style="font-size:9px;color:#999;font-weight:700;">${clip.sceneTitle ? clip.sceneTitle.replace(/</g,'&lt;') + ' · ' : ''}${clip.durationFrames || '?'}f</div></div>`
-                    + `<div style="width:8px;height:8px;border-radius:50%;background:${stColor};flex-shrink:0;"></div>`
-                    + `</div>`;
-            }).join('');
+        function loadBeeDancePacketObject(packet) {
+            if (!packet || !Array.isArray(packet.reel)) throw new Error('No ICARO_REEL_PACKET.reel array found');
+            beeDancePacket = packet;
+            beeDanceClipIndex = 0;
+            const box = document.getElementById('bd-packet');
+            if (box) box.value = JSON.stringify(packet, null, 2);
+            renderBeeDanceClipSelect();
+            loadBeeDanceClipPrompt();
+            postBeeDanceBus('ICARO_PACKET_IMPORTED', { projectTitle: packet.projectTitle || '', clips: packet.reel.length });
         }
 
-        function loadClipToBuilder(idx) {
-            if (idx < 0 || idx >= bdClipQueue.length) return;
-            bdCurrentClipIdx = idx;
-            const clip = bdClipQueue[idx];
-            // Populate the idea box with the beflixPrompt
-            const ideaEl = document.getElementById('b-idea');
-            if (ideaEl) ideaEl.value = clip.beflixPrompt || clip.visualIntent || '';
-            // Update status display
-            const aiStatus = document.getElementById('ai-status');
-            if (aiStatus) aiStatus.textContent = 'CLIP ' + (idx + 1) + '/' + bdClipQueue.length + ': ' + (clip.clipTitle || clip.beatId || '');
-            renderClipQueue();
-            playTick();
+        function renderBeeDanceClipSelect() {
+            const sel = document.getElementById('bd-clip-select');
+            const status = document.getElementById('bd-status');
+            if (!sel) return;
+            const reel = beeDancePacket?.reel || [];
+            sel.innerHTML = reel.map((u, i) => '<option value="' + i + '">' + String(u.shotNo || i + 1).padStart(2, '0') + ' · ' + escText(u.clipTitle || u.shotId || u.beatId || u.clipId || 'shot') + '</option>').join('');
+            sel.value = String(beeDanceClipIndex);
+            if (status) status.textContent = reel.length ? (reel.length + ' SHOTS · ' + (beeDancePacket.sceneTitle || beeDancePacket.projectTitle || 'BEEDANCE PROJECT')) : 'NO SHOTS';
         }
 
-        function clearClipQueue() {
-            bdClipQueue = [];
-            bdCurrentClipIdx = -1;
-            renderClipQueue();
-            fireToast('QUEUE CLEARED');
+        function escText(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        function generateClipReceipt() {
-            if (bdCurrentClipIdx < 0 || !bdClipQueue[bdCurrentClipIdx]) return null;
-            const clip = bdClipQueue[bdCurrentClipIdx];
-            const scriptEl = document.getElementById('b-script');
-            const code = scriptEl ? scriptEl.value : '';
+        function currentBeeDanceClip() {
+            const reel = beeDancePacket?.reel || [];
+            return reel[beeDanceClipIndex] || null;
+        }
+
+        function selectBeeDanceClip() {
+            const sel = document.getElementById('bd-clip-select');
+            beeDanceClipIndex = Math.max(0, parseInt(sel?.value || '0', 10));
+            loadBeeDanceClipPrompt();
+        }
+
+        function loadBeeDanceClipPrompt() {
+            const unit = currentBeeDanceClip();
+            if (!unit) { fireToast('NO BEEDANCE CLIP'); return; }
+            const idea = document.getElementById('b-idea');
+            if (idea) idea.value = unit.beflixPrompt || beeDanceUnitPrompt(unit);
+            const frames = document.getElementById('r-frames');
+            if (frames && unit.durationFrames) frames.value = Math.max(4, Math.min(120, parseInt(unit.durationFrames, 10) || 24));
+            const status = document.getElementById('bd-status');
+            if (status) status.textContent = 'LOADED · ' + (unit.clipTitle || unit.clipId || 'CLIP') + ' · ' + (unit.durationFrames || '?') + ' FRAMES';
+            fireToast('ICARO PROMPT LOADED');
+        }
+
+        function beeDanceUnitPrompt(unit) {
+            return `Generate BEFLIX-128 code for Icaro Stage.
+
+PROJECT: ${beeDancePacket?.projectTitle || 'BeeDance Project'}
+CLIP: ${unit.clipId || ''}
+SHOT: ${unit.shotNo || ''} ${unit.shotId || ''} — ${unit.clipTitle || ''}
+BEAT: ${unit.beatId || ''} — ${unit.clipTitle || ''}
+DURATION: ${unit.durationFrames || 72} frames at ${unit.fps || BASE_FPS} fps
+GRID: 128 x 96
+
+VISUAL INTENT:
+${unit.visualIntent || ''}
+
+MOTION PLAN:
+${unit.motionPlan || ''}
+
+CONSTRAINTS:
+- Return BEFLIX code only.
+- Use commands: CLR, PNT, LIN, REC, SHF.
+- Intensity range is 0-7.
+- Make it readable in monochrome.
+- This is one clip, not the whole film.`;
+        }
+
+        async function buildBeeDanceClip() {
+            const unit = currentBeeDanceClip();
+            if (!unit) { fireToast('IMPORT BEEDANCE PACKET FIRST'); return; }
+            loadBeeDanceClipPrompt();
+            await generateCodeFromIdea();
+        }
+
+        function copyBeeDanceReceipt() {
+            const unit = currentBeeDanceClip();
+            if (!unit) { fireToast('NO BEEDANCE CLIP'); return; }
+            const receipt = makeBeeDanceReceipt(unit);
+            const text = JSON.stringify(receipt, null, 2);
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => fireToast('ICARO RECEIPT COPIED')).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+            postBeeDanceBus('ICARO_CLIP_RECEIPT_READY', { receipt });
+        }
+
+        function makeBeeDanceReceipt(unit) {
+            const code = getFullScript();
             return {
                 type: 'ICARO_CLIP_RECEIPT',
-                clipId: 'clip_' + (clip.sceneId || 'sc') + '_' + (clip.beatId || 'bt'),
-                sceneId: clip.sceneId || '',
-                beatId: clip.beatId || '',
-                clipTitle: clip.clipTitle || '',
+                clipId: unit.clipId,
+                shotId: unit.shotId,
+                shotNo: unit.shotNo,
+                sceneId: unit.sceneId,
+                beatId: unit.beatId,
+                camera: unit.camera,
+                shotType: unit.shotType,
                 frames: state.frames.length,
                 fps: BASE_FPS,
-                durationSeconds: Math.round(state.frames.length / BASE_FPS * 10) / 10,
-                beflixCode: code.slice(0, 5000),
-                exportStatus: 'ready',
-                notes: []
+                durationSeconds: Math.round((state.frames.length / BASE_FPS) * 100) / 100,
+                beflixCode: code,
+                exportStatus: state.frames.length ? 'ready' : 'no_frames',
+                notes: [
+                    'Receipt copied from Icaro Stage.',
+                    'Clip title: ' + (unit.clipTitle || ''),
+                    'Frame count reflects the current Icaro timeline.'
+                ]
             };
         }
 
-        function copyClipReceipt() {
-            const receipt = generateClipReceipt();
-            if (!receipt) { fireToast('NO ACTIVE CLIP'); return; }
-            // Mark as rendered in queue
-            bdClipQueue[bdCurrentClipIdx].status = 'rendered';
-            const json = JSON.stringify(receipt, null, 2);
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(json).then(() => fireToast('RECEIPT COPIED')).catch(() => fallbackCopy(json));
-            } else {
-                fallbackCopy(json);
-            }
-            // Also broadcast to parent harness via postMessage
-            try { window.parent.postMessage(receipt, '*'); } catch(e) {}
-            renderClipQueue();
-            // Auto-advance to next unrendered clip
-            const nextIdx = bdClipQueue.findIndex((c, i) => i > bdCurrentClipIdx && c.status !== 'rendered');
-            if (nextIdx >= 0) loadClipToBuilder(nextIdx);
+        function postBeeDanceBus(type, payload) {
+            try { window.parent && window.parent !== window && window.parent.postMessage({ source: 'icaro', type, payload }, '*'); } catch(e) {}
         }
 
-        // ── POSTMESSAGE BUS BRIDGE ──
-        function initBusBridge() {
-            window.addEventListener('message', async (e) => {
-                const msg = e.data;
-                if (!msg || !msg.type) return;
-
-                switch (msg.type) {
-                    case 'ICARO_CLIP_UNIT':
-                        // Single clip unit from BeeDance → import into queue
-                        bdClipQueue.push(msg);
-                        if (bdClipQueue.length === 1) loadClipToBuilder(0);
-                        renderClipQueue();
-                        fireToast('CLIP RECEIVED: ' + (msg.clipTitle || msg.beatId || ''));
-                        // Auto-open Build sheet if not open
-                        if (state.activeNav !== 'B') execNav('B');
-                        break;
-
-                    case 'ICARO_APPEND_SCRIPT':
-                        // Accumulated BEFLIX code from harness → append and run
-                        if (msg.beflixCode) {
-                            fireToast('APPENDING ' + (msg.clipCount || '?') + ' CLIPS...');
-                            setScriptText(msg.beflixCode);
-                            await executeMacro();
-                            // Notify parent of total frames
-                            try {
-                                window.parent.postMessage({
-                                    type: 'ICARO_FRAMES_APPENDED',
-                                    frameCount: state.frames.length
-                                }, '*');
-                            } catch(e) {}
-                        }
-                        break;
-
-                    case 'STUDIO_CAPTURE_FRAME':
-                        // Capture current canvas and send back to parent
-                        if (state.frames.length) {
-                            try {
-                                const capBuf = document.createElement('canvas');
-                                capBuf.width = W; capBuf.height = H;
-                                renderCompositeFrame(state.frames[state.cur], capBuf);
-                                const dataUrl = capBuf.toDataURL('image/png');
-                                window.parent.postMessage({
-                                    type: 'STUDIO_FRAME_CAPTURED',
-                                    dataUrl: dataUrl,
-                                    label: 'F' + String(state.cur + 1).padStart(3, '0'),
-                                    frameIndex: state.cur,
-                                    totalFrames: state.frames.length
-                                }, '*');
-                            } catch(e) {
-                                console.error('Capture failed:', e);
-                            }
-                        }
-                        break;
+        window.addEventListener('message', async function(e) {
+            const msg = e.data || {};
+            if (!msg || (msg.target && msg.target !== 'icaro')) return;
+            try {
+                if (msg.type === 'CINEOS_BUS_LOAD_PACKET') {
+                    loadBeeDancePacketObject(msg.payload && (msg.payload.packet || msg.payload));
+                    fireToast('PACKET FROM HARNESS');
+                    return;
                 }
-            });
-        }
+                if (msg.type === 'CINEOS_BUS_SELECT_CLIP') {
+                    const reel = beeDancePacket?.reel || [];
+                    const idx = reel.findIndex(u => u.clipId === msg.payload?.clipId || u.shotId === msg.payload?.shotId || u.beatId === msg.payload?.beatId);
+                    if (idx >= 0) { beeDanceClipIndex = idx; renderBeeDanceClipSelect(); loadBeeDanceClipPrompt(); }
+                    return;
+                }
+                if (msg.type === 'CINEOS_BUS_BUILD_CLIP') {
+                    await buildBeeDanceClip();
+                    postBeeDanceBus('ICARO_BUILD_ATTEMPTED', { clip: currentBeeDanceClip() });
+                    return;
+                }
+                if (msg.type === 'CINEOS_BUS_REQUEST_RECEIPT') {
+                    const unit = currentBeeDanceClip();
+                    if (unit) postBeeDanceBus('ICARO_CLIP_RECEIPT_READY', { receipt: makeBeeDanceReceipt(unit) });
+                    return;
+                }
+            } catch(err) {
+                postBeeDanceBus('ICARO_BUS_ERROR', { message: err.message || String(err) });
+            }
+        });
 
         // ── FRAME CORE ──
         function getBlankMatrix() { return new Uint8ClampedArray(W * H * 4); }
@@ -4146,33 +4137,6 @@ SHF 2 1 24</textarea>
         }
         function compileGIF() { if (!state.frames.length) return; playThud(); if (typeof GIF === 'undefined') return fireToast('GIF UNAVAILABLE'); lockSystem('ENCODING GIF', 0); var gif = new GIF({ workers: 1, quality: 12, width: EW, height: EH, workerScript: GIF_WORKER_URL }); var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; for (var i = 0; i < state.frames.length; i++) { renderCompositeFrame(state.frames[i], tmp); var fc = document.createElement('canvas'); fc.width = EW; fc.height = EH; fc.getContext('2d').drawImage(tmp, 0, 0, EW, EH); gif.addFrame(fc, { delay: 1000 / BASE_FPS, copy: true }); } gif.on('progress', function (p) { updateLockCount(Math.round(p * 100) + '%'); }); gif.on('finished', function (blob) { var l = document.createElement('a'); l.download = 'ABC_FLIX_' + Date.now() + '.gif'; l.href = URL.createObjectURL(blob); l.click(); setTimeout(function () { URL.revokeObjectURL(l.href); }, 2000); releaseSystem(); fireToast('GIF EXPORTED'); }); gif.render(); }
         function compileContactSheet() { if (!state.frames.length) return; playThud(); lockSystem('PRINTING SHEET', 0); setTimeout(function () { const cols = Math.min(5, state.frames.length), rows = Math.ceil(state.frames.length / cols); const sc = document.createElement('canvas'); sc.width = cols * W; sc.height = rows * H; const sctx = sc.getContext('2d'); for (let i = 0; i < state.frames.length; i++) { const tc = document.createElement('canvas'); tc.width = W; tc.height = H; renderCompositeFrame(state.frames[i], tc); sctx.drawImage(tc, (i % cols) * W, Math.floor(i / cols) * H); } const l = document.createElement('a'); l.download = 'ABC_SHEET_' + state.frames.length + 'f.png'; l.href = sc.toDataURL('image/png'); l.click(); releaseSystem(); fireToast('SHEET EXPORTED'); }, 50); }
-        function openFlipbookGenerator() {
-            if (!state.frames.length) return;
-            playThud();
-            lockSystem('PREPARING FLIPBOOK', 0);
-            setTimeout(function () {
-                var renderedFrames = [];
-                for (var i = 0; i < state.frames.length; i++) {
-                    var tmp = document.createElement('canvas');
-                    tmp.width = W;
-                    tmp.height = H;
-                    renderCompositeFrame(state.frames[i], tmp);
-                    renderedFrames.push({
-                        index: i + 1,
-                        dataUrl: tmp.toDataURL('image/png'),
-                        duration: state.frames[i].duration || 1
-                    });
-                }
-                try {
-                    localStorage.setItem('icaro_flipbook_frames', JSON.stringify(renderedFrames));
-                    localStorage.setItem('icaro_flipbook_title', document.title || 'ABC FLIX');
-                } catch (e) {
-                    console.error("Could not write frames to localStorage", e);
-                }
-                releaseSystem();
-                window.open('icaro-flip.html', '_blank');
-            }, 50);
-        }
 
         // ── BEFLIX PROCESSING TECHNIQUES ──
         function getProcessMode() { var sel = document.getElementById('process-mode'); return sel ? sel.value : 'posterize'; }
