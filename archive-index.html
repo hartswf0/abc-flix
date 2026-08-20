@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABC-FLIX // INDEX</title>
+  
+  <!-- Halftone Ink Glyph Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23f1efe7'/><circle cx='16' cy='16' r='10' fill='%23111111'/><circle cx='20' cy='12' r='3.5' fill='%238ec5e5'/></svg>">
+
+  <style>
+    :root {
+      --paper: #f1efe7;
+      --paper-dark: #e5e2d6;
+      --ink: #111111;
+      --ink-dim: rgba(17, 17, 17, 0.45);
+      --accent: #8ec5e5;
+      --rule: rgba(17, 17, 17, 0.12);
+      --font-mono: ui-monospace, 'Courier New', Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      overflow: hidden;
+    }
+
+    /* Screenprint Halftone Grain Overlay */
+    #halftone-screen {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background-image: radial-gradient(var(--ink) 0.65px, transparent 0.65px);
+      background-size: 4px 4px;
+      opacity: 0.07;
+      mix-blend-mode: multiply;
+      transition: transform 0.08s ease-out;
+    }
+
+    /* Viewport Frame */
+    iframe {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      background: var(--paper);
+      z-index: 1;
+    }
+
+    /* Floating Low-Contrast HUD Strip */
+    #hud {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      right: 1rem;
+      z-index: 10;
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      pointer-events: none;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.idle #hud {
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+    }
+
+    .utility-bar {
+      display: flex;
+      gap: 0.35rem;
+      margin-right: 0.4rem;
+    }
+
+    /* Editorial Print Chips */
+    .chip {
+      pointer-events: auto;
+      background: rgba(241, 239, 231, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--ink-dim);
+      border: 1px solid var(--rule);
+      padding: 0.28rem 0.55rem;
+      font-size: 0.64rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 0px;
+      display: inline-flex;
+      align-items: center;
+      transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .chip:hover {
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .chip.active {
+      color: var(--ink);
+      background: var(--accent);
+      border-color: var(--ink);
+      box-shadow: 2px 2px 0px var(--ink);
+    }
+
+    .chip.tool {
+      border-color: var(--ink);
+      color: var(--ink);
+      font-weight: bold;
+    }
+
+    .chip.tool:hover {
+      background: var(--paper-dark);
+    }
+
+    /* Editorial Manifest Directory Index */
+    #simple-index {
+      position: fixed;
+      inset: 0;
+      background: var(--paper);
+      z-index: 5;
+      padding: 4.5rem 2rem 3rem 2rem;
+      overflow-y: auto;
+      display: none;
+      user-select: auto;
+    }
+
+    #simple-index.visible {
+      display: block;
+    }
+
+    .index-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .index-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.55rem 0.75rem;
+      background: transparent;
+      border: 1px solid var(--rule);
+      border-radius: 0px;
+      text-decoration: none;
+      color: var(--ink);
+      font-size: 0.7rem;
+      letter-spacing: 0.02em;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .index-entry:hover {
+      background: var(--accent);
+      border-color: var(--ink);
+    }
+
+    /* Print Ticker & Calibration Marks */
+    #editorial-ticker {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 4;
+      background: var(--paper);
+      border-top: 1px solid var(--rule);
+      padding: 0.35rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      pointer-events: none;
+    }
+
+    .calibration-mark {
+      color: var(--accent);
+      font-family: inherit;
+      letter-spacing: 0.15em;
+    }
+
+    .quote-mark {
+      font-style: italic;
+      color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="halftone-screen"></div>
+
+  <!-- HUD Controls -->
+  <nav id="hud">
+    <div class="utility-bar">
+      <button class="chip tool" id="btn-toggle-index">CATALOG [INDEX]</button>
+      <button class="chip tool" id="btn-open-tab" title="Open current in new window">POP ↗</button>
+    </div>
+    <div id="chip-container" style="display:contents;"></div>
+  </nav>
+
+  <!-- Full-bleed Viewport -->
+  <iframe id="viewport" src="about:blank"></iframe>
+
+  <!-- Editorial Catalog Index Overlay -->
+  <main id="simple-index">
+    <div class="index-grid" id="simple-index-grid"></div>
+  </main>
+
+  <!-- Bottom Editorial Registration Bar -->
+  <footer id="editorial-ticker">
+    <span class="calibration-mark">| | | : : | | |</span>
+    <span id="ticker-target" style="font-weight: bold; color: var(--ink);">c-bus-pt</span>
+    <span class="quote-mark">“find me at the harbour, at the small tab...”</span>
+    <span style="margin-left: auto;">ABC FLIX · COMMAND DECENT</span>
+  </footer>
+
+  <script>
+    const BASE_URL = 'https://hartswf0.github.io/abc-flix/';
+    const files = [
+      "c-bus-pt.html", "c-bus.html", "colosseum-viewer.html", "colosseum.html",
+      "crt.html", "flux-space.html", "harness-pt.html", "harness-v2.html",
+      "harness.html", "icaro-achilles.html", "icaro-all-time.html", "icaro-ato.html",
+      "icaro-chop-shop.html", "icaro-chop-sui.html", "icaro-chopper.html",
+      "icaro-fleece.html", "icaro-flip.html", "icaro-flow-sp.html", "icaro-flow.html",
+      "icaro-port-01.html", "icaro-port.html", "icaro-pro-bus-pt.html",
+      "icaro-pro-bus.html", "icaro-pro.html", "icaro-ripple.html", "icaro-sp.html",
+      "icaro-spiral.html", "icaro-spo.html", "icaro-stage-beedance-copy.html",
+      "icaro-stage-beedance.html", "icaro-stage-copy.html", "icaro-stage.html",
+      "icaro-studio.html", "icaro-vchop.html", "lidar-flux.html",
+      "old-one.html", "sand-harness.html", "sand-plate.html", "sensorama-sankofa.html"
+    ];
+
+    let currentFile = files[0];
+    const frame = document.getElementById('viewport');
+    const chipContainer = document.getElementById('chip-container');
+    const simpleIndexGrid = document.getElementById('simple-index-grid');
+    const simpleIndexOverlay = document.getElementById('simple-index');
+    const btnToggleIndex = document.getElementById('btn-toggle-index');
+    const btnOpenTab = document.getElementById('btn-open-tab');
+    const screen = document.getElementById('halftone-screen');
+    const tickerTarget = document.getElementById('ticker-target');
+
+    // Populate HUD & Index
+    files.forEach((file, index) => {
+      const cleanName = file.replace('.html', '');
+
+      // 1. HUD Chips
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = cleanName;
+      chip.id = `chip-${cleanName}`;
+      chip.addEventListener('click', () => {
+        closeSimpleIndex();
+        selectFile(file);
+      });
+      chipContainer.appendChild(chip);
+
+      // 2. Simple Index Grid Items
+      const indexEntry = document.createElement('a');
+      indexEntry.className = 'index-entry';
+      indexEntry.href = BASE_URL + file;
+      indexEntry.innerHTML = `<span>${cleanName}</span><span>↗</span>`;
+      indexEntry.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectFile(file);
+        closeSimpleIndex();
+      });
+      simpleIndexGrid.appendChild(indexEntry);
+
+      if (index === 0) selectFile(file);
+    });
+
+    function selectFile(file) {
+      currentFile = file;
+      frame.src = BASE_URL + file;
+      const cleanName = file.replace('.html', '');
+      tickerTarget.textContent = cleanName;
+      document.querySelectorAll('#chip-container .chip').forEach(c => c.classList.remove('active'));
+      const activeChip = document.getElementById(`chip-${cleanName}`);
+      if (activeChip) activeChip.classList.add('active');
+    }
+
+    // Direct Popout Tool
+    btnOpenTab.addEventListener('click', () => {
+      window.open(BASE_URL + currentFile, '_blank', 'noopener,noreferrer');
+    });
+
+    // Toggle Catalog Overlay
+    function closeSimpleIndex() {
+      simpleIndexOverlay.classList.remove('visible');
+      btnToggleIndex.textContent = 'CATALOG [INDEX]';
+      btnToggleIndex.classList.remove('active');
+    }
+
+    btnToggleIndex.addEventListener('click', () => {
+      const isVisible = simpleIndexOverlay.classList.toggle('visible');
+      btnToggleIndex.textContent = isVisible ? 'CLOSE [ESC]' : 'CATALOG [INDEX]';
+      btnToggleIndex.classList.toggle('active', isVisible);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && simpleIndexOverlay.classList.contains('visible')) {
+        closeSimpleIndex();
+      }
+    });
+
+    // Auto-Hide HUD on Inactivity
+    let idleTimer;
+    function resetIdle() {
+      document.body.classList.remove('idle');
+      clearTimeout(idleTimer);
+      if (!simpleIndexOverlay.classList.contains('visible')) {
+        idleTimer = setTimeout(() => document.body.classList.add('idle'), 2400);
+      }
+    }
+    window.addEventListener('pointermove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    resetIdle();
+
+    // Halftone screen micro-shift
+    window.addEventListener('pointermove', (e) => {
+      const xOffset = ((e.clientX / window.innerWidth) - 0.5) * 8;
+      const yOffset = ((e.clientY / window.innerHeight) - 0.5) * 8;
+      screen.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+    });
+  </script>
+</body>
+</html>
