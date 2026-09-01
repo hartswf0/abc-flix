@@ -1,0 +1,2779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ORB PRO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3Cg fill='%23000'%3E%3Ccircle cx='11' cy='11' r='1.5'/%3E%3Ccircle cx='16' cy='10' r='1.9'/%3E%3Ccircle cx='21' cy='11' r='1.5'/%3E%3Ccircle cx='10' cy='16' r='1.9'/%3E%3Ccircle cx='16' cy='16' r='2.4'/%3E%3Ccircle cx='22' cy='16' r='1.9'/%3E%3Ccircle cx='11' cy='21' r='1.5'/%3E%3Ccircle cx='16' cy='22' r='1.9'/%3E%3Ccircle cx='21' cy='21' r='1.5'/%3E%3C/g%3E%3Cpath d='M1 16h30' stroke='%23ff2e2e' stroke-width='1.4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#ffffff">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#000;--paper:#fff;--red:#ff2e2e;--blue:#3b82f6;--amber:#ffd23f}
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--paper);color:var(--ink);overscroll-behavior:none}
+body{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;line-height:1;
+  display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+button{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--ink);cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+
+.bar{flex:0 0 auto;display:flex;align-items:stretch;height:26px;border-bottom:2px solid var(--ink)}
+.bar button,.bar span{display:flex;align-items:center;padding:0 8px;font-size:10px;
+  border:none;border-right:1px solid var(--ink);background:var(--paper);letter-spacing:.04em;
+  flex:0 0 auto;white-space:nowrap}
+#view{width:56px;justify-content:center}
+#camk{width:64px;justify-content:center}
+#add{width:62px;justify-content:center}
+#undo{width:56px;justify-content:center}
+#where{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:block;
+  line-height:26px}
+.bar .sp{width:52px;justify-content:center}
+.bar .sp{margin-left:auto;border:none;border-left:1px solid var(--ink)}
+.bar #add{font-weight:600}
+
+.stage{flex:1 1 auto;position:relative;min-height:0}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.rest{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:11px;
+  letter-spacing:.1em;pointer-events:none}
+
+/* Nothing in here resizes with the work. The sheet scrolls; the keys,
+   the name column and the cells keep the same size and the same place,
+   so a target you hit once stays hittable. */
+/* the controls sit above the timeline, so the timeline keeps the width */
+.reel{flex:0 0 auto;display:flex;flex-direction:column;border-top:1px solid var(--ink)}
+.keys{flex:0 0 44px;height:44px;display:flex;align-items:stretch;background:var(--paper);
+  border-bottom:1px solid var(--ink)}
+.keys button{flex:1 1 0;min-width:44px;border:none;border-right:1px solid var(--ink);
+  padding:0;font-size:11px;letter-spacing:.03em}
+.keys button:last-child{border-right:none}
+.sheet{height:126px;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;
+  align-items:flex-start}
+.sheet::-webkit-scrollbar{display:none}
+.takes{flex:0 0 auto;display:flex;flex-direction:column}
+.take{display:flex;border-bottom:1px solid var(--ink);position:sticky;top:0;
+  background:var(--paper);z-index:2}
+.take:last-child{border-bottom:none}
+.tk{display:flex;align-items:center;justify-content:flex-start;flex:0 0 78px;width:78px;
+  padding:0 5px;font-size:10px;font-weight:600;border-right:1px solid var(--ink)}
+.orb{position:relative;border:none;border-right:1px solid var(--ink);padding:0;
+  background:var(--paper);line-height:0;flex:0 0 auto}
+.orb canvas{display:block}
+.orb .n{position:absolute;left:1px;top:1px;font-size:8px;line-height:1;padding:0 2px}
+.orb[aria-pressed="true"]{background:#000}
+.orb[aria-pressed="true"] .n{color:#fff}
+.orb.lift{opacity:.4}
+.track{display:flex;align-items:center;border-bottom:1px solid var(--ink);height:34px}
+.track.on{background:#f2f2f2}
+.track.off{opacity:.45}
+.track .tn{flex:0 0 78px;width:78px;border:none;border-right:1px solid var(--ink);
+  background:transparent;padding:0 5px;text-align:left;letter-spacing:.03em;height:34px;
+  display:flex;flex-direction:column;justify-content:center;gap:1px;overflow:hidden}
+.track .tn b{font-size:9px;font-weight:600;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;display:block}
+.track .tn em{font-style:normal;font-size:7.5px;opacity:.75;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;display:block;min-height:9px}
+.track.off .tn b{text-decoration:line-through}
+.track.on .tn em{opacity:.85}
+.track.on .tn{background:var(--ink);color:var(--paper)}
+.cel{flex:0 0 auto;border:none;border-right:1px solid #ddd;background:var(--paper);padding:0;
+  position:relative;height:34px}
+.cel{display:flex;align-items:center;justify-content:center}
+.cel canvas{display:block}
+.cel.held{opacity:.55}
+.cel.born::before{content:"";position:absolute;left:2px;top:2px;width:5px;height:5px;
+  background:var(--ink)}
+.cel.pic::before{border-radius:0;box-shadow:0 0 0 1px var(--paper),0 0 0 2px var(--ink);
+  background:var(--paper)}
+.cel.era::before{background:var(--paper);box-shadow:0 0 0 1px var(--ink)}
+.cel.mov::before{background:var(--blue)}
+.cel.now{box-shadow:inset 0 0 0 2px var(--red)}
+.track.cam{background:#f4f8ff}
+.cel.key::after{content:"";position:absolute;left:50%;top:50%;width:11px;height:11px;
+  background:var(--blue);transform:translate(-50%,-50%) rotate(45deg)}
+.cel.key{touch-action:none;cursor:grab}
+.track.cam .tn em{color:var(--blue)}
+
+.tray{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:5px;padding:5px 6px;align-items:flex-start;
+  border-top:1px solid var(--ink);height:34vh;min-height:190px;overflow-y:auto;
+  align-content:flex-start}
+.tray[hidden]{display:none}
+.tray button{padding:5px 8px;font-size:11px}
+.tray button small{font-size:9px;opacity:.7}
+.pal{display:flex;border:1px solid var(--ink)}
+.sl{display:flex;align-items:center;gap:6px;border:1px solid var(--ink);padding:2px 6px}
+.sl input[type=range]{width:110px;height:20px;accent-color:#000;background:none;border:none}
+.sl svg{width:18px;height:18px;flex:0 0 auto}
+.gl{width:58px;flex:0 0 58px;padding:4px 0 3px;border:none;border-right:1px solid var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  color:var(--ink);background:var(--paper);font-size:8px;letter-spacing:.02em}
+.gl>span{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gl:last-child{border-right:none}
+.gl svg{width:22px;height:22px}
+.gl[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.gl[disabled]{opacity:.28;cursor:default}
+.grp{display:flex;flex-direction:column;gap:2px}
+.grp>i{font-style:normal;font-size:8px;letter-spacing:.12em;padding-left:1px}
+.stack{display:flex;flex-direction:column;border:1px solid var(--ink);min-width:190px}
+.lrow{display:flex;align-items:center;gap:6px;border:none;border-bottom:1px solid var(--ink);
+  background:var(--paper);padding:0 6px;text-align:left;height:34px;
+  touch-action:none;cursor:grab;user-select:none}
+.lrow.drag{opacity:.45}
+.lrow.over{box-shadow:inset 0 3px 0 var(--red)}
+.eyw{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;
+  justify-content:center;margin-left:-4px}
+.grip{margin-left:auto;display:flex;flex-direction:column;gap:2px;padding-left:6px;
+  flex:0 0 auto}
+.grip i{display:block;width:14px;height:2px;background:currentColor;opacity:.5}
+.lrow:last-child{border-bottom:none}
+.lrow.on{background:var(--ink);color:var(--paper)}
+.lrow b{font-weight:600;font-size:11px;min-width:5ch}
+.lrow u{text-decoration:none;font-size:9px;opacity:.75;flex:1}
+.lrow s{text-decoration:none;font-size:9px;opacity:.6;flex:0 0 auto}
+.ey{width:11px;height:11px;border:1.5px solid currentColor;border-radius:50%;flex:0 0 auto;
+  position:relative}
+.ey::after{content:"";position:absolute;inset:3px;background:currentColor;border-radius:50%}
+.ey.off::after{display:none}
+.ey.off{opacity:.35}
+.grp>.pal,.grp>.sl{align-self:flex-start}
+.sl b{font-size:11px;min-width:2ch;text-align:right}
+.ik{width:30px;height:28px;padding:0;border:none;border-right:1px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.ik:last-child{border-right:none}
+.ik svg{width:20px;height:20px}
+.ik[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tray input[type=text]{flex:1 1 140px;min-width:110px;font:inherit;font-size:11px;padding:5px;
+  border:1px solid var(--ink);background:var(--paper);color:var(--ink)}
+.tray .t{flex:1 1 100%;font-size:10px;line-height:1.45}
+.tray.cam{flex-direction:column;flex-wrap:nowrap;overflow:hidden;gap:4px;
+  align-items:stretch}
+.tray.cam .grp{flex:0 0 auto}
+.tray.cam .row2{display:flex;gap:5px;flex:0 0 auto}
+.tray.cam .row2>.grp{flex:1 1 0;min-width:0}
+.tray.cam{height:40vh}
+.shotwrap{flex:1 1 auto;min-height:54px;position:relative;display:flex;
+  align-items:center;justify-content:center}
+.shotwrap canvas{display:block;border:1px solid var(--ink);background:var(--paper)}
+.shotlab{position:absolute;left:50%;transform:translateX(-50%);bottom:4px;
+  font-size:9px;background:var(--paper);border:1px solid var(--ink);padding:0 4px}
+.foot{flex:0 0 auto;display:flex;height:46px;border-top:1px solid var(--ink)}
+.foot button{flex:1;border:none;border-right:1px solid var(--ink);font-size:9px;
+  letter-spacing:.06em;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px}
+.foot button b{font-size:15px;font-weight:600;line-height:1}
+.foot button:last-child{border-right:none}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <button id="view">ORB</button>
+  <button id="camk">CAM</button>
+  <span id="where"></span>
+  <button id="add">+ ADD</button>
+  <button id="undo">UNDO</button>
+  <button class="sp" id="hold">live</button>
+</div>
+
+<div class="stage"><canvas id="stage"></canvas><div class="rest" id="rest">draw, or drop a picture</div></div>
+
+<div class="reel" id="reel"></div>
+<div class="tray" id="tray" hidden></div>
+
+<div class="foot">
+  <button id="fTool"><b>A</b>DRAW</button>
+  <button id="fLayer"><b>B</b>LAYER</button>
+  <button id="fMedia"><b>C</b>PLACE</button>
+  <button id="fMotion"><b>D</b>TIME</button>
+  <button id="fRender"><b>E</b>OUT</button>
+  <button id="fCam"><b>F</b>CAM</button>
+</div>
+
+<input id="file" type="file" accept="image/*,video/*" hidden>
+<input id="score" type="file" accept="application/json,.json" hidden>
+
+<script>
+"use strict";
+/* ================= sphere math ================= */
+const TAU=Math.PI*2,PI=Math.PI,D2R=PI/180,R2D=180/PI;
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const dirLL=(lam,phi)=>{const c=Math.cos(phi);return [c*Math.sin(lam),Math.sin(phi),c*Math.cos(lam)];};
+const llDir=d=>[Math.atan2(d[0],d[2]),Math.asin(clamp(d[1],-1,1))];
+const uvDir=d=>{const l=llDir(d);return [l[0]/TAU+.5,.5-l[1]/PI];};
+const dirUV=(u,v)=>dirLL(TAU*(u-.5),PI*(.5-v));
+const ang=(a,b)=>2*Math.asin(clamp(Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2])/2,0,1));
+const rotAx=(d,ax,a)=>{const k=norm(ax),c=Math.cos(a),s=Math.sin(a);
+  return add(add(mul(d,c),mul(cross(k,d),s)),mul(k,dot(k,d)*(1-c)));};
+const basis=(f,up)=>{const F=norm(f),r=norm(cross(up,F));return {f:F,r,u:cross(F,r)};};
+const upFor=d=>Math.abs(d[1])>.985?[0,0,1]:[0,1,0];
+
+/* ================= state ================= */
+const INKS=9;                       // nine tones
+const BRUSHES=[2,3,5,8,12,18,26,36];  // degrees across
+const S={
+  frames:1,frame:0,rows:1,ver:0,playing:false,fps:8,
+  strokes:[],epoch:0,
+  dir:dirLL(0,0),yaw:.5,pitch:.18,
+  layers:[{n:"BASE",vis:true,mode:"OVER",op:1,key:false,kt:0.90}],layer:0,busy:false,look:0,
+  onion:{n:0,after:false},slit:0,
+  /* the ball's orientation is how you look at it; the camera has its own,
+     so orbiting the ball never moves the shot and aiming the shot never
+     moves the ball */
+  cam:{yaw:.5,pitch:.18,fov:75*D2R,eye:0,roll:0},
+  camOn:false,camMon:true,camAuto:false,shotAsp:16/9,
+  camKeys:[],   /* 0 off, 1 the frame, 2 the frame and the monitor */
+  brush:8*D2R,ink:INKS,tool:"PEN",view:"ORB",tray:null,pin:null,sel:null,span:null,
+  place:70*D2R,wrapMode:"AUTO",
+  grid:{deg:true,minor:true,cube:true,frame:false,fan:false},
+  render:{field:true,what:"FLAT",sheet:true,size:1024,loops:1,mp4:false},
+  rendering:false,stop:false};
+
+/* ================= marks: strokes as a density field ================= */
+/* A thumbnail is sixty pixels across. Baking it at the full grid was
+   thirty two thousand cells to draw about three hundred dots — sixteen
+   times more work than the picture can hold. So there are two grids: the
+   one the stage reads, and a coarse one the strip reads. Same code, same
+   maths, one sixteenth of the cells. */
+function makeGrid(w,hh){
+  const dirs=new Float32Array(w*hh*3);
+  for(let y=0;y<hh;y++)for(let x=0;x<w;x++){
+    const d=dirUV((x+.5)/w,(y+.5)/hh),i=(y*w+x)*3;
+    dirs[i]=d[0];dirs[i+1]=d[1];dirs[i+2]=d[2];}
+  return {w,h:hh,n:w*hh,dirs};}
+const GW=256,GH=128,DIRS=new Float32Array(GW*GH*3);
+for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){
+  const d=dirUV((x+.5)/GW,(y+.5)/GH),i=(y*GW+x)*3;
+  DIRS[i]=d[0];DIRS[i+1]=d[1];DIRS[i+2]=d[2];}
+const cellDir=(i,G)=>{const D=G?G.dirs:DIRS;return [D[i*3],D[i*3+1],D[i*3+2]];};
+const BIG={w:GW,h:GH,n:GW*GH,dirs:DIRS};
+const SMALL=makeGrid(64,32);
+const cache=new Map();
+/* a mark lays down its own tone. Painting light over dark makes it light,
+   and scribbling at one tone never darkens past that tone. */
+function splat(g,d,r,tone,G){
+  G=G||BIG;
+  const T=tone*255;
+  const l=llDir(d),cy=(.5-l[1]/PI)*G.h,rp=r/PI*G.h;
+  const rl=Math.min(G.w/2,r/TAU*G.w/Math.max(Math.cos(l[1]),1e-3)+1.5);
+  const cx=(l[0]/TAU+.5)*G.w;
+  for(let y=Math.max(0,Math.floor(cy-rp-1));y<=Math.min(G.h-1,Math.ceil(cy+rp+1));y++)
+  for(let k=Math.floor(cx-rl-1);k<=Math.ceil(cx+rl+1);k++){
+    const i=y*G.w+((k%G.w)+G.w)%G.w,a=ang(d,cellDir(i,G));
+    if(a>r)continue;
+    const t=a/r,cover=clamp(1.6*(1-t*t),0,1);
+    g[i]=g[i]+(T-g[i])*cover;}}
+/* A mark laid on a frame stays on every frame after it until something
+   cuts it. That is what a hold is, and it is why adding a frame no longer
+   hands you an empty ball. */
+const live=(s,f,v)=>{
+  const L=S.layers[s.L||0];
+  if(L&&!L.vis)return -1;
+  if(s.v!=null&&s.v!==v)return -1;
+  if(s.f==null)return 0;                      // laid before there was time
+  if(f<s.f)return -1;
+  if(s.to!=null&&f>s.to)return -1;
+  return f-s.f;};                             // frames since it was laid
+const hash=(a,b)=>{let x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x);};
+function motion(m,dt,inv){
+  if(!m)return null;
+  const ops=[];
+  if(m.boil){const A=(m.boil.amp||2)*D2R,s=m.boil.seed||1;
+    ops.push([[hash(dt,s)*2-1,hash(dt,s+7)*2-1,hash(dt,s+13)*2-1],
+      A*(hash(dt,s+21)*2-1)]);}
+  if(m.spin)ops.push([m.spin.axis||[0,1,0],(m.spin.rate||0)*D2R*dt]);
+  if(m.bob)ops.push([m.bob.axis||[1,0,0],
+    (m.bob.amp||0)*D2R*Math.sin(TAU*dt/(m.bob.period||S.frames))]);
+  if(!ops.length)return null;
+  return inv?d=>{let o=d;for(let i=ops.length-1;i>=0;i--)o=rotAx(o,ops[i][0],-ops[i][1]);return o;}
+            :d=>{let o=d;for(const q of ops)o=rotAx(o,q[0],q[1]);return o;};}
+const mR=(m,r,dt)=>(!m||!m.pulse)?r:
+  Math.max(D2R,r*(1+(m.pulse.amp||0)*Math.sin(TAU*dt/(m.pulse.period||S.frames))));
+/* A frame is baked once into two grids — tone, and picture — and every
+   dot then costs one array lookup. Before this, each dot walked the whole
+   stroke list, which is why it crawled. */
+/* how one picture meets the one under it */
+const BLEND={
+  OVER:(d,s)=>s,
+  MULTIPLY:(d,s)=>d*s/255,
+  SCREEN:(d,s)=>255-(255-d)*(255-s)/255,
+  DODGE:(d,s)=>s>=255?255:clamp(d*255/(255-s),0,255),
+  BURN:(d,s)=>s<=0?0:clamp(255-(255-d)*255/s,0,255)};
+const BLENDS=["OVER","MULTIPLY","SCREEN","DODGE","BURN"];
+function bakeImg(rgba,s,dt,L,G){
+  G=G||BIG;
+  const back=motion(s.m,dt,true),im=s.img;
+  const mode=BLEND[(L&&L.mode)||"OVER"],op=(L&&L.op!=null)?L.op:1;
+  const key=L&&L.key, kt=(L&&L.kt!=null?L.kt:0.90)*255;
+  const put=(i,j)=>{
+    const sr=im.d[j],sg=im.d[j+1],sb=im.d[j+2];
+    if(key&&sr>kt&&sg>kt&&sb>kt)return;        // white lifted out
+    const k=i*4,on=rgba[k+3];
+    const dr=on?rgba[k]:255,dg=on?rgba[k+1]:255,db=on?rgba[k+2]:255;
+    rgba[k]  =clamp(dr+(mode(dr,sr)-dr)*op,0,255);
+    rgba[k+1]=clamp(dg+(mode(dg,sg)-dg)*op,0,255);
+    rgba[k+2]=clamp(db+(mode(db,sb)-db)*op,0,255);
+    rgba[k+3]=255;};
+  if(s.wrap){
+    for(let i=0;i<G.n;i++){
+      let d=cellDir(i,G);if(back)d=back(d);
+      const uv=uvDir(d);
+      const x=clamp((uv[0]*im.w)|0,0,im.w-1),y=clamp((uv[1]*im.h)|0,0,im.h-1);
+      put(i,(y*im.w+x)*3);}
+    return;}
+  const b=s.basis,ty=Math.tan(s.fov/2),tx=ty*(s.asp||1);
+  for(let i=0;i<G.n;i++){
+    let d=cellDir(i,G);if(back)d=back(d);
+    const z=dot(d,b.f);if(z<=1e-6)continue;
+    const px=dot(d,b.r)/z/tx,py=dot(d,b.u)/z/ty;
+    if(Math.abs(px)>1||Math.abs(py)>1)continue;
+    const x=clamp(((px+1)/2*im.w)|0,0,im.w-1),y=clamp(((1-py)/2*im.h)|0,0,im.h-1);
+    put(i,(y*im.w+x)*3);}}
+/* A bake is two byte arrays: one tone, one colour with its own coverage.
+   They come from a pool of exactly CELL_CACHE_MAX sets, so after the first
+   few frames the program stops allocating pixels altogether. */
+const N_CELLS=GW*GH;
+/* Onion skins and a latitude slit each ask for other frames. Left alone
+   they multiply: three skins ahead and behind plus seven slit bands is ten
+   bakes for one paint, and every one replays every stroke. So a paint has
+   a budget. Past it, the frame you are on is used instead, and the status
+   line says the view is thinned. */
+const BAKE_BUDGET=4;
+/* ECHO, FADE, HOLD and COPY all make marks from marks. Pressed twice they
+   compound. A stated ceiling, checked before the work, keeps a slip of the
+   thumb from filling the machine. */
+const STROKE_MAX=3000;
+function roomFor(n,what){
+  if(S.strokes.length+n<=STROKE_MAX)return true;
+  ttrace(what+" needs "+n+" more, and there is room for "+
+    Math.max(0,STROKE_MAX-S.strokes.length));
+  return false;}
+let bakesLeft=BAKE_BUDGET, bakeShort=false;
+function startPaintBudget(){bakesLeft=BAKE_BUDGET;bakeShort=false;}
+const POOL=[];
+function takeBuf(){
+  const b=POOL.pop();
+  if(b){b.ink.fill(0);b.rgba.fill(0);return b;}
+  return {ink:new Uint8Array(N_CELLS),rgba:new Uint8Array(N_CELLS*4)};}
+const SCRATCH={ink:new Uint8Array(N_CELLS),rgba:new Uint8Array(N_CELLS*4)};
+/* the strip's own store: sixty four by thirty two is 10 KB a frame, so a
+   hundred of them cost a megabyte and none of them touch the big cache */
+const SMALL_CACHE=new Map(),SMALL_MAX=120;
+const SMALL_POOL=[];
+function takeSmall(){
+  const b=SMALL_POOL.pop();
+  if(b){b.ink.fill(0);b.rgba.fill(0);return b;}
+  return {ink:new Uint8Array(SMALL.n),rgba:new Uint8Array(SMALL.n*4)};}
+function cells(f,v,only,aux,G){
+  if(v==null)v=S.ver;
+  if(G&&G!==BIG){                        // the strip: cheap, kept apart
+    const k=f+":"+v+":"+(only==null?"*":only)+":"+S.epoch+":"+S.look;
+    if(SMALL_CACHE.has(k)){const hit=SMALL_CACHE.get(k);
+      SMALL_CACHE.delete(k);SMALL_CACHE.set(k,hit);return hit;}
+    while(SMALL_CACHE.size>=SMALL_MAX){
+      const old=SMALL_CACHE.keys().next().value;
+      if(old===undefined)break;
+      SMALL_POOL.push(SMALL_CACHE.get(old));SMALL_CACHE.delete(old);}
+    const out=bakeInto(takeSmall(),f,v,only,G);
+    SMALL_CACHE.set(k,out);return out;}
+  /* a single layer is wanted only by a thumbnail: bake it into the one
+     scratch buffer and never keep it, so the cache cannot multiply */
+  if(only!=null){SCRATCH.ink.fill(0);SCRATCH.rgba.fill(0);
+    return bakeInto(SCRATCH,f,v,only);}
+  const key=f+":"+v+":"+S.epoch+":"+S.look;
+  if(cache.has(key)){const hit=cache.get(key);
+    cache.delete(key);cache.set(key,hit);return hit;}
+  if(aux){                               // a skin or a slit band, not the frame itself
+    if(bakesLeft<=0){bakeShort=true;
+      const here=cache.get(S.frame+":"+v+":"+S.epoch+":"+S.look);
+      if(here)return here;}
+    bakesLeft--;}
+  while(cache.size>=CELL_CACHE_MAX){
+    const oldest=cache.keys().next().value;
+    if(oldest===undefined)break;
+    POOL.push(cache.get(oldest));cache.delete(oldest);}
+  const out=bakeInto(takeBuf(),f,v,null);
+  cache.set(key,out);return out;}
+function bakeInto(buf,f,v,only,G){
+  G=G||BIG;
+  const ink=buf.ink,rgba=buf.rgba;
+  const order=S.strokes.map((s,i)=>[s,i])
+    .sort((a,b)=>((a[0].L||0)-(b[0].L||0))||(a[1]-b[1]));
+  for(const [s] of order){
+    if(only!=null&&(s.L||0)!==only)continue;
+    const dt=live(s,f,v);if(dt<0)continue;
+    if(s.img){bakeImg(rgba,s,dt,S.layers[s.L||0],G);continue;}
+    const fw=motion(s.m,dt,false),r=mR(s.m,s.r,dt);
+    const tone=s.erase?0:(s.ink||INKS)/INKS;
+    for(const p of s.pts)splat(ink,fw?fw(p):p,r,tone,G);}
+  return buf;}
+const field=(f,v,only,aux,G)=>cells(f,v,only,aux,G).ink;
+/* While a finger is down we do not invalidate anything. The frame's bake
+   stays valid; the wet stroke is splatted into a copy of its tone grid and
+   the renderer reads that instead. One bake at the end, none during. */
+const WET={on:false,f:-1,v:-1,base:new Uint8Array(N_CELLS),ink:new Uint8Array(N_CELLS)};
+function wetStart(f,v){
+  WET.base.set(cells(f,v).ink);WET.ink.set(WET.base);
+  WET.on=true;WET.f=f;WET.v=v;}
+function wetLay(pts,r,tone,fromScratch){
+  if(!WET.on)return;
+  if(fromScratch)WET.ink.set(WET.base);
+  const lim=Math.min(pts.length,4000);          // a stroke cannot be endless
+  for(let i=0;i<lim;i++)splat(WET.ink,pts[i],r,tone);}
+const wetGrid=(f,v,only)=>
+  (WET.on&&only==null&&f===WET.f&&v===WET.v)?WET.ink:field(f,v,only);
+const idxOf=(d,G)=>{G=G||BIG;const uv=uvDir(d);
+  return clamp(Math.round(uv[1]*G.h-.5),0,G.h-1)*G.w+
+    ((Math.round(uv[0]*G.w-.5)%G.w)+G.w)%G.w;};
+const inkAt=(g,d,G)=>g[idxOf(d,G)]/255;
+
+/* ================= pictures: colour, sampled straight off the sphere ====== */
+/* Every store in here has a stated ceiling. Nothing is sampled finer than
+   the dot grid it will be read through, because that detail can never be
+   seen and only costs memory.
+     dot grid          256 x 128
+     a still wrap      512 x 256   =  393 KB
+     a still patch     384 x 384   =  442 KB
+     a film frame      256 x 128   =   98 KB   (wrap)
+     a film patch      192 x 192   =  110 KB
+     all pictures      48 MB, refused past that
+     baked frames      36 in the cache, oldest thrown first */
+const PWP=384,EW=512,EH=256;          // stills
+const VWP=192,VW=256,VH=128;          // film frames
+const PIX_BUDGET=48*1024*1024;
+const CELL_CACHE_MAX=64;   /* 64 x 160 KB = 10 MB, stated and bounded */
+function pixBytes(){
+  let n=0;
+  for(const s of S.strokes)if(s.img)n+=s.img.w*s.img.h*3;
+  return n;}
+function hitImage(s,d,f,v){
+  const dt=live(s,f,v);if(dt<0)return null;
+  const back=motion(s.m,dt,true),q=back?back(d):d,im=s.img;
+  if(s.wrap){const uv=uvDir(q);
+    return [clamp((uv[0]*im.w)|0,0,im.w-1),clamp((uv[1]*im.h)|0,0,im.h-1)];}
+  const b=s.basis,z=dot(q,b.f);if(z<=1e-6)return null;
+  const ty=Math.tan(s.fov/2),tx=ty*(s.asp||1);
+  const px=dot(q,b.r)/z/tx,py=dot(q,b.u)/z/ty;
+  if(Math.abs(px)>1||Math.abs(py)>1)return null;
+  return [clamp(((px+1)/2*im.w)|0,0,im.w-1),clamp(((1-py)/2*im.h)|0,0,im.h-1)];}
+function colourAt(d,f,v,only){
+  const C=cells(f,v,only),i=idxOf(d)*4;
+  if(!C.rgba[i+3])return null;
+  return [C.rgba[i],C.rgba[i+1],C.rgba[i+2]];}
+/* the same read, without asking for the bake again */
+const colourIn=(C,i)=>C.rgba[i*4+3]?[C.rgba[i*4],C.rgba[i*4+1],C.rgba[i*4+2]]:null;
+function topImageAt(d,f,v){
+  for(let i=S.strokes.length-1;i>=0;i--){
+    const s=S.strokes[i];
+    if(s.img&&hitImage(s,d,f,v))return i;}
+  return -1;}
+
+/* ================= the orb ================= */
+function rot(){
+  const cy=Math.cos(S.yaw),sy=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
+  return [[cy,0,-sy],[sy*sp,cp,cy*sp],[sy*cp,-sp,cy*cp]];}
+function toScreen(d,R){const k=[dot(d,R[0]),dot(d,R[1]),dot(d,R[2])];return k;}
+function fromScreen(x,y,R){const r2=x*x+y*y;if(r2>1)return null;
+  const z=Math.sqrt(1-r2);
+  return norm([R[0][0]*x+R[1][0]*y+R[2][0]*z,R[0][1]*x+R[1][1]*y+R[2][1]*z,
+               R[0][2]*x+R[1][2]*y+R[2][2]*z]);}
+const lum=c=>(c[0]*.299+c[1]*.587+c[2]*.114)/255;
+
+/* one dot per direction on a lat/lon lattice: the dots crowd toward the
+   poles exactly the way a screen wrapped on a ball does */
+/* inside the shell: the same dots, the same field, a different projection */
+function drawVolume(cv,f,v,opt){
+  const g=cv.getContext("2d"),W=cv.width,H=cv.height;
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  useCam(f,v);
+  const R=camRot(),G=BIG,C=cells(f,v,null,false,G),grid=wetGrid(f,v,null);
+  const asp=W/Math.max(1,H);
+  const step=opt.step||3.2,dpr=Math.max(1,W/460);
+  const cell=Math.min(W,H)*step*D2R/(2*Math.tan(CAMNOW.fov/2));
+  const showLive=opt.live&&prevReady();
+  const liveB=showLive&&!PREV.wrap?basis(PREV.dir||S.dir,upFor(PREV.dir||S.dir)):null;
+  const put=(p)=>{const q=volProject(p,R,asp);
+    if(!q||Math.abs(q[0])>1.15||Math.abs(q[1])>1.15)return null;
+    return [(q[0]+1)/2*W,(1-q[1])/2*H];};
+  for(let lat=-89;lat<=89;lat+=step){
+    for(let lon=-180;lon<180;lon+=step){
+      const d=dirLL(lon*D2R,lat*D2R);
+      const s=put(d);if(!s)continue;
+      let c=colourIn(C,idxOf(d,G));
+      if(showLive){const lc=prevAt(d,liveB);if(lc)c=lc;}
+      const ink=inkAt(grid,d,G);
+      let rad,col;
+      if(ink>.04){rad=cell*(.10+.80*ink);col="#000";}
+      else if(c){rad=cell*(.22+.62*(1-lum(c)));
+        col="rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")";}
+      else{rad=cell*.07;col="rgba(0,0,0,.30)";}
+      if(rad<.35)continue;
+      g.fillStyle=col;
+      if(rad<2.2)g.fillRect(s[0]-rad,s[1]-rad,rad*2,rad*2);
+      else{g.beginPath();g.arc(s[0],s[1],rad,0,TAU);g.fill();}}}
+  if(opt.grid!==false)
+    drawGrid(g,W,H,d=>{const s=put(d);return s?[s[0],s[1],true]:null;},dpr,false);
+  if(!opt.mono){
+    const m=put(S.dir);
+    if(m){g.fillStyle="#ff2e2e";g.beginPath();
+      g.arc(m[0],m[1],Math.max(2,W/150),0,TAU);g.fill();}}
+  return {volume:true};}
+let SGAIM=null;      // where the aim handle is on screen, for the pointer
+function drawOrb(cv,f,v,opt){
+  const g=cv.getContext("2d"),W=cv.width,H=cv.height;
+  if(!opt.keep){g.fillStyle="#fff";g.fillRect(0,0,W,H);}
+  const cx=opt.cx!=null?opt.cx:W/2, cy=opt.cy!=null?opt.cy:H/2;
+  const Rd=opt.rad!=null?opt.rad:Math.min(W,H)*0.42;  // room around the ball, always
+  const R=rot(),step=opt.step||3.2,only=opt.only;
+  const G=opt.small?SMALL:BIG;
+  const showLive=opt.live&&prevReady();
+  const liveB=showLive&&!PREV.wrap?basis(PREV.dir||S.dir,upFor(PREV.dir||S.dir)):null;
+  const C=cells(f,v,only,opt.aux,G);
+  const grid=opt.small?C.ink:(opt.aux?C.ink:wetGrid(f,v,only));
+  const skins=[];
+  if(opt.onion&&S.frames>1)for(let k=1;k<=S.onion.n;k++){
+    if(bakesLeft<=0)break;              // the ball itself comes first
+    skins.push({g:field((f-k+S.frames*k)%S.frames,v,null,true),k});
+    if(S.onion.after&&bakesLeft>0)
+      skins.push({g:field((f+k)%S.frames,v,null,true),k,fwd:true});}
+  const slitGrid=new Map();
+  const gridAt=lat=>{
+    if(!S.slit||S.frames<2)return grid;
+    const off=Math.round(S.slit*Math.sin(lat*D2R));
+    const ff=((f+off)%S.frames+S.frames)%S.frames;
+    if(!slitGrid.has(ff))slitGrid.set(ff,field(ff,v,null,true));
+    return slitGrid.get(ff);};
+  const slitFrame=lat=>{
+    if(!S.slit||S.frames<2)return f;
+    return ((f+Math.round(S.slit*Math.sin(lat*D2R)))%S.frames+S.frames)%S.frames;};
+  const cell=Rd*step*D2R;
+  g.save();
+  for(let lat=-89;lat<=89;lat+=step){
+    const cl=Math.cos(lat*D2R);
+    for(let lon=-180;lon<180;lon+=step){
+      const d=dirLL(lon*D2R,lat*D2R);
+      const k=toScreen(d,R);
+      if(k[2]<=0.02)continue;
+      const ff=slitFrame(lat),gg=gridAt(lat);
+      let c=(ff===f)?colourIn(C,idxOf(d,G))
+        :colourIn(cells(ff,v,only,true,G),idxOf(d,G));
+      if(showLive){const lc=prevAt(d,liveB);if(lc)c=lc;}
+      const ink=inkAt(gg,d,G);
+      let rad,col;
+      if(ink>.04){rad=cell*(.10+.80*ink);col="#000";}   // paint covers picture
+      else if(c){const L=lum(c);rad=cell*(.22+.62*(1-L));
+        col="rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")";}
+      else if(opt.ground!==false){rad=cell*.07;col="rgba(0,0,0,.35)";}
+      else continue;
+      if(ink<=.04)for(const sk of skins){
+        if(inkAt(sk.g,d,G)<=.06)continue;
+        g.strokeStyle=sk.fwd?"rgba(255,210,63,.85)":"rgba(59,130,246,"+(0.9/sk.k).toFixed(2)+")";
+        g.lineWidth=Math.max(.6,cell*.10);
+        g.beginPath();g.arc(cx+k[0]*Rd,cy-k[1]*Rd,cell*(.36-.07*sk.k),0,TAU);g.stroke();
+        break;}
+      rad*=(.55+.45*k[2]);                            // foreshortening at the rim
+      rad=Math.min(rad,(Math.min(W,H)*0.5-Rd)*0.9);    // nothing may touch the frame
+      if(rad<.35)continue;
+      const sx=cx+k[0]*Rd,sy=cy-k[1]*Rd;
+      g.fillStyle=col;
+      if(rad<2.2){g.fillRect(sx-rad,sy-rad,rad*2,rad*2);}
+      else{g.beginPath();g.arc(sx,sy,rad,0,TAU);g.fill();}}}
+  g.restore();
+  if(opt.grid!==false){
+    drawGrid(g,W,H,d=>{const k=toScreen(d,R);
+      return [cx+k[0]*Rd,cy-k[1]*Rd,k[2]>0];},Math.max(1,W/460),false);
+    g.strokeStyle="rgba(0,0,0,.8)";g.lineWidth=Math.max(1,W/300);
+    g.beginPath();g.arc(cx,cy,Rd,0,TAU);g.stroke();}
+  // the horizon: the equator as it truly projects, running off both edges
+  if(opt.horizon!==false){
+    g.strokeStyle="#ff2e2e";g.lineWidth=Math.max(1,W/460);
+    g.beginPath();let pen=false,first=null,last=null;
+    for(let lon=-180;lon<=180;lon+=2){
+      const k=toScreen(dirLL(lon*D2R,0),R);
+      if(k[2]<=0){pen=false;continue;}
+      const p=[cx+k[0]*Rd,cy-k[1]*Rd];
+      if(!first)first=p;last=p;
+      if(!pen){g.moveTo(p[0],p[1]);pen=true;}else g.lineTo(p[0],p[1]);}
+    g.stroke();
+    if(first&&last){g.beginPath();
+      g.moveTo(0,first[1]);g.lineTo(first[0],first[1]);
+      g.moveTo(last[0],last[1]);g.lineTo(W,last[1]);g.stroke();}}
+  // the picked direction
+  if(opt.frustum){
+    const asp=S.shotAsp||1.7778;
+    const CR=camRot(),P=eyePos(CR),corners=frustumCorners(CR,asp);
+    const scr=p=>{const k=toScreen(p,R);return [cx+k[0]*Rd,cy-k[1]*Rd,k[2]>0];};
+    const eye=[cx+dot(P,R[0])*Rd,cy-dot(P,R[1])*Rd];   // seen from the ball's view
+    if(corners){
+      g.strokeStyle="#3b82f6";g.lineWidth=1.6*Math.max(1,W/460);
+      g.beginPath();
+      for(let i=0;i<4;i++){const a=scr(corners[i]),b=scr(corners[(i+1)%4]);
+        if(a[2]&&b[2]){g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);}}
+      g.stroke();
+      g.setLineDash([3*Math.max(1,W/460),3*Math.max(1,W/460)]);
+      g.beginPath();
+      for(const p of corners){const a=scr(p);
+        if(a[2]){g.moveTo(eye[0],eye[1]);g.lineTo(a[0],a[1]);}}
+      g.stroke();g.setLineDash([]);}
+    const aim=shellHit(P,CR[2]),as=aim?scr(aim):null;
+    g.fillStyle="#fff";g.strokeStyle="#3b82f6";g.lineWidth=2*Math.max(1,W/460);
+    g.beginPath();g.arc(eye[0],eye[1],5*Math.max(1,W/460),0,TAU);g.fill();g.stroke();
+    /* the handle is there whichever side of the ball it points at: filled
+       when it faces you, hollow when it is round the back, and grabbable
+       either way, so aiming never depends on where you happen to be */
+    if(as){
+      const r=7*Math.max(1,W/460);
+      g.lineWidth=2*Math.max(1,W/460);
+      if(as[2]){g.fillStyle="#3b82f6";g.beginPath();g.arc(as[0],as[1],r,0,TAU);g.fill();
+        g.strokeStyle="#000";g.lineWidth=1.2*Math.max(1,W/460);g.stroke();}
+      else{g.strokeStyle="#3b82f6";g.beginPath();g.arc(as[0],as[1],r,0,TAU);g.stroke();
+        g.beginPath();g.arc(as[0],as[1],r*0.35,0,TAU);g.stroke();}
+      SGAIM=[as[0],as[1]];}}
+  if(opt.handles&&S.sel&&S.sel.img&&!S.sel.wrap&&live(S.sel,f,v)>=0)
+    drawHandles(g,S.sel,d=>{const k=toScreen(d,R);
+      return [cx+k[0]*Rd,cy-k[1]*Rd,k[2]>0];},Math.max(1,W/460));
+  if(opt.marker!==false){
+    const k=toScreen(S.dir,R);
+    if(k[2]>0){g.fillStyle="#ff2e2e";g.beginPath();
+      g.arc(cx+k[0]*Rd,cy-k[1]*Rd,Math.max(2,W/150),0,TAU);g.fill();}}
+  return {cx,cy,Rd,R};}
+
+/* the flat chart, same dots, rectangular lattice */
+function drawFlat(cv,f,v,opt){
+  const g=cv.getContext("2d"),W=cv.width,H=cv.height;
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  /* two units wide, one high, centred, with room around it. The cells come
+     out square because the plate does, which is the whole point of it. */
+  const bw=Math.min(W*0.96,H*0.92*2),bh=bw/2;
+  const x0=(W-bw)/2,top=(H-bh)/2;
+  const C=cells(f,v),grid=wetGrid(f,v),step=opt.step||3.2;
+  const skins=[];
+  if(opt.onion&&S.frames>1)for(let k=1;k<=S.onion.n;k++){
+    if(bakesLeft<=0)break;
+    skins.push({g:field((f-k+S.frames*k)%S.frames,v,null,true),k});
+    if(S.onion.after&&bakesLeft>0)
+      skins.push({g:field((f+k)%S.frames,v,null,true),k,fwd:true});}
+  const cell=bw/(360/step);
+  for(let lat=90-step/2;lat>-90;lat-=step){
+    const y=top+(90-lat)/180*bh;
+    for(let lon=-180+step/2;lon<180;lon+=step){
+      const x=x0+(lon+180)/360*bw;
+      const d=dirLL(lon*D2R,lat*D2R);
+      const c=colourIn(C,idxOf(d)),ink=inkAt(grid,d);
+      let rad,col;
+      if(ink>.04){rad=cell*(.10+.80*ink);col="#000";}
+      else if(c){rad=cell*(.22+.62*(1-lum(c)));
+        col="rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")";}
+      else{rad=cell*.07;col="rgba(0,0,0,.35)";}
+      if(ink<=.04)for(const sk of skins){
+        if(inkAt(sk.g,d)<=.06)continue;
+        g.strokeStyle=sk.fwd?"rgba(255,210,63,.85)":"rgba(59,130,246,"+(0.9/sk.k).toFixed(2)+")";
+        g.lineWidth=Math.max(.6,cell*.10);
+        g.beginPath();g.arc(x,y,cell*(.36-.07*sk.k),0,TAU);g.stroke();break;}
+      if(rad<.35)continue;
+      g.fillStyle=col;
+      if(rad<2.2){g.fillRect(x-rad,y-rad,rad*2,rad*2);}
+      else{g.beginPath();g.arc(x,y,rad,0,TAU);g.fill();}}}
+  g.strokeStyle="rgba(0,0,0,.55)";g.lineWidth=Math.max(1,W/500);
+  g.strokeRect(x0,top,bw,bh);
+  if(opt.grid!==false){
+    drawGrid(g,W,H,d=>{const uv=uvDir(d);return [x0+uv[0]*bw,top+uv[1]*bh,true];},
+      Math.max(1,W/460),true);
+    if(S.grid.deg){
+      g.fillStyle="#000";g.font=(9*Math.max(1,W/460))+"px 'IBM Plex Mono',monospace";
+      g.textAlign="center";g.textBaseline="top";
+      for(let lon=-180;lon<=180;lon+=30)
+        g.fillText(lon+"\u00B0",clamp(x0+(lon+180)/360*bw,16,W-16),top+bh+3);
+      g.textAlign="left";g.textBaseline="middle";
+      for(let lat=-60;lat<=60;lat+=30)
+        g.fillText((lat>0?"+":"")+lat+"\u00B0",Math.max(2,x0-30),top+(90-lat)/180*bh);}}
+  g.strokeStyle="#ff2e2e";g.lineWidth=Math.max(1,W/460);
+  if(S.camOn){
+    const CR=camRot(),P=eyePos(CR),cs=frustumCorners(CR,S.shotAsp||16/9);
+    const put=d=>{const uv=uvDir(d);return [x0+uv[0]*bw,top+uv[1]*bh];};
+    if(cs){
+      g.strokeStyle="#3b82f6";g.lineWidth=1.6*Math.max(1,W/500);
+      for(let i=0;i<4;i++){
+        const a=put(cs[i]),b=put(cs[(i+1)%4]);
+        if(Math.abs(a[0]-b[0])>bw*0.5)continue;    // the seam: leave the gap
+        g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();}}
+    const aim=shellHit(P,CR[2]);
+    if(aim){const a=put(aim);
+      g.fillStyle="#3b82f6";g.beginPath();
+      g.arc(a[0],a[1],7*Math.max(1,W/500),0,TAU);g.fill();
+      g.strokeStyle="#000";g.lineWidth=1.2*Math.max(1,W/500);g.stroke();
+      SGAIM=[a[0],a[1]];}}
+  const ey=top+bh/2;
+  g.beginPath();g.moveTo(0,ey);g.lineTo(W,ey);g.stroke();
+  const uv=uvDir(S.dir);
+  g.fillStyle="#ff2e2e";g.beginPath();
+  g.arc(x0+uv[0]*bw,top+uv[1]*bh,Math.max(2,W/150),0,TAU);g.fill();
+  return {flat:true,x0,top,bw,bh};}
+
+/* ---------- marching squares -----------------------------------------
+   The dots are a sampling of a field. Where the field crosses a level,
+   there is a line. Finding it turns a mass of tone into an outline, which
+   is a different thing to animate, and the way to trace a ghost. */
+function contourDirs(grid,level){
+  /* the grid holds a tone in a byte, so the level must be scaled to it */
+  const t=level*255;
+  const out=[],lerp=(a,b)=>{const dd=b-a;return Math.abs(dd)<1e-6?.5:clamp((t-a)/dd,0,1);};
+  const put=(gx,gy)=>{
+    if(out.length>5000)return;
+    out.push(dirUV((((gx%GW)+GW)%GW+.5)/GW,clamp((gy+.5)/GH,0,1)));};
+  for(let y=0;y<GH-1;y++){
+   if(out.length>1800)break;
+   for(let x=0;x<GW;x++){
+    const x1=(x+1)%GW;
+    const a=grid[y*GW+x],b=grid[y*GW+x1],c=grid[(y+1)*GW+x1],d=grid[(y+1)*GW+x];
+    const code=(a>t?8:0)|(b>t?4:0)|(c>t?2:0)|(d>t?1:0);
+    if(code===0||code===15)continue;
+    if((a>t)!==(b>t))put(x+lerp(a,b),y);          // top edge
+    if((b>t)!==(c>t))put(x+1,y+lerp(b,c));        // right edge
+    if((d>t)!==(c>t))put(x+lerp(d,c),y+1);        // bottom edge
+    if((a>t)!==(d>t))put(x,y+lerp(a,d));          // left edge
+  }}
+  return out;}
+
+/* ---------- the span: operations speak to a run of frames ---------- */
+function spanFrames(){
+  if(!S.span)return [S.frames>1?S.frame:null];
+  const a=Math.min(S.span.a,S.span.b),b=Math.max(S.span.a,S.span.b),out=[];
+  for(let f=a;f<=b;f++)out.push(f);
+  return out;}
+const inSpan=f=>S.span&&f>=Math.min(S.span.a,S.span.b)&&f<=Math.max(S.span.a,S.span.b);
+
+/* ================= the equirectangular grid =========================
+   The graticule of a plate carree is straight; that is the definition.
+   What curves is the other system: rectilinear frames pushed through the
+   chart. So the cube draws its cells, not just its outline, and the
+   barrels appear. Every curve is sampled through the same projection the
+   dots use, so the ball and the flat chart draw their own true version. */
+const FD=[["FRONT",[0,0,1],[0,1,0]],["REAR",[0,0,-1],[0,1,0]],
+  ["LEFT",[-1,0,0],[0,1,0]],["RIGHT",[1,0,0],[0,1,0]],
+  ["TOP",[0,1,0],[0,0,-1]],["BOTTOM",[0,-1,0],[0,0,1]]];
+const FACES=FD.map(o=>Object.assign({id:o[0]},basis(o[1],o[2])));
+const fUnproj=(b,x,y,fov)=>{const t=Math.tan(fov/2);
+  return norm(add(add(mul(b.r,x*t),mul(b.u,y*t)),b.f));};
+function frameEdge(b,fov){const p=[],N=26,e=.999,at=(x,y)=>fUnproj(b,x,y,fov);
+  for(let i=0;i<=N;i++)p.push(at(-e+2*e*i/N,e));
+  for(let i=0;i<=N;i++)p.push(at(e,e-2*e*i/N));
+  for(let i=0;i<=N;i++)p.push(at(e-2*e*i/N,-e));
+  for(let i=0;i<=N;i++)p.push(at(-e,-e+2*e*i/N));
+  p.push(null);return p;}
+function frameCells(b,fov,n){const p=[],N=20,e=.999,at=(x,y)=>fUnproj(b,x,y,fov);
+  for(let k=1;k<n;k++){const x=-e+2*e*k/n;
+    for(let i=0;i<=N;i++)p.push(at(x,-e+2*e*i/N));p.push(null);}
+  for(let k=1;k<n;k++){const y=-e+2*e*k/n;
+    for(let i=0;i<=N;i++)p.push(at(-e+2*e*i/N,y));p.push(null);}
+  return p;}
+function drawGrid(g,W,H,P,dpr,wrapX){
+  const G=S.grid;
+  const put=(pts,col,w,dash,back)=>{
+    g.setLineDash(dash||[]);g.lineWidth=w*dpr;g.strokeStyle=col;g.beginPath();
+    let pen=false,pv=null;
+    for(const d of pts){
+      if(!d){pen=false;pv=null;continue;}
+      const s=P(d);
+      if(!s||(back?s[2]:!s[2])){pen=false;pv=null;continue;}
+      if(pv&&wrapX&&Math.abs(s[0]-pv[0])>W*.45){pen=false;}
+      if(!pen){g.moveTo(s[0],s[1]);pen=true;}else g.lineTo(s[0],s[1]);
+      pv=s;}
+    g.stroke();g.setLineDash([]);};
+  const meridian=(lon,st)=>{const p=[];
+    for(let a=-89.5;a<=89.5;a+=(st||2.5))p.push(dirLL(lon*D2R,a*D2R));return p;};
+  const parallel=(lat,st)=>{const p=[];
+    for(let l=-180;l<=180;l+=(st||3))p.push(dirLL(l*D2R,lat*D2R));return p;};
+  const HAIR=a=>"rgba(0,0,0,"+(.17*a).toFixed(3)+")";
+  const MAJ =a=>"rgba(0,0,0,"+(.42*a).toFixed(3)+")";
+  const CELL=a=>"rgba(0,0,0,"+(.34*a).toFixed(3)+")";
+  for(const back of [true,false]){
+    const a=back?.30:1;
+    if(G.minor){
+      for(let lon=-180;lon<180;lon+=10)if(lon%30)put(meridian(lon,5),HAIR(a),.5,0,back);
+      for(let lat=-80;lat<=80;lat+=10)if(lat%30)put(parallel(lat,6),HAIR(a),.5,0,back);}
+    for(let lon=-180;lon<180;lon+=30)if(lon)put(meridian(lon),MAJ(a),.8,0,back);
+    for(let lat=-60;lat<=60;lat+=30)if(lat)put(parallel(lat),MAJ(a),.8,0,back);
+    put(meridian(0),"rgba(59,130,246,"+a+")",1.2,0,back);
+    put(meridian(179.99),"rgba(255,46,46,"+(a*.7)+")",1.2,0,back);
+    put(meridian(-179.99),"rgba(255,46,46,"+(a*.7)+")",1.2,0,back);
+    if(G.cube)for(const f of FACES){
+      put(frameCells(f,PI/2,6),CELL(a),.55,0,back);
+      put(frameEdge(f,PI/2),"rgba(0,0,0,"+(a*.85)+")",1.2,0,back);}
+    if(G.frame){
+      const b=basis(S.dir,upFor(S.dir));
+      put(frameCells(b,S.place,4),CELL(a),.5,[2*dpr,3*dpr],back);
+      put(frameEdge(b,S.place),"rgba(0,0,0,"+(a*.9)+")",1.5,[3*dpr,2*dpr],back);}
+    if(G.fan){
+      const b=basis(S.dir,upFor(S.dir));
+      for(let bear=0;bear<180;bear+=15){
+        const t=add(mul(b.r,Math.cos(bear*D2R)),mul(b.u,Math.sin(bear*D2R)));
+        const p=[];
+        for(let al=-180;al<=180;al+=3)
+          p.push(norm(add(mul(S.dir,Math.cos(al*D2R)),mul(t,Math.sin(al*D2R)))));
+        put(p,"rgba(59,130,246,"+(a*.45)+")",.55,0,back);}}
+  }
+}
+
+/* ---------- a picture wears its frame, and the frame has handles ------
+   You can see how big it is, which way up it is, and where to grab it. */
+function patchFrame(s){
+  const ty=Math.tan(s.fov/2),tx=ty*(s.asp||1),b=s.basis;
+  const e=0.995;                     // just inside, so the frame is on the picture
+  const U=(x,y)=>norm(add(add(mul(b.r,x*e*tx),mul(b.u,y*e*ty)),b.f));
+  const edge=[],N=14;
+  for(let i=0;i<=N;i++)edge.push(U(-1+2*i/N,1));
+  for(let i=0;i<=N;i++)edge.push(U(1,1-2*i/N));
+  for(let i=0;i<=N;i++)edge.push(U(1-2*i/N,-1));
+  for(let i=0;i<=N;i++)edge.push(U(-1,-1+2*i/N));
+  edge.push(edge[0]);
+  return {edge,size:U(1,0),roll:U(0,1),centre:b.f};}
+function drawHandles(g,s,P,dpr){
+  const F=patchFrame(s);
+  g.setLineDash([4*dpr,3*dpr]);g.strokeStyle="#3b82f6";g.lineWidth=1.6*dpr;
+  g.beginPath();let pen=false,pv=null;
+  for(const d of F.edge){const q=P(d);
+    if(!q||!q[2]){pen=false;pv=null;continue;}
+    if(pv&&Math.hypot(q[0]-pv[0],q[1]-pv[1])>1e5)pen=false;
+    if(!pen){g.moveTo(q[0],q[1]);pen=true;}else g.lineTo(q[0],q[1]);pv=q;}
+  g.stroke();g.setLineDash([]);
+  const knob=(d,fill)=>{const q=P(d);if(!q||!q[2])return;
+    g.fillStyle=fill;g.strokeStyle="#000";g.lineWidth=1.4*dpr;
+    g.beginPath();g.arc(q[0],q[1],7*dpr,0,TAU);g.fill();g.stroke();};
+  knob(F.centre,"#fff");knob(F.size,"#3b82f6");knob(F.roll,"#ffd23f");}
+/* which handle is under a screen point, if any */
+function grabHandle(px,py,P,dpr){
+  const s=S.sel;if(!s||!s.img||s.wrap)return null;
+  const F=patchFrame(s);
+  const near=(d,name)=>{const q=P(d);
+    if(!q||!q[2])return null;
+    return Math.hypot(q[0]-px,q[1]-py)<20*dpr?name:null;};
+  return near(F.size,"size")||near(F.roll,"roll")||near(F.centre,"move");}
+
+/* ---------- the volume ------------------------------------------------
+   Standing at the centre, every ray meets the shell at the direction it
+   points, and the sphere is a map. Step off the centre and it stops being
+   a map: near things swing past faster than far ones. That parallax is the
+   whole difference between a panorama and a set you are standing in.
+
+   Eye at P inside the unit shell, ray direction d, the hit is
+     t = -(P.d) + sqrt((P.d)^2 + 1 - |P|^2),  hit = P + t d
+   which is a direction on the shell. At P = 0 it reduces to d, so the
+   centre view and the volume view are the same function. */
+/* A camera key is the whole camera at one frame of one take. Between two
+   keys the shot moves; before the first and after the last it holds. With
+   no keys at all the camera is simply where you left it. Angles are taken
+   the short way round so a pan never spins the long way. */
+const CAMNOW={yaw:.5,pitch:.18,fov:75*D2R,eye:0,roll:0};
+/* how a key leaves itself: straight, or gathering, or settling, or both */
+const EASES=["LINE","IN","OUT","BOTH"];
+function ease(t,mode){
+  if(mode==="IN")return t*t;
+  if(mode==="OUT")return 1-(1-t)*(1-t);
+  if(mode==="BOTH")return t<.5?2*t*t:1-2*(1-t)*(1-t);
+  return t;}
+const keyAt=(f,v)=>S.camKeys.find(k=>k.f===f&&(k.v==null||k.v===v));
+function camSorted(v){
+  return S.camKeys.filter(k=>k.v==null||k.v===v).sort((a,b)=>a.f-b.f);}
+const shortWay=(a,b)=>{let d=b-a;
+  while(d>PI)d-=TAU;while(d<-PI)d+=TAU;return d;};
+function camAt(f,v){
+  const ks=camSorted(v);
+  if(!ks.length)return S.cam;
+  if(f<=ks[0].f)return ks[0];
+  if(f>=ks[ks.length-1].f)return ks[ks.length-1];
+  let a=ks[0],b=ks[ks.length-1];
+  for(let i=0;i<ks.length-1;i++)
+    if(f>=ks[i].f&&f<=ks[i+1].f){a=ks[i];b=ks[i+1];break;}
+  const raw=b.f===a.f?0:(f-a.f)/(b.f-a.f);
+  const t=ease(raw,a.ease||"LINE");
+  return {yaw:a.yaw+shortWay(a.yaw,b.yaw)*t,
+          pitch:a.pitch+(b.pitch-a.pitch)*t,
+          fov:a.fov+(b.fov-a.fov)*t,
+          eye:a.eye+(b.eye-a.eye)*t,
+          roll:(a.roll||0)+shortWay(a.roll||0,b.roll||0)*t};}
+function useCam(f,v){
+  const c=camAt(f,v);
+  CAMNOW.yaw=c.yaw;CAMNOW.pitch=c.pitch;CAMNOW.fov=c.fov;CAMNOW.eye=c.eye;
+  CAMNOW.roll=c.roll||0;}
+/* editing writes to the key you are standing on, or to the camera itself */
+/* Where an edit lands. Once a single key exists it governs every frame,
+   so writing to the base camera would be written straight back over on the
+   next paint and the control would look broken. It did. So: if this take
+   has any keys, an edit always lands on a key at the frame you are on,
+   made from the value showing there if it does not exist yet. With no keys
+   at all, and auto off, an edit moves the camera itself. */
+const takeIsKeyed=()=>S.camKeys.some(k=>k.v==null||k.v===S.ver);
+function setCam(patch){
+  let k=keyAt(S.frame,S.ver);
+  if(!k&&S.frames>1&&(takeIsKeyed()||S.camAuto)){
+    k={f:S.frame,v:S.rows>1?S.ver:null,yaw:CAMNOW.yaw,pitch:CAMNOW.pitch,
+       fov:CAMNOW.fov,eye:CAMNOW.eye,roll:CAMNOW.roll||0,ease:"BOTH"};
+    S.camKeys.push(k);reel.dataset.sig="";}
+  Object.assign(k||S.cam,patch);
+  if(k)useCam(S.frame,S.ver);else Object.assign(CAMNOW,patch);}
+/* A move is a pair of keys over a run of frames, made from where the
+   camera is now. The run is the marked span, or the whole take. Every one
+   of these is a thing a camera can physically do, named the way a crew
+   names it. */
+function moveRun(){
+  if(S.span){const F=spanFrames();return [F[0],F[F.length-1]];}
+  return [0,Math.max(1,S.frames-1)];}
+function putKey(f,c,easing){
+  S.camKeys=S.camKeys.filter(k=>!(k.f===f&&(k.v==null||k.v===S.ver)));
+  S.camKeys.push({f,v:S.rows>1?S.ver:null,yaw:c.yaw,pitch:c.pitch,fov:c.fov,
+    eye:c.eye,roll:c.roll||0,ease:easing||"BOTH"});}
+function makeMove(name){
+  const [a,b]=moveRun();
+  if(b<=a){ttrace("there is only one frame to move over");return;}
+  const now={yaw:CAMNOW.yaw,pitch:CAMNOW.pitch,fov:CAMNOW.fov,
+             eye:CAMNOW.eye,roll:CAMNOW.roll||0};
+  const to=Object.assign({},now);
+  const steps=[];
+  if(name==="PAN")to.yaw=now.yaw+60*D2R;
+  else if(name==="TILT")to.pitch=clamp(now.pitch+35*D2R,-1.45,1.45);
+  else if(name==="PUSH")to.eye=0.85;
+  else if(name==="PULL")to.eye=0;
+  else if(name==="RACK")to.fov=now.fov>60*D2R?28*D2R:95*D2R;
+  else if(name==="DUTCH")to.roll=now.roll?0:18*D2R;
+  else if(name==="ORBIT"){
+    /* a whole turn cannot be one pair: the short way round is nowhere.
+       Four quarters, and it comes back to where it began. */
+    for(let i=0;i<=4;i++)steps.push([a+Math.round((b-a)*i/4),
+      Object.assign({},now,{yaw:now.yaw+i*90*D2R})]);}
+  if(!steps.length){steps.push([a,now],[b,to]);}
+  steps.forEach(([f,c],i)=>putKey(f,c,i===0||i===steps.length-1?"BOTH":"LINE"));
+  S.camKeys.sort((x,y)=>x.f-y.f);
+  S.frame=a;useCam(a,S.ver);
+  reel.dataset.sig="";ttrace(name.toLowerCase()+" over frames "+(a+1)+"\u2013"+(b+1));
+  buildTray();draw();}
+function camKeyFrames(){return camSorted(S.ver).map(k=>k.f);}
+function gotoKey(dir){
+  const fs=camKeyFrames();
+  if(!fs.length){ttrace("no keys yet");return;}
+  const ahead=fs.filter(f=>dir>0?f>S.frame:f<S.frame);
+  const to=ahead.length?(dir>0?ahead[0]:ahead[ahead.length-1])
+    :(dir>0?fs[0]:fs[fs.length-1]);
+  S.frame=to;S.pin=null;reel.dataset.sig="";buildTray();draw();}
+function keyCamera(){
+  const k=keyAt(S.frame,S.ver);
+  if(k){
+    S.camKeys=S.camKeys.filter(x=>x!==k);
+    if(!takeIsKeyed())                     // the last one: keep where it was pointing
+      S.cam={yaw:CAMNOW.yaw,pitch:CAMNOW.pitch,fov:CAMNOW.fov,eye:CAMNOW.eye,
+        roll:CAMNOW.roll||0};
+    ttrace("key dropped at frame "+(S.frame+1));}
+  else{S.camKeys.push({f:S.frame,v:S.rows>1?S.ver:null,
+        yaw:CAMNOW.yaw,pitch:CAMNOW.pitch,fov:CAMNOW.fov,eye:CAMNOW.eye,
+        roll:CAMNOW.roll||0,ease:"BOTH"});
+    ttrace("key set at frame "+(S.frame+1)+", "+S.camKeys.length+" in all");}
+  reel.dataset.sig="";buildTray();draw();}
+function camRot(){
+  const cy=Math.cos(CAMNOW.yaw),sy=Math.sin(CAMNOW.yaw);
+  const cp=Math.cos(CAMNOW.pitch),sp=Math.sin(CAMNOW.pitch);
+  const r=[cy,0,-sy],u=[sy*sp,cp,cy*sp],f=[sy*cp,-sp,cy*cp];
+  const a=CAMNOW.roll||0;
+  if(!a)return [r,u,f];
+  const c=Math.cos(a),s=Math.sin(a);        // tip the horizon: a dutch angle
+  return [[r[0]*c+u[0]*s,r[1]*c+u[1]*s,r[2]*c+u[2]*s],
+          [u[0]*c-r[0]*s,u[1]*c-r[1]*s,u[2]*c-r[2]*s],f];}
+function eyePos(R){return mul(R[2],-clamp(CAMNOW.eye,0,0.92));}
+function shellHit(P,d){
+  const b=dot(P,d),c=dot(P,P)-1;
+  const disc=b*b-c;
+  if(disc<=0)return null;                    // cannot happen inside the shell
+  return norm(add(P,mul(d,-b+Math.sqrt(disc))));}
+/* screen to shell */
+function volRay(x,y,R,asp){
+  const ty=Math.tan(CAMNOW.fov/2),tx=ty*(asp||1);
+  return norm([R[0][0]*x*tx+R[1][0]*y*ty+R[2][0],
+               R[0][1]*x*tx+R[1][1]*y*ty+R[2][1],
+               R[0][2]*x*tx+R[1][2]*y*ty+R[2][2]]);}
+function volUnproject(x,y,R,asp){
+  return shellHit(eyePos(R),volRay(x,y,R,asp));}
+/* shell to screen: [x, y, in front of the eye] */
+function volProject(p,R,asp){
+  const P=eyePos(R),v=sub(p,P);
+  const z=v[0]*R[2][0]+v[1]*R[2][1]+v[2]*R[2][2];
+  if(z<=1e-6)return null;
+  const ty=Math.tan(CAMNOW.fov/2),tx=ty*(asp||1);
+  return [(v[0]*R[0][0]+v[1]*R[0][1]+v[2]*R[0][2])/z/tx,
+          (v[0]*R[1][0]+v[1]*R[1][1]+v[2]*R[1][2])/z/ty,1];}
+/* the four corners of what the camera sees, on the shell */
+function frustumCorners(R,asp){
+  const out=[];
+  for(const c of [[-1,1],[1,1],[1,-1],[-1,-1]]){
+    const p=volUnproject(c[0],c[1],R,asp);
+    if(!p)return null;
+    out.push(p);}
+  return out;}
+
+/* ---------- the onion ------------------------------------------------
+   Layers are not a list. They are shells of the same ball. Here they are
+   pulled apart so you can see through the stack, bottom at the back. */
+function drawStack(cv,f,v,opt){
+  const g=cv.getContext("2d"),W=cv.width,H=cv.height;
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  const n=S.layers.length;
+  const rad=Math.min(W*0.30,H*0.34);
+  const spread=Math.min((W-2*rad-20)/Math.max(n-1,1),rad*0.62);
+  const hit=[];
+  for(let l=0;l<n;l++){
+    const L=S.layers[l];
+    const cx=W/2-(n-1)*spread/2+l*spread;
+    const cy=H/2+((n-1)/2-l)*rad*0.16;
+    hit.push({l,cx,cy,rad});
+    if(!L.vis){
+      g.strokeStyle="rgba(0,0,0,.25)";g.lineWidth=1.2;g.setLineDash([4,4]);
+      g.beginPath();g.arc(cx,cy,rad,0,TAU);g.stroke();g.setLineDash([]);}
+    else drawOrb(cv,f,v,{step:opt.step||5,cx,cy,rad,keep:true,only:l,
+      ground:false,horizon:false,marker:false,grid:false});
+    g.strokeStyle=l===S.layer?"#ff2e2e":"rgba(0,0,0,.55)";
+    g.lineWidth=(l===S.layer?2.6:1);
+    g.beginPath();g.arc(cx,cy,rad,0,TAU);g.stroke();
+    g.fillStyle="#000";g.font=(11*(W/460))+"px 'IBM Plex Mono',monospace";
+    g.textAlign="center";g.textBaseline="top";
+    g.fillText(L.n,cx,cy+rad+4);}
+  return {stack:hit};}
+
+/* ---------- the monitor -----------------------------------------------
+   A small canvas kept beside the stage, drawn with the same volume code
+   the shot export uses, so what you see in the corner is exactly what
+   will be written. It reads the frame that is already baked, so it costs
+   its own dots and nothing else. */
+const MON={cv:null,w:0,h:0};
+function drawMonitor(g,W,H,f,v,busy){
+  const w=Math.round(Math.min(W*0.34,H*0.5*(S.shotAsp||16/9)));
+  const hh=Math.max(1,Math.round(w/(S.shotAsp||16/9)));
+  if(!MON.cv)MON.cv=document.createElement("canvas");
+  if(MON.w!==w||MON.h!==hh){MON.cv.width=w;MON.cv.height=hh;MON.w=w;MON.h=hh;}
+  drawVolume(MON.cv,f,v,{step:busy?9:5.5,grid:false,mono:true});
+  const pad=Math.round(6*Math.max(1,W/460));
+  const x=W-w-pad,y=H-hh-pad;
+  g.fillStyle="#fff";g.fillRect(x,y,w,hh);
+  g.drawImage(MON.cv,x,y);
+  g.strokeStyle="#3b82f6";g.lineWidth=1.6*Math.max(1,W/460);
+  g.strokeRect(x+.5,y+.5,w-1,hh-1);
+  const t=Math.max(8,Math.round(9*Math.max(1,W/460)));
+  g.fillStyle="#3b82f6";g.font="600 "+t+"px 'IBM Plex Mono',monospace";
+  g.textAlign="left";g.textBaseline="bottom";
+  g.fillText("SHOT",x+3,y-2);}
+
+/* ================= stage ================= */
+const stage=document.getElementById("stage");
+let SG=null;
+/* The backing store must match the box the canvas is displayed in. If the
+   trays or the reel change height after the first fit, the box changes and
+   the browser scales the old backing store to the new box: the ball comes
+   out an ellipse. So the fit is checked before every paint, and watched. */
+function fit(){
+  const dpr=Math.min(2,devicePixelRatio||1);
+  const r=stage.parentElement.getBoundingClientRect();
+  const w=Math.max(1,Math.round(r.width*dpr)),hh=Math.max(1,Math.round(r.height*dpr));
+  if(stage.width===w&&stage.height===hh&&stage.dpr===dpr)return false;
+  stage.width=w;stage.height=hh;stage.dpr=dpr;
+  return true;}
+function cellOf(){return S.pin?S.pin:{f:S.frame,v:S.ver};}
+function paint(){
+  fit();                               // never paint into a stretched canvas
+  startPaintBudget();
+  useCam(cellOf().f,cellOf().v);
+  SGAIM=null;                          // set again only by a view that draws it
+  const c=cellOf();
+  const step=S.busy?4.4:2.4;
+  prevRefresh(Date.now());
+  const wantMon=(S.camOn&&S.camMon)&&(S.view==="ORB"||S.view==="FLAT");
+  SG=S.view==="ORB"?drawOrb(stage,c.f,c.v,
+      {step,onion:!S.busy&&S.onion.n>0,handles:true,live:true,frustum:S.camOn})
+    :S.view==="VOLUME"?drawVolume(stage,c.f,c.v,{step,live:true})
+    :S.view==="ONION"?drawStack(stage,c.f,c.v,{step:S.busy?7:5})
+    :drawFlat(stage,c.f,c.v,{step,onion:!S.busy&&S.onion.n>0});
+  if(wantMon)drawMonitor(stage.getContext("2d"),stage.width,stage.height,
+    c.f,c.v,S.busy);
+  paintShotPanel(c.f,c.v);
+  if(CAM.preview&&CAM.stream)draw2();          // keep the live view moving
+  document.getElementById("rest").hidden=S.strokes.length>0;
+  const ll=llDir(S.dir);
+  if(S.playing&&stroke)document.getElementById("where").dataset.say="";
+  if(bakeShort&&!document.getElementById("where").dataset.say)
+    document.getElementById("where").dataset.say="";
+  const say=document.getElementById("where").dataset.say;
+  document.getElementById("where").textContent=say?say:
+    (S.rows>1?String.fromCharCode(65+S.ver)+" ":"")+"f"+(S.frame+1)+"/"+S.frames+
+    "   "+(ll[0]*R2D).toFixed(0)+"\u00B0 "+(ll[1]*R2D).toFixed(0)+"\u00B0";
+  document.getElementById("hold").textContent=S.pin?
+    (S.rows>1?String.fromCharCode(65+S.pin.v):"")+"f"+(S.pin.f+1):"live";
+  document.getElementById("hold").setAttribute("aria-pressed",String(!!S.pin));
+  if(bakeShort)document.getElementById("where").textContent+="   thinned";
+  /* a layer you cannot see is a thing worth saying out loud */
+  const off=S.layers.filter(x=>!x.vis).length;
+  const cur=S.layers[S.layer];
+  if(!document.getElementById("where").dataset.say){
+    if(cur&&!cur.vis)document.getElementById("where").textContent=
+      cur.n+" is hidden \u00b7 tap its eye in B";
+    else if(off)document.getElementById("where").textContent+=
+      "   "+off+" hidden";}
+  document.getElementById("view").textContent=S.view;
+  const ck=document.getElementById("camk");
+  ck.textContent="CAM";
+  ck.setAttribute("aria-pressed",String(S.camOn));
+  paintReel();}
+/* the only loop that runs on its own: it stops the moment the preview is
+   off or the stream is closed, and it never runs twice at once */
+let liveTimer=null;
+function draw2(){
+  if(liveTimer)return;
+  liveTimer=setTimeout(()=>{liveTimer=null;
+    if(CAM.preview&&CAM.stream)draw();},PREV_MS);}
+let q=false,lastEpoch=-1;
+/* a fresh edit restarts the strip's slow fill from the top */
+const draw=()=>{
+  if(S.epoch!==lastEpoch){lastEpoch=S.epoch;thumbPasses=0;}
+  if(q)return;q=true;requestAnimationFrame(()=>{q=false;paint();});};
+
+/* pointer: draw on the ball, or turn it with two fingers / a slow drag from
+   the rim. Nearest thing to holding it. */
+const rollBasis=(b,a)=>({f:b.f,
+  r:norm(add(mul(b.r,Math.cos(a)),mul(b.u,Math.sin(a)))),
+  u:norm(add(mul(b.u,Math.cos(a)),mul(b.r,-Math.sin(a))))});
+
+/* ---------- the brushes ---------------------------------------------
+   Every one of them puts the same thing down: a run of directions on the
+   ball with a radius and a weight. They differ only in how the run is
+   generated from what your finger did. */
+function arcPts(a,b){
+  const w=ang(a,b);if(w<1e-6)return [a];
+  const n=Math.max(2,Math.ceil(w/(S.brush*.3))),s=Math.sin(w),out=[];
+  for(let i=0;i<=n;i++){const t=i/n;
+    out.push(norm(add(mul(a,Math.sin((1-t)*w)/s),mul(b,Math.sin(t*w)/s))));}
+  return out;}
+function ringPts(c,r){
+  const e1=norm(cross(upFor(c),c)),e2=cross(c,e1),out=[];
+  const step=Math.max(4,Math.round(360*S.brush/(TAU*Math.sin(r)||1)/3));
+  for(let t=0;t<360;t+=Math.min(12,step))
+    {const a=t*D2R;
+     out.push(norm(add(mul(c,Math.cos(r)),
+       add(mul(e1,Math.sin(r)*Math.cos(a)),mul(e2,Math.sin(r)*Math.sin(a))))));}
+  out.push(out[0]);return out;}
+function boxPts(a,b){
+  const bs=basis(a,upFor(a)),t=Math.tan(60*D2R/2);
+  const P=d=>{const z=dot(d,bs.f);return z<=1e-6?null:[dot(d,bs.r)/z/t,dot(d,bs.u)/z/t];};
+  const q=P(b);if(!q)return [a];
+  const U=d=>norm(add(add(mul(bs.r,d[0]*t),mul(bs.u,d[1]*t)),bs.f));
+  const x0=Math.min(0,q[0]),x1=Math.max(0,q[0]),y0=Math.min(0,q[1]),y1=Math.max(0,q[1]);
+  const out=[],n=Math.max(3,Math.ceil(Math.max(x1-x0,y1-y0)*30));
+  const edge=(ax,ay,bx,by)=>{for(let i=0;i<=n;i++)
+    out.push(U([ax+(bx-ax)*i/n,ay+(by-ay)*i/n]));};
+  edge(x0,y0,x1,y0);edge(x1,y0,x1,y1);edge(x1,y1,x0,y1);edge(x0,y1,x0,y0);
+  return out;}
+
+function stageDir(e){
+  const r=stage.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+  if(S.view==="VOLUME")
+    return volUnproject(x*2-1,1-y*2,camRot(),stage.width/Math.max(1,stage.height));
+  if(S.view==="FLAT"){
+    const bw=Math.min(r.width*0.96,r.height*0.92*2),bh=bw/2;
+    const x0=(r.width-bw)/2/r.width,top=(r.height-bh)/2/r.height;
+    return dirUV(clamp((x-x0)/(bw/r.width),0,1),clamp((y-top)/(bh/r.height),0,1));}
+  const nx=(x-.5)*(r.width/Math.min(r.width,r.height))/0.42;
+  const ny=(.5-y)*(r.height/Math.min(r.width,r.height))/0.42;
+  return fromScreen(nx,ny,rot());}
+let stroke=null,turning=false,last=null,moved=0,moving=null,handle=null,aiming=false,
+    panning=false;
+/* two fingers on a selected picture: spread sizes it, twist turns it */
+const touches=new Map();let gest=null;
+function gestureStart(){
+  if(touches.size!==2||!S.sel||!S.sel.img||S.sel.wrap)return;
+  const [a,b]=[...touches.values()];
+  gest={d:Math.hypot(a.x-b.x,a.y-b.y),
+        a:Math.atan2(b.y-a.y,b.x-a.x),
+        fov:S.sel.fov,roll:S.sel.roll||0,base:S.sel.basis};}
+function gestureMove(){
+  if(!gest||touches.size!==2)return;
+  const [a,b]=[...touches.values()];
+  const d=Math.hypot(a.x-b.x,a.y-b.y),an=Math.atan2(b.y-a.y,b.x-a.x);
+  const s=S.sel;
+  s.fov=clamp(gest.fov*(gest.d/Math.max(d,1)),12*D2R,PI*0.98);
+  s.roll=gest.roll-(an-gest.a);
+  s.basis=rollBasis(basis(gest.base.f,upFor(gest.base.f)),s.roll);
+  S.epoch++;draw();}
+stage.addEventListener("pointerdown",e=>{
+  touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(touches.size===2){gestureStart();stroke=null;moving=null;turning=false;return;}
+  stage.setPointerCapture(e.pointerId);last=[e.clientX,e.clientY];moved=0;S.busy=true;
+  if(S.view==="ONION"){
+    const r=stage.getBoundingClientRect();
+    const px=(e.clientX-r.left)*(stage.width/r.width);
+    const py=(e.clientY-r.top)*(stage.height/r.height);
+    if(SG&&SG.stack){let best=null,bd=1e9;
+      for(const s of SG.stack){const d=Math.hypot(px-s.cx,py-s.cy);
+        if(d<s.rad*1.05&&d<bd){bd=d;best=s;}}
+      if(best){S.layer=best.l;reel.dataset.sig="";buildTray();draw();}}
+    return;}
+  /* the camera's aim handle comes before everything else */
+  if((S.view==="ORB"||S.view==="FLAT")&&S.camOn&&SGAIM){
+    const r=stage.getBoundingClientRect();
+    const px=(e.clientX-r.left)*(stage.width/r.width);
+    const py=(e.clientY-r.top)*(stage.height/r.height);
+    if(Math.hypot(px-SGAIM[0],py-SGAIM[1])<26*(stage.dpr||1)){
+      aiming=true;S.busy=true;e.preventDefault();return;}}
+  /* a handle first: it is what you meant if you pressed on one */
+  if(S.view==="ORB"&&S.sel&&S.sel.img&&!S.sel.wrap){
+    const r=stage.getBoundingClientRect(),dpr=stage.dpr||1;
+    const px=(e.clientX-r.left)*(stage.width/r.width);
+    const py=(e.clientY-r.top)*(stage.height/r.height);
+    const R=rot(),W=stage.width,H=stage.height,Rd=Math.min(W,H)*0.42;
+    const P=dd=>{const k=toScreen(dd,R);return [W/2+k[0]*Rd,H/2-k[1]*Rd,k[2]>0];};
+    const g=grabHandle(px,py,P,dpr);
+    if(g){handle=g;moving=g==="move"?S.sel:null;S.busy=true;return;}}
+  const d=stageDir(e);
+  /* inside the shell every ray lands, so there is no "outside" to grab:
+     TURN pans the camera instead, and any other tool draws */
+  if(S.view==="VOLUME"&&S.tool==="TURN"){panning=true;S.busy=true;return;}
+  if(!d){turning=true;return;}                 // outside the ball: turn it
+  S.dir=d;
+  if(S.tool==="TURN"){turning=true;return;}
+  const c=cellOf();
+  if(S.tool==="MOVE"){
+    const i=topImageAt(d,c.f,c.v);
+    S.sel=i>=0?S.strokes[i]:null;
+    if(S.sel){moving=S.sel;draw();}
+    e.preventDefault();return;}
+  if(S.tool==="RING"){
+    S.strokes.push({pts:ringPts(d,S.brush*3),r:S.brush,ink:S.ink,erase:false,L:S.layer,
+      f:S.frames>1?S.frame:null,v:S.rows>1?S.ver:null});
+    S.epoch++;draw();e.preventDefault();return;}
+  stroke={pts:[d],anchor:d,mode:S.tool,r:S.brush,ink:S.ink,erase:S.tool==="ERASE",L:S.layer,
+    f:S.frames>1?S.frame:null,v:S.rows>1?S.ver:null};
+  /* performing: the mark belongs to the frame that was passing */
+  if(S.playing){stroke.f=S.frame;stroke.to=S.frame;}
+  S.strokes.push(stroke);
+  wetStart(S.frame,S.ver);
+  wetLay(stroke.pts,stroke.r,stroke.erase?0:stroke.ink/INKS,true);
+  draw();e.preventDefault();});
+stage.addEventListener("pointermove",e=>{
+  if(touches.has(e.pointerId))touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(gest){gestureMove();return;}
+  if(!last)return;
+  moved+=Math.hypot(e.clientX-last[0],e.clientY-last[1]);
+  if(turning){
+    S.yaw+=(e.clientX-last[0])*.008;
+    S.pitch=clamp(S.pitch+(e.clientY-last[1])*.008,-1.45,1.45);
+    last=[e.clientX,e.clientY];draw();return;}
+  if(panning){                                  // pan and tilt the camera itself
+    setCam({yaw:CAMNOW.yaw+(e.clientX-last[0])*.006,
+      pitch:clamp(CAMNOW.pitch+(e.clientY-last[1])*.006,-1.45,1.45)});
+    last=[e.clientX,e.clientY];draw();return;}
+  if(aiming){                                   // point the camera at what you touch
+    const rr=stage.getBoundingClientRect();
+    const nx=(e.clientX-rr.left)/rr.width*2-1,ny=1-(e.clientY-rr.top)/rr.height*2;
+    const d0=S.view==="FLAT"?stageDir(e):fromScreen(nx,ny,rot());
+    if(d0){const ll=llDir(d0);
+      setCam({yaw:ll[0],pitch:-ll[1]});S.dir=d0;}
+    last=[e.clientX,e.clientY];draw();return;}
+  last=[e.clientX,e.clientY];
+  const d=stageDir(e);if(!d)return;
+  if(handle&&handle!=="move"&&S.sel){
+    const s=S.sel,b=basis(s.basis.f,upFor(s.basis.f));
+    if(handle==="size"){
+      const th=ang(s.basis.f,d);
+      s.fov=clamp(2*Math.atan(Math.tan(clamp(th,2*D2R,80*D2R))/(s.asp||1)),12*D2R,PI*.98);}
+    else{
+      const a=Math.atan2(dot(d,b.u),dot(d,b.r));
+      s.roll=a-PI/2;
+      s.basis=rollBasis(b,s.roll);}
+    S.epoch++;draw();return;}
+  if(moving){                                   // carry a picture around the ball
+    S.dir=d;
+    if(!moving.wrap){moving.basis=basis(d,upFor(d));
+      if(moving.roll)moving.basis=rollBasis(moving.basis,moving.roll);}
+    S.epoch++;draw();return;}
+  if(!stroke)return;
+  /* the film keeps running under your hand: when it turns over, so does
+     the mark, and the gesture is left behind on the frames it crossed */
+  const tone=stroke.erase?0:stroke.ink/INKS;
+  if(S.playing&&stroke.f!==S.frame){
+    S.epoch++;                                   // the frame turned: bake the last one
+    stroke={pts:[d],anchor:d,mode:stroke.mode,r:stroke.r,ink:stroke.ink,
+      erase:stroke.erase,L:stroke.L,v:stroke.v,f:S.frame,to:S.frame};
+    S.strokes.push(stroke);
+    wetStart(S.frame,S.ver);wetLay(stroke.pts,stroke.r,tone,true);
+    S.dir=d;draw();return;}
+  if(stroke.mode==="ARC"||stroke.mode==="BOX"){
+    stroke.pts=stroke.mode==="ARC"?arcPts(stroke.anchor,d):boxPts(stroke.anchor,d);
+    wetLay(stroke.pts,stroke.r,tone,true);S.dir=d;draw();return;}
+  if(ang(d,stroke.pts[stroke.pts.length-1])<S.brush*.35)return;
+  stroke.pts.push(d);
+  wetLay([d],stroke.r,tone,false);               // only the new point is laid
+  S.dir=d;draw();});
+const up=e=>{
+  if(e&&e.pointerId!=null)touches.delete(e.pointerId);
+  if(touches.size<2)gest=null;
+  S.busy=false;
+  if(stroke&&S.span){                            // a mark made across a run of frames
+    const base=stroke;S.strokes.pop();
+    for(const f of spanFrames())S.strokes.push(Object.assign({},base,{f}));}
+  stroke=null;moving=null;handle=null;turning=false;aiming=false;panning=false;last=null;
+  WET.on=false;S.epoch++;draw();};
+stage.addEventListener("pointerup",up);
+stage.addEventListener("pointercancel",up);
+
+/* ================= the reel: every frame an orb you can grab ========== */
+const reel=document.getElementById("reel");
+let ORBS=[];
+const CELL_MIN=30,CELL_MAX=54;
+/* A thumbnail is a whole bake: every stroke replayed, every picture cell
+   sampled. Twenty four of them in one paint plus the composite row is
+   forty eight bakes for one frame of interaction — that is the freeze.
+   Three per pass now, and the strip finishes itself over later passes
+   while the ball stays live. */
+const THUMB_BUDGET=16;
+let thumbsPending=false,thumbPasses=0;
+const THUMB_PASSES_MAX=40;      // the strip may take this many passes, never more
+function reelSize(){
+  const w=reel.clientWidth||360;
+  return clamp(Math.floor((w-78-6)/Math.max(S.frames,1))-1,CELL_MIN,CELL_MAX);}
+/* A layer's line says what it is and what has been done to it: whether it
+   is showing, how it blends, whether white is keyed out, and what is
+   moving it. Read off the strokes themselves, so it cannot go stale. */
+const MOTION_MARK={spin:"\u21bb",bob:"\u223f",pulse:"\u2299",boil:"\u2248"};
+function layerBadges(l){
+  const L=S.layers[l];if(!L)return "";
+  const out=[];
+  if(!L.vis)out.push("hidden");
+  if(L.mode&&L.mode!=="OVER")out.push(L.mode.slice(0,3).toLowerCase());
+  if(L.op!=null&&L.op<1)out.push(Math.round(L.op*100)+"%");
+  if(L.key)out.push("key");
+  const moves=new Set();
+  let pics=0,marks=0,cut=false;
+  for(const s of S.strokes){
+    if((s.L||0)!==l)continue;
+    if(s.img)pics++;else marks++;
+    if(s.to!=null)cut=true;
+    if(s.m)for(const k in s.m)if(MOTION_MARK[k])moves.add(MOTION_MARK[k]);}
+  if(moves.size)out.push([...moves].join(""));
+  if(cut)out.push("cut");
+  if(pics)out.push(pics+"\u25a3");
+  if(marks)out.push(marks+"\u2022");
+  return out.join(" ");}
+const occ=(l,f)=>S.strokes.some(s=>(s.L||0)===l&&live(s,f,S.ver)>=0);
+/* what began on this cell: a picture, an erasure, a moving mark, or a mark */
+function kindAt(l,f){
+  let k="";
+  for(const s of S.strokes){
+    if((s.L||0)!==l||s.f!==f||live(s,f,S.ver)<0)continue;
+    if(s.img)k="pic";
+    else if(s.erase)k=k||"era";
+    else if(s.m)k=k||"mov";
+    else k=k||"ink";}
+  return k;}
+const born=(l,f)=>S.strokes.some(s=>(s.L||0)===l&&s.f===f&&live(s,f,S.ver)>=0);
+function buildReel(){
+  const z=reelSize();
+  const sig=[S.frames,S.rows,S.playing,z,S.layers.length,S.layer,S.frame,S.ver,
+    S.epoch,S.camOn,S.camKeys.length].join("|");
+  if(reel.dataset.sig===sig)return;
+  reel.dataset.sig=sig;ORBS=[];
+  const many=S.frames>1;
+  let html='<div class="keys">'+
+    (many?'<button id="pv">\u25C0</button><button id="pl">'+(S.playing?"STOP":"PLAY")+
+          '</button><button id="nx">\u25B6</button>':'')+
+    '<button id="af">+</button>'+(many?'<button id="df">DUP</button>':'')+
+    (many?'<button id="sp">'+(S.span?"SPAN "+(Math.min(S.span.a,S.span.b)+1)+"\u2013"+
+      (Math.max(S.span.a,S.span.b)+1):"MARK")+'</button>':'')+'</div>';
+  html+='<div class="sheet"><span class="takes">';
+  /* the take you are on, as spheres */
+  html+='<span class="take"><span class="tk">TAKE '+String.fromCharCode(65+S.ver)+'</span>';
+  for(let f=0;f<S.frames;f++)
+    html+='<button class="orb" data-f="'+f+'" data-v="'+S.ver+'">'+
+      '<canvas width="'+(z*2)+'" height="'+(z*2)+'" style="width:'+z+'px;height:'+z+'px"></canvas>'+
+      (z>=30?'<span class="n">'+(f+1)+'</span>':'')+'</button>';
+  html+='</span>';
+  /* the camera's own line, when it is showing: a diamond on every key */
+  if(S.camOn){
+    const ks=camSorted(S.ver);
+    const moveSays=!ks.length?"no keys":ks.length===1?"1 key \u00b7 held":
+      ks.length+" keys \u00b7 f"+(ks[0].f+1)+"\u2013"+(ks[ks.length-1].f+1);
+    html+='<span class="track cam"><button class="tn" data-ln="-1"><b>CAM</b><em>'+
+      moveSays+(S.camAuto?" \u00b7 auto":"")+'</em></button>';
+    for(let f=0;f<S.frames;f++){
+      const k=!!keyAt(f,S.ver);
+      html+='<button class="cel'+(k?" key":"")+(f===S.frame?" now":"")+
+        '" data-cf="'+f+'" data-cl="-1" style="width:'+z+'px"></button>';}
+    html+='</span>';}
+  /* and one line of time for every layer under it */
+  for(let l=S.layers.length-1;l>=0;l--){
+    const L=S.layers[l];
+    html+='<span class="track'+(l===S.layer?" on":"")+(L.vis?"":" off")+'">'+
+      '<button class="tn" data-ln="'+l+'"><b>'+L.n+'</b><em>'+layerBadges(l)+'</em></button>';
+    for(let f=0;f<S.frames;f++){
+      const b=born(l,f),o=occ(l,f),k=kindAt(l,f);
+      const t=Math.max(14,Math.min(z,34));
+      html+='<button class="cel'+(b?" born":o?" held":"")+(k?" "+k:"")+
+        (f===S.frame?" now":"")+'" data-cf="'+f+'" data-cl="'+l+'"'+
+        ' style="width:'+z+'px">'+
+        (o?'<canvas width="'+(t*2)+'" height="'+(t*2)+
+           '" style="width:'+t+'px;height:'+t+'px"></canvas>':"")+
+        '</button>';}
+    html+='</span>';}
+  const old=reel.querySelector(".sheet");
+  const sx=old?old.scrollLeft:0,sy=old?old.scrollTop:0;
+  reel.innerHTML=html+'</span></div>';
+  const now=reel.querySelector(".sheet");
+  if(now){now.scrollLeft=sx;now.scrollTop=sy;
+    /* keep the layer you are working on and the frame you are on in sight */
+    const row=now.querySelector(".track.on");
+    if(row){const rt=row.offsetTop,rb=rt+row.offsetHeight;
+      if(rt<now.scrollTop)now.scrollTop=rt;
+      else if(rb>now.scrollTop+now.clientHeight)now.scrollTop=rb-now.clientHeight;}
+    const cellNow=now.querySelector(".cel.now");
+    if(cellNow){const cl=cellNow.offsetLeft,cr=cl+cellNow.offsetWidth;
+      if(cl<now.scrollLeft)now.scrollLeft=Math.max(0,cl-4);
+      else if(cr>now.scrollLeft+now.clientWidth)
+        now.scrollLeft=cr-now.clientWidth+4;}}
+  /* a diamond on the camera line is draggable: that is how a move is
+     retimed, without a dialog and without typing a number */
+  reel.querySelectorAll('.cel.key[data-cl="-1"]').forEach(b=>{
+    let down=false,from=+b.dataset.cf,moved=0,sx=0;
+    b.addEventListener("pointerdown",e=>{
+      down=true;moved=0;sx=e.clientX;b.setPointerCapture(e.pointerId);
+      e.stopPropagation();});
+    b.addEventListener("pointermove",e=>{
+      if(!down)return;
+      moved=Math.abs(e.clientX-sx);
+      if(moved<8)return;
+      const w=b.offsetWidth||30;
+      const to=clamp(from+Math.round((e.clientX-sx)/w),0,S.frames-1);
+      const k=keyAt(from,S.ver);
+      if(k&&to!==k.f&&!keyAt(to,S.ver)){k.f=to;from=to;sx=e.clientX;
+        S.frame=to;reel.dataset.sig="";buildTray();draw();}});
+    b.addEventListener("pointerup",()=>{
+      if(moved<8){S.frame=from;reel.dataset.sig="";buildTray();draw();}
+      down=false;});
+    b.addEventListener("pointercancel",()=>{down=false;});});
+  reel.querySelectorAll("[data-cf]").forEach(b=>b.onclick=()=>{
+    S.frame=+b.dataset.cf;
+    const l=+b.dataset.cl;
+    if(l>=0)S.layer=l;                 // the camera line selects no layer
+    S.pin=null;reel.dataset.sig="";buildTray();draw();});
+  reel.querySelectorAll("[data-ln]").forEach(b=>b.onclick=()=>{
+    const l=+b.dataset.ln;
+    if(l<0){openTray("cam");return;}    // the camera line opens the camera
+    S.layer=l;reel.dataset.sig="";buildTray();draw();});
+  reel.querySelectorAll(".orb").forEach(b=>{
+    ORBS.push({f:+b.dataset.f,v:+b.dataset.v,b,cv:b.querySelector("canvas")});
+    grabOrb(b);});
+  const $=i=>document.getElementById(i);
+  if($("pv"))$("pv").onclick=()=>{S.frame=(S.frame-1+S.frames)%S.frames;draw();};
+  if($("nx"))$("nx").onclick=()=>{S.frame=(S.frame+1)%S.frames;draw();};
+  if($("pl"))$("pl").onclick=()=>play(!S.playing);
+  $("af").onclick=addFrame;
+  if($("df"))$("df").onclick=dupFrame;
+  if($("sp"))$("sp").onclick=()=>{
+    if(!S.span)S.span={a:S.frame,b:S.frame};
+    else if(S.span.a===S.span.b&&S.span.a!==S.frame)S.span={a:S.span.a,b:S.frame};
+    else S.span=null;
+    reel.dataset.sig="";draw();};}
+function grabOrb(b){
+  let down=false,m=0,st=null;
+  b.addEventListener("pointerdown",e=>{down=true;m=0;st=[e.clientX,e.clientY];
+    b.setPointerCapture(e.pointerId);e.preventDefault();});
+  b.addEventListener("pointermove",e=>{if(!down)return;
+    m=Math.max(m,Math.hypot(e.clientX-st[0],e.clientY-st[1]));
+    if(m>12)b.classList.add("lift");});
+  b.addEventListener("pointerup",e=>{
+    down=false;b.classList.remove("lift");
+    const cell={f:+b.dataset.f,v:+b.dataset.v};
+    if(m>12){try{b.releasePointerCapture(e.pointerId);}catch(_){}
+      const t=document.elementFromPoint(e.clientX,e.clientY);
+      if(t&&t.closest&&t.closest(".stage")){S.pin=cell;draw();return;}}
+    S.frame=cell.f;S.ver=cell.v;S.pin=null;draw();});
+  b.addEventListener("pointercancel",()=>{down=false;b.classList.remove("lift");});}
+function paintReel(){
+  buildReel();
+  if(S.busy)return;                    // the strip waits until the finger lifts
+  if(S.playing)return;                 // and it does not compete with playback
+  thumbsPending=false;
+  /* Only what is scrolled into view is baked, and never more than
+     THUMB_BUDGET of them in one pass, so a long film cannot stall it. */
+  const sh=reel.querySelector(".sheet");
+  const x0=sh?sh.scrollLeft:0,x1=x0+(sh?sh.clientWidth:400)+40;
+  const inView=b=>{const bx=b.offsetLeft;
+    return !(bx+b.offsetWidth<x0-40||bx>x1);};
+  let budget=THUMB_BUDGET;
+  const cels=reel.querySelectorAll(".cel canvas");
+  for(const cv of cels){
+    const b=cv.parentElement;
+    if(!inView(b))continue;
+    const f=+b.dataset.cf,l=+b.dataset.cl;
+    const sig=f+":"+l+":"+S.epoch+":"+Math.round(S.yaw*12)+":"+Math.round(S.pitch*12);
+    if(cv.dataset.sig===sig)continue;
+    if(budget<=0){thumbsPending=true;break;}
+    cv.dataset.sig=sig;budget--;
+    drawOrb(cv,f,S.ver,{step:13,ground:false,horizon:false,marker:false,grid:false,
+      only:l,small:true});}
+  let obudget=THUMB_BUDGET;
+  for(const o of ORBS){
+    const on=o.f===S.frame&&o.v===S.ver;
+    o.b.setAttribute("aria-pressed",String(on));
+    o.b.style.background=inSpan(o.f)&&!on?"#ffd23f":"";
+    if(!inView(o.b))continue;
+    const sig=o.f+":"+o.v+":"+S.epoch+":"+Math.round(S.yaw*20)+":"+Math.round(S.pitch*20);
+    if(o.sig===sig)continue;
+    if(obudget<=0){thumbsPending=true;break;}
+    obudget--;o.sig=sig;
+    drawOrb(o.cv,o.f,o.v,{step:o.cv.width>90?7:11,ground:false,horizon:false,
+      marker:false,grid:false,small:true});}
+  /* finish the rest on later passes, with a hard stop */
+  if(thumbsPending&&thumbPasses<THUMB_PASSES_MAX){
+    thumbPasses++;setTimeout(paintReel,60);}
+  else thumbPasses=0;
+}
+function addFrame(){
+  if(S.frames===1)S.strokes.forEach(s=>{if(s.f==null)s.f=0;});
+  if(S.rows>1)S.strokes.forEach(s=>{if(s.v==null)s.v=S.ver;});
+  S.frames++;S.frame=S.frames-1;S.pin=null;S.epoch++;draw();}
+function dupFrame(){
+  const src=S.frame,dst=S.frames;
+  const n=S.strokes.filter(s=>s.f===src&&(s.v==null||s.v===S.ver)).length;
+  if(!roomFor(n,"copy"))return;
+  S.strokes.filter(s=>s.f===src&&(s.v==null||s.v===S.ver))
+    .forEach(s=>S.strokes.push(Object.assign({},s,{f:dst,v:S.rows>1?S.ver:s.v})));
+  S.frames++;S.frame=dst;S.pin=null;S.epoch++;draw();}
+function addTake(){
+  const v=S.rows;
+  if(!roomFor(S.strokes.filter(s=>s.v===S.ver||s.v==null).length,"a new take"))return;
+  S.strokes.forEach(s=>{if(s.v==null)s.v=S.ver;});
+  S.strokes.filter(s=>s.v===S.ver).forEach(s=>S.strokes.push(Object.assign({},s,{v})));
+  S.rows++;S.ver=v;S.pin=null;S.epoch++;draw();}
+function dropTake(){
+  if(S.rows<2)return;
+  const v=S.ver;
+  S.strokes=S.strokes.filter(s=>s.v!==v)
+    .map(s=>(s.v!=null&&s.v>v)?Object.assign({},s,{v:s.v-1}):s);
+  S.rows--;S.ver=Math.min(S.ver,S.rows-1);S.pin=null;S.epoch++;draw();}
+let timer=null;
+function play(on){S.playing=on;
+  if(timer)clearInterval(timer);
+  if(on)timer=setInterval(()=>{S.frame=(S.frame+1)%S.frames;S.pin=null;
+    reel.dataset.sig="";draw();},1000/clamp(S.fps,1,24));
+  reel.dataset.sig="";draw();}
+
+/* ================= pictures in ================= */
+function rgb(src,w,h){
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,w,h);
+  g.drawImage(src,0,0,w,h);
+  const px=g.getImageData(0,0,w,h).data,d=new Uint8ClampedArray(w*h*3);
+  for(let i=0;i<w*h;i++){d[i*3]=px[i*4];d[i*3+1]=px[i*4+1];d[i*3+2]=px[i*4+2];}
+  return {d,w,h};}
+/* a picture two units wide and one high is an equirectangular picture.
+   It is not a patch that happens to be wide; it is the whole sphere. */
+const looksEquirect=(w,h)=>Math.abs(w/h-2)<0.16;
+/* one picture, held from where it lands. With a span marked it starts at
+   the head of the run and ends at its tail — not a copy on every frame. */
+function newLayerFor(name){
+  let n=(name||"PIC").replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9]+/g,"")
+    .toUpperCase().slice(0,6)||"PIC";
+  let k=1,base=n;while(S.layers.some(x=>x.n===n))n=base+"·"+(++k);
+  S.layers.push({n,vis:true,mode:"OVER",op:1,key:false,kt:0.90});
+  S.layer=S.layers.length-1;
+  return S.layer;}
+function place(img,f,wrap,only){
+  const v=S.rows>1?S.ver:null;
+  let f0=f,to=null;
+  if(only!=null){f0=only;to=only;}
+  else if(S.span){const F=spanFrames();f0=F[0];to=F[F.length-1];}
+  const s=wrap?{img,wrap:true,f:f0,to,v,L:S.layer}
+    :{img,basis:basis(S.dir,upFor(S.dir)),fov:S.place,roll:0,asp:1,f:f0,to,v,L:S.layer};
+  S.strokes.push(s);S.sel=s;S.epoch++;return s;}
+function addImage(src,name){
+  const w=src.naturalWidth||src.videoWidth||2,hh=src.naturalHeight||src.videoHeight||1;
+  if(pixBytes()+EW*EH*3>PIX_BUDGET){
+    ttrace("no room for another picture: clear a layer first");return null;}
+  newLayerFor(name);                       // every picture gets a line of its own
+  const wrap=S.wrapMode==="AUTO"?looksEquirect(w,hh):S.wrapMode==="WRAP";
+  /* a patch lands in the middle of what you are looking at, never behind you */
+  if(!wrap)S.dir=fromScreen(0,0,rot())||S.dir;
+  const s=place(rgb(src,wrap?EW:PWP,wrap?EH:PWP),S.frames>1?S.frame:null,wrap);
+  if(!wrap)S.tool="MOVE";
+  reel.dataset.sig="";
+  ttrace(wrap?"the whole ball":"drag it \u00b7 pinch to size \u00b7 twist to turn");
+  draw();return s;}
+async function addVideo(file){
+  const v=document.createElement("video");
+  v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(file);
+  await new Promise((ok,no)=>{v.onloadedmetadata=ok;v.onerror=no;});
+  /* the film says how many frames it is, unless a span says otherwise */
+  let first=0,n=1;
+  newLayerFor(file.name);
+  if(!S.span){n=clamp(Math.round((v.duration||1)*S.fps),2,96);
+    S.strokes.forEach(s=>{if(s.f==null)s.f=0;});
+    S.frames=Math.max(S.frames,n);reel.dataset.sig="";}
+  else{const F=spanFrames();first=F[0];n=F.length;}
+  const wrap=S.wrapMode==="AUTO"?looksEquirect(v.videoWidth,v.videoHeight):S.wrapMode==="WRAP";
+  /* refuse before the tab dies, not after: trim the count to the budget */
+  const per=wrap?VW*VH*3:VWP*VWP*3;
+  const room=Math.max(1,Math.floor((PIX_BUDGET-pixBytes())/per));
+  if(n>room){ttrace("that film needs "+n+" frames, there is room for "+room);
+    n=room;S.frames=Math.max(S.frames,first+n);}
+  for(let i=0;i<n;i++){
+    ttrace("reading "+(i+1)+" of "+n);
+    v.currentTime=(i+.5)/n*v.duration;
+    await new Promise(ok=>{v.onseeked=ok;});
+    place(rgb(v,wrap?VW:VWP,wrap?VH:VWP),first+i,wrap,first+i);}
+  URL.revokeObjectURL(v.src);S.frame=first;S.sel=null;
+  ttrace("");reel.dataset.sig="";draw();
+  setTimeout(()=>{ttrace(n+" frames of film at "+S.fps+"/s");
+    setTimeout(()=>ttrace(""),2500);},0);}
+function take(file){
+  if(!file)return;
+  if(file.type.startsWith("video"))return addVideo(file);
+  const img=new Image();
+  img.onload=()=>{addImage(img,file.name);URL.revokeObjectURL(img.src);};
+  img.src=URL.createObjectURL(file);}
+document.getElementById("file").addEventListener("change",e=>{
+  const f=e.target.files&&e.target.files[0];
+  e.target.value="";            // else choosing the same file twice fires nothing
+  take(f);});
+document.getElementById("score").addEventListener("change",e=>{
+  const f=e.target.files&&e.target.files[0];if(f)openScore(f);});
+addEventListener("paste",e=>{for(const it of (e.clipboardData&&e.clipboardData.items)||[])
+  if(it.type.startsWith("image")||it.type.startsWith("video"))take(it.getAsFile());});
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("drop",e=>{e.preventDefault();
+  const d=stageDir(e);if(d)S.dir=d;
+  take(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]);});
+
+/* ================= drawn marks, so nothing has to be read ============ */
+const SVG=(p,extra)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+  'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+const MARK={
+ pen:SVG('<path d="M4 20 L14 6"/><circle cx="16" cy="4" r="2.4" fill="currentColor"/>'),
+ arc:SVG('<path d="M3 19 Q12 2 21 19"/>'),
+ ring:SVG('<circle cx="12" cy="12" r="7.5"/>'),
+ box:SVG('<rect x="4.5" y="6" width="15" height="12"/>'),
+ erase:SVG('<rect x="4" y="12" width="12" height="7" transform="rotate(-38 10 15)"/><path d="M6 21h14"/>'),
+ move:SVG('<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>'),
+ turn:SVG('<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3.5 3 3.5 13 0 16M12 4c-3.5 3-3.5 13 0 16"/>'),
+ tone:SVG('<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/><circle cx="19.5" cy="12" r="0" fill="currentColor"/><circle cx="19" cy="12" r="5.4" fill="currentColor"/>'),
+ size:SVG('<circle cx="6" cy="12" r="2"/><circle cx="16" cy="12" r="6"/>'),
+ wipe:SVG('<path d="M5 6h14M9 6V4h6v2M7 6l1 14h8l1-14"/>'),
+ onion:SVG('<circle cx="9" cy="12" r="6"/><circle cx="13" cy="12" r="6" stroke-dasharray="2 2"/><circle cx="17" cy="12" r="6" stroke-dasharray="1 3"/>'),
+ trace:SVG('<circle cx="12" cy="12" r="6" stroke-dasharray="2 2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'),
+ outline:SVG('<circle cx="12" cy="12" r="7" fill="currentColor" stroke="none" opacity=".25"/><circle cx="12" cy="12" r="7"/>'),
+ echo:SVG('<circle cx="6" cy="12" r="3.2" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="3.2" fill="currentColor" stroke="none" opacity=".55"/><circle cx="19" cy="12" r="3.2" fill="currentColor" stroke="none" opacity=".25"/>'),
+ slit:SVG('<path d="M3 6h18M3 12h18M3 18h18"/><path d="M8 3v18" stroke-dasharray="2 3"/>'),
+ spin:SVG('<circle cx="12" cy="12" r="7"/><path d="M12 5l3 2-3 2"/>'),
+ bob:SVG('<path d="M3 12q4.5-8 9 0t9 0"/>'),
+ pulse:SVG('<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="7"/>'),
+ boil:SVG('<path d="M4 15q2-3 4 0t4 0 4 0 4 0"/><path d="M4 10q2-3 4 0t4 0 4 0 4 0"/>'),
+ still:SVG('<rect x="6" y="6" width="12" height="12"/>'),
+ bake:SVG('<path d="M4 18h16M6 18V9M12 18V6M18 18v-8"/>'),
+ turn2:SVG('<ellipse cx="12" cy="12" rx="9" ry="4.5"/><path d="M17 9l2 2-2 2"/>'),
+ tip:SVG('<ellipse cx="12" cy="12" rx="4.5" ry="9"/><path d="M9 17l2 2 2-2"/>'),
+ roll:SVG('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 7 4"/><path d="M17 4v4h-4"/>'),
+ ahead:SVG('<circle cx="15" cy="12" r="6"/><circle cx="11" cy="12" r="6" stroke-dasharray="2 2"/><path d="M20 6l1 3-3 1"/>'),
+ hold:SVG('<path d="M7 5v14M17 5v14"/><path d="M7 12h10"/>'),
+ fade:SVG('<circle cx="5" cy="12" r="3.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none" opacity=".5"/><circle cx="19" cy="12" r="3.4" fill="currentColor" stroke="none" opacity=".18"/>'),
+ rev:SVG('<path d="M20 8H8a4 4 0 0 0 0 8h4"/><path d="M11 5L8 8l3 3"/>'),
+ newl:SVG('<rect x="5" y="7" width="11" height="11"/><path d="M19 5v6M16 8h6"/>'),
+ eye:SVG('<path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>'),
+ up:SVG('<path d="M12 19V5M6 11l6-6 6 6"/>'),
+ down:SVG('<path d="M12 5v14M6 13l6 6 6-6"/>'),
+ merge:SVG('<path d="M7 4v6a5 5 0 0 0 5 5h5"/><path d="M14 12l3 3-3 3"/>'),
+ cut:SVG('<path d="M6 4l12 12M18 4L6 16"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="19" r="2.2"/>'),
+ save:SVG('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h7V4M8 20v-6h8v6"/>'),
+ open:SVG('<path d="M3 7h6l2 2h10v10H3z"/><path d="M12 12v5M9.5 14.5L12 12l2.5 2.5"/>'),
+ collage:SVG('<rect x="3" y="8" width="9" height="9"/><rect x="9" y="4" width="9" height="9"/><path d="M14 17h7M17.5 14v6" />'),
+ decollage:SVG('<rect x="3" y="10" width="8" height="8"/><rect x="13" y="4" width="8" height="8"/><path d="M11 8L13 6"/>'),
+ bOVER:SVG('<rect x="4" y="4" width="11" height="11"/><rect x="9" y="9" width="11" height="11" fill="currentColor" stroke="none"/>'),
+ bMULTIPLY:SVG('<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/><path d="M12 6.7a6 6 0 0 0 0 10.6 6 6 0 0 1 0-10.6z" fill="currentColor" stroke="none"/>'),
+ bSCREEN:SVG('<circle cx="9" cy="12" r="6" fill="currentColor" stroke="none" opacity=".35"/><circle cx="15" cy="12" r="6" fill="currentColor" stroke="none" opacity=".35"/>'),
+ bDODGE:SVG('<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>'),
+ bBURN:SVG('<path d="M12 3s5 5 5 10a5 5 0 0 1-10 0c0-5 5-10 5-10z" fill="currentColor" stroke="none"/>'),
+ op:SVG('<rect x="3" y="7" width="18" height="10"/><path d="M3 7l18 10" opacity=".4"/>'),
+ key:SVG('<rect x="3" y="4" width="18" height="16" stroke-dasharray="3 2"/><path d="M8 15l3-4 3 3 2-2 2 3"/>'),
+ cam:SVG('<rect x="3" y="7" width="18" height="12"/><circle cx="12" cy="13" r="3.6"/><path d="M8 7l1.6-2.4h4.8L16 7"/>'),
+ flip:SVG('<path d="M4 9a8 8 0 0 1 13-3M20 15a8 8 0 0 1-13 3"/><path d="M4 4v5h5M20 20v-5h-5"/>'),
+ shot:SVG('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>'),
+ film:SVG('<rect x="3" y="6" width="18" height="12"/><path d="M8 6v12M16 6v12M3 12h18"/>'),
+ less:SVG('<path d="M5 12h14"/>'),
+ more:SVG('<path d="M12 5v14M5 12h14"/>'),
+ rollL:SVG('<path d="M20 12a8 8 0 1 0-3 6"/><path d="M20 6v6h-6"/>'),
+ rollR:SVG('<path d="M4 12a8 8 0 1 1 3 6"/><path d="M4 6v6h6"/>'),
+ narrow:SVG('<path d="M9 6v12M15 6v12"/><path d="M3 12h4M17 12h4"/>'),
+ wide:SVG('<path d="M6 6v12M18 6v12"/><path d="M9 12h6"/><path d="M9 12l2-2M9 12l2 2M15 12l-2-2M15 12l-2 2"/>'),
+ wrapm:SVG('<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4a10 10 0 0 1 0 16a10 10 0 0 1 0-16z"/>'),
+ live:SVG('<circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 16.5a6.4 6.4 0 0 0 0-9"/><path d="M4.5 4.5a10.6 10.6 0 0 0 0 15M19.5 19.5a10.6 10.6 0 0 0 0-15"/>'),
+ keyf:SVG('<path d="M12 4l5 8-5 8-5-8z"/>'),
+ frameA:SVG('<rect x="3" y="7" width="18" height="10"/>'),
+ wave:SVG('<path d="M3 15c3 0 3-6 6-6s3 6 6 6 3-6 6-6"/>'),
+ fps:SVG('<path d="M5 5v14l11-7z" fill="currentColor" stroke="none"/><path d="M19 5v14"/>')
+};
+const grp=(name,body)=>'<span class="grp"><i>'+name+'</i>'+body+'</span>';
+function slider(id,mark,min,max,val,step){
+  return '<span class="sl">'+mark+'<input id="sl_'+id+'" type="range" min="'+min+
+    '" max="'+max+'" step="'+(step||1)+'" value="'+val+'"><b id="sv_'+id+'">'+val+'</b></span>';}
+function onSlide(id,fn,fmt){
+  const el=document.getElementById("sl_"+id);if(!el)return;
+  const out=document.getElementById("sv_"+id);
+  el.addEventListener("input",()=>{const v=+el.value;fn(v);
+    if(out)out.textContent=fmt?fmt(v):v;draw();});}
+
+/* Reordering is a permutation of the stack, applied to the layer array and
+   to every mark's layer number at the same time, so nothing is orphaned. */
+function moveLayer(from,to){
+  const n=S.layers.length;
+  if(from===to||from<0||to<0||from>=n||to>=n)return false;
+  const order=[];for(let i=0;i<n;i++)order.push(i);
+  order.splice(to,0,order.splice(from,1)[0]);
+  const map=new Array(n);
+  for(let pos=0;pos<n;pos++)map[order[pos]]=pos;
+  S.layers=order.map(i=>S.layers[i]);
+  for(const s of S.strokes)s.L=map[s.L||0];
+  S.layer=map[S.layer];
+  S.strokes.sort((a,b)=>(a.L||0)-(b.L||0));
+  S.epoch++;reel.dataset.sig="";
+  return true;}
+
+/* ---------- the camera ------------------------------------------------
+   One stream at a time, stopped the moment it is not wanted. A shot is a
+   picture like any other and goes through the same budget. A run is
+   bounded by frame count and by the pixel ceiling, never by how long you
+   hold the key. */
+const CAM={stream:null,vid:null,facing:"environment",busy:false,preview:false};
+/* The preview is deliberately not a layer. A layer would have to be baked
+   into the field, which means thirty two thousand cells and a cache miss
+   every frame. Instead one small canvas is refreshed a few times a second
+   and each dot reads a pixel out of it. The cost is a lookup, not a bake,
+   and nothing about the score changes while you look. */
+const PREV_W=96,PREV_MS=90;   /* the ball shows about 5,000 dots; 96 square is plenty */
+const PREV={cv:null,ctx:null,data:null,at:0,dir:null,fov:0,wrap:false};
+function prevReady(){
+  return !!(CAM.preview&&CAM.stream&&CAM.vid&&CAM.vid.videoWidth&&PREV.data);}
+function prevRefresh(now){
+  if(!CAM.preview||!CAM.vid||!CAM.vid.videoWidth)return false;
+  if(now-PREV.at<PREV_MS)return false;          // a few times a second, no more
+  PREV.wrap=S.wrapMode==="WRAP";
+  const w=PREV_W,hh=PREV.wrap?PREV_W>>1:PREV_W;
+  if(!PREV.cv){PREV.cv=document.createElement("canvas");PREV.ctx=PREV.cv.getContext("2d");}
+  if(PREV.cv.width!==w||PREV.cv.height!==hh){PREV.cv.width=w;PREV.cv.height=hh;}
+  try{
+    PREV.ctx.drawImage(CAM.vid,0,0,w,hh);
+    PREV.data=PREV.ctx.getImageData(0,0,w,hh).data;
+  }catch(e){PREV.data=null;return false;}      // a stream can die mid-read
+  PREV.at=now;
+  PREV.dir=S.dir.slice();PREV.fov=S.place;
+  return true;}
+/* where a direction falls in the live frame, or null if it falls outside */
+function prevAt(d,b){
+  if(!PREV.data)return null;
+  const w=PREV.cv.width,hh=PREV.cv.height;
+  let x,y;
+  if(PREV.wrap){const uv=uvDir(d);
+    x=clamp((uv[0]*w)|0,0,w-1);y=clamp((uv[1]*hh)|0,0,hh-1);}
+  else{
+    const z=dot(d,b.f);if(z<=1e-6)return null;
+    const t=Math.tan(PREV.fov/2);
+    const px=dot(d,b.r)/z/t,py=dot(d,b.u)/z/t;
+    if(Math.abs(px)>1||Math.abs(py)>1)return null;
+    x=clamp(((px+1)/2*w)|0,0,w-1);y=clamp(((1-py)/2*hh)|0,0,hh-1);}
+  const i=(y*w+x)*4;
+  return [PREV.data[i],PREV.data[i+1],PREV.data[i+2]];}
+async function camOpen(){
+  if(CAM.stream)return true;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    ttrace("this browser will not give a camera here");return false;}
+  try{
+    CAM.stream=await navigator.mediaDevices.getUserMedia(
+      {video:{facingMode:CAM.facing,width:{ideal:1280}},audio:false});
+  }catch(err){
+    ttrace(err&&err.name==="NotAllowedError"?"the camera was refused":
+      "no camera: "+(err&&err.message||"unknown"));
+    CAM.stream=null;return false;}
+  const v=document.createElement("video");
+  v.muted=true;v.playsInline=true;v.srcObject=CAM.stream;
+  try{await v.play();}catch(e){/* some browsers resolve late; the frame read still works */}
+  CAM.vid=v;buildTray();draw();return true;}
+function camClose(){
+  if(CAM.stream){for(const t of CAM.stream.getTracks())t.stop();}
+  CAM.stream=null;CAM.vid=null;CAM.preview=false;
+  PREV.data=null;PREV.at=0;
+  if(liveTimer){clearTimeout(liveTimer);liveTimer=null;}
+  buildTray();draw();}
+async function camFlip(){
+  CAM.facing=CAM.facing==="environment"?"user":"environment";
+  camClose();await camOpen();}
+/* one frame, placed where you are looking */
+function camShoot(){
+  if(!CAM.vid||!CAM.vid.videoWidth){ttrace("the camera has nothing yet");return;}
+  newLayerFor("CAM");
+  S.dir=fromScreen(0,0,rot())||S.dir;
+  const s=place(rgb(CAM.vid,PWP,PWP),S.frames>1?S.frame:null,false);
+  if(!s){ttrace("no room for another picture");return;}
+  S.tool="MOVE";reel.dataset.sig="";
+  ttrace("shot");draw();}
+/* a run of frames, one per frame of the score, at the frame rate */
+async function camFilm(){
+  if(CAM.busy){CAM.busy=false;return;}
+  if(!CAM.vid||!CAM.vid.videoWidth){ttrace("the camera has nothing yet");return;}
+  const per=VWP*VWP*3;
+  const room=Math.max(1,Math.floor((PIX_BUDGET-pixBytes())/per));
+  let first=0,n;
+  if(S.span){const F=spanFrames();first=F[0];n=F.length;}
+  else{n=Math.min(24,room);first=S.frames>1?S.frame:0;
+    S.strokes.forEach(x=>{if(x.f==null)x.f=0;});
+    S.frames=Math.max(S.frames,first+n);}
+  n=Math.min(n,room);
+  newLayerFor("CAM");
+  CAM.busy=true;buildTray();
+  const wait=Math.max(40,1000/clamp(S.fps,1,24));
+  for(let i=0;i<n;i++){                       // bounded: n is fixed before the loop
+    if(!CAM.busy)break;
+    ttrace("filming "+(i+1)+" of "+n);
+    place(rgb(CAM.vid,VWP,VWP),first+i,false,first+i);
+    draw();
+    await new Promise(r=>setTimeout(r,wait));}
+  CAM.busy=false;S.frame=first;reel.dataset.sig="";
+  ttrace("filmed "+n+" frames");buildTray();draw();}
+
+/* A row does three things and they must not be confused: the eye toggles,
+   a tap selects, a drag reorders. The eye is checked first, then movement
+   past a threshold, then the tap. */
+function wireStack(){
+  const rows=[...tray.querySelectorAll(".lrow")];
+  if(!rows.length)return;
+  for(const row of rows){
+    let down=false,startY=0,moved=0,over=-1;
+    const idx=+row.dataset.l;
+    const eye=row.querySelector(".eyw");
+    if(eye)eye.addEventListener("pointerdown",e=>{
+      e.stopPropagation();
+      const l=+eye.dataset.eye;
+      S.layers[l].vis=!S.layers[l].vis;
+      S.epoch++;reel.dataset.sig="";buildTray();draw();});
+    row.addEventListener("pointerdown",e=>{
+      down=true;moved=0;startY=e.clientY;over=-1;
+      row.setPointerCapture(e.pointerId);});
+    row.addEventListener("pointermove",e=>{
+      if(!down)return;
+      moved=Math.max(moved,Math.abs(e.clientY-startY));
+      if(moved<10)return;
+      row.classList.add("drag");
+      let best=-1;
+      for(const r of rows){                      // bounded: one pass of the list
+        const b=r.getBoundingClientRect();
+        if(e.clientY>=b.top&&e.clientY<=b.bottom)best=+r.dataset.l;}
+      if(best!==over){
+        for(const r of rows)r.classList.remove("over");
+        if(best>=0&&best!==idx){
+          const t=rows.find(r=>+r.dataset.l===best);
+          if(t)t.classList.add("over");}
+        over=best;}});
+    row.addEventListener("pointerup",e=>{
+      down=false;row.classList.remove("drag");
+      for(const r of rows)r.classList.remove("over");
+      if(moved>=10&&over>=0&&over!==idx){
+        /* the list is drawn top of stack first, so the drop index is mirrored */
+        const n=S.layers.length;
+        moveLayer(idx,over);
+        buildTray();draw();return;}
+      S.layer=idx;reel.dataset.sig="";buildTray();draw();});
+    row.addEventListener("pointercancel",()=>{
+      down=false;row.classList.remove("drag");
+      for(const r of rows)r.classList.remove("over");});}}
+
+/* the shot, inside the camera panel: the same volume code again, so the
+   panel, the monitor and the export can never disagree */
+function paintShotPanel(f,v){
+  const cv=document.getElementById("campv");
+  if(!cv)return;
+  const wrap=cv.parentElement;
+  const dpr=Math.min(2,devicePixelRatio||1);
+  /* fit the shot into whatever the panel has left, keeping its shape, so
+     the panel never needs a scrollbar */
+  const asp=S.shotAsp||16/9;
+  const availW=Math.max(60,(wrap.clientWidth||300)-2);
+  const availH=Math.max(46,(wrap.clientHeight||120)-2);
+  let w=availW,hh=Math.round(w/asp);
+  if(hh>availH){hh=availH;w=Math.round(hh*asp);}
+  const W=Math.round(w*dpr),H=Math.round(hh*dpr);
+  if(cv.width!==W||cv.height!==H){
+    cv.width=W;cv.height=H;cv.style.width=w+"px";cv.style.height=hh+"px";}
+  drawVolume(cv,f,v,{step:S.busy?7:4,grid:false,mono:true});}
+
+/* ================= trays ================= */
+const tray=document.getElementById("tray");
+function ttrace(t){
+  const e=document.getElementById("tTrace");if(e)e.textContent=t;
+  const w=document.getElementById("where");
+  if(w){w.dataset.say=t||"";if(t)w.textContent=t;else paint();}}
+function openTray(n){S.tray=S.tray===n?null:n;buildTray();draw();}
+function buildTray(){
+  const keepScroll=tray.scrollTop;
+  tray.classList.toggle("cam",S.tray==="cam");
+  tray.hidden=!S.tray;
+  setTimeout(()=>{tray.scrollTop=keepScroll;},0);
+  ["fTool","fLayer","fCam","fMedia","fMotion","fRender"].forEach(id=>
+    document.getElementById(id).setAttribute("aria-pressed",
+      String(S.tray===id.slice(1).toLowerCase())));
+  if(!S.tray)return;
+  const $=i=>document.getElementById(i);
+  if(S.tray==="tool"){
+    const T=[["PEN",MARK.pen,"PEN"],["ARC",MARK.arc,"ARC"],["RING",MARK.ring,"RING"],
+             ["BOX",MARK.box,"BOX"],["ERASE",MARK.erase,"ERASE"],
+             ["MOVE",MARK.move,"MOVE"],["TURN",MARK.turn,"TURN"]];
+    tray.innerHTML=
+      grp("MAKE A MARK",'<span class="pal">'+
+        T.map(t=>'<button class="gl" data-t="'+t[0]+'" aria-pressed="'+(S.tool===t[0])+'">'+
+          t[1]+'<span>'+t[2]+'</span></button>').join("")+'</span>')+
+      grp("HOW DARK",slider("ink",MARK.tone,1,INKS,S.ink,1))+
+      grp("HOW WIDE",slider("brs",MARK.size,0,BRUSHES.length-1,
+        Math.max(0,BRUSHES.indexOf(Math.round(S.brush*R2D))),1))+
+      grp("WHAT YOU CAN SEE",'<span class="pal">'+
+        ["minor","deg","cube","frame","fan"].map((k,i)=>
+          '<button class="gl" data-g="'+k+'" aria-pressed="'+!!S.grid[k]+'">'+
+          [MARK.tone,MARK.size,MARK.box,MARK.frameA,MARK.ring][i]+'<span>'+
+          ["10\u00B0","DEGREES","CUBE","LENS","CIRCLES"][i]+'</span></button>').join("")+
+        '</span>')+
+      grp("ON THIS FRAME",'<span class="pal">'+
+        '<button class="gl" id="outl">'+MARK.outline+'<span>OUTLINE</span></button>'+
+        '<button class="gl" id="cut">'+MARK.cut+'<span>CUT</span></button>'+
+        '<button class="gl" id="wipe">'+MARK.wipe+'<span>WIPE</span></button></span>');
+    tray.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.tool=b.dataset.t;buildTray();draw();});
+    tray.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
+      S.grid[b.dataset.g]=!S.grid[b.dataset.g];buildTray();draw();});
+    onSlide("ink",v=>{S.ink=v;});
+    onSlide("brs",v=>{S.brush=BRUSHES[clamp(v,0,BRUSHES.length-1)]*D2R;});
+    $("outl").onclick=()=>outline();
+    $("cut").onclick=()=>cutHere();
+    $("wipe").onclick=()=>{
+      const F=S.span?spanFrames():[S.frame],a=F[0],b=F[F.length-1];
+      S.strokes=S.strokes.filter(s=>{
+        if(s.v!=null&&s.v!==S.ver)return true;
+        if(s.f!=null&&s.f>=a&&s.f<=b)return false;        // born inside: gone
+        if(s.f!=null&&s.f<a&&live(s,a,S.ver)>=0)s.to=a-1; // running in: ended
+        return true;});
+      S.sel=null;S.epoch++;draw();};
+    return;}
+  if(S.tray==="layer"){
+    const cur=S.layers[S.layer];
+    const count=n=>S.strokes.filter(s=>(s.L||0)===n).length;
+    /* top of the stack first, the way a stack reads */
+    let list="";
+    for(let l=S.layers.length-1;l>=0;l--){
+      const L=S.layers[l];
+      list+='<div class="lrow'+(l===S.layer?" on":"")+'" data-l="'+l+'">'+
+        '<span class="eyw" data-eye="'+l+'"><i class="ey'+(L.vis?"":" off")+'"></i></span>'+
+        '<b>'+L.n+'</b><u>'+L.mode+(L.op<1?" "+Math.round(L.op*100)+"%":"")+
+        (L.key?" \u00b7 keyed":"")+'</u><s>'+count(l)+'</s>'+
+        '<span class="grip"><i></i><i></i><i></i></span></div>';}
+    tray.innerHTML=
+      grp("THE STACK",'<span class="stack">'+list+'</span>')+
+      grp("HOW "+cur.n+" MEETS WHAT IS UNDER IT",
+        '<span class="pal">'+BLENDS.map(m=>
+          '<button class="gl" data-bm="'+m+'" aria-pressed="'+(cur.mode===m)+'">'+
+          MARK["b"+m]+'<span>'+m+'</span></button>').join("")+'</span>'+
+        slider("op",MARK.op,0,100,Math.round(cur.op*100),5)+
+        '<span class="pal"><button class="gl" id="lKey" aria-pressed="'+cur.key+'">'+
+          MARK.key+'<span>DROP WHITE</span></button></span>'+
+        (cur.key?slider("kt",MARK.tone,60,99,Math.round(cur.kt*100),1):""))+
+      grp("TAKE "+String.fromCharCode(65+S.ver)+" OF "+S.rows,'<span class="pal">'+
+        '<button class="gl" id="tAdd">'+MARK.newl+'<span>NEW TAKE</span></button>'+
+        (S.rows>1?'<button class="gl" id="tDel">'+MARK.wipe+'<span>DROP TAKE</span></button>'+
+          '<button class="gl" id="tPrev">'+MARK.down+'<span>TAKE '+
+            String.fromCharCode(65+((S.ver+S.rows-1)%S.rows))+'</span></button>':"")+
+        '</span>')+
+      grp("DO IT TO "+cur.n,'<span class="pal">'+
+        '<button class="gl" id="lAdd">'+MARK.newl+'<span>NEW</span></button>'+
+        '<button class="gl" id="lVis">'+MARK.eye+'<span>'+(cur.vis?"HIDE":"SHOW")+'</span></button>'+
+        '<button class="gl" id="lClr">'+MARK.wipe+'<span>CLEAR</span></button>'+
+        (S.layer<S.layers.length-1?
+          '<button class="gl" id="lUp">'+MARK.up+'<span>RAISE</span></button>':"")+
+        (S.layer>0?'<button class="gl" id="lDn">'+MARK.down+'<span>LOWER</span></button>'+
+          '<button class="gl" id="lMg">'+MARK.merge+'<span>MERGE</span></button>':"")+
+        '<button class="gl" id="lCo">'+MARK.collage+'<span>FLATTEN</span></button>'+
+        '<button class="gl" id="lDe">'+MARK.decollage+'<span>SPLIT</span></button>'+
+        '</span>');
+    wireStack();
+    tray.querySelectorAll("[data-bm]").forEach(b=>b.onclick=()=>{
+      cur.mode=b.dataset.bm;S.look++;buildTray();draw();});
+    onSlide("op",v=>{cur.op=v/100;S.look++;},v=>v+"%");
+    onSlide("kt",v=>{cur.kt=v/100;S.look++;},v=>v+"%");
+    const $=i=>document.getElementById(i);
+    $("tAdd").onclick=addTake;
+    if($("tDel"))$("tDel").onclick=dropTake;
+    if($("tPrev"))$("tPrev").onclick=()=>{
+      S.ver=(S.ver+S.rows-1)%S.rows;S.pin=null;reel.dataset.sig="";buildTray();draw();};
+    $("lKey").onclick=()=>{cur.key=!cur.key;S.look++;buildTray();draw();};
+    $("lAdd").onclick=()=>{
+      let k=S.layers.length+1;
+      while(S.layers.some(x=>x.n==="L"+k))k++;
+      S.layers.push({n:"L"+k,vis:true,mode:"OVER",op:1,key:false,kt:0.90});
+      S.layer=S.layers.length-1;reel.dataset.sig="";buildTray();draw();};
+    $("lVis").onclick=()=>{cur.vis=!cur.vis;S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    $("lClr").onclick=()=>{S.strokes=S.strokes.filter(s=>(s.L||0)!==S.layer);
+      S.sel=null;S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    const swap=(a,b)=>{
+      const t=S.layers[a];S.layers[a]=S.layers[b];S.layers[b]=t;
+      S.strokes.forEach(s=>{const L=s.L||0;if(L===a)s.L=b;else if(L===b)s.L=a;});
+      S.layer=b;S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    if($("lUp"))$("lUp").onclick=()=>swap(S.layer,S.layer+1);
+    if($("lDn"))$("lDn").onclick=()=>swap(S.layer,S.layer-1);
+    if($("lMg"))$("lMg").onclick=()=>{
+      S.strokes.forEach(s=>{if((s.L||0)===S.layer)s.L=S.layer-1;
+        else if((s.L||0)>S.layer)s.L=(s.L||0)-1;});
+      S.layers.splice(S.layer,1);
+      S.layer=clamp(S.layer-1,0,S.layers.length-1);
+      S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    /* everything showing, pressed into one */
+    $("lCo").onclick=()=>{
+      if(S.layers.filter(x=>x.vis).length<2){ttrace("only one layer is showing");return;}
+      S.strokes=S.strokes.filter(s=>S.layers[s.L||0]&&S.layers[s.L||0].vis);
+      S.strokes.sort((a,b)=>(a.L||0)-(b.L||0));
+      S.strokes.forEach(s=>{s.L=0;});
+      S.layers=[{n:"FLAT",vis:true,mode:"OVER",op:1,key:false,kt:0.90}];
+      S.layer=0;S.sel=null;S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    /* this layer taken apart, a shell for each piece */
+    $("lDe").onclick=()=>{
+      const mine=S.strokes.filter(s=>(s.L||0)===S.layer);
+      if(mine.length<2){ttrace("there is only one thing here");return;}
+      mine.forEach((s,i)=>{
+        if(i===0)return;
+        let k=S.layers.length+1;
+        while(S.layers.some(x=>x.n==="L"+k))k++;
+        S.layers.push({n:"L"+k,vis:true,mode:"OVER",op:1,key:false,kt:0.90});
+        s.L=S.layers.length-1;});
+      S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    return;}
+  if(S.tray==="tool"){
+    const T=[["PEN",MARK.pen,"PEN"],["ARC",MARK.arc,"ARC"],["RING",MARK.ring,"RING"],
+             ["BOX",MARK.box,"BOX"],["ERASE",MARK.erase,"ERASE"],
+             ["MOVE",MARK.move,"MOVE"],["TURN",MARK.turn,"TURN"]];
+    tray.innerHTML=
+      grp("MAKE A MARK",'<span class="pal">'+
+        T.map(t=>'<button class="gl" data-t="'+t[0]+'" aria-pressed="'+(S.tool===t[0])+'">'+
+          t[1]+'<span>'+t[2]+'</span></button>').join("")+'</span>')+
+      grp("HOW DARK",slider("ink",MARK.tone,1,INKS,S.ink,1))+
+      grp("HOW WIDE",slider("brs",MARK.size,0,BRUSHES.length-1,
+        Math.max(0,BRUSHES.indexOf(Math.round(S.brush*R2D))),1))+
+      grp("ON THIS FRAME",'<span class="pal">'+
+        '<button class="gl" id="outl">'+MARK.outline+'<span>OUTLINE</span></button>'+
+        '<button class="gl" id="cut">'+MARK.cut+'<span>CUT</span></button>'+
+        '<button class="gl" id="wipe">'+MARK.wipe+'<span>WIPE</span></button></span>');
+    tray.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.tool=b.dataset.t;buildTray();draw();});
+    onSlide("ink",v=>{S.ink=v;});
+    onSlide("brs",v=>{S.brush=BRUSHES[clamp(v,0,BRUSHES.length-1)]*D2R;});
+    $("outl").onclick=()=>outline();
+    $("cut").onclick=()=>cutHere();
+    $("wipe").onclick=()=>{
+      const F=S.span?spanFrames():[S.frame],a=F[0],b=F[F.length-1];
+      S.strokes=S.strokes.filter(s=>{
+        if(s.v!=null&&s.v!==S.ver)return true;
+        if(s.f!=null&&s.f>=a&&s.f<=b)return false;        // born inside: gone
+        if(s.f!=null&&s.f<a&&live(s,a,S.ver)>=0)s.to=a-1; // running in: ended
+        return true;});
+      S.sel=null;S.epoch++;draw();};
+    return;}
+  if(S.tray==="layer"){
+    const cur=S.layers[S.layer];
+    const inLayer=n=>S.strokes.filter(s=>(s.L||0)===n).length;
+    tray.innerHTML=
+      grp("DRAWING ON",S.layers.map((L,i)=>
+        '<button data-l="'+i+'" aria-pressed="'+(i===S.layer)+'">'+
+        (L.vis?"":"\u2014 ")+L.n+' <small>'+inLayer(i)+'</small></button>').join(""))+
+      grp("DO IT TO "+cur.n,
+        '<span class="pal">'+
+        '<button class="gl" id="lAdd">'+MARK.newl+'<span>NEW</span></button>'+
+        '<button class="gl" id="lVis">'+MARK.eye+'<span>'+(cur.vis?"HIDE":"SHOW")+'</span></button>'+
+        '<button class="gl" id="lClr">'+MARK.wipe+'<span>CLEAR</span></button>'+
+        (S.layer<S.layers.length-1?
+          '<button class="gl" id="lUp">'+MARK.up+'<span>RAISE</span></button>':"")+
+        (S.layer>0?'<button class="gl" id="lDn">'+MARK.down+'<span>LOWER</span></button>'+
+          '<button class="gl" id="lMg">'+MARK.merge+'<span>MERGE</span></button>':"")+
+        '</span>')+
+      grp("MANY AND ONE",'<span class="pal">'+
+        '<button class="gl" id="lCo">'+MARK.collage+'<span>COLLAGE</span></button>'+
+        '<button class="gl" id="lDe">'+MARK.decollage+'<span>DECOLLAGE</span></button>'+
+        '</span>');
+    tray.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{
+      S.layer=+b.dataset.l;buildTray();draw();});
+    const $=i=>document.getElementById(i);
+    $("lAdd").onclick=()=>{
+      let k=S.layers.length+1;
+      while(S.layers.some(x=>x.n==="L"+k))k++;
+      S.layers.push({n:"L"+k,vis:true,mode:"OVER",op:1,key:false,kt:0.90});
+      S.layer=S.layers.length-1;buildTray();draw();};
+    $("lVis").onclick=()=>{cur.vis=!cur.vis;S.epoch++;buildTray();draw();};
+    $("lClr").onclick=()=>{S.strokes=S.strokes.filter(s=>(s.L||0)!==S.layer);
+      S.sel=null;S.epoch++;buildTray();draw();};
+
+    const swap=(a,b)=>{
+      const t=S.layers[a];S.layers[a]=S.layers[b];S.layers[b]=t;
+      S.strokes.forEach(s=>{const L=s.L||0;
+        if(L===a)s.L=b;else if(L===b)s.L=a;});
+      /* the paint order follows the layer order, so the array follows too */
+      S.strokes.sort((p,q)=>(p.L||0)-(q.L||0));
+      S.layer=b;S.epoch++;buildTray();draw();};
+    /* everything you can see, pressed into one layer */
+    $("lCo").onclick=()=>{
+      const keep=S.layers.filter(x=>x.vis);
+      if(keep.length<2){ttrace("only one layer is showing");return;}
+      const to=S.layers.indexOf(keep[0]);
+      S.strokes=S.strokes.filter(s=>S.layers[s.L||0]&&S.layers[s.L||0].vis);
+      S.strokes.forEach(s=>{s.L=0;});
+      S.layers=[{n:"BASE",vis:true}];S.layer=0;S.sel=null;
+      S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    /* this layer taken apart: every piece onto a layer of its own */
+    $("lDe").onclick=()=>{
+      const mine=S.strokes.filter(s=>(s.L||0)===S.layer);
+      if(mine.length<2){ttrace("there is only one thing on this layer");return;}
+      mine.forEach((s,i)=>{
+        if(i===0)return;
+        let k=S.layers.length+1;
+        while(S.layers.some(x=>x.n==="L"+k))k++;
+        S.layers.push({n:"L"+k,vis:true});
+        s.L=S.layers.length-1;});
+      S.epoch++;reel.dataset.sig="";buildTray();draw();};
+    if($("lUp"))$("lUp").onclick=()=>swap(S.layer,S.layer+1);
+    if($("lDn"))$("lDn").onclick=()=>swap(S.layer,S.layer-1);
+    if($("lMg"))$("lMg").onclick=()=>{
+      S.strokes.forEach(s=>{if((s.L||0)===S.layer)s.L=S.layer-1;
+        else if((s.L||0)>S.layer)s.L=(s.L||0)-1;});
+      S.layers.splice(S.layer,1);
+      S.layer=clamp(S.layer-1,0,S.layers.length-1);
+      S.epoch++;buildTray();draw();};
+    return;}
+  if(S.tray==="cam"){
+    const key=keyAt(S.frame,S.ver),n=S.camKeys.length;
+    const A=[[16/9,"16:9"],[1,"1:1"],[2.39,"2.39"],[4/5,"4:5"]];
+    const ll=llDir(camRot()[2]);
+    tray.innerHTML=
+      '<div class="shotwrap"><canvas id="campv"></canvas>'+
+      '<span class="shotlab">'+(ll[0]*R2D).toFixed(0)+'\u00b0 '+
+        (ll[1]*R2D).toFixed(0)+'\u00b0 \u00b7 '+Math.round(CAMNOW.fov*R2D)+
+        '\u00b0 \u00b7 '+(Math.round((CAMNOW.roll||0)*R2D)?
+          Math.round((CAMNOW.roll||0)*R2D)+"\u00b0 tip \u00b7 ":"")+
+        (n?n+(n>1?" keys":" key"):"no keys")+
+        ' \u00b7 '+(key?"on a key":takeIsKeyed()?"makes a key":"free")+
+        '</span></div>'+
+      '<span class="row2">'+
+        grp("LENS",slider("vf",MARK.size,20,120,Math.round(CAMNOW.fov*R2D),1))+
+        grp("OFF CENTRE",slider("er",MARK.move,0,90,Math.round(CAMNOW.eye*100),1))+
+        grp("TIP",slider("rl",MARK.rollR,-45,45,Math.round((CAMNOW.roll||0)*R2D),1))+
+      '</span>'+
+      '<span class="pal">'+
+        ["PAN","TILT","PUSH","PULL","ORBIT","RACK","DUTCH"].map(m=>
+          '<button class="gl" data-mv="'+m+'">'+
+          {PAN:MARK.rollR,TILT:MARK.up,PUSH:MARK.more,PULL:MARK.less,
+           ORBIT:MARK.ring,RACK:MARK.size,DUTCH:MARK.rollL}[m]+
+          '<span>'+m+'</span></button>').join("")+'</span>'+
+      '<span class="pal">'+
+        A.map(a=>'<button class="gl" data-asp="'+a[0]+'" aria-pressed="'+
+          (Math.abs(a[0]-S.shotAsp)<.01)+'">'+MARK.frameA+'<span>'+a[1]+
+          '</span></button>').join("")+
+        '<button class="gl" id="cmon" aria-pressed="'+S.camMon+'">'+MARK.live+
+          '<span>MONITOR</span></button>'+
+        '<button class="gl" id="cgo" aria-pressed="'+(S.view==="VOLUME")+'">'+
+          MARK.film+'<span>THROUGH</span></button>'+
+      '</span>'+
+      '<span class="pal">'+
+        '<button class="gl" id="kprev">'+MARK.down+'<span>PREV KEY</span></button>'+
+        '<button class="gl" id="ck" aria-pressed="'+(!!key)+'">'+MARK.keyf+
+          '<span>'+(key?"DROP":"KEY")+'</span></button>'+
+        '<button class="gl" id="knext">'+MARK.up+'<span>NEXT KEY</span></button>'+
+        '<button class="gl" id="cauto" aria-pressed="'+S.camAuto+'">'+MARK.keyf+
+          '<span>AUTO</span></button>'+
+        '<button class="gl" id="cease"'+(key?"":" disabled")+'>'+MARK.wave+
+          '<span>'+(key?(key.ease||"LINE"):"EASE")+'</span></button>'+
+        '<button class="gl" id="cclr">'+MARK.wipe+'<span>ALL KEYS</span></button>'+
+        '<button class="gl" id="coff">'+MARK.still+'<span>HIDE</span></button>'+
+      '</span>'+
+      '<span class="t" id="tTrace"></span>';
+    onSlide("vf",v=>{setCam({fov:v*D2R});},v=>v+"\u00B0");
+    onSlide("er",v=>{setCam({eye:v/100});},v=>(v/100).toFixed(2));
+    onSlide("rl",v=>{setCam({roll:v*D2R});},v=>v+"\u00B0");
+    tray.querySelectorAll("[data-mv]").forEach(b=>b.onclick=()=>makeMove(b.dataset.mv));
+    if($("cease")&&!$("cease").disabled)$("cease").onclick=()=>{
+      const k=keyAt(S.frame,S.ver);
+      k.ease=EASES[(EASES.indexOf(k.ease||"LINE")+1)%EASES.length];
+      buildTray();draw();};
+    tray.querySelectorAll("[data-asp]").forEach(b=>b.onclick=()=>{
+      S.shotAsp=+b.dataset.asp;buildTray();draw();});
+    $("cmon").onclick=()=>{S.camMon=!S.camMon;buildTray();draw();};
+    $("cgo").onclick=()=>{S.view=S.view==="VOLUME"?"ORB":"VOLUME";buildTray();draw();};
+    $("kprev").onclick=()=>gotoKey(-1);
+    $("knext").onclick=()=>gotoKey(1);
+    $("ck").onclick=keyCamera;
+    $("cauto").onclick=()=>{S.camAuto=!S.camAuto;buildTray();draw();};
+    $("cclr").onclick=()=>{S.camKeys=[];reel.dataset.sig="";buildTray();draw();};
+    $("coff").onclick=()=>{S.camOn=false;buildTray();draw();};
+    return;}
+  if(S.tray==="media"){
+    /* One layout, always. The camera keys, the ways a picture comes in, and
+       the controls for the one you picked. Nothing appears or disappears
+       with the selection; the third group simply goes dead when there is
+       nothing picked, so every key keeps its size and its place. */
+    const sel=(S.sel&&S.strokes.indexOf(S.sel)>=0&&S.sel.img)?S.sel:null;
+    if(S.sel&&!sel)S.sel=null;
+    const on=CAM.stream?"":" disabled";
+    const no=sel?"":" disabled";
+    const fovs=[20,30,45,60,80,100,130,160,180];
+    const gl=(id,mark,label,dis,press)=>
+      '<button class="gl" id="'+id+'"'+(dis||"")+
+      (press===undefined?"":' aria-pressed="'+press+'"')+'>'+mark+'<span>'+label+'</span></button>';
+    tray.innerHTML=
+      grp("FROM THE CAMERA",'<span class="pal">'+
+        gl("cOn",MARK.cam,CAM.stream?"CLOSE":"CAMERA","",!!CAM.stream)+
+        gl("cFlip",MARK.flip,"FLIP",on)+
+        gl("cLive",MARK.live,"PREVIEW",on,CAM.preview)+
+        gl("cShot",MARK.shot,"SHOOT",on)+
+        gl("cFilm",MARK.film,CAM.busy?"STOP":"FILM",on)+'</span>')+
+      grp("BRING ONE IN",'<span class="pal">'+
+        gl("pick",MARK.open,"CHOOSE","")+
+        gl("wrap",MARK.wrapm,S.wrapMode==="AUTO"?"READ IT":
+          S.wrapMode==="WRAP"?"WRAP IT":"PATCH IT","")+
+        gl("sz",MARK.size,Math.round(S.place*R2D)+"\u00B0","")+'</span>')+
+      grp(sel?"THE ONE YOU PICKED":"NOTHING PICKED",'<span class="pal">'+
+        gl("mv",MARK.move,"MOVE",no,S.tool==="MOVE")+
+        gl("szD",MARK.less,sel?(sel.wrap?"BALL":Math.round(sel.fov*R2D)+"\u00B0"):"\u2013",no)+
+        gl("szU",MARK.more,"BIGGER",no)+
+        gl("rlD",MARK.rollL,sel?Math.round((sel.roll||0)*R2D)+"\u00B0":"\u2013",no)+
+        gl("rlU",MARK.rollR,"TURN",no)+
+        gl("asD",MARK.narrow,sel?(sel.asp||1).toFixed(2):"\u2013",no)+
+        gl("asU",MARK.wide,"WIDER",no)+
+        gl("gW",MARK.wrapm,sel&&sel.wrap?"UNWRAP":"WRAP",no)+
+        gl("gT",MARK.up,"TO FRONT",no)+
+        gl("gD",MARK.wipe,"REMOVE",no)+
+        gl("gN",MARK.still,"DROP IT",no)+'</span>')+
+      '<span class="t" id="tTrace">'+(sel?
+        "drag it on the ball, or use these.":
+        "drop or paste, or tap a picture with MOVE to pick one.")+'</span>';
+    const on2=(id,fn)=>{const b=$(id);if(b&&!b.disabled)b.onclick=fn;};
+    on2("cOn",()=>{if(CAM.stream)camClose();else camOpen();});
+    on2("cFlip",camFlip);
+    on2("cLive",()=>{CAM.preview=!CAM.preview;PREV.at=0;buildTray();draw();});
+    on2("cShot",camShoot);
+    on2("cFilm",camFilm);
+    on2("pick",()=>document.getElementById("file").click());
+    on2("wrap",()=>{const M=["AUTO","WRAP","PATCH"];
+      S.wrapMode=M[(M.indexOf(S.wrapMode)+1)%M.length];buildTray();});
+    on2("sz",()=>{const Z=[45,70,100,140,180];
+      S.place=Z[(Z.indexOf(Math.round(S.place*R2D))+1)%Z.length]*D2R;buildTray();});
+    if(!sel)return;
+    const bump=k=>{const i=fovs.indexOf(Math.round(sel.fov*R2D));
+      sel.fov=fovs[clamp((i<0?4:i)+k,0,fovs.length-1)]*D2R;S.epoch++;buildTray();draw();};
+    const roll=k=>{sel.roll=(sel.roll||0)+k*15*D2R;
+      sel.basis=rollBasis(basis(sel.basis.f,upFor(sel.basis.f)),sel.roll);
+      S.epoch++;buildTray();draw();};
+    const asp=k=>{sel.asp=clamp((sel.asp||1)*(k>0?1.15:1/1.15),.3,3.5);
+      S.epoch++;buildTray();draw();};
+    on2("mv",()=>{S.tool="MOVE";buildTray();draw();});
+    on2("szD",()=>bump(-1));on2("szU",()=>bump(1));
+    on2("rlD",()=>roll(-1));on2("rlU",()=>roll(1));
+    on2("asD",()=>asp(-1));on2("asU",()=>asp(1));
+    on2("gW",()=>{sel.wrap=!sel.wrap;
+      if(!sel.wrap&&!sel.basis)sel.basis=basis(S.dir,upFor(S.dir));
+      if(!sel.fov)sel.fov=S.place;S.epoch++;buildTray();draw();});
+    on2("gT",()=>{const i=S.strokes.indexOf(sel);
+      if(i>=0){S.strokes.splice(i,1);S.strokes.push(sel);}
+      S.epoch++;buildTray();draw();});
+    on2("gD",()=>{const i=S.strokes.indexOf(sel);
+      if(i>=0)S.strokes.splice(i,1);
+      S.sel=null;S.epoch++;buildTray();draw();});
+    on2("gN",()=>{S.sel=null;buildTray();draw();});
+    return;}
+  if(S.tray==="motion"){
+    const O=S.onion;
+    const T=S.strokes.filter(s=>(s.L||0)===S.layer);
+    const set=m=>{
+      if(!T.length){ttrace("");return;}
+      if(S.frames===1){S.strokes.forEach(x=>{if(x.f==null)x.f=0;});S.frames=8;reel.dataset.sig="";}
+      /* joins whatever is already moving instead of replacing it */
+      T.forEach(s=>{s.m=Object.assign({},s.m||{},m);if(s.f==null)s.f=0;});
+      S.epoch++;ttrace(Object.keys(T[0].m).join(" + "));draw();};
+    const gl=(id,mark,label,on)=>'<button class="gl" id="'+id+'"'+
+      (on===undefined?"":' aria-pressed="'+on+'"')+'>'+mark+'<span>'+label+'</span></button>';
+    tray.innerHTML=
+      grp("MOVE THIS LAYER",'<span class="pal">'+
+        gl("mT",MARK.turn2,"TURN")+gl("mI",MARK.tip,"TIP")+gl("mR",MARK.roll,"ROLL")+
+        gl("mB",MARK.bob,"SWAY")+gl("mP",MARK.pulse,"PULSE")+gl("mZ",MARK.boil,"BOIL")+
+        gl("mN",MARK.still,"STOP")+gl("mK",MARK.bake,"BAKE")+'</span>')+
+      grp("SEE OTHER FRAMES",slider("on",MARK.onion,0,3,O.n,1)+
+        '<span class="pal">'+gl("oAf",MARK.ahead,"AHEAD",O.after)+
+        gl("oTr",MARK.trace,"TRACE")+gl("oCo",MARK.echo,"ECHO")+'</span>')+
+      grp("ACROSS THE SPAN",'<span class="pal">'+
+        gl("xH",MARK.hold,"HOLD")+gl("xF",MARK.fade,"FADE")+gl("xR",MARK.rev,"REVERSE")+
+        '</span>')+
+      grp("TIME BENDS BY LATITUDE",slider("sl",MARK.slit,-3,3,S.slit,1))+
+      grp("FRAMES A SECOND",slider("fps",MARK.fps,1,24,S.fps,1))+
+      '<span class="t" id="tTrace"></span>';
+    $("mT").onclick=()=>set({spin:{axis:[0,1,0],rate:8}});
+    $("mI").onclick=()=>set({spin:{axis:[1,0,0],rate:8}});
+    $("mR").onclick=()=>set({spin:{axis:[0,0,1],rate:8}});
+    $("mB").onclick=()=>set({bob:{axis:[1,0,0],amp:25,period:S.frames||8}});
+    $("mP").onclick=()=>set({pulse:{amp:.6,period:S.frames||8}});
+    $("mZ").onclick=()=>set({boil:{amp:2.5,seed:7}});
+    $("mN").onclick=()=>{T.forEach(s=>{delete s.m;});S.epoch++;draw();};
+    $("mK").onclick=bake;
+    $("oAf").onclick=()=>{S.onion.after=!S.onion.after;buildTray();draw();};
+    $("oTr").onclick=()=>traceGhost();
+    $("oCo").onclick=()=>echo();
+    $("xH").onclick=()=>hold();
+    $("xF").onclick=()=>fade();
+    $("xR").onclick=()=>reverse();
+    onSlide("on",v=>{S.onion.n=v;});
+    onSlide("sl",v=>{S.slit=v;});
+    onSlide("fps",v=>{S.fps=v;if(S.playing)play(true);});
+    return;}
+  if(S.tray==="render"){
+    const R=S.render;
+    const WHAT={FLAT:"EQUIRECTANGULAR",ORB:"THE BALL",VIEW:"THE SHOT"};
+    tray.innerHTML='<button id="rW">'+WHAT[R.what||"FLAT"]+'</button>'+
+      (R.what==="VIEW"?'<button id="rA">'+
+        (Math.abs(S.shotAsp-16/9)<.01?"16:9":Math.abs(S.shotAsp-1)<.01?"1:1":
+         Math.abs(S.shotAsp-2.39)<.01?"2.39:1":"4:5")+'</button>':"")+
+      '<button id="rH">'+(R.sheet?"ONE SHEET":"ONE FILE EACH")+'</button>'+
+      '<button id="rZ">'+R.size+' PX</button>'+
+      '<button id="rG">'+(S.rendering?"STOP":"STILLS "+S.frames)+'</button>'+
+      '<button id="rM">'+(S.rendering?"STOP":"FILM IT")+'</button>'+
+      '<button id="rL">'+(S.render.loops||1)+' LOOP'+((S.render.loops||1)>1?"S":"")+'</button>'+
+      '<button id="rF">'+(S.render.mp4?"MP4 IF IT CAN":"WEBM")+'</button>'+
+      '<span class="pal"><button class="gl" id="sv">'+MARK.save+'<span>KEEP</span></button>'+
+      '<button class="gl" id="op">'+MARK.open+'<span>OPEN</span></button></span>'+
+      '<span class="t" id="tTrace">STILLS writes one file each or one sheet. FILM IT records '+
+      movieFrames(S.frames,S.render.loops)+' frames, '+
+      (movieFrames(S.frames,S.render.loops)/clamp(S.fps,1,24)).toFixed(1)+
+      ' seconds of webm, at the size and shape chosen above.</span>';
+    $("rW").onclick=()=>{const O=["FLAT","ORB","VIEW"];
+      R.what=O[(O.indexOf(R.what||"FLAT")+1)%O.length];
+      R.field=R.what==="FLAT";buildTray();};
+    if($("rA"))$("rA").onclick=()=>{const A=[16/9,1,2.39,4/5];
+      let i=A.findIndex(x=>Math.abs(x-S.shotAsp)<.01);
+      S.shotAsp=A[(i<0?0:i+1)%A.length];buildTray();draw();};
+    $("rH").onclick=()=>{R.sheet=!R.sheet;buildTray();};
+    $("rZ").onclick=()=>{const Z=[512,1024,2048];R.size=Z[(Z.indexOf(R.size)+1)%Z.length];buildTray();};
+    $("rG").onclick=renderOut;
+    $("rM").onclick=recordMovie;
+    $("rL").onclick=()=>{S.render.loops=((S.render.loops||1)%MOVIE_LOOPS_MAX)+1;buildTray();};
+    $("rF").onclick=()=>{S.render.mp4=!S.render.mp4;buildTray();};
+    $("sv").onclick=saveScore;
+    $("op").onclick=()=>document.getElementById("score").click();
+    return;}}
+/* the ghost of the frame before, turned into ink you can keep: the gallop */
+function traceGhost(){
+  if(S.frames<2){ttrace("there is only one frame to trace from");return;}
+  if(!roomFor(1,"a trace"))return;
+  const prev=((S.frame-1)%S.frames+S.frames)%S.frames;
+  const pts=contourDirs(field(prev,S.ver),0.45);
+  if(!pts.length){ttrace("nothing on the frame before");return;}
+  S.strokes.push({pts,r:Math.max(2*D2R,S.brush*.45),ink:Math.max(1,S.ink-4),
+    L:S.layer,f:S.frame,v:S.rows>1?S.ver:null});
+  S.epoch++;ttrace("traced "+pts.length+" points off frame "+(prev+1));draw();}
+/* the outline of what is on this frame, as its own mark */
+function outline(){
+  if(!roomFor(1,"an outline"))return;
+  const pts=contourDirs(field(S.frame,S.ver),0.45);
+  if(!pts.length){ttrace("nothing here to outline");return;}
+  S.strokes.push({pts,r:Math.max(2*D2R,S.brush*.4),ink:S.ink,
+    L:S.layer,f:S.frames>1?S.frame:null,v:S.rows>1?S.ver:null});
+  S.epoch++;ttrace("outlined at the half tone, "+pts.length+" points");draw();}
+/* this layer leaves a decaying trail on the frames after it */
+function echo(){
+  if(S.frames<2){ttrace("echo needs more than one frame");return;}
+  const src=S.strokes.filter(s=>(s.L||0)===S.layer&&!s.img&&s.f===S.frame&&!s.echoed);
+  if(!src.length){ttrace("nothing here to echo");return;}
+  if(!roomFor(src.length*3,"echo"))return;
+  let made=0;
+  for(let k=1;k<=3;k++){
+    const f=(S.frame+k)%S.frames,tone=Math.max(1,Math.round(S.ink*(1-k/4)));
+    src.forEach(s=>{
+      S.strokes.push(Object.assign({},s,{f,to:f,ink:tone,m:null,echoed:true}));made++;});}
+  S.epoch++;ttrace("echoed onto the next three frames, fading");draw();}
+
+/* end everything that is showing, here. The counterpart of a hold. */
+function cutHere(){
+  let n=0;
+  S.strokes.forEach(s=>{
+    if((s.L||0)!==S.layer)return;
+    if(live(s,S.frame,S.ver)<0)return;
+    if(s.f===S.frame&&s.to==null){s.to=S.frame;n++;}
+    else if(s.f!=null&&s.f<S.frame){s.to=S.frame-1;n++;}});
+  S.epoch++;ttrace("cut "+n+" at frame "+(S.frame+1));draw();}
+const layerHere=()=>S.strokes.filter(s=>(s.L||0)===S.layer&&s.f===S.frame);
+/* the same frame, held across the run */
+/* holding is the default, so this bounds a mark to the run instead:
+   it starts at the head of the span and ends at its tail */
+function hold(){
+  const F=spanFrames();if(F.length<2){ttrace("mark a span first");return;}
+  const a=F[0],b=F[F.length-1];
+  const src=layerHere();if(!src.length){ttrace("");return;}
+  src.forEach(s=>{s.f=a;s.to=b;});
+  S.epoch++;ttrace("kept to frames "+(a+1)+"\u2013"+(b+1));draw();}
+/* the same frame, getting lighter across the run */
+function fade(){
+  const F=spanFrames();if(F.length<2){ttrace("mark a span first");return;}
+  const src=layerHere();if(!src.length){ttrace("nothing here to fade");return;}
+  if(!roomFor(src.length*(F.length-1),"fade"))return;
+  F.forEach((f,i)=>{
+    const tone=Math.max(1,Math.round(S.ink*(1-i/(F.length-1))));
+    if(f===S.frame){src.forEach(s=>{s.ink=S.ink;});return;}
+    src.forEach(s=>S.strokes.push(Object.assign({},s,{f,to:f,ink:tone,m:null})));});
+  S.epoch++;ttrace("faded over "+F.length+" frames");draw();}
+/* the run, played backwards */
+function reverse(){
+  const F=spanFrames();if(F.length<2){ttrace("mark a span first");return;}
+  const a=F[0],b=F[F.length-1];
+  S.strokes.forEach(s=>{if(s.f!=null&&s.f>=a&&s.f<=b)s.f=a+b-s.f;});
+  S.epoch++;ttrace("reversed frames "+(a+1)+" to "+(b+1));draw();}
+
+function bake(){
+  const s=S.strokes.filter(x=>(x.L||0)===S.layer&&x.m).slice(-1)[0];
+  if(!s||!s.m){ttrace("nothing on this layer is moving yet");return;}
+  const made=[];
+  for(let f=0;f<S.frames;f++){
+    const dt=f-(s.f||0),fw=motion(s.m,dt,false);
+    if(s.img)made.push(Object.assign({},s,{m:null,f,to:f,
+      basis:s.basis&&fw?{f:fw(s.basis.f),r:fw(s.basis.r),u:fw(s.basis.u)}:s.basis}));
+    else made.push({pts:fw?s.pts.map(fw):s.pts.slice(),r:mR(s.m,s.r,dt),
+      ink:s.ink,L:s.L,erase:s.erase,f,to:f,v:s.v});}
+  S.strokes.splice(S.strokes.length-1,1,...made);
+  S.epoch++;ttrace("baked into "+S.frames+" frames you can edit one at a time");draw();}
+async function ask(text,set){
+  if(!text)return;
+  if(text[0]==="{"){try{set(JSON.parse(text));}catch(e){ttrace("cannot read that: "+e.message);}return;}
+  ttrace("asking\u2026");
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,
+        messages:[{role:"user",content:
+          "Emit only a JSON object, no prose or fences. It describes motion on a unit sphere over "+
+          S.frames+" frames. Keys: spin {axis:[x,y,z], rate: degrees per frame}, bob {axis:[x,y,z], "+
+          "amp: degrees, period: frames}, pulse {amp: 0..1, period: frames}. Only the keys needed. "+
+          "Description: "+text}]})});
+    const d=await r.json();
+    const t=(d.content||[]).filter(x=>x.type==="text").map(x=>x.text).join("")
+      .replace(/```json|```/g,"").trim();
+    set(JSON.parse(t));
+  }catch(e){ttrace("no spec came back: "+e.message+'. Type one instead, like {"spin":{"axis":[0,1,0],"rate":8}}');}}
+
+/* ================= keep the work ====================================
+   The score is strokes, layers, takes and pictures. Written whole and read
+   back whole, so a session survives the tab. */
+function imgToPNG(im){
+  const c=document.createElement("canvas");c.width=im.w;c.height=im.h;
+  const g=c.getContext("2d"),d=g.createImageData(im.w,im.h);
+  for(let i=0;i<im.w*im.h;i++){
+    d.data[i*4]=im.d[i*3];d.data[i*4+1]=im.d[i*3+1];
+    d.data[i*4+2]=im.d[i*3+2];d.data[i*4+3]=255;}
+  g.putImageData(d,0,0);return c.toDataURL("image/png");}
+function saveScore(){
+  const out={v:1,frames:S.frames,rows:S.rows,fps:S.fps,layers:S.layers,
+    strokes:S.strokes.map(s=>{
+      const o=Object.assign({},s);
+      if(s.img)o.img={w:s.img.w,h:s.img.h,png:imgToPNG(s.img)};
+      return o;})};
+  const b=new Blob([JSON.stringify(out)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.download="orb_"+Date.now().toString(36)+".json";
+  a.href=URL.createObjectURL(b);a.click();
+  ttrace(S.strokes.length+" things written");}
+async function openScore(file){
+  const txt=await file.text();
+  let j;try{j=JSON.parse(txt);}catch(e){ttrace("cannot read that file");return;}
+  const pics=j.strokes.filter(s=>s.img&&s.img.png);
+  await Promise.all(pics.map(s=>new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{s.img=rgb(im,s.img.w,s.img.h);res();};
+    im.onerror=()=>{s.img=null;res();};
+    im.src=s.img.png;})));
+  S.frames=j.frames||1;S.rows=j.rows||1;S.fps=j.fps||8;
+  S.layers=j.layers&&j.layers.length?j.layers:[{n:"BASE",vis:true}];
+  S.strokes=j.strokes.filter(s=>!s.img||s.img.d);
+  S.frame=0;S.ver=0;S.layer=0;S.sel=null;S.span=null;S.pin=null;
+  reel.dataset.sig="";S.epoch++;
+  ttrace("opened "+S.strokes.length+" things, "+S.frames+" frames");draw();}
+
+/* ---------- spherical metadata ---------------------------------------
+   A 360 player has no way to know a film is 360 unless the file says so.
+   In WebM that is a Projection element inside the track's Video element,
+   with ProjectionType 1, equirectangular. Writing it means growing three
+   nested elements, so their size fields are rewritten in the eight byte
+   form, which is always legal and saves guessing whether a shorter one
+   still fits. If anything about the file is not as expected the original
+   bytes are returned untouched and the caller is told. */
+const EBML={SEGMENT:[0x18,0x53,0x80,0x67],TRACKS:[0x16,0x54,0xAE,0x6B],
+  ENTRY:[0xAE],VIDEO:[0xE0],PROJECTION:[0x76,0x70],PROJTYPE:[0x76,0x71]};
+function vintLen(b){                        // how many bytes this VINT occupies
+  for(let i=0;i<8;i++)if(b&(0x80>>i))return i+1;
+  return 0;}
+function readSize(buf,i){
+  const n=vintLen(buf[i]);
+  if(!n)return null;
+  let v=buf[i]&(0xFF>>n),all=(0xFF>>n)===v;
+  for(let k=1;k<n;k++){v=v*256+buf[i+k];if(buf[i+k]!==0xFF)all=false;}
+  return {size:v,len:n,unknown:all};}
+function size8(v){                           // always eight bytes: always legal
+  const out=new Uint8Array(8);out[0]=0x01;
+  for(let i=7;i>=1;i--){out[i]=v%256;v=Math.floor(v/256);}
+  return out;}
+const idAt=(buf,i,id)=>id.every((b,k)=>buf[i+k]===b);
+/* the first child with this id, within [from,to) */
+function findChild(buf,from,to,id){
+  let i=from,guard=0;
+  while(i<to&&guard++<4096){
+    const idLen=vintLen(buf[i]);
+    if(!idLen)return null;
+    const sz=readSize(buf,i+idLen);
+    if(!sz)return null;
+    const dataStart=i+idLen+sz.len;
+    const dataEnd=sz.unknown?to:dataStart+sz.size;
+    if(idAt(buf,i,id))return {idStart:i,idLen,dataStart,dataEnd,unknown:sz.unknown};
+    if(dataEnd<=i||dataEnd>to)return null;
+    i=dataEnd;}
+  return null;}
+const cat=parts=>{
+  let n=0;for(const p of parts)n+=p.length;
+  const out=new Uint8Array(n);let o=0;
+  for(const p of parts){out.set(p,o);o+=p.length;}
+  return out;};
+function projectionBytes(){
+  const type=cat([new Uint8Array(EBML.PROJTYPE),size8(1),new Uint8Array([1])]);
+  return cat([new Uint8Array(EBML.PROJECTION),size8(type.length),type]);}
+function wrapEl(id,data){
+  return cat([new Uint8Array(id),size8(data.length),data]);}
+function injectSpherical(buf){
+  const seg=findChild(buf,0,buf.length,EBML.SEGMENT);
+  if(!seg)return null;
+  const tracks=findChild(buf,seg.dataStart,seg.dataEnd,EBML.TRACKS);
+  if(!tracks||tracks.unknown)return null;
+  const entry=findChild(buf,tracks.dataStart,tracks.dataEnd,EBML.ENTRY);
+  if(!entry)return null;
+  const video=findChild(buf,entry.dataStart,entry.dataEnd,EBML.VIDEO);
+  if(!video)return null;
+  if(findChild(buf,video.dataStart,video.dataEnd,EBML.PROJECTION))return buf; // already said
+  const videoData=cat([buf.subarray(video.dataStart,video.dataEnd),projectionBytes()]);
+  const newVideo=wrapEl(EBML.VIDEO,videoData);
+  const entryData=cat([buf.subarray(entry.dataStart,video.idStart),newVideo,
+    buf.subarray(video.dataEnd,entry.dataEnd)]);
+  const newEntry=wrapEl(EBML.ENTRY,entryData);
+  const tracksData=cat([buf.subarray(tracks.dataStart,entry.idStart),newEntry,
+    buf.subarray(entry.dataEnd,tracks.dataEnd)]);
+  const newTracks=wrapEl(EBML.TRACKS,tracksData);
+  let out=cat([buf.subarray(0,tracks.idStart),newTracks,buf.subarray(tracks.dataEnd)]);
+  if(!seg.unknown){                          // a sized Segment must grow as well
+    const grew=out.length-buf.length;
+    const segData=out.subarray(seg.dataStart,seg.dataEnd+grew);
+    out=cat([out.subarray(0,seg.idStart),wrapEl(EBML.SEGMENT,segData)]);}
+  return out;}
+
+/* ---------- a film out of the machine ---------------------------------
+   The frames are drawn into one canvas at the frame rate and recorded off
+   it. Real time, because that is how a recorder stamps its frames. Every
+   part is bounded: the count is the score times the loops, the loops are
+   capped, and the recorder is stopped in a finally so a failure halfway
+   cannot leave it running. */
+const MOVIE_LOOPS_MAX=4;
+function movieType(){
+  if(typeof MediaRecorder!=="function")return null;
+  const mp4=["video/mp4;codecs=avc1.42E01E","video/mp4;codecs=avc1","video/mp4"];
+  const webm=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  const want=S.render.mp4?mp4.concat(webm):webm.concat(mp4);
+  for(const t of want)
+    if(!MediaRecorder.isTypeSupported||MediaRecorder.isTypeSupported(t))return t;
+  return null;}
+/* ---------- the same claim, in the other container --------------------
+   An ISO file is boxes of [size:u32][type:4], nested. A 360 film carries
+   st3d (monoscopic) and sv3d (equirectangular) inside the video sample
+   entry, and every box on the way down grows by what was added. Sizes are
+   plain 32 bit, so this is simpler than the WebM case; the only thing to
+   refuse is a 64 bit size, which we do not rewrite. */
+const b4=s=>Uint8Array.from([s.charCodeAt(0),s.charCodeAt(1),s.charCodeAt(2),s.charCodeAt(3)]);
+const u32=n=>Uint8Array.from([(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255]);
+const readU32=(b,i)=>((b[i]<<24)>>>0)+(b[i+1]<<16)+(b[i+2]<<8)+b[i+3];
+function boxes(buf,from,to){
+  const out=[];let i=from,guard=0;
+  while(i+8<=to&&guard++<4096){
+    const size=readU32(buf,i);
+    const type=String.fromCharCode(buf[i+4],buf[i+5],buf[i+6],buf[i+7]);
+    if(size===1)return out.concat([{type,large:true}]);   // 64 bit: refuse later
+    const end=size===0?to:i+size;
+    if(end<=i||end>to)break;
+    out.push({type,start:i,dataStart:i+8,end});
+    i=end;}
+  return out;}
+const findBox=(buf,from,to,type)=>boxes(buf,from,to).find(b=>b.type===type);
+function mkBox(type,data){return cat([u32(data.length+8),b4(type),data]);}
+function sphericalBoxes(){
+  const st3d=mkBox("st3d",cat([u32(0),Uint8Array.from([0])]));        // monoscopic
+  const svhd=mkBox("svhd",Uint8Array.from([...b4("orb "),0]));
+  const prhd=mkBox("prhd",cat([u32(0),u32(0),u32(0),u32(0)]));        // yaw pitch roll 0
+  const equi=mkBox("equi",cat([u32(0),u32(0),u32(0),u32(0),u32(0)])); // full frame
+  const proj=mkBox("proj",cat([prhd,equi]));
+  const sv3d=mkBox("sv3d",cat([svhd,proj]));
+  return cat([st3d,sv3d]);}
+const VISUAL=["avc1","avc3","hvc1","hev1","mp4v","vp09","av01"];
+function injectSphericalMP4(buf){
+  const path=[["moov"],["trak"],["mdia"],["minf"],["stbl"],["stsd"]];
+  let from=0,to=buf.length;const chain=[];
+  for(const [type] of path){
+    const b=findBox(buf,from,to,type);
+    if(!b||b.large)return null;
+    chain.push(b);from=type==="stsd"?b.dataStart+8:b.dataStart;to=b.end;}
+    /* stsd carries a version/flags word and an entry count before its children */
+  const entry=boxes(buf,from,to).find(b=>VISUAL.indexOf(b.type)>=0);
+  if(!entry||entry.large)return null;
+  /* a visual sample entry has 78 bytes of fixed fields before its children */
+  const kids=entry.dataStart+78;
+  if(kids<entry.end&&findBox(buf,kids,entry.end,"sv3d"))return buf;   // already said
+  const add=sphericalBoxes();
+  let out=cat([buf.subarray(0,entry.end),add,buf.subarray(entry.end)]);
+  const grow=add.length;
+  /* every ancestor, and the sample entry itself, grew by the same amount */
+  const bump=start=>{const s=readU32(out,start)+grow;out.set(u32(s),start);};
+  bump(entry.start);
+  for(let i=chain.length-1;i>=0;i--)bump(chain[i].start);
+  return out;}
+function movieFrames(frames,loops){
+  return Math.max(1,frames)*clamp(loops||1,1,MOVIE_LOOPS_MAX);}
+async function recordMovie(){
+  if(S.rendering){S.stop=true;return;}
+  const type=movieType();
+  if(!type){ttrace("this browser will not record a film here");return;}
+  const what=S.render.what||"FLAT",flat=what==="FLAT";
+  const W=S.render.size;
+  const H=flat?W>>1:what==="VIEW"?Math.round(W/(S.shotAsp||16/9)):W;
+  const total=movieFrames(S.frames,S.render.loops);
+  const fps=clamp(S.fps,1,24);
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const g=cv.getContext("2d");
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  let stream=null,rec=null;
+  const chunks=[];
+  S.rendering=true;S.stop=false;buildTray();
+  try{
+    stream=cv.captureStream(fps);
+    rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:8000000});
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    const done=new Promise(res=>{rec.onstop=res;});
+    rec.start();
+    const v=S.ver;
+    for(let i=0;i<total;i++){                 // bounded before it begins
+      if(S.stop)break;
+      const f=i%S.frames;
+      ttrace("filming "+(i+1)+" of "+total);
+      const tile=flat?equirect(f,v,W):what==="VIEW"?viewPNG(f,v,W):orbPNG(f,v,W);
+      g.fillStyle="#fff";g.fillRect(0,0,W,H);
+      g.drawImage(tile,0,0,W,H);
+      await new Promise(r=>setTimeout(r,1000/fps));}
+    rec.stop();
+    await done;
+    let blob=new Blob(chunks,{type});
+    if(!blob.size){ttrace("the recorder gave nothing back");return;}
+    let said=false;
+    const isWebm=type.indexOf("webm")>=0;
+    if(flat){
+      try{
+        const raw=new Uint8Array(await blob.arrayBuffer());
+        const out=isWebm?injectSpherical(raw):injectSphericalMP4(raw);
+        if(out){blob=new Blob([out],{type});said=true;}
+      }catch(e){/* the file is still good, it simply is not marked */}}
+    const a=document.createElement("a");
+    a.download="orb_"+Date.now().toString(36)+
+      (flat?"_equirect360":what==="VIEW"?"_shot":"_ball")+
+      "_"+W+"x"+H+"."+(isWebm?"webm":"mp4");
+    a.href=URL.createObjectURL(blob);a.click();
+    ttrace((blob.size/1048576).toFixed(1)+" MB, "+total+" frames at "+fps+"/s"+
+      (flat?(said?" \u00b7 marked as 360, upload it as it is":
+        " \u00b7 not marked: run Google's metadata injector before uploading"):""));
+  }catch(err){
+    ttrace("could not record: "+(err&&err.message||"unknown"));
+  }finally{
+    try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){/* already stopped */}
+    if(stream)for(const t of stream.getTracks())t.stop();
+    S.rendering=false;buildTray();}}
+
+/* ================= render out ================= */
+function equirect(f,v,W){
+  const H=W>>1,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const g=cv.getContext("2d"),img=g.createImageData(W,H),o=img.data,grid=field(f,v);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const d=dirUV((x+.5)/W,(y+.5)/H);
+    const c=colourAt(d,f,v),ink=inkAt(grid,d),i=(y*W+x)*4;
+    if(c){o[i]=c[0];o[i+1]=c[1];o[i+2]=c[2];}
+    else{const k=ink>.5?0:255;o[i]=o[i+1]=o[i+2]=k;}
+    o[i+3]=255;}
+  g.putImageData(img,0,0);return cv;}
+/* what the camera sees, at whatever size is asked for: the shot */
+function viewPNG(f,v,W){
+  const H=Math.max(1,Math.round(W/(S.shotAsp||16/9)));
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  drawVolume(cv,f,v,{step:1.6,grid:false});
+  return cv;}
+function orbPNG(f,v,W){
+  const cv=document.createElement("canvas");cv.width=W;cv.height=W;
+  drawOrb(cv,f,v,{step:1.6});return cv;}
+const tile=(f,v,W)=>S.render.what==="FLAT"?equirect(f,v,W)
+  :S.render.what==="VIEW"?viewPNG(f,v,W):orbPNG(f,v,W);
+function save(cv,name){const a=document.createElement("a");
+  a.download=name;a.href=cv.toDataURL("image/png");a.click();}
+async function renderOut(){
+  if(S.rendering){S.stop=true;return;}
+  S.rendering=true;S.stop=false;buildTray();
+  const W=S.render.size,v=S.ver,stamp=Date.now().toString(36);
+  try{
+    if(S.render.sheet){
+      const one=tile(0,v,W),cols=Math.min(S.frames,6),rows=Math.ceil(S.frames/cols);
+      const out=document.createElement("canvas");
+      out.width=one.width*cols;out.height=one.height*rows;
+      const g=out.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,out.width,out.height);
+      for(let f=0;f<S.frames;f++){
+        if(S.stop)break;
+        ttrace("frame "+(f+1)+" of "+S.frames);
+        await new Promise(r=>requestAnimationFrame(r));
+        g.drawImage(tile(f,v,W),(f%cols)*one.width,((f/cols)|0)*one.height);}
+      if(!S.stop)save(out,"orb_"+stamp+"_sheet.png");
+    }else for(let f=0;f<S.frames;f++){
+      if(S.stop)break;
+      ttrace("frame "+(f+1)+" of "+S.frames);
+      await new Promise(r=>requestAnimationFrame(r));
+      save(tile(f,v,W),"orb_"+stamp+"_"+String(f+1).padStart(4,"0")+".png");
+      await new Promise(r=>setTimeout(r,260));}
+    ttrace(S.stop?"stopped":"wrote "+(S.render.sheet?"one sheet":S.frames+" files")+" at "+W+"px");
+  }catch(e){ttrace("could not write: "+e.message);}
+  S.rendering=false;buildTray();}
+
+/* ================= keys ================= */
+const $=i=>document.getElementById(i);
+$("view").onclick=()=>{const V=["ORB","VOLUME","FLAT","ONION"];
+  S.view=V[(V.indexOf(S.view)+1)%V.length];draw();};
+$("camk").onclick=()=>{
+  S.camOn=!S.camOn;
+  if(S.camOn)openTray("cam");else if(S.tray==="cam")openTray("cam");
+  buildTray();draw();};
+$("hold").onclick=()=>{S.pin=null;draw();};
+$("fTool").onclick=()=>openTray("tool");
+$("fLayer").onclick=()=>openTray("layer");
+$("fCam").onclick=()=>{if(!S.camOn){S.camOn=true;}openTray("cam");draw();};
+$("fMedia").onclick=()=>openTray("media");
+$("fMotion").onclick=()=>openTray("motion");
+$("fRender").onclick=()=>openTray("render");
+$("add").onclick=()=>document.getElementById("file").click();
+$("undo").onclick=()=>{S.strokes.pop();S.sel=null;S.epoch++;draw();};
+addEventListener("resize",()=>{fit();reel.dataset.sig="";draw();});
+addEventListener("orientationchange",()=>{fit();reel.dataset.sig="";draw();});
+if(typeof ResizeObserver==="function"){
+  /* the box changes when a tray opens; watch it rather than guess */
+  const ro=new ResizeObserver(()=>{if(fit())draw();});
+  ro.observe(stage.parentElement);}
+fit();draw();
+</script>
+</body>
+</html>

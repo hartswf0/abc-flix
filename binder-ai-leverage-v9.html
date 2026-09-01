@@ -1,0 +1,3067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BINDER</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='white'/%3E%3Ccircle cx='24' cy='32' r='16' fill='none' stroke='%23111' stroke-width='4'/%3E%3Ccircle cx='40' cy='32' r='16' fill='none' stroke='%23111' stroke-width='4'/%3E%3C/svg%3E">
+<style>
+:root{--paper:#fff;--ink:#111;--soft:#8b8b8b;--faint:#e6e6e6}
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;background:var(--paper);color:var(--ink);overscroll-behavior:none;overflow:hidden}
+body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1;
+  display:flex;flex-direction:column;height:100dvh}
+button{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--ink);cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+button:focus-visible{outline:2px solid #2b6cd4;outline-offset:-3px}
+
+.bar{flex:0 0 auto;display:flex;align-items:stretch;height:28px;border-bottom:2px solid var(--ink)}
+.bar button,.bar span{display:flex;align-items:center;padding:0 9px;font-size:10px;
+  border:none;border-right:1px solid var(--ink);background:var(--paper);letter-spacing:.04em;white-space:nowrap}
+.bar .sp{margin-left:auto;border:none;border-left:1px solid var(--ink)}
+.ico{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.ico svg{width:16px;height:16px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.fill svg{fill:currentColor;stroke:none}
+.restRow{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+.restStep{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);padding:5px 8px;background:#fff;color:var(--ink);font-size:10px;letter-spacing:.05em}
+
+.stage{flex:1 1 auto;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;padding:6px}
+.stage canvas{max-width:100%;max-height:100%;display:none;touch-action:none;cursor:crosshair}
+.rest{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;
+  font-size:11px;color:var(--soft);padding:0 20px;line-height:1.6}
+.rest b{display:block;color:var(--ink);font-size:12px;margin-bottom:6px}
+.rest button{margin-top:10px;padding:8px 14px;font-size:11px}
+.stage.over{outline:2px dashed var(--ink);outline-offset:-8px}
+
+#scriptPane{flex:0 0 auto;display:flex;flex-direction:column;border-top:2px solid var(--ink)}
+#scriptBox{height:132px;width:100%;resize:none;border:0;border-bottom:1px solid var(--ink);
+  padding:6px 8px;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:#fbfbfb;color:var(--ink);outline:0;white-space:pre}
+#scriptBox:focus-visible{outline:2px solid #2b6cd4;outline-offset:-2px}
+.scriptbar{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--ink)}
+.scriptbar button{border:0;border-right:1px solid var(--ink);height:30px;padding:0 11px;font-size:10px;
+  letter-spacing:.06em;background:var(--paper)}
+.scriptbar span{font-size:10px;color:var(--soft);padding:0 9px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+
+.tabs{flex:0 0 auto;display:flex;border-top:2px solid var(--ink);border-bottom:1px solid var(--ink)}
+.tabs button{border:0;border-right:1px solid var(--ink);padding:0 11px;height:32px;
+  font-size:10px;letter-spacing:.07em;background:var(--paper);
+  display:flex;align-items:center;gap:5px}
+.tabs button span{font-weight:600;letter-spacing:0;opacity:.6}
+.tabs button[aria-pressed="true"] span{opacity:1}
+.tabs button:disabled{opacity:.35}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tabs .sp{margin-left:auto;border-right:0;border-left:1px solid var(--ink)}
+
+.tryhead{font-size:10px;color:var(--soft);padding:4px 8px;border-bottom:1px solid var(--faint);
+  display:flex;align-items:center;gap:6px;line-height:1.35}
+.tryhead .sw{width:11px;height:11px;border:1px solid var(--ink);display:inline-block;flex:0 0 auto}
+.tryhead b{color:var(--ink);font-weight:600;letter-spacing:.05em}
+.chips{display:flex;gap:4px;padding:4px 6px;overflow-x:auto;border-bottom:1px solid var(--faint)}
+.chips button{flex:0 0 auto;padding:0;height:30px;width:44px;border:1px solid var(--ink);
+  background:var(--paper);position:relative;overflow:hidden}
+.chips canvas{display:block;width:100%;height:100%;object-fit:cover}
+.chips button[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:-2px}
+.chips button .n{position:absolute;left:0;bottom:0;background:var(--ink);color:var(--paper);
+  font-size:8px;padding:0 3px}
+.chips .add{display:flex;align-items:center;justify-content:center;font-size:15px}
+.strip{display:flex;gap:4px;overflow-x:auto;padding:5px 6px;touch-action:pan-x;
+  scroll-snap-type:x proximity}
+.alt{flex:0 0 auto;border:1px solid var(--ink);background:var(--paper);padding:0;cursor:pointer;
+  display:flex;flex-direction:column;width:92px;scroll-snap-align:start}
+.alt canvas{display:block;width:100%;height:auto}
+.alt span{font-size:9px;padding:3px 4px;border-top:1px solid var(--ink);text-align:center;
+  letter-spacing:.03em}
+.alt[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:-2px}
+.alt[aria-pressed="true"] span{background:var(--ink);color:var(--paper)}
+
+.decks{flex:0 0 auto;border-top:0;display:flex}
+.deck{flex:1 1 0;display:flex;flex-direction:column;border-right:1px solid var(--ink);min-width:0}
+.deck:last-child{border-right:0}
+.dl{font-size:9px;letter-spacing:.09em;padding:4px 6px;border-bottom:1px solid var(--ink);
+  color:var(--soft);display:flex;justify-content:space-between;gap:6px}
+.dl .rd{letter-spacing:0;color:var(--ink);font-weight:600}
+.ball{position:relative;touch-action:none;display:flex;justify-content:center;padding:1px 0}
+.ball canvas{display:block;max-width:100%;height:auto}
+.dr{font-size:9.5px;padding:4px 6px;border-top:1px solid var(--ink);color:var(--ink);
+  min-height:26px;display:flex;align-items:center;line-height:1.3;overflow:hidden}
+.dr .sw{display:inline-block;width:9px;height:9px;border:1px solid var(--ink);margin-right:5px;flex:0 0 auto}
+
+.fader{flex:0 0 auto;display:flex;align-items:center;gap:7px;padding:5px 8px;
+  border-top:1px solid var(--ink);touch-action:none}
+.fader .fl{font-size:9px;color:var(--soft);letter-spacing:.06em;flex:0 0 auto}
+.track{flex:1 1 auto;height:22px;border:1px solid var(--ink);position:relative;background:var(--paper)}
+.track::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--faint)}
+.knob{position:absolute;top:-1px;bottom:-1px;width:16px;background:var(--ink);left:0}
+
+.steps{flex:0 0 auto;display:flex;border-top:1px solid var(--ink)}
+.step{flex:1 1 0;display:flex;align-items:center;justify-content:space-between;gap:4px;
+  padding:0 5px;height:30px;border-right:1px solid var(--ink);min-width:0}
+.step:last-child{border-right:0}
+.step .lab{font-size:9px;color:var(--soft);letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis}
+.step .grp{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.step button{padding:0 6px;height:22px;font-size:12px;line-height:1}
+.step .v{font-size:11px;font-weight:600;min-width:30px;text-align:center}
+
+.foot{flex:0 0 auto;display:flex;height:24px;border-top:1px solid var(--ink);font-size:10px}
+.foot span{display:flex;align-items:center;padding:0 8px;border-right:1px solid var(--ink);color:var(--soft);white-space:nowrap}
+.foot span:last-child{border-right:0}
+input[type=file]{display:none}
+
+/* ---- OPENAI / MODEL DRIVER ---- */
+.aiPane{flex:0 0 auto;border-top:2px solid var(--ink);background:#fff}
+.aiTop{display:grid;grid-template-columns:minmax(150px,1.2fr) 130px 100px 92px;border-bottom:1px solid var(--ink)}
+.aiTop input,.aiTop select{min-width:0;height:30px;border:0;border-right:1px solid var(--ink);padding:0 7px;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;color:#111;outline:0}
+.aiTop button{height:30px;border:0;padding:0 8px;font-size:9px;letter-spacing:.06em}
+.aiMini{display:grid;grid-template-columns:1fr auto auto auto;border-bottom:1px solid var(--ink)}
+.aiMini button{height:29px;border:0;border-right:1px solid var(--ink);font-size:9px;letter-spacing:.05em;padding:0 8px;background:var(--paper)}
+.aiMini button:last-child{border-right:0}
+.aiRefZone{border-bottom:1px solid var(--ink);padding:6px;background:#fcfcfc}
+.aiRefDrop{border:1px dashed var(--ink);padding:8px 9px;font-size:10px;line-height:1.45;color:var(--soft);background:#fff}
+.aiRefDrop.over{background:#f3f3f3}
+.aiRefStrip{display:flex;gap:6px;overflow-x:auto;padding-top:6px}
+.aiRefCard{flex:0 0 auto;width:84px;border:1px solid var(--ink);background:#fff}
+.aiRefCard canvas{display:block;width:100%;height:auto}
+.aiRefCard .cap{display:flex;align-items:center;justify-content:space-between;gap:4px;border-top:1px solid var(--ink);padding:3px 4px;font-size:8px;letter-spacing:.04em}
+.aiRefCard .cap button{border:0;background:none;padding:0;font:inherit;color:#111;cursor:pointer}
+.aiPrompt{width:100%;height:82px;resize:vertical;border:0;border-bottom:1px solid var(--ink);padding:7px 8px;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;outline:0;background:#fbfbfb;color:#111}
+.aiActions{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid var(--ink)}
+.aiActions button{height:31px;border:0;border-right:1px solid var(--ink);font-size:9px;letter-spacing:.05em}
+.aiActions button:last-child{border-right:0}
+.aiExport{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--ink)}
+.aiExport button{height:28px;border:0;border-right:1px solid var(--ink);font-size:9px;letter-spacing:.05em;background:#fff}
+.aiExport button:last-child{border-right:0}
+.aiAnswer{max-height:104px;overflow:auto;padding:6px 8px;font:10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;color:#333}
+.aiMeta{display:grid;grid-template-columns:auto 1fr auto;border-top:1px solid var(--faint);font-size:9px;color:var(--soft)}
+.aiMeta span{padding:4px 7px;border-right:1px solid var(--faint);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aiMeta span:last-child{border-right:0}
+.aiBusy{background:var(--ink)!important;color:var(--paper)!important}
+.aiSpin{display:inline-block;width:8px;height:8px;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-1px;margin-right:6px;opacity:0;animation:aiSpin .75s linear infinite}
+.aiMeta.busy .aiSpin{opacity:1}
+.aiProg{height:4px;background:#f0f0f0;border-top:1px solid var(--faint);position:relative;overflow:hidden}
+.aiProgBar{position:absolute;left:0;top:0;bottom:0;width:0%;background:#111;transition:width .18s ease}
+@keyframes aiSpin{to{transform:rotate(360deg)}}
+
+
+/* ---- OPERATIONAL MOBILE SURFACE ---- */
+.bar{height:auto;display:block;position:sticky;top:0;z-index:80;background:var(--paper);border-bottom:2px solid var(--ink)}
+.primaryBar{display:grid;grid-template-columns:repeat(5,1fr);height:46px}
+.primaryBar button{min-width:0;border:0;border-right:1px solid var(--ink);font-size:11px;letter-spacing:.045em;font-weight:600;background:var(--paper);justify-content:center}
+.primaryBar button:last-child{border-right:0}
+.statusBar{height:28px;display:flex;align-items:center;border-top:1px solid var(--ink)}
+.statusBar span{display:block;width:100%;padding:0 10px;border:0!important;font-size:10px;line-height:28px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#fff!important}
+.toolTray{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ink)}
+.toolTray button{height:44px;border:0;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);font-size:10.5px;letter-spacing:.035em;background:#fff;justify-content:center}
+.toolTray button:nth-child(3n){border-right:0}
+.sheetHead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;min-height:42px;border-bottom:1px solid var(--ink);background:#fff}
+.sheetHead b{padding:0 10px;font-size:11px;letter-spacing:.07em}
+.sheetHead span{font-size:9.5px;color:var(--soft);padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheetHead button{height:42px;border:0;border-left:1px solid var(--ink);padding:0 12px;font-size:10px}
+.deckHelp{padding:7px 9px;border-bottom:1px solid var(--faint);font-size:10px;line-height:1.45;color:var(--soft)}
+.deckHelp b{color:var(--ink);font-weight:600}
+
+@media(max-width:899px){
+  html,body{height:100dvh;overflow:hidden;overscroll-behavior:none}
+  body{display:grid;grid-template-rows:auto 34dvh minmax(0,1fr);height:100dvh;font-size:12px;line-height:1.2;padding-bottom:0}
+  .bar{grid-row:1;position:relative;z-index:80;background:#fff}
+  .primaryBar{display:grid;grid-template-columns:repeat(5,1fr);height:54px}
+  .primaryBar button{min-width:0;border:0;border-right:1px solid var(--ink);font-size:9px;letter-spacing:.05em;font-weight:700;background:var(--paper);justify-content:center;display:flex;flex-direction:column;gap:4px;line-height:1}
+  .primaryBar button:last-child{border-right:0}
+  .primaryBar button .ico svg{width:18px;height:18px}
+  .primaryBar button span:last-child{display:block}
+  .statusBar{height:22px;display:flex;align-items:center;border-top:1px solid var(--ink)}
+  .statusBar span{padding:0 8px;font-size:9px;line-height:22px;color:var(--soft)}
+  .toolTray{position:absolute;left:0;right:0;top:100%;background:#fff;grid-template-columns:repeat(3,1fr);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:90}
+  .toolTray button{height:46px;border:0;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);font-size:9px;letter-spacing:.04em;background:#fff;justify-content:center;display:flex;flex-direction:column;gap:4px;line-height:1}
+  .toolTray button:nth-child(3n){border-right:0}
+  .toolTray button .ico svg{width:17px;height:17px}
+
+  .stage{grid-row:2;min-height:0;height:auto;padding:4px 6px 0;flex:none}
+  .stage canvas{max-height:100%}
+  .rest{font-size:11px;line-height:1.45;padding:0 16px}
+  .rest b{font-size:18px;margin-bottom:8px;letter-spacing:.06em}
+  .rest span{display:none}
+  .rest button{min-height:52px;padding:0 20px;font-size:14px;font-weight:700}
+
+  .side{grid-row:3;display:grid;grid-template-rows:40px 26px auto minmax(0,1fr) 40px;min-height:0;border-top:2px solid var(--ink);background:#fff}
+  #scriptPane,.aiPane{position:fixed;left:0;right:0;bottom:0;z-index:120;max-height:84dvh;overflow-y:auto;background:#fff;border-top:2px solid var(--ink);box-shadow:0 -10px 32px rgba(0,0,0,.16);padding-bottom:env(safe-area-inset-bottom)}
+  #scriptBox{height:42dvh;min-height:220px;padding:11px 12px;font-size:12px;line-height:1.55}
+  .scriptbar{display:grid;grid-template-columns:1fr 1fr 1fr;position:sticky;bottom:0;background:#fff}
+  .scriptbar button{height:48px;padding:0 7px;font-size:10px;font-weight:600}
+  .scriptbar span{grid-column:1/-1;min-height:26px;display:flex;align-items:center}
+
+  .aiTop{grid-template-columns:1fr 1fr;position:relative}
+  .aiTop input{grid-column:1/-1;height:46px!important;font-size:12px!important;border-bottom:1px solid var(--ink)!important}
+  .aiTop select,.aiTop button{height:44px!important;font-size:10px!important}
+  .aiMini{grid-template-columns:repeat(4,1fr)}
+  .aiMini button{height:44px;font-size:9.5px;padding:0 5px}
+  .aiRefZone{padding:8px}
+  .aiRefDrop{padding:11px;font-size:11px;line-height:1.5}
+  .aiRefCard{width:104px}
+  .aiPrompt{height:118px;min-height:96px;padding:11px 12px;font-size:12px;line-height:1.5}
+  .aiActions{grid-template-columns:1fr 1fr}
+  .aiActions button{height:48px;font-size:10.5px;font-weight:600}
+  .aiExport button{height:42px;font-size:9.5px}
+  .aiAnswer{max-height:126px;padding:10px 12px;font-size:11px;line-height:1.45}
+
+  .tabs{border-top:0;border-bottom:1px solid var(--ink)}
+  .tabs button{height:40px;font-size:10px;font-weight:700;padding:0 10px}
+  .tryhead{min-height:26px;padding:4px 8px;font-size:9px;border-bottom:1px solid var(--faint);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .tryhead .sw{width:9px;height:9px}
+  .tryhead b{font-size:9px}
+
+  .chips{padding:4px 6px;gap:4px;overflow-x:auto;border-bottom:1px solid var(--faint);align-items:center;min-height:34px}
+  .chips button{width:30px;height:24px;display:flex;align-items:center;justify-content:center}
+  .chips canvas{display:none}
+  .chips button .n{position:static;background:none;color:var(--ink);font-size:10px;padding:0}
+  .chips .add{font-size:16px}
+
+  .strip{padding:4px 6px;gap:4px;overflow-x:auto;border-bottom:1px solid var(--ink);height:34px;min-height:34px}
+  .alt{width:auto;min-width:58px;display:flex;align-items:center;justify-content:center}
+  .alt canvas{display:none}
+  .alt span{border-top:0;font-size:9px;padding:0 6px;height:28px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+
+  .decks{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+  .deck{border-right:1px solid var(--ink);border-bottom:0;min-height:0}
+  .deck:last-child{border-right:0}
+  .dl{font-size:10px;padding:4px 6px;color:var(--ink);font-weight:700;letter-spacing:.06em}
+  .deckHelp{padding:3px 6px;font-size:8px;line-height:1.25}
+  .ball{padding:0;min-height:0;flex:1 1 auto}
+  .ball canvas{width:min(42vw,180px);max-width:none;height:auto}
+  .dr{font-size:8.5px;min-height:20px;padding:3px 6px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .fader{min-height:40px;padding:4px 6px;gap:6px;border-top:1px solid var(--ink)}
+  .fader .fl{font-size:9px;color:var(--ink);font-weight:700}
+  .track{height:24px}
+  .knob{width:18px}
+  .foot{display:none}
+}
+
+@media(min-width:900px){
+  html,body{height:100%;overflow:hidden}
+  body{display:grid;grid-template-columns:minmax(0,60%) minmax(380px,40%);grid-template-rows:auto 1fr}
+  .bar{grid-column:1/-1;grid-row:1;position:relative}
+  .primaryBar{grid-template-columns:92px 92px 92px 92px 92px;justify-content:start}
+  .statusBar{position:absolute;left:460px;right:0;top:0;height:46px;border-top:0;border-left:1px solid var(--ink)}
+  .statusBar span{line-height:46px}
+  .toolTray{grid-template-columns:repeat(6,1fr)}
+  .toolTray button{border-bottom:0}
+  .stage{grid-column:1;grid-row:2;min-height:0;height:auto}
+  .side{grid-column:2;grid-row:2;display:flex;flex-direction:column;border-left:2px solid var(--ink);min-height:0;overflow-y:auto}
+  #scriptPane,.aiPane{flex:0 0 auto}
+  .decks{display:flex}
+  .deck{border-top:0;flex-direction:column}
+  .ball{border-right:0;border-bottom:1px solid var(--ink);align-self:center}
+  .ball canvas{max-width:240px}
+}
+
+/* ---- V5 REGULARIZED SURFACE ---- */
+
+/* ---- V6: TARGET, NEVER MODE ---- */
+.targetExit{font-weight:800!important;letter-spacing:.06em}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr!important;min-height:40px}
+.tabs[hidden]{display:grid!important;visibility:visible;pointer-events:none}
+.tabs[hidden] button{visibility:hidden}
+.tabs button{justify-content:center!important}
+.tabs .targetExit{visibility:visible!important;opacity:.28}
+.tabs:not([hidden]) .targetExit{opacity:1}
+.strip.inactive{visibility:hidden;pointer-events:none}
+.stage.targeting::after{content:"";position:absolute;inset:5px;pointer-events:none;border:1px solid rgba(17,17,17,.12);z-index:8}
+.viewAll{display:none!important}
+.workOverlay.surfaceLoad .workPanel{width:min(300px,78%)}
+.workOverlay.surfaceLoad .workLine{grid-template-columns:1fr}
+.workOverlay.surfaceLoad .workLine button{display:none}
+
+.stage{overflow:hidden}
+.viewAll{position:absolute;right:10px;top:10px;z-index:16;height:36px;padding:0 12px;background:#fff;border:1px solid #111;font-size:10px;font-weight:700;letter-spacing:.06em;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.workOverlay{position:absolute;inset:0;z-index:30;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;background:rgba(255,255,255,.28);overflow:hidden}
+.workOverlay[hidden]{display:none!important}
+.workSweep{position:absolute;top:0;bottom:0;width:1px;background:#111;opacity:.55;animation:workSweep 1.2s ease-in-out infinite alternate}
+.workPanel{pointer-events:auto;width:min(420px,88%);margin-bottom:12px;background:#fff;border:1px solid #111;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.workLine{display:grid;grid-template-columns:1fr auto;align-items:center;min-height:34px;font-size:10px;letter-spacing:.04em}
+.workLine span{padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.workLine button{height:34px;border:0;border-left:1px solid #111;padding:0 12px;font-weight:700}
+.workTrack{height:5px;background:#eee;overflow:hidden}
+.workBar{height:100%;width:0;background:#111;transition:width .2s ease}
+@keyframes workSweep{from{left:8%}to{left:92%}}
+
+.aiScopeRow{display:grid;grid-template-columns:1fr 1fr auto auto;border-bottom:1px solid #111}
+.aiScopeRow button{height:42px;border:0;border-right:1px solid #111;font-size:10px;font-weight:700;letter-spacing:.05em;background:#fff;padding:0 11px}
+.aiScopeRow button:last-child{border-right:0}
+.aiScopeRow button[aria-pressed="true"]{background:#111;color:#fff}
+.aiScopeRow button:disabled{opacity:.28}
+.aiSettings{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #111;background:#fafafa}
+.aiSettings input{grid-column:1/-1;height:44px;border:0;border-bottom:1px solid #111;padding:0 10px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff}
+.aiSettings select,.aiSettings button{height:40px;border:0;border-right:1px solid #111;border-bottom:1px solid #111;padding:0 8px;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff}
+.aiSettings>*:nth-child(even){border-right:0}
+.aiPane .aiRefZone{padding:5px 7px}
+.aiPane .aiRefDrop{display:none}
+.aiPane .aiRefStrip:empty{display:none}
+.aiPane .aiRefStrip{padding:0;gap:4px}
+.aiPane .aiRefCard{width:58px}
+.aiPane .aiPrompt{height:104px;min-height:82px;resize:none;background:#fff;font-size:13px}
+.aiPane .aiActions{grid-template-columns:repeat(4,1fr)}
+.aiPane .aiActions button{height:50px;font-size:10px;font-weight:700}
+.aiPane .aiAnswer{max-height:112px;min-height:0;background:#fafafa}
+.aiPane .aiMeta{grid-template-columns:auto 1fr auto}
+.aiPane .aiProg{display:none}
+.aiPane .sheetHead span{font-size:9px}
+
+.historyPane{position:fixed;left:0;right:0;bottom:0;z-index:121;max-height:78dvh;overflow:auto;background:#fff;border-top:2px solid #111;box-shadow:0 -10px 32px rgba(0,0,0,.16);padding-bottom:env(safe-area-inset-bottom)}
+.versionList{display:flex;flex-direction:column}
+.versionRow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;min-height:46px;border-bottom:1px solid #e6e6e6;font-size:10px}
+.versionRow .vn{padding-left:10px;font-weight:700}
+.versionRow .vl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+.versionRow button{height:32px;margin-right:7px;padding:0 10px;font-size:9px;background:#fff}
+.historyActions{display:grid;grid-template-columns:repeat(4,1fr);position:sticky;bottom:0;background:#fff;border-top:1px solid #111}
+.historyActions button{height:44px;border:0;border-right:1px solid #111;font-size:9px}
+.historyActions button:last-child{border-right:0}
+.verBadge{font-size:8px;opacity:.6;font-weight:400}
+
+@media(max-width:899px){
+  .tabs{display:grid;grid-template-columns:1fr 1fr}
+  .tabs button{justify-content:center;border-right:1px solid #111}
+  .tabs button:last-child{border-right:0}
+  .ball{align-items:center;justify-content:center;overflow:hidden}
+  .ball canvas{width:min(42vw,180px)!important;height:min(42vw,180px)!important;aspect-ratio:1/1!important;object-fit:contain;flex:0 0 auto}
+  .deckHelp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toolTray{grid-template-columns:repeat(4,1fr)}
+  .toolTray button:nth-child(3n){border-right:1px solid #111}
+  .toolTray button:nth-child(4n){border-right:0}
+  .workPanel{margin-bottom:8px}
+  .viewAll{height:34px;right:8px;top:8px}
+  .historyPane{max-height:74dvh}
+}
+
+
+@media(max-width:899px){
+  .side{display:flex;flex-direction:column;grid-row:3;min-height:0}
+  .decks{flex:1 1 auto;min-height:0}
+  body:not(.hasWork){grid-template-rows:auto minmax(0,1fr)}
+  body:not(.hasWork) .stage{grid-row:2;height:auto;min-height:0}
+  body:not(.hasWork) .primaryBar{grid-template-columns:1fr 1fr}
+  body:not(.hasWork) #undo,body:not(.hasWork) #save,body:not(.hasWork) #toolsToggle{display:none}
+  body:not(.hasWork) .statusBar{display:none}
+}
+
+
+/* ==== VOID v7 HARD LOCK: viewport + AI ==== */
+@media(max-width:899px){
+  html,body{width:100%;max-width:100%;height:100dvh;overflow:hidden!important}
+  body{width:100vw;max-width:100vw}
+  body *{min-width:0}
+  .bar,.stage,.side{width:100%;max-width:100%;overflow:hidden}
+
+  /* three targets. Never allow WHOLE to fall offscreen. */
+  .tabs,.tabs[hidden]{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;width:100%!important;max-width:100%!important}
+  .tabs button{width:100%;min-width:0;max-width:100%;padding:0 4px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tabs button span{margin-left:3px}
+
+  /* one compact AI command surface; it cannot make the document scroll. */
+  .aiPane.aiLite{display:grid;grid-template-rows:42px auto minmax(64px,92px) 48px auto!important;position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100vw!important;max-width:100vw!important;max-height:min(46dvh,390px)!important;overflow:hidden!important;padding:0!important;border-top:2px solid #111!important;box-shadow:0 -8px 24px rgba(0,0,0,.14);background:#fff;z-index:130}
+  .aiPane.aiLite[hidden]{display:none!important}
+  .aiLite>*{width:100%;max-width:100%;min-width:0}
+  .aiLiteHead{height:42px;display:grid;grid-template-columns:auto minmax(0,1fr) auto 42px 42px;align-items:center;border-bottom:1px solid #111}
+  .aiLiteHead b{padding-left:12px;font-size:11px;letter-spacing:.08em}
+  .aiLiteHead>span{padding:0 8px;color:#777;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .aiLiteHead button{height:42px;border:0;border-left:1px solid #111;padding:0 9px;background:#fff;font-size:9px;font-weight:700;white-space:nowrap}
+  .aiLiteHead #aiClose{font-size:20px;font-weight:400;padding:0}
+
+  .aiLite .aiPrompt{display:block;width:100%!important;max-width:100%!important;height:92px!important;min-height:64px!important;resize:none!important;border:0!important;border-bottom:1px solid #111!important;padding:14px 14px!important;font:16px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace!important;background:#fff!important;color:#111!important;overflow:auto!important}
+  .aiLiteGo{height:48px;display:block}
+  .aiLiteGo button{width:100%;height:48px;border:0;background:#111;color:#fff;font-size:12px;font-weight:800;letter-spacing:.12em}
+  .aiLite .aiAnswer{display:block;max-height:54px!important;min-height:0!important;padding:7px 10px!important;border-top:1px solid #e6e6e6;background:#fafafa;font-size:10px;line-height:1.3;overflow:auto!important;white-space:pre-wrap}
+  .aiLite .aiAnswer:empty{display:none!important}
+
+  .aiLiteSettings{position:absolute!important;left:8px!important;right:8px!important;bottom:104px!important;width:auto!important;max-width:none!important;z-index:4;display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;border:1px solid #111!important;background:#fff!important;box-shadow:0 5px 20px rgba(0,0,0,.16)}
+  .aiLiteSettings[hidden]{display:none!important}
+  .aiLiteSettings input{grid-column:1/-1!important;width:100%!important;height:44px!important;border:0!important;border-bottom:1px solid #111!important;padding:0 10px!important;font-size:12px!important}
+  .aiLiteSettings select,.aiLiteSettings button{height:40px!important;border:0!important;border-right:1px solid #111!important;padding:0 8px!important;font:9px ui-monospace,SFMono-Regular,Menlo,monospace!important;background:#fff!important}
+  .aiLiteSettings>*:last-child{border-right:0!important}
+
+  .aiLite .aiRefZone,.aiLite .aiMeta,.aiLite .aiProg,.aiLite #aiScopeAll,.aiLite #aiScopePatch,.aiLite #aiAsk,.aiLite #aiGen,.aiLite #aiEdit,.aiLite #aiIdea{display:none!important}
+}
+
+
+/* ==== VOID v8: PROMPT LEVERAGE + VISIBLE CHANGE ==== */
+.stage{position:relative}
+.compareBefore{position:absolute;z-index:24;object-fit:fill;pointer-events:none;border:0;background:#fff}
+.compareBar{position:absolute;left:8px;right:8px;bottom:8px;z-index:26;display:grid;grid-template-columns:auto auto minmax(0,1fr) 38px;height:38px;border:1px solid #111;background:#fff;box-shadow:0 3px 16px rgba(0,0,0,.16)}
+.compareBar[hidden],.compareBefore[hidden]{display:none!important}
+.compareBar button{border:0;border-right:1px solid #111;background:#fff;padding:0 9px;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800;letter-spacing:.05em}
+.compareBar button[aria-pressed="true"]{background:#111;color:#fff}
+.compareBar span{display:flex;align-items:center;padding:0 9px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;color:#555}
+.compareBar #compareClose{border-right:0;border-left:1px solid #111;font-size:18px;font-weight:400;padding:0}
+
+.aiOptions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:100%;border-top:1px solid #111;background:#fff;overflow:hidden}
+.aiOptions[hidden]{display:none!important}
+.aiOption{min-width:0;height:112px;border:0;border-right:1px solid #111;background:#fff;color:#111;padding:8px;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}
+.aiOption:last-child{border-right:0}
+.aiOption .aoN{font-size:9px;color:#777;letter-spacing:.12em}
+.aiOption .aoTitle{font-size:11px;font-weight:800;line-height:1.15;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aiOption .aoEffect{font-size:9px;line-height:1.25;color:#666;margin-top:5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.aiOption .aoUse{align-self:end;font-size:9px;font-weight:800;letter-spacing:.08em;padding-top:5px}
+.aiOption:active,.aiOption[aria-pressed="true"]{background:#111;color:#fff}
+.aiOption:active .aoN,.aiOption:active .aoEffect,.aiOption[aria-pressed="true"] .aoN,.aiOption[aria-pressed="true"] .aoEffect{color:#ddd}
+
+@media(max-width:899px){
+  .aiPane.aiLite{display:flex!important;flex-direction:column!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100vw!important;max-width:100vw!important;max-height:min(49dvh,420px)!important;overflow:hidden!important}
+  .aiLiteHead{flex:0 0 42px;width:100%}
+  .aiLite .aiPrompt{flex:0 0 78px!important;height:78px!important;min-height:78px!important;padding:12px 14px!important;font-size:15px!important;overflow:auto!important}
+  .aiLiteGo{flex:0 0 44px;height:44px!important}
+  .aiLiteGo button{height:44px!important}
+  .aiOptions{flex:0 0 112px}
+  .aiLite .aiAnswer{flex:0 0 auto;max-height:38px!important;padding:5px 8px!important;font-size:9px!important}
+  .compareBar{bottom:6px;left:6px;right:6px;height:36px}
+  .compareBar span{font-size:8px}
+}
+
+
+/* ==== VOID v9 HARD LOCK: AI NEVER RUNS OFF PAGE ==== */
+@media(max-width:899px){
+  .aiPane.aiLite,
+  .aiPane.aiLite.showingOptions{
+    position:fixed!important; left:0!important; right:0!important; bottom:0!important; top:auto!important;
+    width:100vw!important; max-width:100vw!important; margin:0!important; box-sizing:border-box!important;
+    display:grid!important; grid-template-rows:40px 52px 42px auto auto!important;
+    max-height:min(31dvh,248px)!important; overflow:hidden!important;
+    padding:0 0 env(safe-area-inset-bottom) 0!important; border-top:2px solid #111!important; background:#fff!important; z-index:140!important;
+  }
+  .aiPane.aiLite.showingOptions{ max-height:min(43dvh,344px)!important; }
+  .aiPane.aiLite *{ box-sizing:border-box!important; }
+  .aiLiteHead{height:40px!important; min-height:40px!important; display:grid!important; grid-template-columns:auto minmax(0,1fr) auto 42px 42px!important; align-items:center!important; border-bottom:1px solid #111!important;}
+  .aiLiteHead b{padding-left:10px!important; font-size:11px!important;}
+  .aiLiteHead > span{font-size:10px!important; padding:0 8px!important;}
+  .aiLiteHead button{height:40px!important; padding:0 8px!important; font-size:10px!important;}
+  .aiLiteHead #aiClose{font-size:20px!important;}
+  .aiLite .aiPrompt{
+    display:block!important; width:calc(100% - 16px)!important; max-width:none!important; margin:8px!important;
+    height:36px!important; min-height:36px!important; line-height:36px!important;
+    padding:0 10px!important; border:1px solid #111!important; border-radius:0!important;
+    resize:none!important; background:#fff!important; color:#111!important;
+    font:15px/36px ui-monospace,SFMono-Regular,Menlo,monospace!important;
+    white-space:nowrap!important; overflow:hidden!important; text-overflow:ellipsis!important;
+  }
+  .aiLiteGo{display:block!important; height:42px!important; min-height:42px!important;}
+  .aiLiteGo button{display:block!important; width:100%!important; height:42px!important; border:0!important; background:#111!important; color:#fff!important; font-size:12px!important; font-weight:800!important; letter-spacing:.12em!important;}
+  .aiOptions{display:flex!important; flex-direction:row!important; align-items:stretch!important; gap:0!important; overflow-x:auto!important; overflow-y:hidden!important; scroll-snap-type:x mandatory!important; border-top:1px solid #111!important; border-bottom:1px solid #111!important; background:#fff!important; min-height:96px!important; max-height:112px!important;}
+  .aiOptions[hidden]{display:none!important;}
+  .aiOption{flex:0 0 78vw!important; width:78vw!important; min-width:78vw!important; max-width:78vw!important; height:96px!important; min-height:96px!important; scroll-snap-align:start!important; border-right:1px solid #111!important; padding:8px!important;}
+  .aiOption .aoEffect{-webkit-line-clamp:2!important;}
+  .aiLite .aiAnswer{display:block!important; max-height:40px!important; min-height:0!important; padding:5px 8px!important; border-top:0!important; background:#fafafa!important; font-size:9px!important; line-height:1.25!important; overflow:auto!important; white-space:pre-wrap!important;}
+  .aiLite .aiAnswer[hidden]{display:none!important;}
+  .aiLiteSettings{position:absolute!important; left:8px!important; right:8px!important; top:40px!important; bottom:auto!important; width:auto!important; max-width:none!important; z-index:6!important; display:grid!important; grid-template-columns:minmax(0,1fr) auto auto!important; border:1px solid #111!important; background:#fff!important; box-shadow:0 5px 20px rgba(0,0,0,.16)!important;}
+  .aiLiteSettings[hidden]{display:none!important;}
+  .aiLiteSettings input{grid-column:1/-1!important; width:100%!important; height:42px!important; border:0!important; border-bottom:1px solid #111!important; padding:0 10px!important; font-size:12px!important;}
+  .aiLiteSettings select,.aiLiteSettings button{height:38px!important; border:0!important; border-right:1px solid #111!important; padding:0 8px!important; font:10px ui-monospace,SFMono-Regular,Menlo,monospace!important; background:#fff!important;}
+  .aiLiteSettings > *:last-child{border-right:0!important;}
+}
+
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="primaryBar">
+    <button id="pick" aria-label="Open images"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h4"/></svg></span><span>OPEN</span></button>
+    <button id="ai" aria-label="Open AI"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9z"/></svg></span><span>AI</span></button>
+    <button id="undo" aria-label="Undo"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M20 17a8 8 0 0 0-8-8H4"/></svg></span><span>UNDO</span></button>
+    <button id="save" aria-label="Save image"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span><span>SAVE</span></button>
+    <button id="toolsToggle" aria-label="More tools" aria-pressed="false"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="11" cy="18" r="1.5"/></svg></span><span>TOOLS</span></button>
+  </div>
+  <div class="statusBar"><span id="where">OPEN 2 IMAGES</span></div>
+  <div id="toolTray" class="toolTray" hidden>
+    <button id="cam" aria-label="Camera"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 8h4l2-2h4l2 2h4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg></span><span>CAM</span></button>
+    <button id="play" hidden aria-label="Play video"><span class="ico fill"><svg viewBox="0 0 24 24"><path d="M8 6l10 6-10 6z"/></svg></span><span>PLAY</span></button>
+    <button id="historyBtn" aria-label="Versions"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v5h5"/><path d="M12 8v5l3 2"/></svg></span><span>VERSIONS <span id="verN" class="verBadge">0</span></span></button>
+    <button id="reset" aria-label="Reset all"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v5h5"/></svg></span><span>RESET</span></button>
+    <button id="aper" aria-pressed="false" hidden>HOLES</button>
+    <button id="edges" aria-pressed="false" hidden>EDGES</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="out"></canvas>
+  <button id="t-clear-float" class="viewAll" hidden aria-label="Show whole image">WHOLE</button>
+  <div id="workOverlay" class="workOverlay" hidden>
+    <div class="workSweep"></div>
+    <div class="workPanel">
+      <div class="workLine"><span id="workLabel">working</span><button id="workStop">STOP</button></div>
+      <div class="workTrack"><div id="workBar" class="workBar"></div></div>
+    </div>
+  </div>
+  <img id="compareBefore" class="compareBefore" alt="Previous mosaic" hidden>
+  <div id="compareBar" class="compareBar" hidden>
+    <button id="comparePrev" aria-pressed="false">BEFORE</button>
+    <button id="compareNow" aria-pressed="true">NOW</button>
+    <span id="compareLabel">AI change</span>
+    <button id="compareClose" aria-label="Close comparison">×</button>
+  </div>
+  <div class="rest" id="rest">
+    <b>OPEN 2 IMAGES</b>
+    <div class="restRow">
+      <div class="restStep"><span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14"/></svg></span><span>1 CUT</span></div>
+      <div class="restStep"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg></span><span>2 FILL</span></div>
+    </div>
+    <button id="pick2">OPEN</button>
+  </div>
+</div>
+
+<div class="side" id="workSide" hidden>
+
+<div id="scriptPane" hidden>
+  <div class="sheetHead"><b>STATE TEXT</b><span>edit commands → RUN</span><button id="scriptClose">CLOSE</button></div>
+  <textarea id="scriptBox" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+  <div class="scriptbar">
+    <button id="scriptRun">RUN CHANGES</button>
+    <button id="scriptCopy">COPY STATE</button>
+    <button id="scriptRead">RESTORE CURRENT</button>
+    <span id="scriptMsg"></span>
+  </div>
+</div>
+
+<div id="aiPane" class="aiPane aiLite" hidden>
+  <div class="aiLiteHead">
+    <b>AI</b>
+    <span id="aiScopeRead">WHOLE</span>
+    <button id="refPick" aria-label="Add reference">+REF <span id="aiRefs">0</span></button>
+    <button id="aiSettingsToggle" aria-pressed="false" aria-label="AI settings">•••</button>
+    <button id="aiClose" aria-label="Close AI">×</button>
+  </div>
+  <div id="aiSettings" class="aiSettings aiLiteSettings" hidden>
+    <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="OpenAI API key">
+    <select id="aiModel" aria-label="OpenAI reasoning model">
+      <option value="gpt-5.6-sol">5.6 SOL</option>
+      <option value="gpt-5.6-terra">5.6 TERRA</option>
+      <option value="gpt-5.6-luna">5.6 LUNA</option>
+    </select>
+    <button id="aiShowKey">SHOW</button>
+    <button id="refClear">CLEAR REF</button>
+    <select id="aiImageQuality" aria-label="Image quality" hidden><option value="medium" selected>IMG MED</option></select>
+    <button id="aiSee" aria-pressed="true" hidden>SEE ON</button>
+  </div>
+  <div id="aiRefZone" class="aiRefZone" hidden><div id="aiRefDrop" class="aiRefDrop">DROP REF</div><div id="aiRefStrip" class="aiRefStrip"></div></div>
+  <input id="aiPrompt" class="aiPrompt" type="text" autocomplete="off" spellcheck="false" placeholder="name the change · one phrase is enough">
+  <div class="aiLiteGo"><button id="aiDrive">3 MOVES</button></div>
+  <div id="aiOptions" class="aiOptions" hidden></div>
+  <div id="aiAnswer" class="aiAnswer" hidden></div>
+  <div id="aiMeta" class="aiMeta" hidden><span id="aiStatus"><span class="aiSpin"></span>idle</span><span id="aiContext">no frame</span></div>
+  <div class="aiProg" hidden><div id="aiProgBar" class="aiProgBar"></div></div>
+  <button id="aiScopeAll" hidden aria-pressed="true">WHOLE</button>
+  <button id="aiScopePatch" hidden aria-pressed="false" disabled>PATCH</button>
+  <button id="aiAsk" hidden>CHAT</button>
+  <button id="aiGen" hidden>MAKE</button>
+  <button id="aiEdit" hidden>EDIT</button>
+  <button id="aiIdea" hidden>IDEA</button>
+</div>
+
+<div id="historyPane" class="historyPane" hidden>
+  <div class="sheetHead"><b>VERSIONS</b><span>restore without deleting later work</span><button id="historyClose">CLOSE</button></div>
+  <div id="versionList" class="versionList"></div>
+  <div class="historyActions">
+    <button id="script">STATE</button>
+    <button id="expPng">PNG</button>
+    <button id="expState">STATE FILE</button>
+    <button id="expBundle">BUNDLE</button>
+  </div>
+</div>
+
+<div class="tabs" id="targetBar" hidden>
+  <button id="sc-patch" aria-pressed="true">PATCH<span id="nP"></span></button>
+  <button id="sc-tone" aria-pressed="false">TONE<span id="nT"></span></button>
+  <button id="t-clear" class="targetExit" aria-label="Show whole image">WHOLE</button>
+</div>
+
+<div class="tryhead" id="tryHead">touch the picture</div>
+<div class="chips" id="chips"></div>
+<div class="strip" id="strip"></div>
+
+<div class="decks">
+  <div class="deck">
+    <div class="dl">A · CUT<span class="rd" id="cntA">&mdash;</span></div>
+    <div class="deckHelp"><b>↔</b> loose / tight &nbsp; <b>↕</b> big / small</div>
+    <div class="ball"><canvas id="orbA" width="240" height="240"></canvas></div>
+    <div class="dr" id="readA">&mdash;</div>
+  </div>
+  <div class="deck">
+    <div class="dl">B · FILL<span class="rd" id="cntB">&mdash;</span></div>
+    <div class="deckHelp"><b>↔</b> 1st / 2nd &nbsp; <b>↕</b> flat / photo / avg</div>
+    <div class="ball"><canvas id="orbB" width="240" height="240"></canvas></div>
+    <div class="dr" id="readB">&mdash;</div>
+  </div>
+</div>
+
+<div class="fader">
+  <span class="fl">MOVE ALL</span>
+  <div class="track" id="fader"><div class="knob" id="knob"></div></div>
+  <span class="fl">→ 2ND</span>
+</div>
+
+<div class="foot" id="foot"><span>&mdash;</span></div>
+</div>
+
+<input type="file" id="file" accept="image/*,video/*" multiple>
+<input type="file" id="refFile" accept="image/*,video/*" multiple>
+
+<script>
+"use strict";
+/*===CORE_START===*/
+
+/* ---- sphere math, in the ORB idiom ---- */
+const TAU=Math.PI*2, PI=Math.PI, D2R=PI/180, R2D=180/PI;
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const norm3=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const dirLL=(lam,phi)=>{const c=Math.cos(phi);return [c*Math.sin(lam),Math.sin(phi),c*Math.cos(lam)];};
+const llDir=d=>[Math.atan2(d[0],d[2]),Math.asin(clamp(d[1],-1,1))];
+function rotOf(yaw,pitch){
+  const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  return [[cy,0,-sy],[sy*sp,cp,cy*sp],[sy*cp,-sp,cy*cp]];
+}
+const toScreen=(d,R)=>[dot3(d,R[0]),dot3(d,R[1]),dot3(d,R[2])];
+function fromScreen(x,y,R){
+  const r2=x*x+y*y; if(r2>1) return null;
+  const z=Math.sqrt(1-r2);
+  return norm3([R[0][0]*x+R[1][0]*y+R[2][0]*z,
+                R[0][1]*x+R[1][1]*y+R[2][1]*z,
+                R[0][2]*x+R[1][2]*y+R[2][2]*z]);
+}
+
+/* ============================================================
+   THE BALL IS THE ROUTING TABLE
+
+   Every tone sits somewhere on it, and its position says everything:
+
+     longitude   which picture it reads.   0 = the first, 180 = the second,
+                 anywhere between = a mix of the two.
+     latitude    how it reads it.  north pole = flat tone, equator = the
+                 photograph itself, south pole = the cell's average.
+
+   Nowhere on the ball is undefined, so there is no bad place to drag to.
+   ============================================================ */
+function routeOf(d){
+  const [lam,phi]=llDir(d);
+  const mix=Math.abs(lam)/PI;                 // 0 at the A meridian, 1 at B
+  const t=phi/(PI/2);                         // +1 north, -1 south
+  let flat=0,photo=0,mean=0;
+  if(t>=0){ flat=t; photo=1-t; } else { mean=-t; photo=1+t; }
+  return {mix,flat,photo,mean,lam,phi};
+}
+function routeLabel(r){
+  const b=Math.round(r.mix*100);
+  const parts=[];
+  if(r.flat>0.5) parts.push("flat tone"); else if(r.mean>0.5) parts.push("cell average");
+  else parts.push("photograph");
+  if(r.flat>0.02&&r.flat<=0.5) parts.push("flattened "+Math.round(r.flat*100)+"%");
+  if(r.mean>0.02&&r.mean<=0.5) parts.push("averaged "+Math.round(r.mean*100)+"%");
+  const src = b<3 ? "first picture" : b>97 ? "second picture" : b+"% second";
+  return src+" \u00b7 "+parts.join(", ");
+}
+/* ---- deck A: the same two gestures, aimed at the cut instead of the fill.
+   longitude  how tightly this tone's cells pool into patches
+   latitude   how finely its region is cut.  north = few big cells,
+              equator = as cut, south = many small ones.
+   ---- */
+function cutOf(d){
+  const [lam,phi]=llDir(d);
+  const tight=Math.abs(lam)/PI;              // 0 loose, 1 tight
+  const t=phi/(PI/2);                        // +1 north, -1 south
+  const dens=Math.pow(4, -t);                // a quarter at the north pole, four at the south
+  return {tight,dens,lam,phi};
+}
+function cutLabel(c){
+  const d = c.dens<0.75 ? "few big cells" : c.dens>1.35 ? "many small cells" : "cells as cut";
+  return d+" \u00b7 patches "+Math.round(c.tight*100)+"%";
+}
+function defaultCuts(K){
+  const p=[];
+  for(let i=0;i<K;i++) p.push(dirLL(PI*0.35,0));   // everything at the same middling grip, front face
+  return p;
+}
+
+/* There is no cell-count control and no grip control. Both are readings of
+   deck A: latitude is how fine a tone wants its ground, so the mean of those
+   wishes IS the cell count; longitude is how hard a tone grips, so the grip
+   dial was only ever a scale factor and is now a constant. */
+const CELL_BASE=700, CELL_MIN=110, CELL_MAX=3000, GRIP_FULL=30;
+function cellsFrom(cuts){
+  if(!cuts||!cuts.length) return CELL_BASE;
+  /* density is a ratio, so the mean has to be geometric. Averaged the plain
+     way, a ball with half its tones north and half south came out at 2.1x the
+     base instead of 1x — mixed wishes drifted toward more cells for no reason. */
+  let ln=0; for(const d of cuts) ln+=Math.log(cutOf(d).dens);
+  return Math.round(clamp(CELL_BASE*Math.exp(ln/cuts.length),CELL_MIN,CELL_MAX));
+}
+function gripFrom(cuts){ return cuts.map(d=>cutOf(d).tight*2); }
+
+/* ============================================================
+   WHY THE BALLS WERE UNUSABLE, AND WHAT REPLACED IT
+
+   Half of every ball was a mirror of the other half. mix reads |longitude|,
+   so -140 and +140 are the same setting; the far hemisphere held nothing new
+   and hid every puck that drifted onto it. Free rotation made that worse: it
+   moved pucks across the screen without changing a single value, so the ball
+   appeared to respond while nothing happened.
+
+   The fix is to stop pretending the space is a sphere. It is two bounded
+   numbers. Longitude is clamped to 0..180 and the view is nailed to one
+   orientation, which puts the ENTIRE reachable set on the front face at all
+   times. Nothing is ever behind. Rotation is gone, and the gesture it wasted
+   now moves every tone together.
+   ============================================================ */
+const FACE_YAW=PI/2, FACE_PITCH=0;
+const faceRot=()=>rotOf(FACE_YAW,FACE_PITCH);
+function clampFace(d){
+  let [lam,phi]=llDir(d);
+  lam=clamp(lam,0.0001,PI-0.0001);
+  phi=clamp(phi,-PI/2+0.0001,PI/2-0.0001);
+  return dirLL(lam,phi);
+}
+
+/* ============================================================
+   WHY THE FACE WAS STILL HARD, AFTER THE HEMISPHERE FIX
+
+   Orthographic projection squeezes the rim to nothing. Measured on a 63px
+   disc: 1.10 px per degree at the centre, 0.10 at 85 degrees out, 0.02 at 89.
+   And the four settings you reach for most — the first picture, the second,
+   flat, average — ALL sit at 90 degrees out. They had essentially zero screen
+   width. The ball was not hard to read; it was hard to hit.
+
+   Equidistant projection maps angular distance linearly to radius: a constant
+   0.70 px per degree everywhere, rim included. The four anchors land on the
+   rim at left, right, top and bottom, evenly spaced, with room around them.
+
+   This is also why rotation is not coming back. Spinning a face that already
+   shows every reachable setting moves pixels without changing a value — that
+   was the original complaint. What rotation was wanted FOR is reach, and reach
+   is what the projection and the zoom below actually fix.
+   ============================================================ */
+function faceProject(d,R,zoom,px,py){
+  const a=dot3(d,R[0]), b=dot3(d,R[1]), z=dot3(d,R[2]);
+  const th=Math.acos(clamp(z,-1,1));
+  const r=th/(PI/2);
+  const m=Math.hypot(a,b);
+  const ux = m>1e-9 ? a/m : 0, uy = m>1e-9 ? b/m : 0;
+  return [(r*ux-px)*zoom, (r*uy-py)*zoom, r];
+}
+function faceUnproject(X,Y,R,zoom,px,py){
+  const x=X/zoom+px, y=Y/zoom+py;
+  const r=Math.hypot(x,y);
+  if(r>1.0001) return null;
+  const th=Math.min(r,1)*(PI/2), sn=Math.sin(th), cs=Math.cos(th);
+  const ux = r>1e-9 ? x/r : 0, uy = r>1e-9 ? y/r : 0;
+  return norm3([R[0][0]*ux*sn+R[1][0]*uy*sn+R[2][0]*cs,
+                R[0][1]*ux*sn+R[1][1]*uy*sn+R[2][1]*cs,
+                R[0][2]*ux*sn+R[1][2]*uy*sn+R[2][2]*cs]);
+}
+/* px per degree, so the claim above stays checkable */
+function faceScale(Rr,zoom){ return Rr*zoom/90; }
+
+/* ---- detents: the named settings you can actually land on ----
+   Continuous everywhere, but the six places worth naming pull you in and
+   tick. Without them nothing could be set exactly and every value was a
+   near-miss you could not read back. ---- */
+const DET_LON=[0,90,180], DET_LAT=[-90,0,90], DET_DEG=7;
+function snapFace(d){
+  let [lam,phi]=llDir(clampFace(d));
+  let la=lam*R2D, ph=phi*R2D, hitLon=null, hitLat=null;
+  for(const t of DET_LON) if(Math.abs(la-t)<DET_DEG){ la=t; hitLon=t; break; }
+  for(const t of DET_LAT) if(Math.abs(ph-t)<DET_DEG){ ph=t; hitLat=t; break; }
+  return {dir:dirLL(la*D2R,ph*D2R),hitLon,hitLat,
+          key:(hitLon===null?"-":hitLon)+"/"+(hitLat===null?"-":hitLat)};
+}
+/* move every tone by the same amount, the gesture rotation used to waste */
+function shiftAll(places,dLonDeg,dLatDeg){
+  return places.map(d=>{
+    const [lam,phi]=llDir(d);
+    /* clamp the NUMBERS, not the direction. Building the direction first and
+       clamping after let a tone shifted past 180 wrap to -140 and reappear on
+       the opposite rim — dragging right teleported tones to the left. */
+    const la=clamp(lam*R2D+dLonDeg,0,180);
+    const ph=clamp(phi*R2D+dLatDeg,-90,90);
+    return dirLL(la*D2R,ph*D2R);
+  });
+}
+
+/* ============================================================
+   THE INDIRECTION THAT WAS LEFT
+
+   Even with the balls fixed, the control surface still sat beside the
+   picture: you dragged an abstract puck, then looked at the image to find
+   out what you had done. Selecting a tone meant hunting for the right puck
+   among sixteen, none of which said where they lived.
+
+   The picture is the control surface. Touch a region, and the tone that owns
+   it is selected. Its alternatives are then shown as whole rendered frames,
+   so the choice is made by comparing outcomes rather than by guessing at
+   coordinates. The ball keeps its job — continuous adjustment after the
+   coarse choice is made.
+   ============================================================ */
+const ALTS=[
+  {t:"1st",        la:0,   ph:0},
+  {t:"half",       la:90,  ph:0},
+  {t:"2nd",        la:180, ph:0},
+  {t:"flat 1st",   la:0,   ph:90},
+  {t:"flat 2nd",   la:180, ph:90},
+  {t:"avg 1st",    la:0,   ph:-90},
+  {t:"avg 2nd",    la:180, ph:-90},
+  {t:"soft half",  la:90,  ph:52}
+];
+const altDir=a=>dirLL(a.la*D2R,a.ph*D2R);
+
+/* ============================================================
+   PATCHES
+
+   A tone is scattered: it owns cells all over the frame. A patch is one
+   connected run of them — the thing you actually point at. Everything the
+   balls do can be aimed at either, and a patch may also name a different
+   second picture from the rest of its tone.
+
+   Patches are keyed by their lowest cell index, which is stable for as long
+   as the cut is frozen. A recut drops the overrides, because after a recut
+   they would be pointing at cells that no longer exist.
+   ============================================================ */
+function findPatches(count,labels,adj,area){
+  const patchOf=new Int32Array(count).fill(-1);
+  const tone=[],seed=[],size=[];
+  const stack=new Int32Array(count);
+  for(let c0=0;c0<count;c0++){
+    if(patchOf[c0]>=0) continue;
+    const id=tone.length, l=labels[c0];
+    let sp=0,n=0,px=0;
+    stack[sp++]=c0; patchOf[c0]=id;
+    while(sp){
+      const c=stack[--sp]; n++; px+=area?area[c]:1;
+      for(let e=adj.start[c];e<adj.start[c+1];e++){
+        const q=adj.nb[e];
+        if(patchOf[q]<0 && labels[q]===l){ patchOf[q]=id; stack[sp++]=q; }
+      }
+    }
+    tone.push(l); seed.push(c0); size.push(px);
+  }
+  return {patchOf,count:tone.length,tone:Int32Array.from(tone),
+          seed:Int32Array.from(seed),size:Int32Array.from(size)};
+}
+
+/* ============================================================
+   KNOWING WHICH GRAIN YOU ARE ON
+
+   A scope switch that only changes a button is a mode error waiting to
+   happen: patch and tone look the same on screen, and if a tone happens to be
+   one connected run they ARE the same. So the scope is drawn in the picture.
+
+   Three tiers, always visible before you act:
+     in scope     full colour, hard outline — this is what will move
+     siblings     half sunk, thin outline — the rest of this tone, which
+                  will NOT move while you are on a patch
+     everything   sunk to grey
+   ============================================================ */
+function scopeSets(patches,scope,tone,patch){
+  const inScope=new Uint8Array(patches.count);
+  const sibling=new Uint8Array(patches.count);
+  let nIn=0,nSib=0;
+  if(tone<0) return {inScope,sibling,nIn:0,nSib:0,none:true};
+  for(let i=0;i<patches.count;i++){
+    if(patches.tone[i]!==tone) continue;
+    if(scope==="tone"||i===patch){ inScope[i]=1; nIn++; }
+    else { sibling[i]=1; nSib++; }
+  }
+  return {inScope,sibling,nIn,nSib,none:false};
+}
+function patchesPerTone(patches,K){
+  const n=new Int32Array(K);
+  for(let i=0;i<patches.count;i++) n[patches.tone[i]]++;
+  return n;
+}
+
+/* patches ranked biggest first, so a written program can name them by a
+   number that means the same thing every time the same cut is in place */
+function patchOrder(patches){
+  const idx=[];
+  for(let i=0;i<patches.count;i++) idx.push(i);
+  idx.sort((a,b)=> patches.size[b]-patches.size[a] || patches.seed[a]-patches.seed[b]);
+  return idx;
+}
+
+/* what a patch is actually set to: its own override if it has one,
+   otherwise whatever its tone says */
+function settingFor(patches,pid,overrides,fills,toneSrc){
+  const l=patches.tone[pid], key=patches.seed[pid];
+  const o=overrides.get(key);
+  return {dir:(o&&o.dir)?o.dir:fills[l],
+          srcB:(o&&o.srcB!==undefined)?o.srcB:(toneSrc?toneSrc[l]:1),
+          own:!!o};
+}
+
+/* ---- what a ball looks like before you touch it ----
+   Both balls are drawn as a lat/lon dot lattice, and every dot is rendered by
+   the same functions the picture uses. The surface is therefore a map of its
+   own effect: you read the option off the ball instead of discovering it by
+   dragging. ---- */
+function fillDot(d,repA,repB){
+  const r=routeOf(d);
+  const col=[repA[0]+(repB[0]-repA[0])*r.mix,
+             repA[1]+(repB[1]-repA[1])*r.mix,
+             repA[2]+(repB[2]-repA[2])*r.mix];
+  // a photographic reading keeps its grain; a flat or averaged one does not
+  return {col,size:0.30+0.70*r.photo};
+}
+function cutDot(d){
+  const c=cutOf(d);
+  // dot size is the cell size that latitude asks for; grey is how hard it grips
+  const g=Math.round(228-150*c.tight);
+  return {col:[g,g,g],size:clamp(Math.pow(c.dens,-0.5),0.42,2.0)};
+}
+/* the bands worth naming, as latitude/longitude pairs with a word */
+const BANDS={
+  A:[{ph:78,t:"BIG CELLS"},{ph:0,t:"AS CUT"},{ph:-78,t:"SMALL CELLS"},
+     {la:0,t:"LOOSE"},{la:180,t:"TIGHT"}],
+  B:[{ph:78,t:"FLAT"},{ph:0,t:"PHOTOGRAPH"},{ph:-78,t:"AVERAGE"},
+     {la:0,t:"1st"},{la:180,t:"2nd"}]
+};
+
+/* adding and removing tones is done on the ball, so the places must survive
+   a change of K: keep every puck we already have, in tonal order */
+function resizePlaces(places,K,makeDefault){
+  const def=makeDefault(K);
+  if(!places||!places.length) return def;
+  const out=[];
+  for(let i=0;i<K;i++) out.push(i<places.length?places[i].slice():def[i].slice());
+  return out;
+}
+
+/* the ball starts as a ring around the equator: every tone photographic,
+   spread from the first picture to the second in tonal order */
+function defaultPlaces(K){
+  const p=[];
+  for(let i=0;i<K;i++){
+    const lam = 0.04*PI + (i/(Math.max(1,K-1)))*PI*0.92;
+    p.push(dirLL(lam,0));
+  }
+  return p;
+}
+
+/* ---- colour ---- */
+function lin(c){ c/=255; return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); }
+function fLab(t){ return t>0.008856?Math.cbrt(t):(7.787*t)+16/116; }
+function toLab(r,g,b){
+  const R=lin(r),G=lin(g),B=lin(b);
+  const X=(R*0.4124+G*0.3576+B*0.1805)/0.95047;
+  const Y=(R*0.2126+G*0.7152+B*0.0722);
+  const Z=(R*0.0193+G*0.1192+B*0.9505)/1.08883;
+  const fx=fLab(X),fy=fLab(Y),fz=fLab(Z);
+  return [116*fy-16,500*(fx-fy),200*(fy-fz)];
+}
+const luma=(r,g,b)=>0.299*r+0.587*g+0.114*b;
+
+function medianCut(d,k){
+  const px=[]; const stride=Math.max(4,(d.length/4/20000|0))*4;
+  for(let i=0;i<d.length;i+=stride){ if(d[i+3]<8) continue; px.push([d[i],d[i+1],d[i+2]]); }
+  if(!px.length) return [[0,0,0]];
+  let boxes=[px];
+  while(boxes.length<k){
+    let bi=-1,bw=-1;
+    for(let i=0;i<boxes.length;i++){
+      const b=boxes[i]; if(b.length<2) continue;
+      let mn=[255,255,255],mx=[0,0,0];
+      for(const p of b) for(let c=0;c<3;c++){ if(p[c]<mn[c])mn[c]=p[c]; if(p[c]>mx[c])mx[c]=p[c]; }
+      const w=Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]);
+      if(w>bw){bw=w;bi=i;}
+    }
+    if(bi<0||bw<=0) break;
+    const b=boxes[bi];
+    let mn=[255,255,255],mx=[0,0,0];
+    for(const p of b) for(let c=0;c<3;c++){ if(p[c]<mn[c])mn[c]=p[c]; if(p[c]>mx[c])mx[c]=p[c]; }
+    let ch=0; if(mx[1]-mn[1]>mx[ch]-mn[ch])ch=1; if(mx[2]-mn[2]>mx[ch]-mn[ch])ch=2;
+    b.sort((p,q)=>p[ch]-q[ch]);
+    const mid=b.length>>1;
+    boxes.splice(bi,1,b.slice(0,mid),b.slice(mid));
+  }
+  const seen=new Set(), pal=[];
+  for(const b of boxes){
+    if(!b.length) continue;
+    let r=0,g=0,bl=0; for(const p of b){r+=p[0];g+=p[1];bl+=p[2];}
+    const c=[Math.round(r/b.length),Math.round(g/b.length),Math.round(bl/b.length)];
+    const key=c.join(","); if(seen.has(key)) continue; seen.add(key); pal.push(c);
+  }
+  return pal.length?pal:[[0,0,0]];
+}
+const byTone=p=>p.slice().sort((a,b)=>luma(a[0],a[1],a[2])-luma(b[0],b[1],b[2]));
+
+function buildMetric(pal){
+  const lab=pal.map(c=>toLab(c[0],c[1],c[2]));
+  const K=pal.length,V=new Float32Array(K*K); let mx=1e-6;
+  for(let i=0;i<K;i++) for(let j=0;j<K;j++){
+    const a=lab[i],b=lab[j];
+    const d=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+    V[i*K+j]=d; if(d>mx) mx=d;
+  }
+  for(let i=0;i<V.length;i++) V[i]/=mx;
+  return {V,K,lab};
+}
+function quantIndex(labs,r,g,b){
+  const L=toLab(r,g,b); let best=0,bd=Infinity;
+  for(let i=0;i<labs.length;i++){
+    const p=labs[i];
+    const d=(L[0]-p[0])**2+(L[1]-p[1])**2+(L[2]-p[2])**2;
+    if(d<bd){bd=d;best=i;}
+  }
+  return best;
+}
+/* Converting to Lab per pixel per frame is what makes video impossible.
+   Five bits a channel is 32768 entries, built once when the palette changes,
+   and every frame after that is an array lookup. */
+function buildLUT(labs){
+  const lut=new Uint8Array(32768);
+  for(let r=0;r<32;r++) for(let g=0;g<32;g++) for(let b=0;b<32;b++)
+    lut[(r<<10)|(g<<5)|b]=quantIndex(labs,r*8+4,g*8+4,b*8+4);
+  return lut;
+}
+const lutLook=(lut,r,g,b)=>lut[((r>>3)<<10)|((g>>3)<<5)|(b>>3)];
+function quantiseField(lut,data,W,H,outIdx){
+  for(let i=0,p=0;i<W*H;i++,p+=4)
+    outIdx[i]=lut[((data[p]>>3)<<10)|((data[p+1]>>3)<<5)|(data[p+2]>>3)];
+  return outIdx;
+}
+
+/* ---- partition ---- */
+function sobel(data,W,H){
+  const lum=new Float32Array(W*H);
+  for(let i=0,p=0;i<W*H;i++,p+=4) lum[i]=luma(data[p],data[p+1],data[p+2]);
+  const m=new Float32Array(W*H); let mx=1e-6;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    const i=y*W+x;
+    const gx=-lum[i-W-1]-2*lum[i-1]-lum[i+W-1]+lum[i-W+1]+2*lum[i+1]+lum[i+W+1];
+    const gy=-lum[i-W-1]-2*lum[i-W]-lum[i-W+1]+lum[i+W-1]+2*lum[i+W]+lum[i+W+1];
+    const v=Math.sqrt(gx*gx+gy*gy); m[i]=v; if(v>mx)mx=v;
+  }
+  for(let i=0;i<m.length;i++) m[i]/=mx;
+  return m;
+}
+function nearestAssign(W,H,seeds,ids){
+  const n=seeds.length/2;
+  const cell=Math.max(2,Math.round(Math.sqrt((W*H)/n)));
+  const gw=Math.ceil(W/cell),gh=Math.ceil(H/cell),gn=gw*gh;
+  const counts=new Int32Array(gn),cxs=new Int32Array(n),cys=new Int32Array(n);
+  for(let i=0;i<n;i++){
+    const sx=clamp(seeds[2*i],0,W-1),sy=clamp(seeds[2*i+1],0,H-1);
+    const cx=Math.min(gw-1,(sx/cell)|0),cy=Math.min(gh-1,(sy/cell)|0);
+    cxs[i]=cx;cys[i]=cy;counts[cy*gw+cx]++;
+  }
+  const start=new Int32Array(gn+1);
+  for(let i=0;i<gn;i++) start[i+1]=start[i]+counts[i];
+  const cur=start.slice(0,gn),items=new Int32Array(n);
+  for(let i=0;i<n;i++) items[cur[cys[i]*gw+cxs[i]]++]=i;
+  const maxR=Math.max(gw,gh);
+  for(let y=0;y<H;y++){
+    const py=y+0.5,cy=Math.min(gh-1,(y/cell)|0);
+    for(let x=0;x<W;x++){
+      const px=x+0.5,cx=Math.min(gw-1,(x/cell)|0);
+      let best=Infinity,bi=0;
+      for(let r=0;r<=maxR;r++){
+        if(r>0){ const bnd=(r-1)*cell; if(best<=bnd*bnd) break; }
+        const y0=cy-r,y1=cy+r;
+        for(let gy=y0;gy<=y1;gy++){
+          if(gy<0||gy>=gh) continue;
+          const edge=(gy===y0||gy===y1);
+          for(let gx=cx-r;gx<=cx+r;gx+=(edge?1:(2*r))){
+            if(gx<0||gx>=gw) continue;
+            const c2=gy*gw+gx;
+            for(let k=start[c2];k<start[c2+1];k++){
+              const s=items[k];
+              const dx=seeds[2*s]-px,dy=seeds[2*s+1]-py;
+              const d=dx*dx+dy*dy;
+              if(d<best){best=d;bi=s;}
+            }
+            if(r===0) break;
+          }
+        }
+      }
+      ids[y*W+x]=bi;
+    }
+  }
+}
+function partition(dataA,W,H,n,rnd,idxField,dens){
+  const imp=sobel(dataA,W,H);
+  const seeds=new Float32Array(n*2);
+  let placed=0,tries=0;
+  let peak=1;
+  if(idxField&&dens){ for(const d of dens) if(d>peak) peak=d; }
+  while(placed<n&&tries<n*400){
+    tries++;
+    const x=rnd()*W,y=rnd()*H;
+    const i=(y|0)*W+(x|0);
+    let w=0.06+Math.pow(imp[i],0.75);
+    if(idxField&&dens) w*=dens[idxField[i]];      // a tone may ask for finer cells
+    if(rnd()*1.06*peak < w){ seeds[placed*2]=x; seeds[placed*2+1]=y; placed++; }
+  }
+  while(placed<n){ seeds[placed*2]=rnd()*W; seeds[placed*2+1]=rnd()*H; placed++; }
+  const ids=new Int32Array(W*H);
+  const sx=new Float64Array(n),sy=new Float64Array(n),ct=new Int32Array(n);
+  for(let r=0;r<3;r++){
+    nearestAssign(W,H,seeds,ids);
+    if(r===2) break;
+    sx.fill(0);sy.fill(0);ct.fill(0);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const s=ids[y*W+x]; sx[s]+=x+0.5; sy[s]+=y+0.5; ct[s]++; }
+    for(let i=0;i<n;i++) if(ct[i]>0){ seeds[2*i]=sx[i]/ct[i]; seeds[2*i+1]=sy[i]/ct[i]; }
+  }
+  return {ids,count:n};
+}
+
+function cellStats(ids,count,idxField,dA,dB,W,H,K){
+  const n=new Int32Array(count);
+  const aR=new Float64Array(count),aG=new Float64Array(count),aB=new Float64Array(count);
+  const bR=new Float64Array(count),bG=new Float64Array(count),bB=new Float64Array(count);
+  const sq=new Float64Array(count),cx=new Float64Array(count),cy=new Float64Array(count);
+  const hist=new Int32Array(count*K);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const i=y*W+x,c=ids[i],p=i*4;
+    n[c]++;
+    aR[c]+=dA[p];aG[c]+=dA[p+1];aB[c]+=dA[p+2];
+    bR[c]+=dB[p];bG[c]+=dB[p+1];bB[c]+=dB[p+2];
+    sq[c]+=dA[p]*dA[p]+dA[p+1]*dA[p+1]+dA[p+2]*dA[p+2];
+    cx[c]+=x+0.5;cy[c]+=y+0.5;
+    hist[c*K+idxField[i]]++;
+  }
+  return {n,aR,aG,aB,bR,bG,bB,sq,cx,cy,hist,count,K};
+}
+function adjacency(ids,count,W,H){
+  const map=new Map();
+  const add=(a,b)=>{ if(a===b)return; const k=a<b?a*count+b:b*count+a; map.set(k,(map.get(k)||0)+1); };
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const c=ids[y*W+x];
+    if(x+1<W) add(c,ids[y*W+x+1]);
+    if(y+1<H) add(c,ids[(y+1)*W+x]);
+  }
+  const deg=new Int32Array(count),pairs=[];
+  for(const [k,len] of map){ const a=(k/count)|0,b=k%count; pairs.push([a,b,len]); deg[a]++; deg[b]++; }
+  const start=new Int32Array(count+1);
+  for(let i=0;i<count;i++) start[i+1]=start[i]+deg[i];
+  const cur=start.slice(0,count);
+  const nb=new Int32Array(pairs.length*2),wt=new Float32Array(pairs.length*2);
+  for(const [a,b,len] of pairs){ nb[cur[a]]=b;wt[cur[a]]=len;cur[a]++; nb[cur[b]]=a;wt[cur[b]]=len;cur[b]++; }
+  return {start,nb,wt};
+}
+function dataTerm(st,c,l){ const n=st.n[c]; return n?1-st.hist[c*st.K+l]/n:0; }
+/* lamOf is per tone, so one tone can pool into a broad patch while another
+   stays finely broken. warm supplies the previous frame's labels, which is
+   both faster and what keeps video from strobing. */
+function solveLabels(st,adj,V,lam,sweeps,lamOf,warm){
+  const K=st.K,lab=new Int32Array(st.count);
+  if(warm&&warm.length===st.count) lab.set(warm);
+  else for(let c=0;c<st.count;c++){
+    let best=0,bd=Infinity;
+    for(let l=0;l<K;l++){ const d=dataTerm(st,c,l); if(d<bd){bd=d;best=l;} }
+    lab[c]=best;
+  }
+  const lamFor=l=>lam*(lamOf?lamOf[l]:1);
+  if(lam<=0||sweeps<=0){
+    for(let c=0;c<st.count;c++){
+      let best=0,bd=Infinity;
+      for(let l=0;l<K;l++){ const d=dataTerm(st,c,l); if(d<bd){bd=d;best=l;} }
+      lab[c]=best;
+    }
+    return lab;
+  }
+  for(let s=0;s<sweeps;s++){
+    let ch=0;
+    for(let c=0;c<st.count;c++){
+      if(!st.n[c]) continue;
+      let best=lab[c],bd=Infinity;
+      for(let l=0;l<K;l++){
+        let cost=st.n[c]*dataTerm(st,c,l);
+        for(let e=adj.start[c];e<adj.start[c+1];e++){
+          const q=lab[adj.nb[e]];
+          cost+=0.5*(lamFor(l)+lamFor(q))*adj.wt[e]*V[l*K+q];
+        }
+        if(cost<bd){bd=cost;best=l;}
+      }
+      if(best!==lab[c]){ lab[c]=best; ch++; }
+    }
+    if(!ch) break;
+  }
+  return lab;
+}
+function territoryStats(ids,labels,W,H,K){
+  const px=new Int32Array(W*H);
+  for(let i=0;i<W*H;i++) px[i]=labels[ids[i]];
+  const total=new Int32Array(K),biggest=new Int32Array(K);
+  const seen=new Uint8Array(W*H),st=new Int32Array(W*H);
+  for(let i=0;i<W*H;i++) total[px[i]]++;
+  for(let s=0;s<W*H;s++){
+    if(seen[s]) continue;
+    const a=px[s]; let sp=0,cnt=0; st[sp++]=s; seen[s]=1;
+    while(sp){
+      const c=st[--sp]; cnt++;
+      const x=c%W,y=(c/W)|0;
+      if(x>0  &&!seen[c-1]&&px[c-1]===a){seen[c-1]=1;st[sp++]=c-1;}
+      if(x<W-1&&!seen[c+1]&&px[c+1]===a){seen[c+1]=1;st[sp++]=c+1;}
+      if(y>0  &&!seen[c-W]&&px[c-W]===a){seen[c-W]=1;st[sp++]=c-W;}
+      if(y<H-1&&!seen[c+W]&&px[c+W]===a){seen[c+W]=1;st[sp++]=c+W;}
+    }
+    if(cnt>biggest[a]) biggest[a]=cnt;
+  }
+  let num=0,den=0;
+  for(let k=0;k<K;k++){ if(!total[k]) continue; num+=biggest[k]; den+=total[k]; }
+  return {pooled:den?num/den:0,total,biggest};
+}
+
+/* a frame can be fully painted and carry no picture; this measures the picture */
+/* one colour standing for each picture, weighted by how much of the frame
+   each tone actually owns — so the ball's mix axis is this pair, not a guess */
+function representative(pal,share,total){
+  let r=0,g=0,b=0,w=0;
+  for(let i=0;i<pal.length;i++){
+    const s=share[i]||0; if(!s) continue;
+    r+=pal[i][0]*s; g+=pal[i][1]*s; b+=pal[i][2]*s; w+=s;
+  }
+  if(!w) return [128,128,128];
+  return [r/w,g/w,b/w];
+}
+
+function detailFraction(o,W,H){
+  let live=0,tot=0;
+  for(let y=1;y<H-1;y+=2) for(let x=1;x<W-1;x+=2){
+    const p=(y*W+x)*4;
+    const c=luma(o[p],o[p+1],o[p+2]);
+    const r=luma(o[p+8],o[p+9],o[p+10]);
+    const d=luma(o[p+W*8],o[p+W*8+1],o[p+W*8+2]);
+    tot++;
+    if(Math.abs(c-r)+Math.abs(c-d)>6) live++;
+  }
+  return tot?live/tot:0;
+}
+/* ============================================================
+   TELLING A MODEL WHAT IT IS LOOKING AT
+
+   A settings dump alone is useless to anything that cannot see: "fill 3 90 0"
+   is valid and blind. So the text opens with a description of the scene —
+   every tone's colour, share, how many runs it has, how much detail it holds
+   and where its mass sits, plus the largest patches with their boxes. A model
+   given this can say "the dark mass in the lower right is tone 5" and mean it.
+   ============================================================ */
+function whereWord(x,y){
+  const c=y<0.34?"upper":y>0.66?"lower":"middle";
+  const r=x<0.34?"left":x>0.66?"right":"centre";
+  return (c==="middle"&&r==="centre")?"centre":c+" "+r;
+}
+function hex2(c){
+  return "#"+[c[0],c[1],c[2]].map(v=>Math.max(0,Math.min(255,Math.round(v)))
+    .toString(16).padStart(2,"0")).join("");
+}
+/* per patch: where it sits and how far it spreads, from the cell centroids */
+function patchGeometry(patches,st,W,H){
+  const n=patches.count;
+  const cx=new Float64Array(n),cy=new Float64Array(n),wt=new Float64Array(n);
+  const x0=new Float64Array(n).fill(1e9),y0=new Float64Array(n).fill(1e9);
+  const x1=new Float64Array(n).fill(-1e9),y1=new Float64Array(n).fill(-1e9);
+  for(let c=0;c<st.count;c++){
+    const a=st.n[c]; if(!a) continue;
+    const p=patches.patchOf[c];
+    const px=st.cx[c]/a, py=st.cy[c]/a;
+    cx[p]+=px*a; cy[p]+=py*a; wt[p]+=a;
+    if(px<x0[p])x0[p]=px; if(px>x1[p])x1[p]=px;
+    if(py<y0[p])y0[p]=py; if(py>y1[p])y1[p]=py;
+  }
+  for(let i=0;i<n;i++){ if(wt[i]){ cx[i]/=wt[i]; cy[i]/=wt[i]; } }
+  return {cx,cy,x0,y0,x1,y1,W,H};
+}
+/* per tone: colour, share, runs, how much detail it holds, where it sits */
+function toneReport(K,palA,palB,terr,patches,st,geo,W,H,toneSrc,detail){
+  const per=patchesPerTone(patches,K);
+  const cx=new Float64Array(K),cy=new Float64Array(K),wt=new Float64Array(K);
+  for(let i=0;i<patches.count;i++){
+    const t=patches.tone[i], a=patches.size[i];
+    cx[t]+=geo.cx[i]*a; cy[t]+=geo.cy[i]*a; wt[t]+=a;
+  }
+  const out=[];
+  for(let k=0;k<K;k++){
+    const share=terr.total[k]/(W*H);
+    if(share<=0){ out.push("# tone "+k+"  unused"); continue; }
+    const x=wt[k]?cx[k]/wt[k]/W:0.5, y=wt[k]?cy[k]/wt[k]/H:0.5;
+    out.push("# tone "+k+"  "+hex2(palA[k])+"  "+(share*100).toFixed(1)+"%  "+
+      per[k]+(per[k]===1?" run":" runs")+
+      "  detail "+Math.round((detail?detail[k]:0)*100)+"%"+
+      "  "+whereWord(x,y)+
+      ((toneSrc&&toneSrc[k]!==1)?"  reading picture "+toneSrc[k]:""));
+  }
+  return out;
+}
+function patchReport(patches,geo,W,H,limit){
+  const order=patchOrder(patches);
+  const out=[];
+  for(let r=0;r<Math.min(limit,order.length);r++){
+    const i=order[r], share=patches.size[i]/(W*H);
+    if(share<0.004) break;
+    out.push("# patch "+r+"  tone "+patches.tone[i]+"  "+(share*100).toFixed(1)+"%  "+
+      whereWord(geo.cx[i]/W,geo.cy[i]/H)+
+      "  box "+Math.round(geo.x0[i]/W*100)+","+Math.round(geo.y0[i]/H*100)+
+      " to "+Math.round(geo.x1[i]/W*100)+","+Math.round(geo.y1[i]/H*100));
+  }
+  return out;
+}
+/* how much of each tone is texture rather than flat colour */
+function toneDetail(K,labels,st,W,H){
+  const sum=new Float64Array(K), wt=new Float64Array(K);
+  for(let c=0;c<st.count;c++){
+    const a=st.n[c]; if(!a) continue;
+    const mr=st.aR[c]/a, mg=st.aG[c]/a, mb=st.aB[c]/a;
+    const v=Math.max(0, st.sq[c]/a-(mr*mr+mg*mg+mb*mb));
+    sum[labels[c]]+=Math.sqrt(v)*a; wt[labels[c]]+=a;
+  }
+  const out=new Float64Array(K);
+  for(let k=0;k<K;k++) out[k]= wt[k] ? Math.min(1,(sum[k]/wt[k])/70) : 0;
+  return out;
+}
+
+/* ============================================================
+   THE SESSION AS TEXT
+
+   Everything the balls, the cards and the picture can set is also a line of
+   plain text. That makes the whole state readable, diffable, pasteable, and
+   drivable by anything that can write a few lines — including a model that
+   never sees the screen.
+
+     tones <n>
+     cut   <tone> <lon> <lat>          deck A, degrees
+     fill  <tone> <lon> <lat> [src n]  deck B, degrees
+     patch <rank> <lon> <lat> [src n]  one run, ranked biggest first
+     holes on|off
+     edges on|off
+
+   lon 0 is the first picture, 180 the second. lat 90 is a flat tone, 0 the
+   photograph, -90 the cell average.
+   ============================================================ */
+const STATE_HELP=
+"# tones <n> | cut <tone> <lon> <lat> | fill <tone> <lon> <lat> [src n]\n"+
+"# patch <rank> <lon> <lat> [src n] | holes on|off | edges on|off\n"+
+"# lon 0=first picture 180=second, lat 90=flat 0=photograph -90=average\n";
+
+function degOf(d){
+  const [lam,phi]=llDir(d);
+  return [Math.round(lam*R2D*10)/10, Math.round(phi*R2D*10)/10];
+}
+function stateToText(o){
+  const {tones,cuts,fills,toneSrc,patches,ovr,holes,edges,stats,scene}=o;
+  const L=[STATE_HELP.trim()];
+  if(stats) L.push("# "+stats);
+  if(scene&&scene.length){ L.push("#"); scene.forEach(x=>L.push(x)); L.push("#"); }
+  L.push("tones "+tones);
+  cuts.forEach((d,i)=>{ const [a,b]=degOf(d); L.push("cut "+i+" "+a+" "+b); });
+  fills.forEach((d,i)=>{ const [a,b]=degOf(d);
+    L.push("fill "+i+" "+a+" "+b+((toneSrc&&toneSrc[i]!==1)?" src "+toneSrc[i]:"")); });
+  if(patches&&ovr&&ovr.size){
+    const order=patchOrder(patches);
+    order.forEach((pid,rank)=>{
+      const key=patches.seed[pid], o2=ovr.get(key);
+      if(!o2) return;
+      const d=o2.dir||fills[patches.tone[pid]];
+      const [a,b]=degOf(d);
+      L.push("# rank "+rank+" is tone "+patches.tone[pid]+", "+
+             (patches.size[pid]/(stats&&stats.px?stats.px:1)*100).toFixed(1)+"% of the frame");
+      L.push("patch "+rank+" "+a+" "+b+((o2.srcB!==undefined&&o2.srcB!==1)?" src "+o2.srcB:""));
+    });
+  }
+  L.push("holes "+(holes?"on":"off"));
+  L.push("edges "+(edges?"on":"off"));
+  return L.join("\n");
+}
+
+function parseState(text){
+  const out={tones:null,cuts:[],fills:[],patches:[],holes:null,edges:null},errs=[];
+  const num=t=>t!==undefined&&t!==""&&!isNaN(+t);
+  text.split(/\r?\n/).forEach((raw,i)=>{
+    const ln=i+1;
+    const line=raw.replace(/#.*$/,"").trim();
+    if(!line) return;
+    const t=line.split(/\s+/), k=t[0].toLowerCase();
+    const bad=m=>errs.push({ln,msg:m});
+    if(k==="tones"){
+      if(!num(t[1])) return bad("tones needs a number");
+      out.tones=clamp(Math.round(+t[1]),2,16); return;
+    }
+    if(k==="holes"||k==="edges"){
+      const v=(t[1]||"").toLowerCase();
+      if(v!=="on"&&v!=="off") return bad(k+" takes on or off");
+      out[k]= v==="on"; return;
+    }
+    if(k==="cut"||k==="fill"||k==="patch"){
+      if(!num(t[1])||!num(t[2])||!num(t[3]))
+        return bad(k+" needs an index and two angles");
+      const rec={i:Math.round(+t[1]),
+                 lon:clamp(+t[2],0,180), lat:clamp(+t[3],-90,90)};
+      if((t[4]||"").toLowerCase()==="src"){
+        if(!num(t[5])) return bad("src needs a picture number");
+        rec.src=Math.max(1,Math.round(+t[5]));
+      } else if(t[4]!==undefined) return bad("I do not know \u201c"+t[4]+"\u201d");
+      (k==="cut"?out.cuts:k==="fill"?out.fills:out.patches).push(rec);
+      return;
+    }
+    bad("I do not know \u201c"+t[0]+"\u201d");
+  });
+  return {state:out,errs};
+}
+/*===CORE_END===*/
+
+/* ============================================================
+   RUNTIME
+   ============================================================ */
+const $=id=>document.getElementById(id);
+const out=$("out"), octx=out.getContext("2d",{willReadFrequently:true});
+const grab=document.createElement("canvas"), grabx=grab.getContext("2d",{willReadFrequently:true});
+const SRC=[];                       // {kind:'img'|'video', el, w, h}
+let TONES=8;                        // changed by tapping a ball, not by a stepper
+const UNDO=[];                      // every drag is reversible
+let FILL=null, CUT=null, CACHE=null, APER=false, EDGES=false;
+let playing=false, raf=0, recutTimer=0;
+let SEL=-1;                          // the tone the finger last touched
+let SELP=-1;                         // and the patch inside it
+let SCOPE="patch";                   // which of the two the balls aim at
+const OVR=new Map();                 // patch seed cell -> {dir,srcB}
+let TONEB=null;                      // which picture each tone reads as its second
+
+const DECK={A:{held:-1,drag:false,last:[0,0],near:0,detent:"",zoom:1,px:0,py:0,pt:new Map()},
+            B:{held:-1,drag:false,last:[0,0],near:0,detent:"",zoom:1,px:0,py:0,pt:new Map()}};
+
+/* haptics: a tick when a tone lands on a named setting, a knock when one is
+   about to be dropped. Silently absent where the platform has none. */
+const buzz=p=>{ try{ navigator.vibrate&&navigator.vibrate(p); }catch(e){} };
+
+function cnv(w,h){ const c=document.createElement("canvas"); c.width=Math.max(1,w|0); c.height=Math.max(1,h|0); return c; }
+const rnd=(s=>()=>{ s|=0; s=s+0x6D2B79F5|0; let t=Math.imul(s^s>>>15,1|s);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; })(12345);
+
+const anyVideo=()=>SRC.some(s=>s.kind==="video");
+function revealWork(){ document.body.classList.add("hasWork"); const s=$("workSide"); if(s) s.hidden=false; }
+/* the live path runs smaller. Nothing about the result changes except its
+   resolution, and a phone can hold thirty of these a second at 420. */
+const workWidth=()=>playing?420:820;
+
+function sampleInto(src,W,H,buf){
+  grab.width=W; grab.height=H;
+  grabx.clearRect(0,0,W,H);
+  const el=src.el, iw=src.kind==="video"?(el.videoWidth||src.w):el.width,
+        ih=src.kind==="video"?(el.videoHeight||src.h):el.height;
+  if(!iw||!ih) return buf;
+  const sc=Math.max(W/iw,H/ih);
+  grabx.drawImage(el,(W-iw*sc)/2,(H-ih*sc)/2,iw*sc,ih*sc);
+  const d=grabx.getImageData(0,0,W,H).data;
+  if(buf&&buf.length===d.length){ buf.set(d); return buf; }
+  return new Uint8ClampedArray(d);
+}
+
+/* ---- the expensive half: palette, cells, adjacency. Frozen while a clip
+   plays, which is both the speed and the reason it does not strobe. ---- */
+function recut(){
+  if(!SRC.length) return;
+  const t0=performance.now();
+  const a=SRC[0], b=SRC[1]||SRC[0];
+  const aw=a.kind==="video"?(a.el.videoWidth||a.w):a.el.width;
+  const ah=a.kind==="video"?(a.el.videoHeight||a.h):a.el.height;
+  if(!aw||!ah) return;
+  const W=Math.min(workWidth(),aw), H=Math.max(8,Math.round(W*ah/aw));
+
+  const dA=sampleInto(a,W,H,null);
+  const palA=byTone(medianCut(dA,TONES));
+  const K=palA.length;
+  /* every loaded source is sampled and given a palette of the same length, so
+     any of them can stand as the second picture for any patch */
+  const DATA=[dA], PALS=[palA];
+  for(let i=1;i<Math.max(2,SRC.length);i++){
+    const src=SRC[i]||SRC[0];
+    const d=sampleInto(src,W,H,null);
+    const pl=byTone(medianCut(d,K));
+    while(pl.length<K) pl.push(pl[pl.length-1]||[0,0,0]);
+    DATA.push(d); PALS.push(pl.slice(0,K));
+  }
+  const dB=DATA[1], palB=PALS[1];
+  const {V,lab:labsA}=buildMetric(palA);
+  const lut=buildLUT(labsA);
+
+  const idxField=new Uint8Array(W*H);
+  quantiseField(lut,dA,W,H,idxField);
+
+  CUT =resizePlaces(CUT ,K,defaultCuts);
+  FILL=resizePlaces(FILL,K,defaultPlaces);
+  const dens=CUT.map(d=>cutOf(d).dens);
+  const cells=cellsFrom(CUT);
+
+  const part=partition(dA,W,H,cells,rnd,idxField,dens);
+  const adj=adjacency(part.ids,part.count,W,H);
+  const N=part.count;
+
+  const share=new Int32Array(K);
+  for(let i=0;i<W*H;i++) share[idxField[i]]++;
+  const shareB=new Int32Array(K);
+  { const t=new Uint8Array(W*H); quantiseField(buildLUT(buildMetric(palB).lab),dB,W,H,t);
+    for(let i=0;i<W*H;i++) shareB[t[i]]++; }
+
+  OVR.clear();                       // a recut invalidates every patch override
+  if(!TONEB||TONEB.length!==K) TONEB=new Int32Array(K).fill(1);
+  CACHE={W,H,K,palA,palB,V,lut,part,adj,DATA,PALS,
+    repA:representative(palA,share,W*H), repB:representative(palB,shareB,W*H),
+    dA,dB,idxField,
+    mA:new Float32Array(N*3), mB:new Float32Array(N*3),
+    apR:new Float32Array(N), apX:new Float32Array(N), apY:new Float32Array(N),
+    labels:null, terr:null, imgData:octx.createImageData(W,H),
+    cutMs:performance.now()-t0};
+  if(SEL>=K) SEL=-1;
+  frame(true);
+  drawDeck("A"); drawDeck("B");
+  buildHead(); buildChips(); buildStrip();
+}
+const recutSoon=()=>{ clearTimeout(recutTimer); recutTimer=setTimeout(recut,90); };
+
+/* ---- the cheap half: runs every frame ---- */
+function frame(force){
+  if(!CACHE) return;
+  const t0=performance.now();
+  const C=CACHE, {W,H,K,part,adj,V,palA,palB}=C;
+
+  if(playing||force){
+    const moving=s2=>s2.kind==="video";
+    if(moving(SRC[0])||force) C.dA=sampleInto(SRC[0],W,H,C.dA);
+    const b=SRC[1]||SRC[0];
+    if(moving(b)||force) C.dB=sampleInto(b,W,H,C.dB);
+    if(moving(SRC[0])||force) quantiseField(C.lut,C.dA,W,H,C.idxField);
+  }
+
+  const st=cellStats(part.ids,part.count,C.idxField,C.dA,C.dB,W,H,K);
+  const lamOf=gripFrom(CUT);
+  C.labels=solveLabels(st,adj,V,GRIP_FULL,playing?2:6,lamOf,C.labels);
+  C.terr=territoryStats(part.ids,C.labels,W,H,K);
+  C.patches=findPatches(part.count,C.labels,adj,st.n);
+  C.lastStats=st;                      // kept so the text can describe the scene
+
+  const N=part.count, {mA,mB,apR,apX,apY}=C;
+  for(let c=0;c<N;c++){
+    const n=st.n[c]||1;
+    mA[c*3]=st.aR[c]/n;mA[c*3+1]=st.aG[c]/n;mA[c*3+2]=st.aB[c]/n;
+    mB[c*3]=st.bR[c]/n;mB[c*3+1]=st.bG[c]/n;mB[c*3+2]=st.bB[c]/n;
+    apX[c]=st.cx[c]/n;apY[c]=st.cy[c]/n;
+    const v=Math.max(0,st.sq[c]/n-(mA[c*3]**2+mA[c*3+1]**2+mA[c*3+2]**2));
+    apR[c]=Math.min(Math.sqrt(n)*0.52,Math.sqrt(Math.sqrt(v)/8)*Math.sqrt(n)*0.30);
+  }
+
+  if(out.width!==W||out.height!==H){ out.width=W; out.height=H; C.imgData=octx.createImageData(W,H); }
+  const o=C.imgData.data, dA=C.dA, ids=part.ids, labels=C.labels;
+  const PA=C.patches, DATA=C.DATA, PALS=C.PALS;
+  /* resolve every patch once, then paint: a patch may hold its own setting
+     and its own second picture */
+  const pr=new Array(PA.count), pb=new Int32Array(PA.count);
+  for(let i=0;i<PA.count;i++){
+    const s2=settingFor(PA,i,OVR,FILL,TONEB);
+    pr[i]=routeOf(s2.dir); pb[i]=Math.min(DATA.length-1,Math.max(1,s2.srcB));
+  }
+  /* while a tone is under the finger, everything else steps back — the one
+     thing the old table could never show was WHERE a row lived */
+  const grabbed = DECK.A.held>=0?DECK.A.held : DECK.B.held>=0?DECK.B.held : -1;
+  /* grabbing a puck is always a whole-tone act, so it draws as one */
+  const scTone = grabbed>=0 ? grabbed : SEL;
+  const scMode = grabbed>=0 ? "tone" : SCOPE;
+  const SS = PA ? scopeSets(PA,scMode,scTone,SELP) : null;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const i=y*W+x,p=i*4,c=ids[i],l=labels[c];
+    const pid=PA.patchOf[c], r=pr[pid];
+    const dB=DATA[pb[pid]], palBb=PALS[pb[pid]];
+    const pa=palA[l], pbc=palBb[l];
+    const ar=r.flat*pa[0]+r.photo*dA[p]  +r.mean*mA[c*3];
+    const ag=r.flat*pa[1]+r.photo*dA[p+1]+r.mean*mA[c*3+1];
+    const ab=r.flat*pa[2]+r.photo*dA[p+2]+r.mean*mA[c*3+2];
+    const br=r.flat*pbc[0]+r.photo*dB[p]  +r.mean*mB[c*3];
+    const bg=r.flat*pbc[1]+r.photo*dB[p+1]+r.mean*mB[c*3+1];
+    const bb=r.flat*pbc[2]+r.photo*dB[p+2]+r.mean*mB[c*3+2];
+    let m=r.mix;
+    if(APER&&apR[c]>0.4){
+      const dx=x+0.5-apX[c],dy=y+0.5-apY[c];
+      if(dx*dx+dy*dy<apR[c]*apR[c]) m=1-m;
+    }
+    let R0=ar+(br-ar)*m, G0=ag+(bg-ag)*m, B0=ab+(bb-ab)*m;
+    /* V6: selection never becomes a view mode. Keep the entire mosaic at full colour. */
+    o[p]=R0; o[p+1]=G0; o[p+2]=B0; o[p+3]=255;
+  }
+  if(EDGES){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const i=y*W+x,c=ids[i];
+      if((x+1<W&&ids[i+1]!==c)||(y+1<H&&ids[i+W]!==c)){ const p=i*4; o[p]=0;o[p+1]=0;o[p+2]=0; }
+    }
+  }
+  /* the boundary of what is in scope, so the extent is known before acting */
+  if(SS&&!SS.none){
+    const edgeOf=(set,dark)=>{
+      for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const i=y*W+x, a=set[PA.patchOf[ids[i]]];
+        if(!a) continue;
+        const r=(x+1<W)?set[PA.patchOf[ids[i+1]]]:0;
+        const d=(y+1<H)?set[PA.patchOf[ids[i+W]]]:0;
+        const l2=(x>0)?set[PA.patchOf[ids[i-1]]]:0;
+        const u=(y>0)?set[PA.patchOf[ids[i-W]]]:0;
+        if(r&&d&&l2&&u) continue;
+        const p=i*4;
+        o[p]=dark?12:120; o[p+1]=dark?12:120; o[p+2]=dark?12:120;
+      }
+    };
+    /* Only the active target is outlined. The rest of the composition stays visually untouched. */
+    edgeOf(SS.inScope,true);
+  }
+  octx.putImageData(C.imgData,0,0);
+
+  $("cntA").textContent=part.count+" cells";
+  $("cntB").textContent=K+" tones \u00b7 "+C.patches.count+" patches";
+  markScope();
+  const ms=performance.now()-t0;
+  $("foot").innerHTML=
+    "<span>patches "+Math.round(C.terr.pooled*100)+"%</span>"+
+    "<span>picture "+Math.round(detailFraction(o,W,H)*100)+"%</span>"+
+    "<span>"+Math.round(ms)+" ms"+(playing?" \u00b7 "+Math.round(1000/Math.max(1,ms))+"/s":"")+"</span>";
+}
+
+/* ---- transport ---- */
+function loop(){
+  if(!playing) return;
+  raf=requestAnimationFrame(loop);
+  frame(false);
+}
+function setPlaying(v){
+  playing=v;
+  $("play").textContent=v?"STOP":"PLAY";
+  $("play").setAttribute("aria-pressed",String(v));
+  SRC.forEach(s=>{ if(s.kind==="video"){ v?s.el.play().catch(()=>{}):s.el.pause(); } });
+  if(v){ recut(); raf=requestAnimationFrame(loop); }
+  else { cancelAnimationFrame(raf); recut(); }
+}
+$("play").addEventListener("click",()=>setPlaying(!playing));
+
+/* ============================================================
+   THE DECKS
+   ============================================================ */
+function deckCanvas(which){ return which==="A"?$("orbA"):$("orbB"); }
+function placesOf(which){ return which==="A"?CUT:FILL; }
+
+function drawDeck(which){
+  const cv=deckCanvas(which), g=cv.getContext("2d");
+  const Wd=cv.width,Hd=cv.height,cx=Wd/2,cy=Hd/2,Rr=Math.min(Wd,Hd)*0.42;
+  const D=DECK[which];
+  g.fillStyle="#fff"; g.fillRect(0,0,Wd,Hd);
+  const R=faceRot();
+  const proj=d=>{ const k=faceProject(d,R,D.zoom,D.px,D.py);
+    return [cx+k[0]*Rr, cy-k[1]*Rr, 1-k[2]]; };   // third value: >0 means on the face
+
+  /* the surface, drawn by the same functions the picture uses */
+  const repA=CACHE?CACHE.repA:[90,90,110], repB=CACHE?CACHE.repB:[190,170,140];
+  /* the surface is sampled in the SETTING, evenly, because that is what the
+     projection is now even in — no crowding at the rim */
+  const NL=15, NP=15;
+  for(let i=0;i<=NL;i++){
+    const la=i/NL*180;
+    for(let j=0;j<=NP;j++){
+      const ph=-90+j/NP*180;
+      const d=dirLL(la*D2R,ph*D2R), q=proj(d);
+      if(q[2]<=0) continue;
+      const dot = which==="A" ? cutDot(d) : fillDot(d,repA,repB);
+      const rad=Math.max(0.6,(Rr*0.048)*dot.size*D.zoom);
+      g.fillStyle="rgb("+(dot.col[0]|0)+","+(dot.col[1]|0)+","+(dot.col[2]|0)+")";
+      g.beginPath(); g.arc(q[0],q[1],rad,0,TAU); g.fill();
+    }
+  }
+
+  /* the detent lines: the settings a tone can actually land on */
+  for(const ph of DET_LAT){
+    if(Math.abs(ph)===90) continue;
+    g.strokeStyle="rgba(17,17,17,.5)"; g.lineWidth=1;
+    g.beginPath(); let on=false;
+    for(let la=0;la<=180;la+=2){
+      const q=proj(dirLL(la*D2R,ph*D2R));
+      if(q[2]<0){on=false;continue;}
+      if(!on){g.moveTo(q[0],q[1]);on=true;} else g.lineTo(q[0],q[1]);
+    }
+    g.stroke();
+  }
+  for(const la of DET_LON){
+    g.strokeStyle= la===90?"rgba(17,17,17,.5)":"rgba(17,17,17,.22)";
+    g.lineWidth=1;
+    g.beginPath(); let on=false;
+    for(let ph=-90;ph<=90;ph+=2){
+      const q=proj(dirLL(la*D2R,ph*D2R));
+      if(q[2]<0){on=false;continue;}
+      if(!on){g.moveTo(q[0],q[1]);on=true;} else g.lineTo(q[0],q[1]);
+    }
+    g.stroke();
+  }
+  g.strokeStyle="#111"; g.lineWidth=1.4;
+  g.beginPath(); g.arc(cx,cy,Rr*D.zoom,0,TAU); g.stroke();
+
+  /* the four rim settings now sit at left, right, top and bottom with room
+     around them, so their names go outside the disc instead of over it */
+  g.font="7.5px ui-monospace,monospace"; g.textBaseline="middle";
+  const rim = which==="A"
+    ? [["LOOSE",-1,0],["TIGHT",1,0],["BIG",0,1],["SMALL",0,-1]]
+    : [["1st",-1,0],["2nd",1,0],["FLAT",0,1],["AVG",0,-1]];
+  g.fillStyle="#111";
+  for(const [t,ux,uy] of rim){
+    const x=cx+ux*(Rr*D.zoom+9), y=cy-uy*(Rr*D.zoom+9);
+    g.textAlign = ux<0?"right":ux>0?"left":"center";
+    g.fillText(t, clamp(x,2,Wd-2), clamp(y,7,Hd-7));
+  }
+  if(D.zoom>1.02){
+    g.textAlign="left"; g.fillStyle="#8b8b8b";
+    g.fillText("\u00d7"+D.zoom.toFixed(1),3,Hd-5);
+  }
+
+  if(!CACHE) return;
+  const pl=placesOf(which); if(!pl) return;
+  const {palA,palB,terr,W,H}=CACHE;
+  const order=pl.map((d,i)=>i).sort((a,b)=>proj(pl[a])[2]-proj(pl[b])[2]);
+  for(const i of order){
+    const q=proj(pl[i]);
+    const share=terr?terr.total[i]/(W*H):1/pl.length;
+    const rad=6+Math.sqrt(share)*20;   // a finger, not a pixel
+    let col=palA[i];
+    if(which==="B"){ const r=routeOf(pl[i]), cb=palB[i];
+      col=[Math.round(col[0]+(cb[0]-col[0])*r.mix),
+           Math.round(col[1]+(cb[1]-col[1])*r.mix),
+           Math.round(col[2]+(cb[2]-col[2])*r.mix)]; }
+    g.beginPath(); g.arc(q[0],q[1],rad,0,TAU);
+    g.fillStyle="rgb("+col[0]+","+col[1]+","+col[2]+")"; g.fill();
+    g.lineWidth=(i===D.held)?2.6:1.4;
+    g.strokeStyle=(i===D.held&&D.off)?"#c0392b":"#fff"; g.stroke();
+    g.lineWidth=1; g.strokeStyle="#111"; g.stroke();
+    if(i===SEL){                       // the tone the picture has selected
+      g.beginPath(); g.arc(q[0],q[1],rad+4,0,TAU);
+      g.setLineDash([2,2]); g.lineWidth=1.2; g.strokeStyle="#111"; g.stroke();
+      g.setLineDash([]);
+    }
+    if(i===D.held&&D.off){
+      g.beginPath(); g.moveTo(q[0]-rad,q[1]-rad); g.lineTo(q[0]+rad,q[1]+rad);
+      g.moveTo(q[0]+rad,q[1]-rad); g.lineTo(q[0]-rad,q[1]+rad);
+      g.strokeStyle="#c0392b"; g.lineWidth=1.6; g.stroke();
+    }
+  }
+  /* when a patch is selected, deck B carries one extra puck: that patch's own
+     setting, which may differ from the tone it belongs to */
+  if(which==="B" && SCOPE==="patch" && CACHE.patches && SELP>=0 && SELP<CACHE.patches.count){
+    const s2=settingFor(CACHE.patches,SELP,OVR,FILL,TONEB);
+    const q=proj(s2.dir);
+    const tone=CACHE.patches.tone[SELP];
+    const c=palA[tone], r=routeOf(s2.dir), cb=palB[tone];
+    const col=[Math.round(c[0]+(cb[0]-c[0])*r.mix),
+               Math.round(c[1]+(cb[1]-c[1])*r.mix),
+               Math.round(c[2]+(cb[2]-c[2])*r.mix)];
+    g.beginPath(); g.arc(q[0],q[1],13,0,TAU);
+    g.fillStyle="rgb("+col[0]+","+col[1]+","+col[2]+")"; g.fill();
+    g.lineWidth=3; g.strokeStyle="#fff"; g.stroke();
+    g.lineWidth=1.6; g.strokeStyle="#111"; g.stroke();
+    g.beginPath(); g.arc(q[0],q[1],18,0,TAU);
+    g.setLineDash([3,3]); g.lineWidth=1.2; g.strokeStyle="#111"; g.stroke(); g.setLineDash([]);
+  }
+  if(D.ghost&&D.held>=0){
+    const q=proj(D.ghost);
+    if(q[2]>=0){
+      g.setLineDash([2,2]); g.strokeStyle="#555"; g.lineWidth=1;
+      g.beginPath(); g.arc(q[0],q[1],5,0,TAU); g.stroke(); g.setLineDash([]);
+    }
+  }
+}
+
+function bindDeck(which){
+  const cv=deckCanvas(which), D=DECK[which];
+  const local=e=>{ const r=cv.getBoundingClientRect();
+    return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]; };
+  const geom=()=>({cx:cv.width/2,cy:cv.height/2,Rr:Math.min(cv.width,cv.height)*0.42});
+
+  /* a generous target, and a count of what else is under the finger so
+     crowding is visible instead of being discovered by accident */
+  const pick=(px,py)=>{
+    const pl=placesOf(which); if(!pl) return {i:-1,near:0};
+    const {cx,cy,Rr}=geom(), R=faceRot();
+    const grab=Math.max(20,Rr*0.20);
+    let best=-1,bd=grab*grab,near=0;
+    for(let i=0;i<pl.length;i++){
+      const k=faceProject(pl[i],R,D.zoom,D.px,D.py);
+      const sx=cx+k[0]*Rr, sy=cy-k[1]*Rr;
+      const d=(sx-px)**2+(sy-py)**2;
+      if(d<grab*grab) near++;
+      if(d<bd){bd=d;best=i;}
+    }
+    return {i:best,near};
+  };
+  const unproj=(px,py)=>{
+    const {cx,cy,Rr}=geom();
+    return faceUnproject((px-cx)/Rr,-(py-cy)/Rr,faceRot(),D.zoom,D.px,D.py);
+  };
+
+  /* what rotation was actually wanted for: reach. Pinch to magnify, or
+     double-tap empty face to zoom in on that spot and again to come back. */
+  const applyZoom=(z,ax,ay)=>{
+    const {cx,cy,Rr}=geom();
+    const fx=(ax-cx)/Rr, fy=-(ay-cy)/Rr;
+    const before=[fx/D.zoom+D.px, fy/D.zoom+D.py];
+    D.zoom=clamp(z,1,4);
+    D.px=before[0]-fx/D.zoom; D.py=before[1]-fy/D.zoom;
+    const lim=Math.max(0,1-1/D.zoom);
+    D.px=clamp(D.px,-lim,lim); D.py=clamp(D.py,-lim,lim);
+    if(D.zoom<=1.01){ D.zoom=1; D.px=0; D.py=0; }
+    drawDeck(which);
+  };
+  let lastDeckTap=0;
+  cv.addEventListener("pointerdown",e=>{
+    if(!CACHE) return;
+    cv.setPointerCapture(e.pointerId);
+    D.pt.set(e.pointerId,[e.clientX,e.clientY]);
+    if(D.pt.size===2){                       // a pinch beginning
+      const [a,b]=[...D.pt.values()];
+      D.pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),z:D.zoom};
+      D.drag=false; D.held=-1; return;
+    }
+    const [px,py]=local(e);
+    const hit=pick(px,py);
+    /* with a patch in hand, deck B drags that patch wherever you press */
+    D.patchMode = (which==="B" && SCOPE==="patch" && SELP>=0 && hit.i<0);
+    D.held=D.patchMode?-1:hit.i; D.near=hit.near;
+    D.drag=true; D.moved=0; D.off=false; D.detent="";
+    D.last=[e.clientX,e.clientY]; D.down=[px,py];
+    /* a double tap on empty face is the zoom, not a new tone */
+    const now=performance.now();
+    if(D.held<0 && !D.patchMode && now-lastDeckTap<330){
+      lastDeckTap=0; D.drag=false;
+      applyZoom(D.zoom>1.5?1:2.6,px,py); buzz(9); return;
+    }
+    lastDeckTap=now;
+    D.allBase = (D.held<0&&!D.patchMode) ? placesOf(which).map(d=>d.slice()) : null;
+    if(D.patchMode) pushUndo("P",CACHE.patches.seed[SELP],
+      (OVR.get(CACHE.patches.seed[SELP])||{}).dir||null);
+    if(D.held>=0){ D.ghost=placesOf(which)[D.held].slice(); pushUndo(which,D.held,D.ghost); buzz(10);
+      SEL=D.held; SELP=-1; setScope("tone",true); }   // a puck is a whole-tone grip
+    report(which); drawDeck(which); if(D.held>=0&&!playing) frame(true);
+  });
+
+  cv.addEventListener("pointermove",e=>{
+    if(D.pt.has(e.pointerId)) D.pt.set(e.pointerId,[e.clientX,e.clientY]);
+    if(D.pt.size===2&&D.pinch){
+      const [a,b]=[...D.pt.values()];
+      const d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+      const r=cv.getBoundingClientRect();
+      const mx=((a[0]+b[0])/2-r.left)*cv.width/r.width;
+      const my=((a[1]+b[1])/2-r.top)*cv.height/r.height;
+      applyZoom(D.pinch.z*(d/Math.max(1,D.pinch.d)),mx,my);
+      return;
+    }
+    if(!D.drag) return;
+    const [px,py]=local(e);
+    const dx=e.clientX-D.last[0], dy=e.clientY-D.last[1];
+    D.moved+=Math.abs(dx)+Math.abs(dy);
+    const {cx,cy,Rr}=geom();
+
+    if(D.held>=0){
+      const rr=Math.hypot(px-cx,py-cy)/(Rr*D.zoom);
+      D.off = rr>1.14 && placesOf(which).length>2;
+      if(D.off && D.detent!=="off"){ D.detent="off"; buzz([14,30,14]); }
+      const raw=unproj(px,py);
+      if(raw){
+        const s2=snapFace(raw);
+        placesOf(which)[D.held]=s2.dir;
+        if(!D.off && s2.key!==D.detent){          // a tick when it lands on a name
+          D.detent=s2.key;
+          if(s2.hitLon!==null||s2.hitLat!==null) buzz(7);
+        }
+        report(which); drawDeck(which);
+        if(which==="A") recutSoon(); else if(!playing) frame(true);
+      }
+    } else if(D.patchMode){
+      const raw=unproj(px,py);
+      if(raw){
+        const s2=snapFace(raw);
+        setDir(s2.dir,false);
+        if(s2.key!==D.detent){ D.detent=s2.key;
+          if(s2.hitLon!==null||s2.hitLat!==null) buzz(7); }
+        buildHead(); drawDeck("B"); if(!playing) frame(true);
+      }
+    } else if(D.allBase){
+      /* the gesture rotation used to waste: move every tone together */
+      const dLon=(px-D.down[0])/(Rr*2)*180, dLat=-(py-D.down[1])/(Rr*2)*180;
+      const moved=shiftAll(D.allBase,dLon,dLat);
+      const pl=placesOf(which);
+      for(let i=0;i<pl.length;i++) pl[i]=moved[i];
+      report(which); drawDeck(which);
+      if(which==="A") recutSoon(); else if(!playing) frame(true);
+    }
+    D.last=[e.clientX,e.clientY];
+  });
+
+  const end=()=>{
+    if(!D.drag) return;
+    const wasHeld=D.held, off=D.off, tap=(D.moved<7), moved=D.moved;
+    const wasPatch=D.patchMode;
+    D.drag=false; D.held=-1; D.off=false; D.ghost=null; D.allBase=null; D.detent=""; D.patchMode=false;
+    if(wasPatch){ buildStrip(); buildHead(); report(which); return; }
+    if(wasHeld>=0 && off){ buzz([18,40,18]); dropTone(wasHeld); }
+    else if(wasHeld>=0 && tap){
+      /* a tap on a tone parks it on the nearest named setting */
+      const pl=placesOf(which);
+      const s2=snapFace(pl[wasHeld]);
+      const [lam,phi]=llDir(pl[wasHeld]);
+      let bl=DET_LON[0],bp=DET_LAT[0];
+      for(const t of DET_LON) if(Math.abs(lam*R2D-t)<Math.abs(lam*R2D-bl)) bl=t;
+      for(const t of DET_LAT) if(Math.abs(phi*R2D-t)<Math.abs(phi*R2D-bp)) bp=t;
+      pl[wasHeld]=dirLL(bl*D2R,bp*D2R); buzz(12);
+      if(which==="A"){ clearTimeout(recutTimer); recut(); } else { drawDeck(which); if(!playing) frame(true); }
+    }
+    else if(wasHeld<0 && tap && CACHE){
+      const {cx,cy,Rr}=geom(), [px,py]=D.down;
+      if(Math.hypot(px-cx,py-cy)/(Rr*D.zoom)<=1){ buzz(15); addTone(); }
+      else drawDeck(which);
+    }
+    else if(which==="A"){ clearTimeout(recutTimer); recut(); }
+    else { drawDeck(which); if(!playing) frame(true); }
+    report(which);
+  };
+  const lift=e=>{ D.pt.delete(e.pointerId); if(D.pt.size<2) D.pinch=null; end(e); commitVersion(which==="A"?"cut":"fill"); };
+  cv.addEventListener("pointerup",lift);
+  cv.addEventListener("pointercancel",lift);
+}
+bindDeck("A"); bindDeck("B");
+
+/* tones are added and dropped on the ball, so K never needs a stepper */
+function addTone(){
+  if(!CACHE||TONES>=16) return;
+  TONES++;
+  recut();
+}
+function dropTone(i){
+  if(!CACHE||TONES<=2) return;
+  TONES--;
+  if(CUT)  CUT.splice(i,1);
+  if(FILL) FILL.splice(i,1);
+  recut();
+}
+$("undo").addEventListener("click",()=>{
+  const u=UNDO.pop(); if(!u||!CACHE){ buzz(4); return; }
+  buzz(9);
+  if(u.which==="P"){                       // a patch override
+    if(u.dir) OVR.set(u.i,{...(OVR.get(u.i)||{}),dir:u.dir});
+    else { const o=OVR.get(u.i); if(o){ delete o.dir; if(!o.srcB) OVR.delete(u.i); } }
+    refreshPanel(); return;
+  }
+  const pl=placesOf(u.which);
+  if(pl&&u.i<pl.length){
+    pl[u.i]=u.dir.slice();
+    drawDeck(u.which);
+    if(u.which==="A") recut(); else frame(true);
+    buildHead(); buildStrip();
+  }
+});
+
+function report(which){
+  const el=which==="A"?$("readA"):$("readB");
+  const D=DECK[which], pl=placesOf(which);
+  if(!CACHE||!pl){ el.textContent="\u2014"; return; }
+  if(D.held<0){
+    el.textContent = D.drag ? "moving all "+pl.length+" tones together"
+      : D.zoom>1.02 ? "\u00d7"+D.zoom.toFixed(1)+" \u00b7 double tap to come back"
+      : which==="A" ? "drag a tone \u00b7 pinch or double tap to magnify"
+                    : "drag a tone \u00b7 pinch to magnify \u00b7 rim to drop";
+    return; }
+  const c=CACHE.palA[D.held];
+  let txt = which==="A" ? cutLabel(cutOf(pl[D.held])) : routeLabel(routeOf(pl[D.held]));
+  if(D.off) txt="release to drop this tone";
+  else if(D.near>1) txt=txt+"  ("+D.near+" here)";
+  el.innerHTML='<span class="sw" style="background:rgb('+c[0]+','+c[1]+','+c[2]+')"></span>'+txt;
+}
+
+/* ---- crossfader: slides every fill tone in longitude at once ---- */
+let faderV=0, faderBase=null;
+function applyFader(v){
+  if(!FILL) return;
+  if(!faderBase) faderBase=FILL.map(d=>d.slice());
+  faderV=clamp(v,0,1);
+  FILL=faderBase.map(d=>{
+    const [lam,phi]=llDir(d);
+    return clampFace(dirLL(clamp(lam/PI+faderV,0,1)*PI,phi));
+  });
+  const mark=Math.round(faderV*4);
+  if(mark!==applyFader._m){ applyFader._m=mark; buzz(5); }
+  $("knob").style.left=(faderV*100)+"%";
+  $("knob").style.transform="translateX("+(-faderV*16)+"px)";
+  drawDeck("B");
+  if(!playing) frame(true);
+}
+(function bindFader(){
+  const t=$("fader"); let on=false;
+  const set=e=>{ const r=t.getBoundingClientRect(); applyFader((e.clientX-r.left)/r.width); };
+  t.addEventListener("pointerdown",e=>{ if(!CACHE)return; faderBase=FILL.map(d=>d.slice());
+    t.setPointerCapture(e.pointerId); on=true; set(e); });
+  t.addEventListener("pointermove",e=>{ if(on) set(e); });
+  t.addEventListener("pointerup",()=>{ on=false; faderBase=null; commitVersion("mix"); });
+  t.addEventListener("pointercancel",()=>{ on=false; faderBase=null; });
+})();
+
+/* ============================================================
+   THE PICTURE AS THE CONTROL SURFACE
+
+   A touch names a patch — one connected run of cells — and the tone that
+   owns it. The scope switch decides which of the two the balls and the cards
+   act on, so the same gestures work at both grains.
+   ============================================================ */
+function hitAt(clientX,clientY){
+  if(!CACHE||!CACHE.patches) return null;
+  const r=out.getBoundingClientRect();
+  const x=Math.floor((clientX-r.left)/r.width*CACHE.W);
+  const y=Math.floor((clientY-r.top)/r.height*CACHE.H);
+  if(x<0||y<0||x>=CACHE.W||y>=CACHE.H) return null;
+  const c=CACHE.part.ids[y*CACHE.W+x];
+  return {cell:c, tone:CACHE.labels[c], patch:CACHE.patches.patchOf[c]};
+}
+/* ---- blending happens ON the patch ----
+   Reaching for a ball to say "more of the second picture here" is a long way
+   round. Drag across what you selected: sideways is the mix, up and down is
+   how it is read. The ball follows, so the mapping is learned by doing it. */
+let lastTap=0, lastPatch=-1;
+const SD={on:false,inScope:false,start:[0,0],base:null,moved:0,detent:""};
+
+function inScopeAt(h){
+  if(!h||!CACHE||!CACHE.patches) return false;
+  const t=target(); if(!t) return false;
+  return t.kind==="tone" ? h.tone===t.id : h.patch===t.id;
+}
+out.addEventListener("pointerdown",e=>{
+  const h=hitAt(e.clientX,e.clientY);
+  if(!h) return;
+  e.preventDefault();
+  out.setPointerCapture(e.pointerId);
+  const wasSelected = (SEL===h.tone && SELP===h.patch && SCOPE==="patch");
+  const samePatch = wasSelected;
+  SD.on=true; SD.moved=0; SD.start=[e.clientX,e.clientY]; SD.hit=h; SD.detent="";
+  SD.wasSelected=wasSelected; SD.newSelect=!samePatch;
+
+  /* V6: every new contact targets that exact patch. If the user was on TONE,
+     touching a concrete patch drops back to PATCH immediately. */
+  if(!samePatch){
+    SEL=h.tone; SELP=h.patch; SCOPE="patch";
+    $("sc-patch").setAttribute("aria-pressed","true");
+    $("sc-tone").setAttribute("aria-pressed","false");
+    syncAiScope();
+  }
+  SD.inScope=true;
+  SD.base=currentDir();
+  const t=target();
+  if(SD.base&&t){
+    if(t.kind==="tone") pushUndo("B",t.id,FILL[t.id]);
+    else pushUndo("P",CACHE.patches.seed[t.id],(OVR.get(CACHE.patches.seed[t.id])||{}).dir||null);
+  }
+  buildHead(); drawDeck("B"); if(!playing) frame(true);
+});
+out.addEventListener("pointermove",e=>{
+  if(!SD.on||!SD.inScope||!SD.base) return;
+  const dx=e.clientX-SD.start[0], dy=e.clientY-SD.start[1];
+  SD.moved=Math.abs(dx)+Math.abs(dy);
+  if(SD.moved<5) return;
+  const r=out.getBoundingClientRect();
+  const [lam,phi]=llDir(SD.base);
+  const lon=clamp(lam*R2D + dx/r.width*200, 0,180);
+  const lat=clamp(phi*R2D - dy/r.height*200, -90,90);
+  const sn=snapFace(dirLL(lon*D2R,lat*D2R));
+  setDir(sn.dir,false);
+  if(sn.key!==SD.detent){ SD.detent=sn.key; if(sn.hitLon!==null||sn.hitLat!==null) buzz(7); }
+  buildHead(); drawDeck("B"); if(!playing) frame(true);
+});
+out.addEventListener("pointerup",()=>{
+  if(!SD.on) return;
+  const h=SD.hit, dragged=SD.moved>=5, wasSelected=SD.wasSelected, newSelect=SD.newSelect;
+  SD.on=false; SD.base=null;
+  if(dragged){ buildStrip(); buildHead(); commitVersion("patch"); return; }
+  const now=performance.now();
+  const quick=(now-lastTap<340)&&lastPatch===h.patch;
+  lastTap=now; lastPatch=h.patch;
+  if(quick){ SEL=h.tone; SELP=h.patch; setScope("tone"); buzz([9,45,9]); return; }
+  if(wasSelected&&!newSelect){ clearTarget(); return; }
+  /* New tap keeps the new patch selected. */
+  refreshPanel(); buzz(11);
+});
+out.addEventListener("pointercancel",()=>{ SD.on=false; SD.base=null; });
+
+/* what the current scope is pointing at */
+function target(){
+  if(!CACHE||!CACHE.patches) return null;
+  if(SCOPE==="patch"&&SELP>=0&&SELP<CACHE.patches.count) return {kind:"patch",id:SELP};
+  if(SEL>=0&&FILL&&SEL<FILL.length) return {kind:"tone",id:SEL};
+  return null;
+}
+function currentDir(){
+  const t=target(); if(!t) return null;
+  if(t.kind==="tone") return FILL[t.id];
+  return settingFor(CACHE.patches,t.id,OVR,FILL,TONEB).dir;
+}
+function currentSrcB(){
+  const t=target(); if(!t) return 1;
+  if(t.kind==="tone") return TONEB?TONEB[t.id]:1;
+  return settingFor(CACHE.patches,t.id,OVR,FILL,TONEB).srcB;
+}
+function setDir(dir,record){
+  const t=target(); if(!t) return;
+  if(t.kind==="tone"){
+    if(record) pushUndo("B",t.id,FILL[t.id]);
+    FILL[t.id]=dir;
+    /* a whole-tone move clears the overrides it would otherwise contradict */
+    if(record) for(const [k,v] of [...OVR]) { const pid=CACHE.patches.seed.indexOf(k);
+      if(pid>=0&&CACHE.patches.tone[pid]===t.id) OVR.delete(k); }
+  } else {
+    const key=CACHE.patches.seed[t.id];
+    const prev=OVR.get(key)||{};
+    OVR.set(key,{...prev,dir});
+  }
+}
+function setSrcB(i){
+  const t=target(); if(!t) return;
+  if(t.kind==="tone"){ if(TONEB) TONEB[t.id]=i; }
+  else {
+    const key=CACHE.patches.seed[t.id];
+    OVR.set(key,{...(OVR.get(key)||{}),srcB:i});
+  }
+}
+
+/* a whole frame, rendered small, so a choice is made by comparison */
+function renderThumb(ctx,TW,TH,overrideDir,overrideSrc){
+  if(!CACHE||!CACHE.patches) return;
+  const {W,H,part,labels,mA,mB,dA,palA,DATA,PALS,patches}=CACHE;
+  const t=target();
+  const pr=new Array(patches.count), pb=new Int32Array(patches.count);
+  for(let i=0;i<patches.count;i++){
+    let s2=settingFor(patches,i,OVR,FILL,TONEB);
+    const aimed = t && (t.kind==="patch" ? i===t.id : patches.tone[i]===t.id);
+    const dir = (aimed&&overrideDir)?overrideDir:s2.dir;
+    const sb  = (aimed&&overrideSrc!==undefined)?overrideSrc:s2.srcB;
+    pr[i]=routeOf(dir); pb[i]=Math.min(DATA.length-1,Math.max(1,sb));
+  }
+  const im=ctx.createImageData(TW,TH), o=im.data;
+  for(let ty=0;ty<TH;ty++){
+    const sy=Math.min(H-1,(ty*H/TH)|0);
+    for(let tx=0;tx<TW;tx++){
+      const sx=Math.min(W-1,(tx*W/TW)|0);
+      const i=sy*W+sx, p=i*4, c=part.ids[i], l=labels[c];
+      const pid=patches.patchOf[c], r=pr[pid];
+      const dB=DATA[pb[pid]], pbc=PALS[pb[pid]][l], pa=palA[l];
+      const ar=r.flat*pa[0]+r.photo*dA[p]  +r.mean*mA[c*3];
+      const ag=r.flat*pa[1]+r.photo*dA[p+1]+r.mean*mA[c*3+1];
+      const ab=r.flat*pa[2]+r.photo*dA[p+2]+r.mean*mA[c*3+2];
+      const br=r.flat*pbc[0]+r.photo*dB[p]  +r.mean*mB[c*3];
+      const bg=r.flat*pbc[1]+r.photo*dB[p+1]+r.mean*mB[c*3+1];
+      const bb=r.flat*pbc[2]+r.photo*dB[p+2]+r.mean*mB[c*3+2];
+      const m=r.mix, q=(ty*TW+tx)*4;
+      o[q]=ar+(br-ar)*m; o[q+1]=ag+(bg-ag)*m; o[q+2]=ab+(bb-ab)*m; o[q+3]=255;
+    }
+  }
+  ctx.putImageData(im,0,0);
+}
+function sameDir(a,b){ return a&&b&&Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2])<1e-6; }
+
+function refreshPanel(){ buildHead(); buildChips(); buildStrip(); drawDeck("A"); drawDeck("B");
+  if(!playing) frame(true);
+  if(!$("scriptPane").hidden) readBack(); }
+
+/* the scope buttons carry the counts, so the choice is never abstract */
+function markScope(){
+  const bp=$("sc-patch"), bt=$("sc-tone"), tabs=$("targetBar");
+  const has=!!(CACHE&&CACHE.patches&&SEL>=0);
+  if(!has){
+    $("nP").textContent=""; $("nT").textContent="";
+    bp.disabled=true; bt.disabled=true;
+    if(tabs) tabs.hidden=true;
+    document.querySelector(".stage")?.classList.remove("targeting");
+    syncAiScope();
+    return;
+  }
+  bp.disabled=false; bt.disabled=false;
+  if(tabs) tabs.hidden=false;
+  document.querySelector(".stage")?.classList.add("targeting");
+  const per=patchesPerTone(CACHE.patches,CACHE.K);
+  const n=per[SEL]||1;
+  const frac=SELP>=0?CACHE.patches.size[SELP]/(CACHE.W*CACHE.H):0;
+  $("nP").textContent=(frac*100).toFixed(1)+"%";
+  $("nT").textContent=n+(n===1?" run":" runs");
+  syncAiScope();
+}
+
+function buildHead(){
+  const head=$("tryHead"), t=target();
+  markScope();
+  if(!t){ head.textContent="TAP IMAGE"; return; }
+  const tone=t.kind==="tone"?t.id:CACHE.patches.tone[t.id];
+  const c=CACHE.palA[tone];
+  const frac = t.kind==="tone"
+    ? (CACHE.terr.total[tone]/(CACHE.W*CACHE.H))
+    : (CACHE.patches.size[t.id]/(CACHE.W*CACHE.H));
+  const own = t.kind==="patch" && OVR.has(CACHE.patches.seed[t.id]);
+  head.innerHTML='<span class="sw" style="background:rgb('+c[0]+','+c[1]+','+c[2]+')"></span>'+
+    "<b>"+(t.kind==="patch"?"PATCH":"TONE "+(tone+1))+"</b> "+
+    (frac*100).toFixed(1)+"%"+
+    (own?" · OWN":"")+
+    " · "+routeLabel(routeOf(currentDir()));
+}
+
+/* which picture this patch reads as its second */
+function buildChips(){
+  const el=$("chips"); el.innerHTML="";
+  if(!CACHE){ el.hidden=true; return; }
+  el.hidden = SRC.length<=2 || !target();
+  const cur=currentSrcB(), t=target();
+  for(let i=1;i<Math.max(2,SRC.length);i++){
+    const b=document.createElement("button");
+    b.setAttribute("aria-pressed",String(t&&cur===i));
+    b.disabled=!t;
+    const cv=document.createElement("canvas"); cv.width=44; cv.height=30;
+    const g=cv.getContext("2d"), src=SRC[i]||SRC[0];
+    const el2=src.el, iw=src.kind==="video"?(el2.videoWidth||src.w):el2.width,
+          ih=src.kind==="video"?(el2.videoHeight||src.h):el2.height;
+    if(iw&&ih){ const sc=Math.max(44/iw,30/ih);
+      try{ g.drawImage(el2,(44-iw*sc)/2,(30-ih*sc)/2,iw*sc,ih*sc); }catch(e){} }
+    b.appendChild(cv);
+    const n=document.createElement("span"); n.className="n"; n.textContent=i+1; b.appendChild(n);
+    b.addEventListener("click",()=>{ setSrcB(i); buzz(10); refreshPanel(); commitVersion("source"); });
+    el.appendChild(b);
+  }
+  if(SRC.length>2){ const add=document.createElement("button");
+  add.className="add"; add.textContent="+"; add.title="add another picture";
+  add.addEventListener("click",()=>$("file").click());
+  el.appendChild(add); }
+}
+
+function buildStrip(){
+  const strip=$("strip"); strip.innerHTML="";
+  if(!CACHE){ strip.classList.add("inactive"); return; }
+  const t=target();
+  strip.classList.toggle("inactive",!t);
+  if(!t) return;
+  const TW=90, TH=Math.max(20,Math.round(TW*CACHE.H/CACHE.W));
+  const cur=currentDir();
+  for(const a of ALTS){
+    const dir=altDir(a);
+    const b=document.createElement("button");
+    b.className="alt";
+    b.setAttribute("aria-pressed",String(!!t&&sameDir(cur,dir)));
+    b.disabled=!t;
+    const cv=document.createElement("canvas"); cv.width=TW; cv.height=TH;
+    renderThumb(cv.getContext("2d"),TW,TH,dir,undefined);
+    b.appendChild(cv);
+    const lab=document.createElement("span"); lab.textContent=a.t; b.appendChild(lab);
+    b.addEventListener("click",()=>{ setDir(dir,true); buzz(12); refreshPanel(); commitVersion("preset"); });
+    strip.appendChild(b);
+  }
+}
+
+function setScope(sc,quiet){
+  SCOPE=sc;
+  $("sc-patch").setAttribute("aria-pressed",String(sc==="patch"));
+  $("sc-tone").setAttribute("aria-pressed",String(sc==="tone"));
+  /* the two grains feel different in the hand as well as look different */
+  if(!quiet) buzz(sc==="tone"?[9,45,9]:11);
+  refreshPanel();
+}
+function clearTarget(){
+  SEL=-1; SELP=-1; SCOPE="patch"; AI_SCOPE="all";
+  $("sc-patch").setAttribute("aria-pressed","true");
+  $("sc-tone").setAttribute("aria-pressed","false");
+  buzz(5); refreshPanel();
+}
+$("sc-patch").addEventListener("click",()=>{ if(SEL>=0) setScope("patch"); });
+$("sc-tone").addEventListener("click",()=>{ if(SEL>=0) setScope("tone"); });
+$("t-clear").addEventListener("click",clearTarget);
+
+/* ============================================================
+   THE TEXT INTERFACE
+   ============================================================ */
+function currentStateText(){
+  if(!CACHE||!CACHE.patches) return STATE_HELP;
+  const C=CACHE;
+  const st=C.lastStats;
+  let scene=[];
+  if(st){
+    const geo=patchGeometry(C.patches,st,C.W,C.H);
+    const detail=toneDetail(C.K,C.labels,st,C.W,C.H);
+    scene=scene.concat(
+      SRC.map((s2,i)=>"# picture "+(i+1)+"  "+(i===0?"structural first image; lon 0":("command src "+i))+"  "+
+        (s2.live?"the camera, live":s2.kind==="video"?"a clip":"a still")),
+      ["#"],
+      toneReport(C.K,C.palA,C.palB,C.terr,C.patches,st,geo,C.W,C.H,TONEB,detail),
+      ["#"],
+      patchReport(C.patches,geo,C.W,C.H,10));
+  }
+  return stateToText({
+    tones:TONES, cuts:CUT, fills:FILL, toneSrc:TONEB,
+    patches:C.patches, ovr:OVR, holes:APER, edges:EDGES, scene,
+    stats:C.part.count+" cells, "+C.K+" tones, "+
+          C.patches.count+" patches, frame "+C.W+"x"+C.H
+  });
+}
+function readBack(){ $("scriptBox").value=currentStateText(); $("scriptMsg").textContent="read back"; }
+
+function runScript(){
+  if(!CACHE){ $("scriptMsg").textContent="load a picture first"; return; }
+  const {state,errs}=parseState($("scriptBox").value);
+  if(errs.length){
+    $("scriptMsg").textContent="line "+errs[0].ln+": "+errs[0].msg+
+      (errs.length>1?" (+"+(errs.length-1)+" more)":"");
+    buzz([20,40,20]); return;
+  }
+  let needCut=false;
+  if(state.tones!==null && state.tones!==TONES){ TONES=state.tones; needCut=true; }
+  if(state.holes!==null) APER=state.holes;
+  if(state.edges!==null) EDGES=state.edges;
+  $("aper").setAttribute("aria-pressed",String(APER));
+  $("edges").setAttribute("aria-pressed",String(EDGES));
+  if(needCut) recut();
+  const K=CACHE.K;
+  for(const r of state.cuts) if(r.i>=0&&r.i<K) CUT[r.i]=dirLL(r.lon*D2R,r.lat*D2R);
+  for(const r of state.fills){
+    if(r.i<0||r.i>=K) continue;
+    FILL[r.i]=dirLL(r.lon*D2R,r.lat*D2R);
+    if(r.src!==undefined&&TONEB) TONEB[r.i]=Math.min(Math.max(1,r.src),Math.max(1,SRC.length-1));
+  }
+  if(state.cuts.length) recut();                 // the cut moved, so re-cut once
+  if(CACHE.patches&&state.patches.length){
+    const order=patchOrder(CACHE.patches);
+    for(const r of state.patches){
+      if(r.i<0||r.i>=order.length) continue;
+      const key=CACHE.patches.seed[order[r.i]];
+      const prev=OVR.get(key)||{};
+      OVR.set(key,{...prev,dir:dirLL(r.lon*D2R,r.lat*D2R),
+        ...(r.src!==undefined?{srcB:Math.min(Math.max(1,r.src),Math.max(1,SRC.length-1))}:{})});
+    }
+  }
+  const n=state.cuts.length+state.fills.length+state.patches.length;
+  $("scriptMsg").textContent=n+" line"+(n===1?"":"s")+" applied";
+  buzz(12);
+  refreshPanel();
+  if(!VERSION_RESTORE) commitVersion("state");
+}
+$("script").addEventListener("click",()=>{
+  const pane=$("scriptPane");
+  pane.hidden=!pane.hidden;
+  $("script").setAttribute("aria-pressed",String(!pane.hidden));
+  if(!pane.hidden) readBack();
+});
+$("scriptClose").addEventListener("click",()=>{ $("scriptPane").hidden=true; $("script").setAttribute("aria-pressed","false"); });
+$("scriptRun").addEventListener("click",runScript);
+$("scriptRead").addEventListener("click",readBack);
+$("scriptCopy").addEventListener("click",async()=>{
+  try{ await navigator.clipboard.writeText($("scriptBox").value); $("scriptMsg").textContent="copied"; }
+  catch(e){ $("scriptBox").select(); $("scriptMsg").textContent="select and copy"; }
+});
+
+/* ---- switches ---- */
+$("aper").addEventListener("click",e=>{ APER=!APER; e.currentTarget.setAttribute("aria-pressed",String(APER)); if(!playing) frame(true); commitVersion("holes"); });
+$("edges").addEventListener("click",e=>{ EDGES=!EDGES; e.currentTarget.setAttribute("aria-pressed",String(EDGES)); if(!playing) frame(true); commitVersion("edges"); });
+$("reset").addEventListener("click",()=>{ if(!CACHE) return;
+  TONES=8; UNDO.length=0; OVR.clear(); SEL=-1; SELP=-1;
+  for(const k of ["A","B"]){ DECK[k].zoom=1; DECK[k].px=0; DECK[k].py=0; }
+  FILL=defaultPlaces(TONES); CUT=defaultCuts(TONES);
+  applyFader(0); recut(); commitVersion("reset"); });
+/* The preview runs at 420 while a clip plays and 820 when it stops. Saving
+   that would hand back a proxy. SAVE re-runs the whole chain at the source's
+   own resolution with the settings currently on the balls. */
+$("save").addEventListener("click",async()=>{
+  if(!CACHE||!SRC.length) return;
+  const btn=$("save"); btn.disabled=true; const saveHTML=btn.innerHTML; const saveLab=btn.querySelector("span:last-child"); if(saveLab) saveLab.textContent="…";
+  await new Promise(r=>setTimeout(r,16));
+  try{
+    const a=SRC[0], b=SRC[1]||SRC[0];
+    const aw=a.kind==="video"?(a.el.videoWidth||a.w):a.el.width;
+    const ah=a.kind==="video"?(a.el.videoHeight||a.h):a.el.height;
+    const W=Math.min(2600,aw), H=Math.max(8,Math.round(W*ah/aw));
+    const dA=sampleInto(a,W,H,null), dB=sampleInto(b,W,H,null);
+    const palA=byTone(medianCut(dA,TONES));
+    const palB=byTone(medianCut(dB,palA.length));
+    while(palB.length<palA.length) palB.push(palB[palB.length-1]||[0,0,0]);
+    const K=palA.length;
+    const {V,lab}=buildMetric(palA);
+    const idxField=quantiseField(buildLUT(lab),dA,W,H,new Uint8Array(W*H));
+    const cuts=resizePlaces(CUT,K,defaultCuts), fills=resizePlaces(FILL,K,defaultPlaces);
+    const dens=cuts.map(d=>cutOf(d).dens);
+    /* The cell count does NOT scale. An earlier version multiplied it by the
+       linear ratio, which preserves neither the absolute cell size nor the
+       relative one — the print would have come back finer-grained than the
+       preview promised. The composition is resolution-independent: the same
+       cells, drawn larger, with more photographic detail inside each. */
+    const cells=cellsFrom(cuts);
+    const part=partition(dA,W,H,cells,rnd,idxField,dens);
+    const st=cellStats(part.ids,part.count,idxField,dA,dB,W,H,K);
+    const adj=adjacency(part.ids,part.count,W,H);
+    const labels=solveLabels(st,adj,V,GRIP_FULL,6,gripFrom(cuts),null);
+    /* patches are recomputed at export size; overrides keyed on preview cells
+       cannot be carried across, so the export uses the tone settings and says
+       so rather than silently dropping them */
+    const lost=OVR.size;
+    const N=part.count, mA=new Float32Array(N*3), mB=new Float32Array(N*3);
+    const apR=new Float32Array(N),apX=new Float32Array(N),apY=new Float32Array(N);
+    for(let c=0;c<N;c++){
+      const n=st.n[c]||1;
+      mA[c*3]=st.aR[c]/n;mA[c*3+1]=st.aG[c]/n;mA[c*3+2]=st.aB[c]/n;
+      mB[c*3]=st.bR[c]/n;mB[c*3+1]=st.bG[c]/n;mB[c*3+2]=st.bB[c]/n;
+      apX[c]=st.cx[c]/n;apY[c]=st.cy[c]/n;
+      const v=Math.max(0,st.sq[c]/n-(mA[c*3]**2+mA[c*3+1]**2+mA[c*3+2]**2));
+      apR[c]=Math.min(Math.sqrt(n)*0.52,Math.sqrt(Math.sqrt(v)/8)*Math.sqrt(n)*0.30);
+    }
+    const big=cnv(W,H), bg=big.getContext("2d");
+    const im=bg.createImageData(W,H), o=im.data, R=fills.map(routeOf);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const i=y*W+x,p=i*4,c=part.ids[i],l=labels[c],r=R[l];
+      const pa=palA[l], pb=palB[l];
+      const ar=r.flat*pa[0]+r.photo*dA[p]  +r.mean*mA[c*3];
+      const ag=r.flat*pa[1]+r.photo*dA[p+1]+r.mean*mA[c*3+1];
+      const ab=r.flat*pa[2]+r.photo*dA[p+2]+r.mean*mA[c*3+2];
+      const br=r.flat*pb[0]+r.photo*dB[p]  +r.mean*mB[c*3];
+      const bgc=r.flat*pb[1]+r.photo*dB[p+1]+r.mean*mB[c*3+1];
+      const bb=r.flat*pb[2]+r.photo*dB[p+2]+r.mean*mB[c*3+2];
+      let m=r.mix;
+      if(APER&&apR[c]>0.4){ const dx=x+0.5-apX[c],dy=y+0.5-apY[c];
+        if(dx*dx+dy*dy<apR[c]*apR[c]) m=1-m; }
+      o[p]=ar+(br-ar)*m; o[p+1]=ag+(bgc-ag)*m; o[p+2]=ab+(bb-ab)*m; o[p+3]=255;
+    }
+    if(EDGES){
+      for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const i=y*W+x,c=part.ids[i];
+        if((x+1<W&&part.ids[i+1]!==c)||(y+1<H&&part.ids[i+W]!==c)){
+          const p=i*4; o[p]=0;o[p+1]=0;o[p+2]=0; }
+      }
+    }
+    bg.putImageData(im,0,0);
+    const url=big.toDataURL("image/png");
+    const el=document.createElement("a"); el.download="binder-"+W+"x"+H+".png"; el.href=url; el.click();
+    $("foot").innerHTML="<span>saved "+W+"\u00d7"+H+"</span><span>"+part.count+" cells</span>"+
+      (lost?"<span>"+lost+" patch overrides not carried \u2014 export uses tone settings</span>":"");
+  } finally { btn.disabled=false; if(typeof saveHTML!=="undefined") btn.innerHTML=saveHTML; }
+});
+
+
+/* ============================================================
+   OPENAI MODEL DRIVER
+
+   BINDER already has a compact operative language. The model therefore receives:
+     1. the current rendered frame (when SEE is on),
+     2. small visual references for loaded sources,
+     3. optional external reference images/clips to imitate or borrow from,
+     4. currentStateText(): semantic + geometric scene report + exact executable state,
+     5. the user's request,
+     6. a strict instruction to return only legal BINDER commands when driving.
+
+   The API key is never persisted to localStorage/sessionStorage. A browser-entered
+   secret is appropriate for a private local prototype only; deployed copies should
+   point OPENAI_BASE at a same-origin server proxy.
+   ============================================================ */
+const OPENAI_BASE="https://api.openai.com/v1";
+let AI_SEE=true, AI_BUSY=false, AI_SCOPE="all", AI_ABORT=null;
+const REF=[];  // model-facing references separate from structural sources
+const VERSIONS=[];
+let VERSION_RESTORE=false;
+function versionText(){ try{return CACHE?currentStateText():"";}catch(e){return "";} }
+function renderVersions(){
+  const el=$("versionList"); if(!el) return; el.innerHTML="";
+  $("verN").textContent=VERSIONS.length;
+  if(!VERSIONS.length){ el.innerHTML='<div class="versionRow"><span class="vn">—</span><span class="vl">no changes yet</span></div>'; return; }
+  [...VERSIONS].reverse().forEach((v,ri)=>{
+    const i=VERSIONS.length-1-ri, row=document.createElement("div"); row.className="versionRow";
+    row.innerHTML='<span class="vn">v'+(i+1)+'</span><span class="vl">'+v.label+'</span>';
+    const b=document.createElement("button"); b.textContent="RESTORE"; b.addEventListener("click",()=>restoreVersion(i)); row.appendChild(b); el.appendChild(row);
+  });
+}
+function commitVersion(label){
+  if(!CACHE||VERSION_RESTORE) return;
+  const t=versionText(); if(!t) return;
+  const last=VERSIONS[VERSIONS.length-1]; if(last&&last.text===t) return;
+  VERSIONS.push({label:label||"change",text:t,time:Date.now()}); if(VERSIONS.length>24) VERSIONS.shift(); renderVersions();
+}
+function restoreVersion(i){
+  const v=VERSIONS[i]; if(!v||!CACHE) return;
+  VERSION_RESTORE=true; $("scriptBox").value=v.text; runScript(); VERSION_RESTORE=false;
+  $("historyPane").hidden=true; commitVersion("restore v"+(i+1)); buzz([8,35,8]);
+}
+function syncAiScope(){
+  const patch=!!(CACHE&&CACHE.patches&&SELP>=0&&SCOPE==="patch");
+  AI_SCOPE=patch?"patch":"all";
+  const a=$("aiScopeAll"), p=$("aiScopePatch");
+  if(a) a.setAttribute("aria-pressed",String(!patch));
+  if(p){ p.disabled=!patch; p.setAttribute("aria-pressed",String(patch)); }
+  if($("aiScopeRead")) $("aiScopeRead").textContent=patch?"PATCH":"WHOLE";
+}
+function aiScopeRule(){
+  if(AI_SCOPE==="patch") return "AI SCOPE = PATCH. Operate only on the currently selected patch. For ACT, prefer patch commands and do not alter unrelated tones/cuts unless the user explicitly asks.";
+  return "AI SCOPE = WHOLE. Address the whole mosaic. For ACT, prefer whole-state tone/cut/fill operations; do not target an arbitrary patch unless the user explicitly names one.";
+}
+
+function surfaceWork(on,label,pct,stoppable){
+  const wo=$("workOverlay"); if(!wo) return;
+  wo.hidden=!on;
+  wo.classList.toggle("surfaceLoad",!!on&&!stoppable);
+  if($("workLabel")) $("workLabel").textContent=on?(label||"working"):"";
+  if($("workStop")) $("workStop").hidden=!!on&&!stoppable;
+  const n=Math.max(0,Math.min(100,pct||0));
+  if($("workBar")) $("workBar").style.width=n+"%";
+}
+function nextPaint(){ return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); }
+
+function aiSetBusy(on,label,pct){
+  AI_BUSY=on;
+  if(on&&$("aiAnswer")) $("aiAnswer").hidden=false;
+  surfaceWork(on,label,pct||10,true);
+  ["aiDrive","aiAsk","aiGen","aiEdit","aiIdea","expPng","expState","expBundle","refPick","refClear"].forEach(id=>{
+    const b=$(id); if(!b) return;
+    b.disabled=on && id!=="refClear";
+    b.classList.toggle("aiBusy", on && ["aiDrive","aiAsk","aiGen","aiEdit","aiIdea"].includes(id));
+  });
+  const meta=$("aiMeta"); if(meta) meta.classList.toggle("busy",on);
+  $("aiStatus").innerHTML='<span class="aiSpin"></span>'+(on?(label||"working"):"idle");
+  aiProgress(on?(pct||10):0);
+}
+function aiProgress(pct){ const n=Math.max(0,Math.min(100,pct||0)); const bar=$("aiProgBar"); if(bar) bar.style.width=n+"%"; const wb=$("workBar"); if(wb) wb.style.width=n+"%"; }
+function aiStep(label,pct){ $("aiStatus").innerHTML='<span class="aiSpin"></span>'+label; if($("workLabel")) $("workLabel").textContent=label; aiProgress(pct||0); }
+function aiKey(){ return $("aiKey").value.trim(); }
+function aiHeaders(json=true){
+  const k=aiKey(); if(!k) throw new Error("enter an OpenAI API key");
+  const h={Authorization:"Bearer "+k}; if(json) h["Content-Type"]="application/json"; return h;
+}
+function setCtx(msg){ $("aiContext").textContent=msg; }
+function canvasDataURL(cv,maxSide=720,quality=.86){
+  if(!cv||!cv.width||!cv.height) return null;
+  const scale=Math.min(1,maxSide/Math.max(cv.width,cv.height));
+  const c=cnv(Math.round(cv.width*scale),Math.round(cv.height*scale));
+  c.getContext("2d").drawImage(cv,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",quality);
+}
+function sourceDataURL(src,maxSide=420){
+  if(!src) return null;
+  const iw=src.kind==="video"?(src.el.videoWidth||src.w):src.el.width;
+  const ih=src.kind==="video"?(src.el.videoHeight||src.h):src.el.height;
+  if(!iw||!ih) return null;
+  const scale=Math.min(1,maxSide/Math.max(iw,ih));
+  const c=cnv(Math.max(1,Math.round(iw*scale)),Math.max(1,Math.round(ih*scale)));
+  try{ c.getContext("2d").drawImage(src.el,0,0,c.width,c.height); return c.toDataURL("image/jpeg",.78); }
+  catch(e){ return null; }
+}
+function updateRefBadge(){ if($("aiRefs")) $("aiRefs").textContent=REF.length?REF.length:""; }
+function renderRefs(){
+  const strip=$("aiRefStrip");
+  strip.innerHTML="";
+  updateRefBadge();
+  REF.forEach((src,i)=>{
+    const card=document.createElement("div"); card.className="aiRefCard";
+    const cv=cnv(84,84), g=cv.getContext("2d");
+    const w=src.kind==="video"?(src.el.videoWidth||src.w):src.el.width;
+    const h=src.kind==="video"?(src.el.videoHeight||src.h):src.el.height;
+    const sc=Math.min(cv.width/w,cv.height/h), dw=w*sc, dh=h*sc;
+    g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height);
+    try{ g.drawImage(src.el,(cv.width-dw)/2,(cv.height-dh)/2,dw,dh); }catch(e){}
+    const cap=document.createElement("div"); cap.className="cap";
+    const lab=document.createElement("span"); lab.textContent=(src.kind==="video"?"clip ":"ref ")+(i+1);
+    const kill=document.createElement("button"); kill.textContent="×"; kill.title="remove reference";
+    kill.addEventListener("click",()=>{ REF.splice(i,1); renderRefs(); });
+    cap.appendChild(lab); cap.appendChild(kill);
+    card.appendChild(cv); card.appendChild(cap); strip.appendChild(card);
+  });
+}
+function addReference(f){
+  return new Promise(res=>{
+    const url=URL.createObjectURL(f);
+    if(/^video\//.test(f.type)){
+      const v=document.createElement("video");
+      v.src=url; v.loop=true; v.muted=true; v.playsInline=true; v.preload="auto";
+      v.addEventListener("loadeddata",()=>{ REF.push({kind:"video",el:v,w:v.videoWidth,h:v.videoHeight,name:f.name||"reference clip"}); v.currentTime=0.05; URL.revokeObjectURL(url); res(true); },{once:true});
+      v.addEventListener("error",()=>{ URL.revokeObjectURL(url); res(false); },{once:true});
+      return;
+    }
+    if(!/^image\//.test(f.type)){ URL.revokeObjectURL(url); return res(false); }
+    const im=new Image();
+    im.onload=()=>{ const c=cnv(im.naturalWidth,im.naturalHeight); c.getContext("2d").drawImage(im,0,0); REF.push({kind:"img",el:c,w:c.width,h:c.height,name:f.name||"reference image"}); URL.revokeObjectURL(url); res(true); };
+    im.onerror=()=>{ URL.revokeObjectURL(url); res(false); };
+    im.src=url;
+  });
+}
+async function takeRefs(files){
+  if(!files||!files.length) return;
+  aiSetBusy(true,"loading refs",8);
+  let any=false;
+  try{
+    for(let i=0;i<files.length;i++){
+      aiStep("loading refs "+(i+1)+"/"+files.length,Math.round(10+70*((i+1)/files.length)));
+      if(await addReference(files[i])) any=true;
+    }
+    renderRefs();
+    $("aiAnswer").textContent=any
+      ? "Reference material loaded. It will guide ASK, DRIVE, GENERATE, and EDIT IMAGE without becoming structural source material unless you generate or edit a result back into BINDER."
+      : "No usable references were loaded.";
+  }finally{ setTimeout(()=>aiSetBusy(false),120); }
+}
+function aiTargetContext(){
+  if(!CACHE||SEL<0) return "selection: none";
+  const t=target(); if(!t) return "selection: none";
+  if(t.kind==="tone") return "selection: tone "+t.id+" (UI label "+(t.id+1)+"), scope=tone";
+  const order=patchOrder(CACHE.patches), rank=order.indexOf(t.id), tone=CACHE.patches.tone[t.id];
+  return "selection: patch rank "+rank+", tone "+tone+" (UI tone "+(tone+1)+"), scope=patch";
+}
+function aiSystem(mode){
+  const common=`You are the operative image editor inside BINDER, not a chat assistant looking at an unrelated screenshot.
+BINDER combines loaded pictures through a segmented field. Its native program is the source of truth.
+Longitude: 0=picture 1, 180=second/source picture. Latitude: +90=flat palette tone, 0=photograph, -90=cell average.
+Legal commands are ONLY: tones N; cut T LON LAT; fill T LON LAT [src N]; patch RANK LON LAT [src N]; holes on|off; edges on|off.
+Tone indices and patch ranks in commands are ZERO-BASED exactly as shown in CURRENT STATE. The command src value is the loaded-source ARRAY INDEX: src 1 = picture 2, src 2 = picture 3, etc. Picture 1 is the structural first image and is selected by longitude 0 rather than src. The next newly generated image would be src ${SRC.length}.
+If REFERENCE TARGET images are present, treat them as desired look, subject, composition, palette, texture, or likeness references. They do NOT automatically replace picture 1 or picture 2. Use them to steer either native BINDER commands or image-generation/edit prompts.
+Loaded source pictures and references may be stills or clips. Video inputs are represented by current-frame thumbnails only, so reason from the visible frame and mention uncertainty when motion would matter.
+Use the scene report to map spatial language (upper left, lower right, dark mass, largest patch) onto patch ranks or tones. Prefer the smallest change that satisfies the request. Do not rewrite unaffected state. Never invent commands.
+${aiTargetContext()}
+${aiScopeRule()}`;
+  if(mode==="options") return common+`\nDo not change anything yet. Return STRICT JSON only: {"options":[...]} with EXACTLY 3 options. Each option has keys "title", "effect", "action", "script", "image_prompt". action is one of "script", "generate", "edit", or "answer". TITLE: 2-4 concrete visual words, not generic labels. EFFECT: one short sentence saying exactly what will visibly change and what important thing will stay fixed. SCRIPT: executable BINDER commands only, no comments or markdown. IMAGE_PROMPT: required only for generate/edit. For generate/edit, SCRIPT is also required and must visibly route the newly returned source into the requested scope using src ${SRC.length}; generating pixels without installing them is not a completed move. Give three genuinely distinct realizations of the user's request: option 1 makes the smallest convincing change; option 2 pushes the request farther while preserving coherence; option 3 takes a more surprising but still relevant route. Prefer native script operations when they can produce the visual result. Under PATCH scope, keep every pixel/region outside the selected patch unchanged unless explicitly requested. Do not use words like conservative, moderate, radical, option, approach, synergy, mood, or vibe in titles/effects. Describe visible consequences.`;
+  if(mode==="drive") return common+`\nReturn STRICT JSON with keys "action", "message", "script", and "image_prompt". action is one of "script", "generate", "edit", "ideate", or "answer". Use "script" for changes BINDER can express natively. Use "generate" only when the user wants genuinely new pixels/a new source image. Use "edit" when they want the current rendered frame altered by an image model. Use "ideate" when the user is asking for prompt exploration or a concept for a new source image. image_prompt is required for generate/edit/ideate and should be a precise standalone image instruction preserving requested composition and using reference targets when relevant. script must contain only executable BINDER command lines, no comments, no markdown; it may route patches/tones to the newly created source using src ${SRC.length}. message is one short sentence.`;
+  if(mode==="ideate") return common+`\nWrite a concrete, production-worthy image prompt based on the request, the current frame, and any references. Then suggest, in one short paragraph, how that result could be used inside BINDER.`;
+  return common+`\nAnswer the user's question about the current composition and, when useful, mention exact BINDER commands they could use. Do not claim to have changed anything.`;
+}
+function responseText(j){
+  if(typeof j.output_text==="string"&&j.output_text) return j.output_text;
+  const a=[];
+  for(const o of (j.output||[])) for(const c of (o.content||[])) if(c.text) a.push(c.text);
+  return a.join("\n").trim();
+}
+function parseModelJSON(txt){
+  let x=txt.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"");
+  try{return JSON.parse(x);}catch(e){}
+  const m=x.match(/\{[\s\S]*\}/); if(m) try{return JSON.parse(m[0]);}catch(e){}
+  return {message:x,script:""};
+}
+async function callBinderModel(mode){
+  const q=$("aiPrompt").value.trim(); if(!q) throw new Error("write an instruction first");
+  const state=CACHE?currentStateText():"# no BINDER frame loaded";
+  const content=[{type:"input_text",text:"USER REQUEST:\n"+q+"\n\nCURRENT STATE:\n"+state}];
+  if(AI_SEE&&CACHE){
+    const u=canvasDataURL(out,720,.84);
+    if(u) content.push({type:"input_image",image_url:u});
+    SRC.slice(0,4).forEach((src,i)=>{
+      const su=sourceDataURL(src,360); if(!su) return;
+      content.push({type:"input_text",text:"SOURCE PICTURE "+(i+1)+":"});
+      content.push({type:"input_image",image_url:su});
+    });
+    REF.slice(0,4).forEach((src,i)=>{
+      const ru=sourceDataURL(src,360); if(!ru) return;
+      content.push({type:"input_text",text:"REFERENCE TARGET "+(i+1)+": use this for resemblance, palette, subject, style, or layout guidance when relevant."});
+      content.push({type:"input_image",image_url:ru});
+    });
+  }
+  setCtx((AI_SEE&&CACHE?"frame + "+Math.min(SRC.length,4)+" src + "+Math.min(REF.length,4)+" ref + state":"state only")+(REF.length>4?" +more refs":""));
+  const body={model:$("aiModel").value,instructions:aiSystem(mode),input:[{role:"user",content}],store:false};
+  const r=await fetch(OPENAI_BASE+"/responses",{method:"POST",headers:aiHeaders(true),body:JSON.stringify(body),signal:AI_ABORT?.signal});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error?.message||("OpenAI "+r.status));
+  return responseText(j);
+}
+async function resolveImagePrompt(basePrompt,mode){
+  if(!REF.length && !(AI_SEE&&CACHE)) return basePrompt;
+  const state=CACHE?currentStateText().slice(0,9000):"# no BINDER frame loaded";
+  const content=[{type:"input_text",text:(mode==="edit"?"Rewrite the following into a precise image-edit instruction.":"Rewrite the following into a precise image-generation instruction.")+" Keep it concise but concrete. If reference targets are present, use them. If current BINDER state is present, preserve the requested composition or explain it in the prompt.\n\nUSER REQUEST:\n"+basePrompt+"\n\nCURRENT STATE:\n"+state}];
+  if(AI_SEE&&CACHE){ const u=canvasDataURL(out,720,.84); if(u){ content.push({type:"input_text",text:"CURRENT BINDER FRAME:"}); content.push({type:"input_image",image_url:u}); } }
+  REF.slice(0,4).forEach((src,i)=>{ const ru=sourceDataURL(src,420); if(ru){ content.push({type:"input_text",text:"REFERENCE TARGET "+(i+1)+":"}); content.push({type:"input_image",image_url:ru}); }});
+  const body={model:$("aiModel").value,instructions:"Return only the final image prompt text. No markdown.",input:[{role:"user",content}],store:false};
+  const r=await fetch(OPENAI_BASE+"/responses",{method:"POST",headers:aiHeaders(true),body:JSON.stringify(body),signal:AI_ABORT?.signal});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error?.message||("OpenAI "+r.status));
+  return responseText(j).trim()||basePrompt;
+}
+
+let AI_OPTIONS=[];
+let AI_BEFORE_URL="";
+let AI_APPLYING=-1;
+
+function parseOptionsJSON(txt){
+  const obj=parseModelJSON(txt);
+  const arr=Array.isArray(obj?.options)?obj.options:[];
+  return arr.slice(0,3).map((o,i)=>({
+    title:String(o?.title||("MOVE "+(i+1))).trim().slice(0,48),
+    effect:String(o?.effect||"visible change").trim().slice(0,180),
+    action:["script","generate","edit","answer"].includes(String(o?.action||"").toLowerCase())?String(o.action).toLowerCase():"script",
+    script:String(o?.script||"").trim(),
+    image_prompt:String(o?.image_prompt||"").trim()
+  }));
+}
+function renderAiOptions(){
+  const el=$("aiOptions"); if(!el) return;
+  el.innerHTML="";
+  const pane=$("aiPane");
+  if(!AI_OPTIONS.length){ el.hidden=true; if(pane) pane.classList.remove("showingOptions"); return; }
+  el.hidden=false; if(pane) pane.classList.add("showingOptions");
+  AI_OPTIONS.forEach((o,i)=>{
+    const b=document.createElement("button"); b.className="aiOption"; b.type="button";
+    b.setAttribute("aria-label","Use "+o.title);
+    const n=document.createElement("span"); n.className="aoN"; n.textContent=String.fromCharCode(65+i);
+    const t=document.createElement("span"); t.className="aoTitle"; t.textContent=o.title;
+    const e=document.createElement("span"); e.className="aoEffect"; e.textContent=o.effect;
+    const u=document.createElement("span"); u.className="aoUse"; u.textContent="USE →";
+    b.append(n,t,e,u);
+    b.addEventListener("click",()=>applyAiOption(i));
+    el.appendChild(b);
+  });
+}
+async function planAiOptions(){
+  const q=$("aiPrompt").value.trim();
+  if(!q){ $("aiAnswer").hidden=false; $("aiAnswer").textContent="WRITE A CHANGE"; return; }
+  if(!aiKey()){
+    $("aiSettings").hidden=false; $("aiSettingsToggle").setAttribute("aria-pressed","true");
+    $("aiAnswer").hidden=false; $("aiAnswer").textContent="ADD API KEY"; $("aiKey").focus(); return;
+  }
+  AI_ABORT=new AbortController();
+  AI_OPTIONS=[]; renderAiOptions();
+  $("aiAnswer").hidden=true;
+  aiSetBusy(true,"making 3 moves",12);
+  try{
+    aiStep("reading target",28);
+    const txt=await callBinderModel("options");
+    aiStep("separating moves",78);
+    AI_OPTIONS=parseOptionsJSON(txt);
+    if(AI_OPTIONS.length!==3) throw new Error("model did not return three usable moves");
+    renderAiOptions();
+    aiProgress(100);
+  }catch(e){
+    $("aiAnswer").hidden=false;
+    $("aiAnswer").textContent=e.name==="AbortError"?"STOPPED":"ERROR · "+e.message;
+  }finally{ AI_ABORT=null; setTimeout(()=>aiSetBusy(false),120); }
+}
+function syncCompareRect(){
+  const im=$("compareBefore"); if(!im||im.hidden||!out.width) return;
+  const sr=$("stage").getBoundingClientRect(), r=out.getBoundingClientRect();
+  im.style.left=(r.left-sr.left)+"px"; im.style.top=(r.top-sr.top)+"px";
+  im.style.width=r.width+"px"; im.style.height=r.height+"px";
+}
+function showAiCompare(beforeUrl,label){
+  AI_BEFORE_URL=beforeUrl||AI_BEFORE_URL;
+  if(!AI_BEFORE_URL) return;
+  const im=$("compareBefore"), bar=$("compareBar");
+  im.src=AI_BEFORE_URL; im.hidden=true; bar.hidden=false;
+  $("compareLabel").textContent=label||"AI change";
+  $("comparePrev").setAttribute("aria-pressed","false");
+  $("compareNow").setAttribute("aria-pressed","true");
+  requestAnimationFrame(syncCompareRect);
+}
+function compareMode(before){
+  if(!AI_BEFORE_URL) return;
+  const im=$("compareBefore"); im.hidden=!before;
+  $("comparePrev").setAttribute("aria-pressed",String(before));
+  $("compareNow").setAttribute("aria-pressed",String(!before));
+  if(before) requestAnimationFrame(syncCompareRect);
+}
+function labelLastVersion(label){
+  if(!VERSIONS.length) return;
+  VERSIONS[VERSIONS.length-1].label=label; renderVersions();
+}
+async function applyAiOption(i){
+  const o=AI_OPTIONS[i]; if(!o||AI_APPLYING>=0) return;
+  if(!aiKey()){ $("aiSettings").hidden=false; return; }
+  AI_APPLYING=i;
+  AI_BEFORE_URL=canvasDataURL(out,900,.92)||"";
+  const buttons=[...document.querySelectorAll(".aiOption")]; buttons.forEach((b,j)=>b.setAttribute("aria-pressed",String(j===i)));
+  $("aiPane").hidden=true; $("ai").setAttribute("aria-pressed","false");
+  AI_ABORT=new AbortController();
+  aiSetBusy(true,o.title,10);
+  try{
+    if(o.action==="script"){
+      if(!o.script) throw new Error("move has no executable change");
+      aiStep("applying "+o.title,62);
+      $("scriptBox").value=o.script; runScript();
+      labelLastVersion("AI · "+o.title);
+    }else if(o.action==="generate"||o.action==="edit"){
+      const seed=o.image_prompt||$("aiPrompt").value.trim();
+      aiStep("building image",38);
+      const ip=await resolveImagePrompt(seed,o.action);
+      aiStep(o.action==="edit"?"editing pixels":"making pixels",70);
+      const blob=o.action==="edit"?await editImageBlob(ip):await generatedImageBlob(ip);
+      aiStep("loading result",92);
+      await blobToSource(blob,o.action==="edit"?"binder-ai-edit":"binder-ai-generated");
+      if(o.script){ $("scriptBox").value=o.script; runScript(); }
+      labelLastVersion("AI · "+o.title);
+    }else{
+      $("aiAnswer").hidden=false; $("aiAnswer").textContent=o.effect;
+    }
+    aiProgress(100);
+    await nextPaint();
+    showAiCompare(AI_BEFORE_URL,o.title+" · "+o.effect);
+    AI_OPTIONS=[]; renderAiOptions();
+  }catch(e){
+    $("aiPane").hidden=false; $("ai").setAttribute("aria-pressed","true");
+    $("aiAnswer").hidden=false; $("aiAnswer").textContent=e.name==="AbortError"?"STOPPED":"ERROR · "+e.message;
+  }finally{
+    AI_ABORT=null; AI_APPLYING=-1; setTimeout(()=>aiSetBusy(false),120);
+  }
+}
+async function aiAskOrDrive(mode){
+  AI_ABORT=new AbortController();
+  aiSetBusy(true,mode==="drive"?"driving":mode==="ideate"?"ideating":"looking",8);
+  try{
+    aiStep(mode==="drive"?"reading frame and state":"reading context",18);
+    const txt=await callBinderModel(mode);
+    aiProgress(62);
+    if(mode==="drive"){
+      const obj=parseModelJSON(txt), script=(obj.script||"").trim(), action=(obj.action||"script").toLowerCase();
+      $("aiAnswer").textContent=(obj.message||"model planned an operation")+(script?"\n\n"+script:"");
+      if(action==="generate"||action==="edit"){
+        const sourcePrompt=(obj.image_prompt||$("aiPrompt").value.trim()).trim();
+        aiStep(action==="edit"?"building edit prompt":"building image prompt",72);
+        const ip=(await resolveImagePrompt(sourcePrompt,action)).trim();
+        aiStep(action==="edit"?"editing pixels":"generating pixels",82);
+        const blob=action==="edit"?await editImageBlob(ip):await generatedImageBlob(ip);
+        aiStep("loading result into binder",94);
+        await blobToSource(blob,action==="edit"?"binder-ai-edit":"binder-ai-generated");
+        $("aiAnswer").textContent=(obj.message||action+" complete")+"\nnew image = picture "+SRC.length+" / command src "+(SRC.length-1)+(script?"\n\n"+script:"")+"\n\nimage prompt used:\n"+ip;
+      }else if(action==="ideate"){
+        const sourcePrompt=(obj.image_prompt||$("aiPrompt").value.trim()).trim();
+        const ip=(await resolveImagePrompt(sourcePrompt,"generate")).trim();
+        $("aiAnswer").textContent=(obj.message||"concept built")+"\n\n"+ip;
+      }
+      if(script){
+        if(!CACHE) throw new Error("load a picture before applying BINDER commands");
+        $("scriptBox").value=script; runScript();
+      }else if(action==="script") throw new Error("model returned no BINDER commands");
+    }else $("aiAnswer").textContent=txt||"(empty response)";
+    aiProgress(100);
+  }catch(e){ $("aiAnswer").textContent=e.name==="AbortError"?"STOPPED":"ERROR · "+e.message; }
+  finally{ AI_ABORT=null; setTimeout(()=>aiSetBusy(false),150); }
+}
+function b64ToBlob(b64,type="image/png"){
+  const bin=atob(b64), a=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+  return new Blob([a],{type});
+}
+async function blobToSource(blob,label){
+  const f=new File([blob],(label||"generated")+".png",{type:blob.type||"image/png"});
+  const hadCache=!!CACHE, oldN=SRC.length;
+  const ok=await addSource(f);
+  if(!ok) throw new Error("could not load returned image");
+  revealWork(); $("rest").style.display="none"; out.style.display="block"; $("play").hidden=!anyVideo();
+  $("where").textContent=SRC.length+" sources · latest from OpenAI";
+  /* Adding a generated source must not recut the current mosaic. It is paint,
+     not a new ground. Sample it into the existing field and leave CUT/FILL,
+     patch identities, overrides and selection untouched. */
+  if(hadCache&&CACHE&&SRC.length===oldN+1){
+    const src=SRC[SRC.length-1], d=sampleInto(src,CACHE.W,CACHE.H,null);
+    const pl=byTone(medianCut(d,CACHE.K));
+    while(pl.length<CACHE.K) pl.push(pl[pl.length-1]||[0,0,0]);
+    CACHE.DATA.push(d); CACHE.PALS.push(pl.slice(0,CACHE.K));
+    refreshPanel();
+  }else{
+    recut(); refreshPanel();
+  }
+  commitVersion("new source");
+}
+async function generatedImageBlob(prompt){
+  const quality=$("aiImageQuality")?.value||"medium";
+  const body={model:"gpt-image-2",prompt,size:"1024x1024",quality,output_format:"png"};
+  let r=await fetch(OPENAI_BASE+"/images/generations",{method:"POST",headers:aiHeaders(true),body:JSON.stringify(body),signal:AI_ABORT?.signal});
+  let j=await r.json().catch(()=>({}));
+  if(!r.ok){
+    r=await fetch(OPENAI_BASE+"/images/generations",{method:"POST",headers:aiHeaders(true),body:JSON.stringify({model:"gpt-image-2",prompt}),signal:AI_ABORT?.signal});
+    j=await r.json().catch(()=>({}));
+  }
+  if(!r.ok) throw new Error(j.error?.message||("image generation "+r.status));
+  const d=j.data?.[0];
+  if(d?.b64_json) return b64ToBlob(d.b64_json,"image/png");
+  if(d?.url){ const q=await fetch(d.url); return await q.blob(); }
+  throw new Error("image API returned no image");
+}
+async function editImageBlob(prompt){
+  if(!CACHE||!out.width) throw new Error("load and render a picture first");
+  const blob=await new Promise(res=>out.toBlob(res,"image/png"));
+  if(!blob) throw new Error("could not capture frame");
+  const fd=new FormData();
+  fd.append("model","gpt-image-2");
+  fd.append("prompt",prompt);
+  fd.append("image",blob,"binder-current.png");
+  const r=await fetch(OPENAI_BASE+"/images/edits",{method:"POST",headers:aiHeaders(false),body:fd,signal:AI_ABORT?.signal});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error?.message||("image edit "+r.status));
+  const d=j.data?.[0];
+  if(d?.b64_json) return b64ToBlob(d.b64_json,"image/png");
+  if(d?.url){ const q=await fetch(d.url); return await q.blob(); }
+  throw new Error("image edit API returned no image");
+}
+async function aiImage(which){
+  const q=$("aiPrompt").value.trim();
+  if(!q) return $("aiAnswer").textContent="ERROR · write an image instruction first";
+  AI_ABORT=new AbortController();
+  aiSetBusy(true,which==="edit"?"editing pixels":which==="idea"?"building idea":"generating pixels",8);
+  try{
+    if(which==="idea"){
+      const txt=await callBinderModel("ideate");
+      $("aiAnswer").textContent=txt||"(empty response)";
+      aiProgress(100);
+      return;
+    }
+    aiStep("building image prompt",40);
+    const prompt=await resolveImagePrompt(q,which==="edit"?"edit":"generate");
+    aiStep(which==="edit"?"editing image":"generating image",72);
+    const blob=which==="edit"?await editImageBlob(prompt):await generatedImageBlob(prompt);
+    aiStep("loading result into binder",92);
+    await blobToSource(blob,which==="edit"?"binder-edit":"binder-generated");
+    $("aiAnswer").textContent=(which==="edit"?"Edited":"Generated")+" image added as source "+SRC.length+". Select a patch/tone and route it to src "+(SRC.length-1)+", or ask DRIVE to use it.\n\nimage prompt used:\n"+prompt;
+    aiProgress(100);
+  }catch(e){ $("aiAnswer").textContent=e.name==="AbortError"?"STOPPED":"ERROR · "+e.message; }
+  finally{ AI_ABORT=null; setTimeout(()=>aiSetBusy(false),150); }
+}
+function dl(name,text,type="text/plain;charset=utf-8"){
+  const blob=new Blob([text],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function exportState(){
+  dl("binder-state.txt", currentStateText(), "text/plain;charset=utf-8");
+  $("aiAnswer").textContent="Exported current executable state as binder-state.txt.";
+}
+function exportBundle(){
+  const bundle={
+    exported_at:new Date().toISOString(),
+    prompt:$("aiPrompt").value,
+    model:$("aiModel").value,
+    image_quality:$("aiImageQuality").value,
+    see:AI_SEE,
+    selection:aiTargetContext(),
+    sources:SRC.map((s,i)=>({picture:i+1,kind:s.kind,width:s.w,height:s.h})),
+    references:REF.map((s,i)=>({reference:i+1,kind:s.kind,width:s.w,height:s.h,name:s.name||null})),
+    current_state:CACHE?currentStateText():null
+  };
+  dl("binder-bundle.json", JSON.stringify(bundle,null,2), "application/json;charset=utf-8");
+  $("aiAnswer").textContent="Exported bundle JSON with state, prompt, sources, references, and model settings.";
+}
+$("ai").addEventListener("click",()=>{
+  const p=$("aiPane"), opening=p.hidden;
+  p.hidden=!opening;
+  $("ai").setAttribute("aria-pressed",String(opening));
+  if(opening){
+    syncAiScope();
+    $("aiSettings").hidden=!!aiKey();
+    $("aiSettingsToggle").setAttribute("aria-pressed",String(!$("aiSettings").hidden));
+    setTimeout(()=>$("aiPrompt").focus(),40);
+  }
+});
+$("aiClose").addEventListener("click",()=>{ $("aiPane").hidden=true; $("ai").setAttribute("aria-pressed","false"); });
+$("aiScopeAll").addEventListener("click",()=>syncAiScope());
+$("aiScopePatch").addEventListener("click",()=>syncAiScope());
+$("aiSettingsToggle").addEventListener("click",()=>{ const s=$("aiSettings"),open=s.hidden; s.hidden=!open; $("aiSettingsToggle").setAttribute("aria-pressed",String(open)); });
+$("aiSee").addEventListener("click",()=>{ AI_SEE=!AI_SEE; $("aiSee").setAttribute("aria-pressed",String(AI_SEE)); $("aiSee").textContent=AI_SEE?"SEE ON":"SEE OFF"; setCtx(AI_SEE?"visual context on":"visual context off"); });
+$("toolsToggle").addEventListener("click",()=>{ const tray=$("toolTray"),open=tray.hidden; tray.hidden=!open; $("toolsToggle").setAttribute("aria-pressed",String(open)); const lab=$("toolsToggle").querySelector("span:last-child"); if(lab) lab.textContent=open?"CLOSE":"TOOLS"; });
+$("historyBtn").addEventListener("click",()=>{ renderVersions(); $("historyPane").hidden=false; $("toolTray").hidden=true; $("toolsToggle").setAttribute("aria-pressed","false"); const lab=$("toolsToggle").querySelector("span:last-child"); if(lab) lab.textContent="TOOLS"; });
+$("historyClose").addEventListener("click",()=>$("historyPane").hidden=true);
+$("workStop").addEventListener("click",()=>{ if(AI_ABORT) AI_ABORT.abort(); });
+$("aiShowKey").addEventListener("click",()=>{ const k=$("aiKey"),showing=k.type==="text"; k.type=showing?"password":"text"; $("aiShowKey").textContent=showing?"SHOW KEY":"HIDE KEY"; });
+$("refPick").addEventListener("click",()=>$("refFile").click());
+$("refClear").addEventListener("click",()=>{ REF.splice(0,REF.length); renderRefs(); $("aiAnswer").textContent="references cleared"; });
+$("refFile").addEventListener("change",e=>{ takeRefs([...(e.target.files||[])]); e.target.value=""; });
+const refDrop=$("aiRefDrop");
+["dragenter","dragover"].forEach(ev=>refDrop.addEventListener(ev,e=>{ e.preventDefault(); refDrop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev=>refDrop.addEventListener(ev,e=>{ e.preventDefault(); refDrop.classList.remove("over"); }));
+refDrop.addEventListener("drop",e=>{ const fs=[...(e.dataTransfer?.files||[])]; if(fs.length) takeRefs(fs); });
+$("aiDrive").addEventListener("click",()=>{ syncAiScope(); planAiOptions(); });
+$("aiAsk").addEventListener("click",()=>aiAskOrDrive("ask"));
+$("aiGen").addEventListener("click",()=>aiImage("generate"));
+$("aiEdit").addEventListener("click",()=>aiImage("edit"));
+$("aiIdea").addEventListener("click",()=>aiImage("idea"));
+$("expPng").addEventListener("click",()=>$("save").click());
+$("expState").addEventListener("click",exportState);
+$("expBundle").addEventListener("click",exportBundle);
+$("aiPrompt").addEventListener("input",()=>{ AI_OPTIONS=[]; renderAiOptions(); $("aiAnswer").hidden=true; });
+$("aiPrompt").addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){
+    e.preventDefault(); $("aiDrive").click();
+  }
+});
+$("comparePrev").addEventListener("click",()=>compareMode(true));
+$("compareNow").addEventListener("click",()=>compareMode(false));
+$("compareClose").addEventListener("click",()=>{ $("compareBefore").hidden=true; $("compareBar").hidden=true; AI_BEFORE_URL=""; });
+window.addEventListener("resize",()=>{ if(!$("compareBefore").hidden) syncCompareRect(); });
+updateRefBadge(); renderRefs(); renderVersions(); syncAiScope();
+/* ---- sources: pictures or clips ---- */
+function addSource(f){
+  return new Promise(res=>{
+    const url=URL.createObjectURL(f);
+    if(/^video\//.test(f.type)){
+      const v=document.createElement("video");
+      v.src=url; v.loop=true; v.muted=true; v.playsInline=true; v.preload="auto";
+      v.addEventListener("loadeddata",()=>{
+        SRC.push({kind:"video",el:v,w:v.videoWidth,h:v.videoHeight});
+        v.currentTime=0.05; res(true);
+      },{once:true});
+      v.addEventListener("error",()=>{ URL.revokeObjectURL(url); res(false); },{once:true});
+      return;
+    }
+    if(!/^image\//.test(f.type)){ URL.revokeObjectURL(url); return res(false); }
+    const im=new Image();
+    im.onload=()=>{ const c=cnv(im.naturalWidth,im.naturalHeight);
+      c.getContext("2d").drawImage(im,0,0);
+      SRC.push({kind:"img",el:c,w:c.width,h:c.height});
+      URL.revokeObjectURL(url); res(true); };
+    im.onerror=()=>{ URL.revokeObjectURL(url); res(false); };
+    im.src=url;
+  });
+}
+async function take(files){
+  if(!files||!files.length) return;
+  surfaceWork(true,"LOADING",8,false);
+  await nextPaint();
+  let any=false;
+  try{
+    for(let i=0;i<files.length;i++){
+      surfaceWork(true,"IMAGE "+(i+1)+" / "+files.length,Math.round(12+48*((i+1)/files.length)),false);
+      if(await addSource(files[i])) any=true;
+    }
+    if(!any) return;
+    $("rest").style.display="none"; out.style.display="block";
+    $("play").hidden=!anyVideo();
+    $("where").textContent = SRC.length<2 ? "ADD 2ND IMAGE" : "picture + picture";
+    FILL=null; CUT=null;
+    surfaceWork(true,"BUILDING MOSAIC",72,false);
+    await nextPaint();
+    recut();
+    revealWork();
+    commitVersion("open");
+    if(anyVideo()) setPlaying(true);
+    surfaceWork(true,"READY",100,false);
+    await new Promise(r=>setTimeout(r,110));
+  } finally {
+    surfaceWork(false,"",0,false);
+  }
+}
+$("cam").addEventListener("click",async()=>{
+  const b=$("cam");
+  if(b.getAttribute("aria-pressed")==="true"){          // stop the camera
+    SRC.forEach(s2=>{ if(s2.live&&s2.el.srcObject)
+      s2.el.srcObject.getTracks().forEach(t=>t.stop()); });
+    for(let i=SRC.length-1;i>=0;i--) if(SRC[i].live) SRC.splice(i,1);
+    b.setAttribute("aria-pressed","false"); b.textContent="CAM";
+    if(SRC.length){ FILL=null;CUT=null; recut(); } else location.reload();
+    return;
+  }
+  try{
+    const st=await navigator.mediaDevices.getUserMedia(
+      {video:{facingMode:{ideal:"environment"},width:{ideal:1280}},audio:false});
+    const v=document.createElement("video");
+    v.srcObject=st; v.muted=true; v.playsInline=true;
+    await v.play();
+    SRC.push({kind:"video",live:true,el:v,w:v.videoWidth,h:v.videoHeight}); revealWork();
+    b.setAttribute("aria-pressed","true"); b.textContent="CAM ON";
+    $("rest").style.display="none"; out.style.display="block";
+    $("play").hidden=false;
+    $("where").textContent=SRC.length<2?"camera \u00b7 drop a picture to bind it against"
+      :SRC.map(x=>x.live?"camera":x.kind==="video"?"clip":"picture").slice(0,2).join(" + ");
+    FILL=null;CUT=null;
+    recut(); setPlaying(true);
+  }catch(err){
+    $("where").textContent="the camera is not available";
+  }
+});
+
+$("pick").addEventListener("click",()=>$("file").click());
+$("pick2").addEventListener("click",()=>$("file").click());
+$("file").addEventListener("change",e=>{ take([...e.target.files]); e.target.value=""; });
+const stage=$("stage");
+["dragenter","dragover"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();stage.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();stage.classList.remove("over");}));
+document.addEventListener("drop",e=>{ if(e.dataTransfer?.files?.length) take([...e.dataTransfer.files]); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&playing) setPlaying(false); });
+drawDeck("A"); drawDeck("B"); buildChips();
+</script>
+</body>
+</html>
