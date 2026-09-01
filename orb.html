@@ -465,6 +465,8 @@ function drawOrb(cv,f,v,opt){
   const Rd=opt.rad!=null?opt.rad:Math.min(W,H)*0.42;  // room around the ball, always
   const R=rot(),step=opt.step||3.2,only=opt.only;
   const G=opt.small?SMALL:BIG;
+  const showLive=opt.live&&prevReady();
+  const liveB=showLive&&!PREV.wrap?basis(PREV.dir||S.dir,upFor(PREV.dir||S.dir)):null;
   const C=cells(f,v,only,opt.aux,G);
   const grid=opt.small?C.ink:(opt.aux?C.ink:wetGrid(f,v,only));
   const skins=[];
@@ -492,8 +494,9 @@ function drawOrb(cv,f,v,opt){
       const k=toScreen(d,R);
       if(k[2]<=0.02)continue;
       const ff=slitFrame(lat),gg=gridAt(lat);
-      const c=(ff===f)?colourIn(C,idxOf(d,G))
+      let c=(ff===f)?colourIn(C,idxOf(d,G))
         :colourIn(cells(ff,v,only,true,G),idxOf(d,G));
+      if(showLive){const lc=prevAt(d,liveB);if(lc)c=lc;}
       const ink=inkAt(gg,d,G);
       let rad,col;
       if(ink>.04){rad=cell*(.10+.80*ink);col="#000";}   // paint covers picture
@@ -789,9 +792,12 @@ function paint(){
   startPaintBudget();
   const c=cellOf();
   const step=S.busy?4.4:2.4;
-  SG=S.view==="ORB"?drawOrb(stage,c.f,c.v,{step,onion:!S.busy&&S.onion.n>0,handles:true})
+  prevRefresh(Date.now());
+  SG=S.view==="ORB"?drawOrb(stage,c.f,c.v,
+      {step,onion:!S.busy&&S.onion.n>0,handles:true,live:true})
     :S.view==="ONION"?drawStack(stage,c.f,c.v,{step:S.busy?7:5})
     :drawFlat(stage,c.f,c.v,{step,onion:!S.busy&&S.onion.n>0});
+  if(CAM.preview&&CAM.stream)draw2();          // keep the live view moving
   document.getElementById("rest").hidden=S.strokes.length>0;
   const ll=llDir(S.dir);
   if(S.playing&&stroke)document.getElementById("where").dataset.say="";
@@ -815,6 +821,13 @@ function paint(){
       "   "+off+" hidden";}
   document.getElementById("view").textContent=S.view;
   paintReel();}
+/* the only loop that runs on its own: it stops the moment the preview is
+   off or the stream is closed, and it never runs twice at once */
+let liveTimer=null;
+function draw2(){
+  if(liveTimer)return;
+  liveTimer=setTimeout(()=>{liveTimer=null;
+    if(CAM.preview&&CAM.stream)draw();},PREV_MS);}
 let q=false,lastEpoch=-1;
 /* a fresh edit restarts the strip's slow fill from the top */
 const draw=()=>{
@@ -1335,6 +1348,7 @@ const MARK={
  narrow:SVG('<path d="M9 6v12M15 6v12"/><path d="M3 12h4M17 12h4"/>'),
  wide:SVG('<path d="M6 6v12M18 6v12"/><path d="M9 12h6"/><path d="M9 12l2-2M9 12l2 2M15 12l-2-2M15 12l-2 2"/>'),
  wrapm:SVG('<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4a10 10 0 0 1 0 16a10 10 0 0 1 0-16z"/>'),
+ live:SVG('<circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 16.5a6.4 6.4 0 0 0 0-9"/><path d="M4.5 4.5a10.6 10.6 0 0 0 0 15M19.5 19.5a10.6 10.6 0 0 0 0-15"/>'),
  fps:SVG('<path d="M5 5v14l11-7z" fill="currentColor" stroke="none"/><path d="M19 5v14"/>')
 };
 const grp=(name,body)=>'<span class="grp"><i>'+name+'</i>'+body+'</span>';
@@ -1368,7 +1382,45 @@ function moveLayer(from,to){
    picture like any other and goes through the same budget. A run is
    bounded by frame count and by the pixel ceiling, never by how long you
    hold the key. */
-const CAM={stream:null,vid:null,facing:"environment",busy:false};
+const CAM={stream:null,vid:null,facing:"environment",busy:false,preview:false};
+/* The preview is deliberately not a layer. A layer would have to be baked
+   into the field, which means thirty two thousand cells and a cache miss
+   every frame. Instead one small canvas is refreshed a few times a second
+   and each dot reads a pixel out of it. The cost is a lookup, not a bake,
+   and nothing about the score changes while you look. */
+const PREV_W=96,PREV_MS=90;   /* the ball shows about 5,000 dots; 96 square is plenty */
+const PREV={cv:null,ctx:null,data:null,at:0,dir:null,fov:0,wrap:false};
+function prevReady(){
+  return !!(CAM.preview&&CAM.stream&&CAM.vid&&CAM.vid.videoWidth&&PREV.data);}
+function prevRefresh(now){
+  if(!CAM.preview||!CAM.vid||!CAM.vid.videoWidth)return false;
+  if(now-PREV.at<PREV_MS)return false;          // a few times a second, no more
+  PREV.wrap=S.wrapMode==="WRAP";
+  const w=PREV_W,hh=PREV.wrap?PREV_W>>1:PREV_W;
+  if(!PREV.cv){PREV.cv=document.createElement("canvas");PREV.ctx=PREV.cv.getContext("2d");}
+  if(PREV.cv.width!==w||PREV.cv.height!==hh){PREV.cv.width=w;PREV.cv.height=hh;}
+  try{
+    PREV.ctx.drawImage(CAM.vid,0,0,w,hh);
+    PREV.data=PREV.ctx.getImageData(0,0,w,hh).data;
+  }catch(e){PREV.data=null;return false;}      // a stream can die mid-read
+  PREV.at=now;
+  PREV.dir=S.dir.slice();PREV.fov=S.place;
+  return true;}
+/* where a direction falls in the live frame, or null if it falls outside */
+function prevAt(d,b){
+  if(!PREV.data)return null;
+  const w=PREV.cv.width,hh=PREV.cv.height;
+  let x,y;
+  if(PREV.wrap){const uv=uvDir(d);
+    x=clamp((uv[0]*w)|0,0,w-1);y=clamp((uv[1]*hh)|0,0,hh-1);}
+  else{
+    const z=dot(d,b.f);if(z<=1e-6)return null;
+    const t=Math.tan(PREV.fov/2);
+    const px=dot(d,b.r)/z/t,py=dot(d,b.u)/z/t;
+    if(Math.abs(px)>1||Math.abs(py)>1)return null;
+    x=clamp(((px+1)/2*w)|0,0,w-1);y=clamp(((1-py)/2*hh)|0,0,hh-1);}
+  const i=(y*w+x)*4;
+  return [PREV.data[i],PREV.data[i+1],PREV.data[i+2]];}
 async function camOpen(){
   if(CAM.stream)return true;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
@@ -1386,7 +1438,10 @@ async function camOpen(){
   CAM.vid=v;buildTray();draw();return true;}
 function camClose(){
   if(CAM.stream){for(const t of CAM.stream.getTracks())t.stop();}
-  CAM.stream=null;CAM.vid=null;buildTray();draw();}
+  CAM.stream=null;CAM.vid=null;CAM.preview=false;
+  PREV.data=null;PREV.at=0;
+  if(liveTimer){clearTimeout(liveTimer);liveTimer=null;}
+  buildTray();draw();}
 async function camFlip(){
   CAM.facing=CAM.facing==="environment"?"user":"environment";
   camClose();await camOpen();}
@@ -1728,6 +1783,7 @@ function buildTray(){
       grp("FROM THE CAMERA",'<span class="pal">'+
         gl("cOn",MARK.cam,CAM.stream?"CLOSE":"CAMERA","",!!CAM.stream)+
         gl("cFlip",MARK.flip,"FLIP",on)+
+        gl("cLive",MARK.live,"PREVIEW",on,CAM.preview)+
         gl("cShot",MARK.shot,"SHOOT",on)+
         gl("cFilm",MARK.film,CAM.busy?"STOP":"FILM",on)+'</span>')+
       grp("BRING ONE IN",'<span class="pal">'+
@@ -1753,6 +1809,7 @@ function buildTray(){
     const on2=(id,fn)=>{const b=$(id);if(b&&!b.disabled)b.onclick=fn;};
     on2("cOn",()=>{if(CAM.stream)camClose();else camOpen();});
     on2("cFlip",camFlip);
+    on2("cLive",()=>{CAM.preview=!CAM.preview;PREV.at=0;buildTray();draw();});
     on2("cShot",camShoot);
     on2("cFilm",camFilm);
     on2("pick",()=>document.getElementById("file").click());
