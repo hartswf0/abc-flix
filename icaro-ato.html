@@ -8,6 +8,7 @@
     <title>ABC FLIX · PRO</title>
     <script src="./data/secondhand-doodle-bundle.js"></script>
     <script src="./data/worms_108.js"></script>
+    <script src="./data/secondhand-inspector-engine.js"></script>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Crect x='10' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='18' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='26' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='34' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='42' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='50' y='49' width='4' height='4' fill='%23000'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
 
@@ -1434,27 +1435,198 @@
         }
     
 
-        /* ── SCENE & LAYER DROPDOWNS ── */
-        .icaro-scene-sel {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 10px;
-            font-weight: 900;
-            height: 28px;
-            padding: 0 6px;
-            border: 2px solid var(--black);
-            background: var(--white);
-            color: var(--black);
-            cursor: pointer;
-            max-width: 190px;
-            flex-shrink: 1;
+        /* ── SECONDHAND MULTI-VIEW STAGE BAR & BOTTOM INSPECTOR DECK ── */
+        #canvas-zone {
+            flex: 1 1 42% !important;
+            min-height: 155px !important;
+            padding-top: 28px !important;
         }
-        @media (max-width: 767px) {
-            .icaro-scene-sel {
-                max-width: 125px;
-                font-size: 9px;
-                height: 28px;
-                padding: 0 4px;
-            }
+        #timeline-zone {
+            flex: 1 1 58% !important;
+            min-height: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+        body.deck-collapsed #canvas-zone {
+            flex: 1 1 0% !important;
+        }
+        body.deck-collapsed #timeline-zone {
+            flex: 0 0 auto !important;
+        }
+        body.deck-collapsed #icaro-inspector-deck {
+            display: none !important;
+        }
+        #icaro-stage-bar {
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 32;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: #FFFBF4;
+            border: 1.5px solid #161412;
+            border-radius: 5px;
+            padding: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+            max-width: calc(100% - 16px);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        #icaro-stage-bar::-webkit-scrollbar { display: none; }
+        .isv-btn {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 3px 7px;
+            border: 0;
+            border-radius: 3px;
+            background: transparent;
+            color: #161412;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .isv-btn[aria-pressed="true"] {
+            background: #161412;
+            color: #F6EFE3;
+        }
+        #cvStage {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 15;
+            display: block;
+            background: #FBFAF6;
+        }
+        #icaro-inspector-deck {
+            flex: 1 1 0%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: #F6EFE3;
+            border-bottom: 2px solid #161412;
+            overflow: hidden;
+        }
+        .insp-bar {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            padding: 3px 6px;
+            background: #FFFBF4;
+            border-bottom: 1px solid #DED2BF;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .insp-bar::-webkit-scrollbar { display: none; }
+        .insp-strip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            white-space: nowrap;
+        }
+        .insp-strip::-webkit-scrollbar { display: none; }
+        .insp-seg {
+            display: inline-flex;
+            border: 1.5px solid #161412;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #FFFFFF;
+            flex-shrink: 0;
+        }
+        .insp-seg button {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 800;
+            font-size: 10px;
+            padding: 3px 6px;
+            border: 0;
+            border-right: 1px solid #DED2BF;
+            background: transparent;
+            color: #161412;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .insp-seg button:last-child { border-right: 0; }
+        .insp-seg button[aria-pressed="true"] {
+            background: #161412;
+            color: #F6EFE3;
+        }
+        .insp-select {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 900;
+            font-size: 10.5px;
+            padding: 2px 6px;
+            border: 1.5px solid #161412;
+            border-radius: 4px;
+            background: #FFFFFF;
+            color: #161412;
+            max-width: 195px;
+            height: 23px;
+            flex-shrink: 0;
+        }
+        .insp-pill {
+            font-family: monospace;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #8A4A05;
+            background: #FBE6C8;
+            border: 1px solid #EF9F3A;
+            padding: 2px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .plane-pill {
+            font-family: monospace;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border: 1px solid #BFAF97;
+            border-radius: 4px;
+            background: #FFFFFF;
+            color: #161412;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .plane-pill.subj {
+            border-color: #EF9F3A;
+            background: #FBE6C8;
+            color: #8A4A05;
+        }
+        .plane-pill[aria-pressed="true"] {
+            background: #161412;
+            color: #F6EFE3;
+            border-color: #161412;
+        }
+        #wormStageWrap {
+            flex: 1 1 0%;
+            min-height: 0;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #FBFAF6;
+            touch-action: none;
+            user-select: none;
+        }
+        #cvWorm {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        #tl-strip {
+            flex: 0 0 44px !important;
+            min-height: 44px !important;
         }
 
     </style>
@@ -1508,6 +1680,16 @@
 
             <!-- ── CANVAS ZONE ── -->
             <div id="canvas-zone">
+                                <div id="icaro-stage-bar" role="group" aria-label="Stage View Mode">
+                    <button type="button" class="isv-btn" data-icaro-sview="all4" aria-pressed="false">All 4</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="composite" aria-pressed="true">Composite</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="xray" aria-pressed="false">Parts X-Ray</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="dots" aria-pressed="false">Dot Matrix (128×96)</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="cutout" aria-pressed="false">Cutout</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="cartoon" aria-pressed="false">Cartoon</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="footage" aria-pressed="false">Footage</button>
+                    <button type="button" class="isv-btn" data-icaro-sview="masks" aria-pressed="false">Masks</button>
+                </div>
                 <button id="lbl-grid" onclick="triggerGrid()">GRID: OFF</button>
 
                 <!-- Floating draw toolbar (always on top when in C mode) -->
@@ -1525,6 +1707,7 @@
                 <div id="canvas-wrapper">
                     <canvas id="primary-buffer"></canvas>
                     <canvas id="net"></canvas>
+                    <canvas id="cvStage" width="480" height="360"></canvas>
                 </div>
 
                 <!-- Tap-to-play zone (active when not in draw mode) -->
@@ -1573,8 +1756,53 @@
                 <div id="ato-status">IDLE</div>
             </div>
 
-            <!-- ── TIMELINE ── -->
+            <!-- ── TIMELINE & BOTTOM MULTI-VIEW INSPECTOR ── -->
             <div id="timeline-zone">
+                <!-- ── BOTTOM MULTI-VIEW ANALYSIS & PARTS INSPECTOR AREA ── -->
+                <div id="icaro-inspector-deck">
+                    <div class="insp-bar">
+                        <div class="insp-strip">
+                            <select class="insp-select" id="icaro-scene-select" onchange="window.ICARO_SECONDHAND_INSPECTOR && window.ICARO_SECONDHAND_INSPECTOR.selectSceneValue(this.value)" title="Select Scene to Explore"></select>
+                            <div class="insp-seg" role="group" aria-label="Bottom View Lens">
+                                <button type="button" data-wmode="all" aria-pressed="false">All</button>
+                                <button type="button" data-wmode="parallel" aria-pressed="false">1 · 3D Butter</button>
+                                <button type="button" data-wmode="lanes" aria-pressed="true">2 · Planes</button>
+                                <button type="button" data-wmode="parts" aria-pressed="false">3 · Parts</button>
+                                <button type="button" data-wmode="strobe" aria-pressed="false">4 · Trail</button>
+                                <button type="button" data-wmode="kymo" aria-pressed="false">5 · Graphs</button>
+                                <button type="button" data-wmode="anatomy" aria-pressed="false">6 · Rig</button>
+                                <button type="button" data-wmode="box" aria-pressed="false">7 · Depth Box</button>
+                                <button type="button" data-wmode="wall" aria-pressed="false">All 109</button>
+                            </div>
+                            <div class="insp-seg" id="parallelSubSeg" role="group" aria-label="3D Butter Sub-Mode" style="display:none">
+                                <button type="button" data-psub="butter" aria-pressed="true">Butter Loaf</button>
+                                <button type="button" data-psub="slices" aria-pressed="false">All Slices</button>
+                                <button type="button" data-psub="radial" aria-pressed="false">Radial Fan</button>
+                                <button type="button" data-psub="dual" aria-pressed="false">2-Rail</button>
+                            </div>
+                            <button type="button" class="plane-pill" id="parThemeBtn" aria-pressed="true" style="display:none">Dark / Paper</button>
+                        </div>
+                        <span class="insp-pill" id="wormStatePill">All 6 planes · f 01/33</span>
+                    </div>
+                    <div id="wormStageWrap">
+                        <canvas id="cvWorm" width="680" height="340"></canvas>
+                    </div>
+                    <div class="insp-bar" style="border-top:1px solid #DED2BF; border-bottom:0;">
+                        <div class="insp-strip" id="planesRow"></div>
+                        <div class="insp-strip" style="flex-shrink:0; gap:5px;">
+                            <button type="button" class="plane-pill subj" id="zoomCrumbBtn" style="display:none">Zoom: All</button>
+                            <label class="insp-pill" style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Scale camera parallax k = z_ref / z">
+                                <span id="kScaleLbl">k×1.0</span>
+                                <input type="range" id="kScaleRange" min="0" max="2.5" step="0.1" value="1" style="width:46px;height:12px;">
+                            </label>
+                            <label class="insp-pill" style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Explode overlapping planes apart">
+                                <span id="explodeLbl">Exp 0%</span>
+                                <input type="range" id="explodeRange" min="0" max="1" step="0.05" value="0" style="width:42px;height:12px;">
+                            </label>
+                            <button type="button" class="plane-pill subj" id="restorePlanesBtn" style="display:none">All Planes</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="tl-controls">
                     <button class="tl-ctrl-btn" onclick="stepSequence(-1)"
                         style="font-size:15px; min-width:36px; padding:5px 10px;">◄</button>
@@ -1592,8 +1820,7 @@
                             oninput="onSpeedSlider(this.value)">
                     </div>
                     <div style="flex-grow:1; min-width:4px;"></div>
-                    <select class="icaro-scene-sel" id="icaro-scene-select" onchange="icaroSelectScene(this.value)" title="Select Scene to Load"></select>
-                    <select class="icaro-scene-sel" id="icaro-layer-select" onchange="icaroSelectLayerFilter(this.value)" style="max-width:130px;" title="Explore All Layers or Isolate a Single Layer"></select>
+                    <button class="tl-ctrl-btn" onclick="toggleInspectorDeck()" style="background:#EF9F3A;color:#161412;font-weight:900;" title="Show/Hide Bottom Multi-View Analysis Deck">▼ VIEWS</button>
                     <button class="tl-ctrl-btn" id="btn-sel-mode" onclick="toggleSelMode()" style="color:var(--act-c); font-weight:900;">SEL</button>
                     <button class="tl-ctrl-btn" id="btn-desel" onclick="clearSelection(); fireToast('DESELECTED');">✕</button>
                     <span id="tl-frame-readout" style="font-size:12px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--black);flex-shrink:0;">01/01</span>
@@ -1633,9 +1860,8 @@
         </div>
         <div class="sheet-body">
             <div style="border:2px solid var(--black); background:var(--bg); padding:8px; display:flex; flex-direction:column; gap:6px;">
-                <div class="sh-label">LOAD SCENE (GIRAFFE DEFAULT + 109 SCENES & 20 FILMS)</div>
-                <select id="sheet-a-scene-select" style="width:100%; height:38px; border:2px solid var(--black); font-size:11px; font-weight:900; padding:0 6px; background:var(--white);" onchange="icaroSelectScene(this.value); closeAllSheets()"></select>
-                <select id="sheet-a-layer-select" style="width:100%; height:34px; border:2px solid var(--black); font-size:10px; font-weight:900; padding:0 6px; background:var(--white);" onchange="icaroSelectLayerFilter(this.value); closeAllSheets()"></select>
+                <div class="sh-label">SCENE SELECTOR (GIRAFFE DEFAULT + 109 SCENES & 20 FILMS)</div>
+                <select id="sheet-a-scene-select" style="width:100%; height:38px; border:2px solid var(--black); font-size:11px; font-weight:900; padding:0 6px; background:var(--white);" onchange="window.ICARO_SECONDHAND_INSPECTOR && window.ICARO_SECONDHAND_INSPECTOR.selectSceneValue(this.value); closeAllSheets()"></select>
             </div>
             <button class="sh-btn" style="background:var(--act-a);color:var(--white);" onclick="document.getElementById('file-input').click()">LOAD CLIPS</button>
             <div class="sh-row">
@@ -4175,6 +4401,7 @@ SHF 2 1 24</textarea>
             }
             // Refresh onion skin overlay if active
             if (_onionMode) drawOnionSkin();
+            if (window.ICARO_SECONDHAND_INSPECTOR) window.ICARO_SECONDHAND_INSPECTOR.setFrame(state.cur);
         }
 
         function bindPixel(arr, x, y, c) { if (x < 0 || x >= W || y < 0 || y >= H) return; const i = (y * W + x) * 4; if (c[3] === 0) { arr[i] = 0; arr[i + 1] = 0; arr[i + 2] = 0; arr[i + 3] = 0; return; } arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3]; }
@@ -5660,327 +5887,65 @@ SHF 2 1 24</textarea>
         }
 
 
-        // ── DEFAULT GIRAFFE SCENE & DROPDOWN SCENE LOADER ──
-        let _dlCurrentWorm = null;
-        let _dlCurrentShot = null;
-        let _dlLayerFilter = 'ALL'; // 'ALL' | 'EXPLODE' | plane.id
-
-        const _dlOffCanvas = document.createElement('canvas');
-        _dlOffCanvas.width = G_COLS;
-        _dlOffCanvas.height = G_ROWS;
-        const _dlOffCtx = _dlOffCanvas.getContext('2d', { willReadFrequently: true });
-
-        function getDoodleActivePlanes() {
-            if (_dlCurrentShot && Array.isArray(_dlCurrentShot.planes) && _dlCurrentShot.planes.length) {
-                return _dlCurrentShot.planes.slice().sort((a, b) => b.z - a.z);
+        // ── HOST HOOKS FOR SECONDHAND MULTI-VIEW INSPECTOR ──
+        function toggleInspectorDeck() {
+            document.body.classList.toggle('deck-collapsed');
+            rescaleWorkspace();
+            if (!document.body.classList.contains('deck-collapsed') && window.ICARO_SECONDHAND_INSPECTOR) {
+                window.ICARO_SECONDHAND_INSPECTOR.renderAll();
             }
-            if (_dlCurrentWorm && Array.isArray(_dlCurrentWorm.planes) && _dlCurrentWorm.planes.length) {
-                return _dlCurrentWorm.planes.slice().sort((a, b) => b.z - a.z);
-            }
-            return [{ id: 'char', z: 2, label: 'Subject' }];
         }
 
-        function getDoodleCamOffset(planeZ, fi) {
-            const S = _dlCurrentShot;
-            const W_src = (S && S.W) || (_dlCurrentWorm && _dlCurrentWorm.W) || 480;
-            const H_src = (S && S.H) || (_dlCurrentWorm && _dlCurrentWorm.H) || 360;
-            const zRef = (S && S.z_ref) || (_dlCurrentWorm && _dlCurrentWorm.z_ref) || 2;
-            const k = zRef / Math.max(0.2, Number(planeZ) || zRef);
-            let dx = 0, dy = 0;
-            if (S && Array.isArray(S.camera) && S.camera[fi] != null) {
-                const cam = S.camera[fi];
-                const cx = Array.isArray(cam) ? Number(cam[0]) : Number(cam.dx !== undefined ? cam.dx : cam.x);
-                const cy = Array.isArray(cam) ? Number(cam[1]) : Number(cam.dy !== undefined ? cam.dy : cam.y);
-                dx = (Number.isFinite(cx) ? cx : 0) * k;
-                dy = (Number.isFinite(cy) ? cy : 0) * k;
-            } else if (_dlCurrentWorm && _dlCurrentWorm.frames && _dlCurrentWorm.frames[fi]) {
-                const cam = _dlCurrentWorm.frames[fi].cam || [0, 0];
-                dx = (Number(cam[0]) || 0) * W_src * k;
-                dy = (Number(cam[1]) || 0) * H_src * k;
-            }
-            return { dx, dy, k };
-        }
-
-        function getDoodleObjectStrokes(o, fi) {
-            if (!o) return [];
-            if (o.frames && Array.isArray(o.frames[fi]) && o.frames[fi].length > 0) return o.frames[fi];
-            if (Array.isArray(o.strokes) && o.strokes.length > 0) return o.strokes;
-            if (Array.isArray(o.frames)) {
-                for (let d = 1; d < o.frames.length; d++) {
-                    if (fi - d >= 0 && Array.isArray(o.frames[fi - d]) && o.frames[fi - d].length > 0) return o.frames[fi - d];
-                    if (fi + d < o.frames.length && Array.isArray(o.frames[fi + d]) && o.frames[fi + d].length > 0) return o.frames[fi + d];
-                }
-            }
-            return [];
-        }
-
-        function getPlaneStrokesAtFrame(plane, fi) {
-            const S = _dlCurrentShot;
-            const W_src = (S && S.W) || (_dlCurrentWorm && _dlCurrentWorm.W) || 480;
-            const H_src = (S && S.H) || (_dlCurrentWorm && _dlCurrentWorm.H) || 360;
-            const off = getDoodleCamOffset(plane.z, fi);
-
-            if (plane.id === 'char') {
-                if (S && S.cast && S.cast.frames && S.cast.frames[fi] && S.cast.frames[fi].length) {
-                    return S.cast.frames[fi];
-                }
-                if (_dlCurrentWorm && _dlCurrentWorm.frames && _dlCurrentWorm.frames[fi] && _dlCurrentWorm.frames[fi].doodle) {
-                    return _dlCurrentWorm.frames[fi].doodle.map(s => s.map(p => [p[0] * W_src, p[1] * H_src]));
-                }
-                return [];
-            }
-
-            const allStrokes = [];
-            if (S && Array.isArray(S.objects)) {
-                const objs = S.objects.filter(o => o.plane === plane.id);
-                for (const o of objs) {
-                    const ost = getDoodleObjectStrokes(o, fi);
-                    for (const s of (ost || [])) {
-                        if (s && s.length >= 2) {
-                            allStrokes.push(s.map(p => [p[0] + off.dx, p[1] + off.dy]));
-                        }
-                    }
-                }
-            }
-            if (allStrokes.length === 0 && _dlCurrentWorm && Array.isArray(_dlCurrentWorm.depth_worms)) {
-                const dwObj = _dlCurrentWorm.depth_worms.find(d => d.id === plane.id)
-                    || _dlCurrentWorm.depth_worms.find(d => Math.abs((d.z || 0) - (plane.z || 0)) < 0.25 && d.role !== 'subject');
-                if (dwObj && Array.isArray(dwObj.strokes0) && dwObj.strokes0.length) {
-                    const u0 = Number.isFinite(dwObj.u0) ? dwObj.u0 : 0.5;
-                    const v0 = Number.isFinite(dwObj.v0) ? dwObj.v0 : 0.5;
-                    for (const s of dwObj.strokes0) {
-                        if (s && s.length >= 2) {
-                            allStrokes.push(s.map(p => [(u0 + p[0]) * W_src + off.dx, (v0 + p[1]) * H_src + off.dy]));
-                        }
-                    }
-                }
-            }
-            return allStrokes;
-        }
-
-        function stampPlanesIntoFrame(frameObj, fi, planesToDraw) {
-            frameObj.scriptLayer.fill(0);
-            const S = _dlCurrentShot;
-            const W_src = (S && S.W) || (_dlCurrentWorm && _dlCurrentWorm.W) || 480;
-            const H_src = (S && S.H) || (_dlCurrentWorm && _dlCurrentWorm.H) || 360;
-            const sx = G_COLS / W_src;
-            const sy = G_ROWS / H_src;
-
-            function inkLevelForPlane(plane) {
-                if (plane.id === 'char') return 7;
-                if (plane.z <= 1.5) return 6;
-                if (plane.z <= 2.8) return 5;
-                if (plane.z <= 4.0) return 4;
-                if (plane.z <= 7.0) return 3;
-                return 2;
-            }
-
-            const gridLevels = new Uint8Array(G_ROWS * G_COLS);
-
-            for (const plane of planesToDraw) {
-                const strokes = getPlaneStrokesAtFrame(plane, fi);
-                if (!strokes.length) continue;
-
-                _dlOffCtx.clearRect(0, 0, G_COLS, G_ROWS);
-                _dlOffCtx.save();
-                _dlOffCtx.scale(sx, sy);
-                _dlOffCtx.lineCap = 'round';
-                _dlOffCtx.lineJoin = 'round';
-                _dlOffCtx.strokeStyle = '#FFFFFF';
-                _dlOffCtx.lineWidth = (plane.id === 'char') ? 6.2 : (plane.z <= 1.5 ? 5.2 : 4.4);
-
-                for (const s of strokes) {
-                    if (!s || s.length < 2) continue;
-                    _dlOffCtx.beginPath();
-                    for (let i = 0; i < s.length; i++) {
-                        if (i === 0) _dlOffCtx.moveTo(s[i][0], s[i][1]);
-                        else _dlOffCtx.lineTo(s[i][0], s[i][1]);
-                    }
-                    _dlOffCtx.stroke();
-                }
-                _dlOffCtx.restore();
-
-                const alphaData = _dlOffCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
-                const lvl = (planesToDraw.length === 1) ? 7 : inkLevelForPlane(plane);
-                for (let i = 0; i < G_ROWS * G_COLS; i++) {
-                    if (alphaData[i * 4 + 3] > 45) {
-                        if (lvl > gridLevels[i]) gridLevels[i] = lvl;
-                    }
-                }
-            }
-
-            for (let gy = 0; gy < G_ROWS; gy++) {
-                for (let gx = 0; gx < G_COLS; gx++) {
-                    const lvl = gridLevels[gy * G_COLS + gx];
-                    if (lvl > 0 && INKS[lvl]) {
-                        const col = INKS[lvl].rgb;
-                        for (let by = 0; by < B_SZ; by++) {
-                            for (let bx = 0; bx < B_SZ; bx++) {
-                                bindPixel(frameObj.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+        window.icaroStampDoodleFrames = function(gridsByFrame) {
+            if (!Array.isArray(gridsByFrame) || !gridsByFrame.length) return;
+            state.frames = [];
+            for (let fi = 0; fi < gridsByFrame.length; fi++) {
+                injectFrame(true);
+                const fObj = state.frames[state.frames.length - 1];
+                const grid = gridsByFrame[fi];
+                for (let gy = 0; gy < G_ROWS; gy++) {
+                    for (let gx = 0; gx < G_COLS; gx++) {
+                        const lvl = grid[gy * G_COLS + gx];
+                        if (lvl > 0 && INKS[lvl]) {
+                            const col = INKS[lvl].rgb;
+                            for (let by = 0; by < B_SZ; by++) {
+                                for (let bx = 0; bx < B_SZ; bx++) {
+                                    bindPixel(fObj.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
+                                }
                             }
                         }
                     }
                 }
+                fObj._v = (fObj._v || 0) + 1;
             }
-            frameObj._v = (frameObj._v || 0) + 1;
-        }
-
-        function populateLayerDropdown() {
-            const planesNearFirst = getDoodleActivePlanes().slice().reverse();
-            ['icaro-layer-select', 'sheet-a-layer-select'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                sel.innerHTML = '';
-                const optAll = document.createElement('option');
-                optAll.value = 'ALL';
-                optAll.textContent = `All ${planesNearFirst.length} Layers`;
-                sel.appendChild(optAll);
-
-                planesNearFirst.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id;
-                    opt.textContent = `Layer: ${p.label || p.id} (z=${p.z})`;
-                    sel.appendChild(opt);
-                });
-
-                const optExp = document.createElement('option');
-                optExp.value = 'EXPLODE';
-                optExp.textContent = `Split ${planesNearFirst.length} Layers on Timeline`;
-                sel.appendChild(optExp);
-
-                sel.value = _dlLayerFilter;
-            });
-        }
-
-        function rebuildIcaroFramesFromDoodle() {
-            if (!_dlCurrentWorm && !_dlCurrentShot) return;
-            const S = _dlCurrentShot;
-            const N_raw = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((_dlCurrentWorm && _dlCurrentWorm.n_frames) || 24);
-            const planes = getDoodleActivePlanes(); // sorted far (z=10) to near (z=1.2)
-            const ZONE_COLORS = ['#3A5F9C', '#2E7A4A', '#C8A800', '#EF9F3A', '#E60000', '#7B4EC4'];
-
-            state.frames = [];
-            if (_dlLayerFilter === 'EXPLODE') {
-                const framesPerPlane = Math.max(6, Math.min(10, Math.round(N_raw / Math.max(1, planes.length)) * 2));
-                planes.forEach((plane, pIdx) => {
-                    const zCol = ZONE_COLORS[pIdx % ZONE_COLORS.length];
-                    for (let step = 0; step < framesPerPlane; step++) {
-                        const fi = Math.min(N_raw - 1, Math.round((step / Math.max(1, framesPerPlane - 1)) * (N_raw - 1)));
-                        injectFrame(true);
-                        const fObj = state.frames[state.frames.length - 1];
-                        fObj.clipBoundary = (step === 0 && pIdx > 0);
-                        fObj.zoneColor = zCol;
-                        stampPlanesIntoFrame(fObj, fi, [plane]);
-                    }
-                });
-            } else {
-                const targetPlanes = (_dlLayerFilter === 'ALL')
-                    ? planes
-                    : planes.filter(p => p.id === _dlLayerFilter);
-                const drawList = targetPlanes.length ? targetPlanes : planes;
-                for (let fi = 0; fi < N_raw; fi++) {
-                    injectFrame(true);
-                    const fObj = state.frames[state.frames.length - 1];
-                    stampPlanesIntoFrame(fObj, fi, drawList);
-                }
-            }
-
             if (state.cur >= state.frames.length) state.cur = 0;
             renderOutput();
             rebuildTrack();
             updateStatusBar();
-        }
+        };
 
-        function icaroSelectLayerFilter(val) {
-            _dlLayerFilter = val || 'ALL';
-            ['icaro-layer-select', 'sheet-a-layer-select'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.value !== _dlLayerFilter) el.value = _dlLayerFilter;
-            });
-            state.cur = 0;
-            rebuildIcaroFramesFromDoodle();
-        }
-
-        function icaroSelectScene(val) {
-            if (!val) return;
-            ['icaro-scene-select', 'sheet-a-scene-select'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.value !== val) el.value = val;
-            });
-
-            if (val.startsWith('film:')) {
-                const filmKey = val.slice(5);
-                const bundle = window.ABC_SECONDHAND_BUNDLE || {};
-                const md = bundle.films && bundle.films[filmKey];
-                if (!md) return;
-                let scriptText = md;
-                const codeMatch = md.match(/\`\`\`[a-zA-Z]*\n([\s\S]*?)\`\`\`/);
-                if (codeMatch && codeMatch[1]) scriptText = codeMatch[1].trim();
-                setScriptText(scriptText);
-                executeMacro();
-                fireToast(`FILM · ${filmKey.toUpperCase()}`);
-                return;
+        window.icaroSetCursorFromInspector = function(newCur) {
+            if (!state.frames.length) return;
+            const c = Math.max(0, Math.min(state.frames.length - 1, newCur));
+            if (c !== state.cur) {
+                state.cur = c;
+                renderOutput();
+                highlightFrame(state.cur);
+                updateStatusBar();
             }
+        };
 
-            const slugOrId = val.startsWith('worm:') ? val.slice(5) : val;
-            const worms = (window.SECONDHAND_WORMS_108 && window.SECONDHAND_WORMS_108.worms) || [];
+        window.icaroRunBeflixFilmKey = function(filmKey) {
             const bundle = window.ABC_SECONDHAND_BUNDLE || {};
-            const worm = worms.find(w => w.shot_id === slugOrId || w.slug === slugOrId || w.shot_id === slugOrId + '-gwp') || worms[0] || null;
-            let shotData = null;
-            if ((slugOrId === 'giraffe-walks-past' || (worm && worm.shot_id === 'giraffe-walks-past')) && bundle.gwp_shot) {
-                shotData = bundle.gwp_shot;
-            } else if (bundle.joined_8 && (bundle.joined_8[slugOrId] || (worm && bundle.joined_8[worm.slug]))) {
-                shotData = bundle.joined_8[slugOrId] || bundle.joined_8[worm.slug];
-            }
-
-            _dlCurrentWorm = worm;
-            _dlCurrentShot = shotData;
-            _dlLayerFilter = 'ALL';
-            populateLayerDropdown();
-            state.cur = 0;
-            rebuildIcaroFramesFromDoodle();
-            fireToast(`SCENE · ${(shotData && shotData.title) || (worm && worm.title) || slugOrId}`);
-        }
-
-        function initIcaroDoodleStudio() {
-            const worms = (window.SECONDHAND_WORMS_108 && window.SECONDHAND_WORMS_108.worms) || [];
-            const bundle = window.ABC_SECONDHAND_BUNDLE || {};
-            const films = bundle.films ? Object.keys(bundle.films).sort() : [];
-
-            ['icaro-scene-select', 'sheet-a-scene-select'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                sel.innerHTML = '';
-
-                const grp1 = document.createElement('optgroup');
-                grp1.label = 'Multiplane Scenes (109)';
-                worms.forEach((w) => {
-                    const opt = document.createElement('option');
-                    opt.value = 'worm:' + w.shot_id;
-                    const nP = (w.planes && w.planes.length) || 2;
-                    opt.textContent = `${w.title || w.slug} (${nP}L · ${w.n_frames}f)`;
-                    grp1.appendChild(opt);
-                });
-                sel.appendChild(grp1);
-
-                if (films.length) {
-                    const grp2 = document.createElement('optgroup');
-                    grp2.label = 'BEFLIX Dot-Matrix Films (20)';
-                    films.forEach(fk => {
-                        const opt = document.createElement('option');
-                        opt.value = 'film:' + fk;
-                        opt.textContent = `Film: ${fk}`;
-                        grp2.appendChild(opt);
-                    });
-                    sel.appendChild(grp2);
-                }
-            });
-
-            // Load Giraffe Walks Past by default on boot!
-            if (worms.length || bundle.gwp_shot) {
-                icaroSelectScene('worm:giraffe-walks-past');
-            }
-        }
+            const md = bundle.films && bundle.films[filmKey];
+            if (!md) return;
+            let scriptText = md;
+            const codeMatch = md.match(/\`\`\`[a-zA-Z]*\n([\s\S]*?)\`\`\`/);
+            if (codeMatch && codeMatch[1]) scriptText = codeMatch[1].trim();
+            setScriptText(scriptText);
+            executeMacro();
+            fireToast('FILM · ' + filmKey.toUpperCase());
+        };
 
         // ── TEXT → BEFLIX SCRIPT ──
         function textToScript() {

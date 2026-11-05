@@ -21,6 +21,10 @@
         #tunnel-frame {
             flex: 1; width: 100%; border: none;
         }
+        #harness.max-engine #engine-frame { flex: 1 1 100%; height: calc(100dvh - 18px); }
+        #harness.max-engine #tunnel-frame { flex: 0 0 0px; height: 0; overflow: hidden; }
+        #harness.max-tunnel #engine-frame { flex: 0 0 0px; height: 0; overflow: hidden; }
+        #harness.max-tunnel #tunnel-frame { flex: 1 1 100%; height: calc(100dvh - 18px); }
         
         /* Thin bus strip — minimal gap between instruments */
         #bus-strip {
@@ -87,7 +91,7 @@
 
         /* Mobile toggle button */
         .bus-toggle {
-            display: none; /* Hidden on desktop */
+            display: inline-block;
             background: #222; border: 1px solid #444; color: #ccc;
             padding: 0 10px; height: 18px; font: inherit;
             font-size: 9px; font-weight: 900; cursor: pointer;
@@ -146,7 +150,7 @@
     </style>
 </head>
 <body>
-    <div id="harness">
+    <div id="harness" class="max-engine">
         <iframe id="engine-frame" src="icaro-pro-bus.html"></iframe>
         <div id="bus-strip">
             <div class="bus-dot" id="bus-dot"></div>
@@ -156,7 +160,7 @@
             <span id="bus-cursor">CUR 0</span>
             <div class="bus-spacer"></div>
             <button class="bus-btn" id="bus-view">BARREL</button>
-            <button class="bus-toggle" id="bus-toggle">SPLIT</button>
+            <button class="bus-toggle active" id="bus-toggle">ENGINE ▣</button>
             <div id="sync-bar"></div>
         </div>
         <iframe id="tunnel-frame" loading="lazy"></iframe>
@@ -238,7 +242,7 @@
         const harness = document.getElementById('harness');
         const busToggle = document.getElementById('bus-toggle');
         const MODES = ['split', 'max-engine', 'max-tunnel'];
-        let mobileMode = 0; // 0=split, 1=max-engine, 2=max-tunnel
+        let mobileMode = 1; // default max-engine so Top Stage + Bottom Views fill screen
 
         busToggle.onclick = () => {
             mobileMode = (mobileMode + 1) % MODES.length;
