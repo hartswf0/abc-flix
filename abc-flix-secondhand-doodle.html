@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>ABC-FLIX — Secondhand Doodle & 6-Plane Multiplane Studio (109 Lots)</title>
+<title>Secondhand Motion — Giraffe & 109 Multiplane Scenes</title>
 <script src="./data/secondhand-doodle-bundle.js"></script>
 <script src="./data/worms_108.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -525,12 +525,9 @@
   <!-- ROW 1: Current Object, Shot Switcher, On-Demand Index, and Exit -->
   <header class="top-bar">
     <div class="nav-cluster">
-      <a class="btn tag-active" href="./icaro-pro.html" title="Open ICARO-PRO 128×96 Studio">ICARO-PRO</a>
-      <a class="btn" href="./index.html" title="Open Multi-Pane Bus Harness">BUS HARNESS</a>
       <button type="button" class="btn" id="prevShotBtn">Prev</button>
       <select class="shot-select" id="shotSelect" aria-label="Select shot"></select>
       <button type="button" class="btn" id="nextShotBtn">Next</button>
-      <button type="button" class="btn tag-active" id="sendToIcaroBusBtn" title="Rasterize visible layers to 128×96 BEFLIX dots and broadcast to ICARO / 3D Tunnel">⚡ SYNC TO BUS</button>
     </div>
     <div class="strip" style="flex-shrink:0">
       <button type="button" class="btn warn-recovery" id="resetStateBtn" style="display:none" title="Restore default frame f=01 and all planes">Reset</button>
@@ -548,7 +545,7 @@
           <div class="seg" role="group" aria-label="Worm Lens">
             <button type="button" data-wmode="all" aria-pressed="false">All</button>
             <button type="button" data-wmode="parallel" aria-pressed="false">1 · 3D Butter</button>
-            <button type="button" data-wmode="lanes" aria-pressed="true">2 · Planes (6 Layers)</button>
+            <button type="button" data-wmode="lanes" aria-pressed="true">2 · Planes</button>
             <button type="button" data-wmode="parts" aria-pressed="false">3 · Parts</button>
             <button type="button" data-wmode="strobe" aria-pressed="false">4 · Trail</button>
             <button type="button" data-wmode="kymo" aria-pressed="false">5 · Graphs</button>
@@ -3636,7 +3633,6 @@
       return;
     }
 
-    // 1. Synchronous bundle check (works offline & over file:// with zero latency!)
     const bundle = window.ABC_SECONDHAND_BUNDLE;
     if(variant === 'gwp' && bundle){
       if(worm.shot_id === 'giraffe-walks-past' && bundle.gwp_shot){
@@ -3656,7 +3652,6 @@
       }
     }
 
-    // 2. Fallback to local or GitHub Pages fetch
     let relPath = `shots/${worm.shot_id}/shot.json`;
     if(variant === 'sam' && worm.has_sam_shot){
       relPath = `shots/${worm.slug}-sam/shot.json`;
@@ -3694,7 +3689,7 @@
     S = null;
     f = 0;
     shotSelect.value = String(idx);
-    document.getElementById('openShotPageLink').href = curWorm.shot_id + '.html';
+    
 
     // Law 4: Display version switcher only if alternate versions exist for this shot
     const hasAlts = Boolean(curWorm.has_sam_shot || curWorm.has_redraw_shot || curWorm.has_integrated);
@@ -4208,171 +4203,6 @@
   document.getElementById('searchIn').addEventListener('input', renderRack);
   document.getElementById('topoSelect').addEventListener('change', renderRack);
 
-  // ATO-BUS Bridge: Rasterize current Secondhand Doodle + visible multiplane layers into 128x96 BEFLIX dot-matrix frames & broadcast to ICARO / c-bus 3D Tunnel
-  const busOffCv = document.createElement('canvas');
-  busOffCv.width = 128;
-  busOffCv.height = 96;
-  const busOffCtx = busOffCv.getContext('2d', { willReadFrequently: true });
-
-  function rasterizeFrameToBeflix128(ti, filterPlaneId){
-    busOffCtx.fillStyle = '#FFFFFF';
-    busOffCtx.fillRect(0, 0, 128, 96);
-    if(!curWorm) return new Array(128 * 96).fill(0);
-    const W = (S && S.W) || curWorm.W || 480;
-    const H = (S && S.H) || curWorm.H || 360;
-    const sx = 128 / W, sy = 96 / H;
-    const planes = getActivePlanes();
-
-    busOffCtx.save();
-    busOffCtx.scale(sx, sy);
-    busOffCtx.lineCap = 'round';
-    busOffCtx.lineJoin = 'round';
-
-    for(const plane of planes){
-      if(filterPlaneId ? (plane.id !== filterPlaneId) : !isPlaneVisible(plane.id)) continue;
-      if(zoomPlaneId !== null && !filterPlaneId && plane.id !== zoomPlaneId) continue;
-      const off = camOffset(plane.z, ti);
-      if(plane.id === 'char'){
-        let charSt = (S && S.cast && S.cast.frames && S.cast.frames[ti]) ? S.cast.frames[ti] : null;
-        if(!charSt && curWorm.frames && curWorm.frames[ti] && curWorm.frames[ti].doodle){
-          charSt = curWorm.frames[ti].doodle.map(s => s.map(p => [p[0]*W, p[1]*H]));
-        }
-        if(charSt){
-          busOffCtx.strokeStyle = '#000000';
-          busOffCtx.lineWidth = 6.5;
-          for(const s of charSt){
-            if(!s || s.length < 2) continue;
-            busOffCtx.beginPath();
-            for(let i=0;i<s.length;i++){
-              if(i===0) busOffCtx.moveTo(s[i][0], s[i][1]);
-              else busOffCtx.lineTo(s[i][0], s[i][1]);
-            }
-            busOffCtx.stroke();
-          }
-        }
-      } else {
-        const objs = (S && Array.isArray(S.objects)) ? S.objects.filter(o => o.plane === plane.id) : [];
-        let pStrokes = [];
-        for(const o of objs){
-          const ost = getObjectStrokes(o, ti);
-          if(ost && ost.length) pStrokes.push(...ost);
-        }
-        if(pStrokes.length === 0 && curWorm.depth_worms){
-          const dw = curWorm.depth_worms.find(d => d.id === plane.id);
-          if(dw && dw.strokes0){
-            const u0 = Number.isFinite(dw.u0) ? dw.u0 : 0.5;
-            const v0 = Number.isFinite(dw.v0) ? dw.v0 : 0.5;
-            for(const s of dw.strokes0){
-              pStrokes.push(s.map(p => [(u0 + p[0])*W, (v0 + p[1])*H]));
-            }
-          }
-        }
-        busOffCtx.strokeStyle = plane.z >= 5 ? '#555555' : '#222222';
-        busOffCtx.lineWidth = plane.z <= 1.5 ? 5.5 : 4.5;
-        for(const s of pStrokes){
-          if(!s || s.length < 2) continue;
-          busOffCtx.beginPath();
-          for(let i=0;i<s.length;i++){
-            const px = s[i][0] + off.dx, py = s[i][1] + off.dy;
-            if(i===0) busOffCtx.moveTo(px, py);
-            else busOffCtx.lineTo(px, py);
-          }
-          busOffCtx.stroke();
-        }
-      }
-    }
-    busOffCtx.restore();
-
-    const imgData = busOffCtx.getImageData(0, 0, 128, 96).data;
-    const cells = new Array(128 * 96);
-    for(let i=0; i<128*96; i++){
-      const lum = imgData[i*4];
-      const ink = Math.max(0, 255 - lum);
-      cells[i] = ink < 24 ? 0 : Math.min(7, Math.ceil((ink / 255) * 7));
-    }
-    return cells;
-  }
-
-  function broadcastToAtoBus(){
-    if(!curWorm) return;
-    const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
-    const framesPayload = [];
-    for(let ti=0; ti<N; ti++){
-      framesPayload.push({ index: ti, cells: rasterizeFrameToBeflix128(ti, null) });
-    }
-    const planes = getActivePlanes().slice().reverse();
-    const TRACK_KEYS = ['P', 'L', 'B', 'F'];
-    const COLORS = ['#FF453A', '#32D74B', '#409CFF', '#FFD60A', '#BF5AF2', '#64D2FF'];
-    const zones = planes.map((p, idx) => {
-      const span = Math.max(1, Math.floor(N / planes.length));
-      const start = idx * span;
-      const end = (idx === planes.length - 1) ? (N - 1) : Math.min(N - 1, (idx + 1) * span - 1);
-      return {
-        index: idx,
-        label: `${p.label || p.id} z=${p.z}`,
-        start,
-        end,
-        count: Math.max(1, end - start + 1),
-        color: COLORS[idx % COLORS.length],
-        track: TRACK_KEYS[idx % TRACK_KEYS.length]
-      };
-    });
-
-    const framesSyncArr = framesPayload.map(fp => ({
-      index: fp.index,
-      grid: fp.cells,
-      version: Date.now()
-    }));
-    const msgFramesSync = {
-      type: 'FRAMES_SYNC',
-      _origin: 'engine',
-      frames: framesSyncArr,
-      total: N,
-      cursor: f,
-      gridW: 128,
-      gridH: 96
-    };
-    const msgStream = { type: 'FRAME_STREAM', source: 'secondhand-doodle', frames: framesPayload, totalFrames: N, shot_id: curWorm.shot_id };
-    const msgZones  = { type: 'ZONE_BOUNDARIES', source: 'secondhand-doodle', zones };
-    const msgSync   = { type: 'FRAME_SYNC', source: 'secondhand-doodle', frame: f, totalFrames: N };
-    const msgCursor = { type: 'CURSOR_MOVE', _origin: 'engine', cursor: f, total: N };
-    try {
-      if(window.parent && window.parent !== window){
-        window.parent.postMessage(msgFramesSync, '*');
-        window.parent.postMessage(msgStream, '*');
-        window.parent.postMessage(msgZones, '*');
-        window.parent.postMessage(msgSync, '*');
-        window.parent.postMessage(msgCursor, '*');
-      }
-      window.postMessage(msgFramesSync, '*');
-      window.postMessage(msgStream, '*');
-      window.postMessage(msgZones, '*');
-    } catch(e){}
-    const btn = document.getElementById('sendToIcaroBusBtn');
-    if(btn){
-      const prev = btn.textContent;
-      btn.textContent = `✓ SYNCED ${N}F · ${planes.length}L`;
-      setTimeout(() => { btn.textContent = prev; }, 1200);
-    }
-  }
-
-  const sendBtn = document.getElementById('sendToIcaroBusBtn');
-  if(sendBtn){
-    sendBtn.addEventListener('click', broadcastToAtoBus);
-  }
-
-  window.addEventListener('message', (e) => {
-    const d = e.data;
-    if(!d || typeof d !== 'object' || d.source === 'secondhand-doodle') return;
-    if(d.type === 'FRAME_SYNC' && typeof d.frame === 'number' && curWorm){
-      const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
-      const nf = Math.max(0, Math.min(N - 1, d.frame));
-      if(nf !== f){ f = nf; renderAll(); }
-    } else if(d.type === 'REQUEST_STATE'){
-      broadcastToAtoBus();
-    }
-  });
-
   function initWormsData(data){
     WORMS = (data && data.worms) ? data.worms : [];
     shotSelect.innerHTML = '';
@@ -4380,7 +4210,7 @@
       const opt = document.createElement('option');
       opt.value = String(i);
       const nP = (w.depth_worms && w.depth_worms.length) || (w.planes && w.planes.length) || 2;
-      opt.textContent = `${w.lot ? w.lot + ' · ' : ''}${w.title || w.slug} (${nP}P · ${w.n_frames}f)`;
+      opt.textContent = `${w.lot ? w.lot + ' · ' : ''}${w.title || w.slug} (${nP} Planes · ${w.n_frames}f)`;
       shotSelect.appendChild(opt);
     });
     const params = new URLSearchParams(location.search);
@@ -4392,7 +4222,6 @@
     }
     selectShot(startIdx);
     renderRack();
-    setTimeout(broadcastToAtoBus, 150);
   }
 
   if(window.SECONDHAND_WORMS_108 && window.SECONDHAND_WORMS_108.worms){
