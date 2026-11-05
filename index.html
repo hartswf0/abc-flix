@@ -309,7 +309,7 @@
         // 4. _origin tags preserved for downstream validation
         const VALID_TYPES = new Set([
             'FRAMES_SYNC', 'FRAME_PATCH', 'CURSOR_MOVE', 'GOTO_FRAME',
-            'PLAY_SYNC', 'CLIP_SELECT', 'REQUEST_SYNC', 'RIP_PROGRESS',
+            'PLAY_SYNC', 'CLIP_SELECT', 'CLIP_ARRANGE', 'STRIP_REORDER', 'REQUEST_SYNC', 'RIP_PROGRESS',
             'VIEW_CYCLE'
         ]);
 
@@ -357,6 +357,9 @@
                 if (d.type === 'FRAME_PATCH') {
                     busMsg.textContent = 'PATCH F' + (d.index + 1);
                 }
+                if (d.type === 'STRIP_REORDER') {
+                    busMsg.textContent = 'REORDER';
+                }
                 // Route loading progress to tunnel + show in bus strip
                 if (d.type === 'RIP_PROGRESS') {
                     if (d.phase === 'START') {
@@ -399,6 +402,9 @@
                     busClip.textContent = d.name || '';
                     busClip.style.color = '#fff';
                     setTimeout(() => { busClip.style.color = ''; }, 800);
+                }
+                if (d.type === 'CLIP_ARRANGE') {
+                    busMsg.textContent = 'ARRANGE';
                 }
             }
         });
