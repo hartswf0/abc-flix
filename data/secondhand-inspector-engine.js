@@ -1142,8 +1142,10 @@
     }
     const DASH_STYLES = [[], [8, 5], [12, 4, 2, 4], [3, 5], [10, 4], [6, 3]];
 
-    // Reserve right 188px for the ATO Live Circular Lathe Cross-Section & Layer Ops Card
-    const opsW = 186;
+    // Reserve right panel for the ATO Live Circular Lathe Cross-Section & Layer Ops Card
+    // On narrow mobile screens (W < 560), use a compact 144px panel so the 3D tunnel gets maximum width
+    const isCompactTube = W < 560 || H < 310;
+    const opsW = isCompactTube ? 146 : 184;
     const W_tube = W - opsW;
 
     function drawAtoTag(tx, ty, text, isRed, colBorder){
@@ -1193,12 +1195,12 @@
         ctx.fillRect(hx - bw * 0.5, hy - bh * 0.5, bw, bh);
         ctx.strokeRect(hx - bw * 0.5, hy - bh * 0.5, bw, bh);
         ctx.fillStyle = '#000000';
-        ctx.font = '900 9.5px "JetBrains Mono", ui-monospace, monospace';
+        ctx.font = '900 10px "JetBrains Mono", ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(lbl, hx, hy + 0.5);
         pushHitBox({
-          x: hx - bw * 0.5 - 4, y: hy - bh * 0.5 - 4, w: bw + 8, h: bh + 8,
+          x: hx - bw * 0.5 - 10, y: hy - bh * 0.5 - 10, w: bw + 20, h: bh + 20,
           atoDragMode: dragMode, planeId: plane.id
         });
       }
@@ -1211,39 +1213,39 @@
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#000000';
-        ctx.font = '900 9.5px "JetBrains Mono", ui-monospace, monospace';
+        ctx.font = '900 10px "JetBrains Mono", ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(lbl, hx, hy + 0.5);
         pushHitBox({
-          x: hx - r - 4, y: hy - r - 4, w: (r + 4) * 2, h: (r + 4) * 2,
+          x: hx - r - 10, y: hy - r - 10, w: (r + 10) * 2, h: (r + 10) * 2,
           atoDragMode: dragMode, planeId: plane.id
         });
       }
 
       if(tunnelTool === 'MOVE'){
-        sqHandle(mx, my, 36, 22, 'move', 'M', '#FEF08A');
-        cirHandle(mx + hw + 14, my - hh - 6, 11, 'lift', '↑', '#FFFFFF');
+        sqHandle(mx, my, 40, 24, 'move', 'M', '#FEF08A');
+        cirHandle(mx + hw + 14, my - hh - 6, 12, 'lift', '↑', '#FFFFFF');
       } else if(tunnelTool === 'TRIM'){
-        sqHandle(mx - hw - 14, my, 24, 22, 'trimIn', 'S', '#FEF08A');
-        sqHandle(mx + hw + 14, my, 24, 22, 'trimOut', 'E', '#FEF08A');
+        sqHandle(mx - hw - 14, my, 28, 24, 'trimIn', 'S', '#FEF08A');
+        sqHandle(mx + hw + 14, my, 28, 24, 'trimOut', 'E', '#FEF08A');
       } else if(tunnelTool === 'LIFT'){
-        cirHandle(mx, my - hh - 14, 13, 'lift', '↑', '#FEF08A');
-        sqHandle(mx, my, 34, 20, 'move', 'M', '#FFFFFF');
+        cirHandle(mx, my - hh - 14, 14, 'lift', '↑', '#FEF08A');
+        sqHandle(mx, my, 36, 22, 'move', 'M', '#FFFFFF');
       } else if(tunnelTool === 'ROLL'){
-        cirHandle(mx, my - hh - 14, 13, 'roll', 'R', '#FEF08A');
-        sqHandle(mx, my, 34, 20, 'move', 'M', '#FFFFFF');
+        cirHandle(mx, my - hh - 14, 14, 'roll', 'R', '#FEF08A');
+        sqHandle(mx, my, 36, 22, 'move', 'M', '#FFFFFF');
       } else if(tunnelTool === 'SPLIT'){
         ctx.fillStyle = '#EF4444';
         ctx.fillRect(mx - 1.5, my - hh - 16, 3, (hh + 16) * 2);
-        sqHandle(mx, my - hh - 14, 34, 20, 'split', 'CUT', '#FCA5A5');
+        sqHandle(mx, my - hh - 14, 38, 22, 'split', 'CUT', '#FCA5A5');
       }
       ctx.restore();
     }
 
     // Draw Right-Hand ATO Live Lathe Cross-Section Monitor & Selected Layer Ops Panel
     function drawAtoRightMonitorAndDock(){
-      const rx = W_tube + 4, ry = 6, rw = opsW - 10, rh = H - 12;
+      const rx = W_tube + 4, ry = 6, rw = opsW - 8, rh = H - 12;
       ctx.save();
       ctx.fillStyle = dark ? 'rgba(14, 17, 25, 0.96)' : 'rgba(255, 255, 255, 0.96)';
       ctx.strokeStyle = dark ? '#FFFDF8' : '#000000';
@@ -1253,16 +1255,17 @@
 
       // Header bar
       ctx.fillStyle = '#000000';
-      ctx.fillRect(rx, ry, rw, 20);
+      ctx.fillRect(rx, ry, rw, 19);
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 9px "JetBrains Mono", monospace';
+      ctx.font = '900 8.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`LATHE @ F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, rx + 6, ry + 13);
+      ctx.fillText(`LATHE @ F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, rx + 5, ry + 12.5);
 
-      // Live Circular Lathe Cross-Section Monitor (compositeAtZ)
+      // Dynamically size the Circular Lathe Monitor to fit any canvas height without collision
+      const availForLathe = Math.max(52, rh - 172);
+      const mR  = Math.max(24, Math.min(isCompactTube ? 40 : 50, Math.floor(availForLathe * 0.46)));
       const mCx = rx + rw * 0.5;
-      const mCy = ry + 86;
-      const mR  = 56;
+      const mCy = ry + 23 + mR;
 
       ctx.save();
       ctx.beginPath();
@@ -1273,7 +1276,7 @@
 
       const img = getFrameImg(curWorm, fi);
       if(img && !beflixMode){
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 0.32;
         ctx.drawImage(img, mCx - mR, mCy - mR, mR * 2, mR * 2);
         ctx.globalAlpha = 1;
       }
@@ -1281,105 +1284,110 @@
       for(let i = planesNearFirst.length - 1; i >= 0; i--){
         const p = planesNearFirst[i];
         if(!isPlaneVisible(p.id) || !isPlaneActiveAtFrame(p.id, fi)) continue;
-        if(p.id === 'char'){
-          drawSamCutoutInRect(ctx, curWorm, fi, mCx - mR + 4, mCy - mR + 4, (mR - 4) * 2, (mR - 4) * 2, {
-            cropToMask: false, drawOutline: true, outlineColor: '#EF4444', drawDoodle: true
-          });
-        } else {
-          drawPlaneObjectsInRect(ctx, p, fi, mCx - mR + 4, mCy - mR + 4, (mR - 4) * 2, (mR - 4) * 2, false);
-        }
+        const effF = getPlaneEffectiveFrame(p.id, fi, N);
+        const off = camOffset(p.z, effF, p.id);
+        const pCol = planeColor(p.id, p.z);
+        drawSamCutoutInRect(ctx, p, effF, off, mCx - mR + 3, mCy - mR + 3, (mR - 3) * 2, (mR - 3) * 2, 0.85);
+        drawPlaneObjectsInRect(ctx, curWorm, effF, p, off, mCx - mR + 3, mCy - mR + 3, (mR - 3) * 2, (mR - 3) * 2, pCol.stroke, 1.6, null);
       }
       ctx.restore();
 
       // Concentric depth ring ticks around the circular lathe monitor
       ctx.strokeStyle = '#EF4444';
-      ctx.lineWidth = 2.6;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.arc(mCx, mCy, mR, 0, Math.PI * 2);
       ctx.stroke();
 
       // Selected Layer Readout & Direct Step Controls
       const selPlane = planesNearFirst.find(p => p.id === selectedTunnelPlaneId) || planesNearFirst[0];
-      const st = getPlaneTubeState(selPlane ? selPlane.id : 'char');
+      const st = getPlaneTubeState(selPlane ? selPlane.id : 'char', N);
       const selCol = selPlane ? layerColorForPlane(selPlane) : '#EF9F3A';
       const kMult = selPlane ? (zRef / Math.max(0.2, selPlane.z)) * kScale * Math.max(0.15, 1 + (st.lift || 0) * 0.75) : 1.0;
 
-      let yCur = ry + 152;
+      let yCur = mCy + mR + 6;
       ctx.fillStyle = selCol;
-      ctx.fillRect(rx + 6, yCur, rw - 12, 18);
+      ctx.fillRect(rx + 5, yCur, rw - 10, 16);
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 9px "JetBrains Mono", monospace';
-      const pName = String((selPlane && selPlane.label) || 'Layer').split('(')[0].trim().slice(0, 16);
-      ctx.fillText(`LAYER: ${pName.toUpperCase()}`, rx + 10, yCur + 12);
+      ctx.font = '900 8.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      const pName = String((selPlane && selPlane.label) || 'Layer').split('(')[0].trim().slice(0, isCompactTube ? 12 : 16);
+      ctx.fillText(`P: ${pName.toUpperCase()}`, rx + 8, yCur + 11);
 
-      yCur += 24;
+      yCur += 20;
       ctx.fillStyle = dark ? '#E2E8F0' : '#161412';
-      ctx.font = '700 8.5px "JetBrains Mono", monospace';
-      ctx.fillText(`RING z=${selPlane ? selPlane.z : 2} · k=${kMult.toFixed(2)}x`, rx + 8, yCur);
-      yCur += 13;
-      ctx.fillText(`SHIFT: ${st.dt >= 0 ? '+' : ''}${Math.round(st.dt)}f · TRIM: f${st.trimIn+1}..f${st.trimOut+1}`, rx + 8, yCur);
-      yCur += 13;
-      ctx.fillText(`LIFT: ${(st.lift >= 0 ? '+' : '') + st.lift.toFixed(2)} · ROLL: ${Math.round((st.rot || 0) * 57.3)}°`, rx + 8, yCur);
+      ctx.font = '700 8px "JetBrains Mono", monospace';
+      ctx.fillText(`z=${selPlane ? selPlane.z : 2} · k=${kMult.toFixed(2)}x`, rx + 6, yCur);
+      yCur += 11;
+      ctx.fillText(`Δt:${st.dt >= 0 ? '+' : ''}${Math.round(st.dt)}f · f${st.trimIn+1}..${st.trimOut+1}`, rx + 6, yCur);
+      yCur += 11;
+      ctx.fillText(`L:${(st.lift >= 0 ? '+' : '') + st.lift.toFixed(1)} · R:${Math.round((st.rot || 0) * 57.3)}°`, rx + 6, yCur);
 
       // Quick +/- step buttons for the selected layer right inside the monitor panel!
-      yCur += 10;
+      yCur += 6;
       const nudges = [
-        {lbl:'SHIFT -1f', act:'dt-'}, {lbl:'SHIFT +1f', act:'dt+'},
-        {lbl:'LIFT -0.2', act:'lift-'}, {lbl:'LIFT +0.2', act:'lift+'},
-        {lbl:'TRIM IN',   act:'trimIn'}, {lbl:'TRIM OUT', act:'trimOut'},
-        {lbl:'ROLL -15°', act:'rot-'}, {lbl:'ROLL +15°', act:'rot+'}
+        {lbl:'Δt -1f', act:'dt-'}, {lbl:'Δt +1f', act:'dt+'},
+        {lbl:'LIFT -', act:'lift-'}, {lbl:'LIFT +', act:'lift+'},
+        {lbl:'TRIM <', act:'trimIn'}, {lbl:'TRIM >', act:'trimOut'},
+        {lbl:'ROLL -', act:'rot-'}, {lbl:'ROLL +', act:'rot+'}
       ];
-      const bW = Math.floor((rw - 18) / 2), bH = 18;
+      const botY = ry + rh - 22;
+      const availBtnH = Math.max(56, botY - yCur - 4);
+      const rowStep = Math.min(20, Math.max(14, Math.floor(availBtnH / 4)));
+      const bH = Math.max(12, rowStep - 2);
+      const bW = Math.floor((rw - 14) / 2);
       nudges.forEach((nd, idx)=>{
         const col = idx % 2, row = Math.floor(idx / 2);
-        const bx = rx + 6 + col * (bW + 6);
-        const by = yCur + row * (bH + 4);
+        const bx = rx + 5 + col * (bW + 4);
+        const by = yCur + row * rowStep;
+        if(by + bH > botY - 2) return;
         ctx.fillStyle = dark ? '#1E2433' : '#F1F5F9';
         ctx.strokeStyle = dark ? '#64748B' : '#000000';
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth = 1.2;
         ctx.fillRect(bx, by, bW, bH);
         ctx.strokeRect(bx, by, bW, bH);
         ctx.fillStyle = dark ? '#FFFDF8' : '#000000';
-        ctx.font = '800 8px "JetBrains Mono", monospace';
+        ctx.font = '800 7.5px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(nd.lbl, bx + bW * 0.5, by + 11.5);
+        ctx.fillText(nd.lbl, bx + bW * 0.5, by + bH * 0.5 + 2.5);
         pushHitBox({x: bx, y: by, w: bW, h: bH, atoNudge: nd.act, planeId: selPlane ? selPlane.id : 'char'});
       });
 
       // Reset edits & Open Full-Stage 3D Tube buttons
-      const botY = ry + rh - 24;
-      const halfW = Math.floor((rw - 18) / 2);
+      const halfW = Math.floor((rw - 14) / 2);
       ctx.fillStyle = '#FEF08A';
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(rx + 6, botY, halfW, 19);
-      ctx.strokeRect(rx + 6, botY, halfW, 19);
+      ctx.lineWidth = 1.4;
+      ctx.fillRect(rx + 5, botY, halfW, 18);
+      ctx.strokeRect(rx + 5, botY, halfW, 18);
       ctx.fillStyle = '#000000';
-      ctx.font = '900 8px "JetBrains Mono", monospace';
-      ctx.fillText('RESET EDITS', rx + 6 + halfW * 0.5, botY + 12);
-      pushHitBox({x: rx + 6, y: botY, w: halfW, h: 19, atoResetAll: true});
+      ctx.font = '900 7.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('RESET', rx + 5 + halfW * 0.5, botY + 11.5);
+      pushHitBox({x: rx + 5, y: botY, w: halfW, h: 18, atoResetAll: true});
 
       ctx.fillStyle = '#000000';
-      ctx.fillRect(rx + 12 + halfW, botY, halfW, 19);
-      ctx.strokeRect(rx + 12 + halfW, botY, halfW, 19);
+      ctx.fillRect(rx + 9 + halfW, botY, halfW, 18);
+      ctx.strokeRect(rx + 9 + halfW, botY, halfW, 18);
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText('FULL TUBE ⤢', rx + 12 + halfW * 1.5, botY + 12);
-      pushHitBox({x: rx + 12 + halfW, y: botY, w: halfW, h: 19, atoOpenFullTube: true});
+      ctx.fillText('TUBE ⤢', rx + 9 + halfW * 1.5, botY + 11.5);
+      pushHitBox({x: rx + 9 + halfW, y: botY, w: halfW, h: 18, atoOpenFullTube: true});
       ctx.restore();
 
       // Bottom-left Interactive ATO Tool Dock (MOVE | TRIM | LIFT | ROLL | SPLIT)
       const tools = [
-        {id:'MOVE',  lbl:'MOVE [M]'},
-        {id:'TRIM',  lbl:'TRIM [S/E]'},
-        {id:'LIFT',  lbl:'LIFT [↑]'},
-        {id:'ROLL',  lbl:'ROLL [R]'},
-        {id:'SPLIT', lbl:'SPLIT [CUT]'}
+        {id:'MOVE',  lbl: isCompactTube ? 'MOVE' : 'MOVE [M]'},
+        {id:'TRIM',  lbl: isCompactTube ? 'TRIM' : 'TRIM [S/E]'},
+        {id:'LIFT',  lbl: isCompactTube ? 'LIFT' : 'LIFT [↑]'},
+        {id:'ROLL',  lbl: isCompactTube ? 'ROLL' : 'ROLL [R]'},
+        {id:'SPLIT', lbl: isCompactTube ? 'SPLIT' : 'SPLIT [CUT]'}
       ];
-      let dx0 = 10, dy0 = H - 26;
+      const tw = isCompactTube ? Math.min(54, Math.floor((W_tube - 24) / 5)) : 64;
+      const th = 22;
+      let dx0 = 8, dy0 = H - th - 5;
       ctx.save();
       for(const t of tools){
         const isOn = (tunnelTool === t.id);
-        const tw = 64, th = 20;
         ctx.fillStyle = isOn ? '#000000' : (dark ? '#161924' : '#FFFFFF');
         ctx.strokeStyle = isOn ? '#EF9F3A' : '#000000';
         ctx.lineWidth = isOn ? 2.0 : 1.5;
@@ -1388,9 +1396,9 @@
         ctx.fillStyle = isOn ? '#FEF08A' : (dark ? '#FFFDF8' : '#000000');
         ctx.font = '900 8.5px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(t.lbl, dx0 + tw * 0.5, dy0 + 12.5);
-        pushHitBox({x: dx0, y: dy0, w: tw, h: th, atoSetTool: t.id});
-        dx0 += tw + 4;
+        ctx.fillText(t.lbl, dx0 + tw * 0.5, dy0 + th * 0.5 + 3);
+        pushHitBox({x: dx0, y: dy0 - 4, w: tw, h: th + 8, atoSetTool: t.id});
+        dx0 += tw + 3;
       }
       ctx.restore();
     }
@@ -4389,8 +4397,24 @@
     ctx.restore();
   }
 
+  function syncWormCanvasSize(){
+    if(!cvWorm) return;
+    const wrap = cvWorm.parentElement || cvWorm;
+    const rect = wrap.getBoundingClientRect();
+    if(rect.width < 40 || rect.height < 40) return;
+    const isNarrow = rect.width < 560;
+    const targetW = isNarrow ? 540 : 680;
+    const ratio = rect.height / Math.max(1, rect.width);
+    const targetH = Math.max(290, Math.min(540, Math.round(targetW * ratio)));
+    if(cvWorm.width !== targetW || Math.abs(cvWorm.height - targetH) > 4){
+      cvWorm.width = targetW;
+      cvWorm.height = targetH;
+    }
+  }
+
   function renderAll(){
     if(!curWorm || !cvWorm) return;
+    syncWormCanvasSize();
     const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
     if(f >= N) f = N - 1;
     if(f < 0) f = 0;
@@ -4620,6 +4644,11 @@
 
     if(!cvWorm) return;
 
+    if(typeof ResizeObserver !== 'undefined' && cvWorm.parentElement){
+      const ro = new ResizeObserver(()=>{ renderAll(); });
+      ro.observe(cvWorm.parentElement);
+    }
+
     let isScrubbingWorm = false;
     let wormDownPt = null;
     let wormStartRoll = tunnelRoll;
@@ -4657,12 +4686,13 @@
         };
         return;
       }
-      if(wormMode === 'tunnel' && hit && hit.atoSelectPlane && tunnelTool !== 'split'){
+      const toolLower = String(tunnelTool || 'MOVE').toLowerCase();
+      if(wormMode === 'tunnel' && hit && hit.atoSelectPlane && toolLower !== 'split'){
         const pid = hit.atoSelectPlane;
         selectedTunnelPlaneId = pid;
         const st = getPlaneTubeState(pid, N);
-        let dMode = tunnelTool;
-        if(tunnelTool === 'trim'){
+        let dMode = toolLower;
+        if(toolLower === 'trim'){
           const midF = (st.trimIn + st.trimOut) * 0.5;
           dMode = ((hit.fi !== undefined ? hit.fi : f) <= midF) ? 'trimIn' : 'trimOut';
         }
@@ -4714,7 +4744,7 @@
           } else if(activeWormDrag.mode === 'lift'){
             st.lift = Math.max(-0.85, Math.min(1.5, +(activeWormDrag.origLift - dy / 110).toFixed(2)));
           } else if(activeWormDrag.mode === 'roll'){
-            st.rot = Math.round(activeWormDrag.origRot + (dx + dy) * 0.65) % 360;
+            st.rot = +((activeWormDrag.origRot || 0) + (dx + dy) * 0.012).toFixed(3);
             tunnelRoll = wormStartRoll + dy * 0.009;
           }
           scheduleDotSync();
@@ -4763,12 +4793,23 @@
           if(hit.atoNudge && hit.planeId){
             selectedTunnelPlaneId = hit.planeId;
             const st = getPlaneTubeState(hit.planeId, N);
-            if(hit.atoNudge.dt) st.dt = Math.max(-N, Math.min(N, st.dt + hit.atoNudge.dt));
-            if(hit.atoNudge.lift) st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift + hit.atoNudge.lift).toFixed(2)));
-            if(hit.atoNudge.rot) st.rot = (st.rot + hit.atoNudge.rot) % 360;
-            if(hit.atoNudge.split) st.splitAt = (st.splitAt === f) ? null : f;
-            if(hit.atoNudge.resetPlane){
-              st.dt = 0; st.trimIn = 0; st.trimOut = Math.max(0, N - 1); st.lift = 0; st.rot = 0; st.splitAt = null;
+            const act = hit.atoNudge;
+            if(act === 'dt-') st.dt = Math.max(-N, Math.min(N, st.dt - 1));
+            else if(act === 'dt+') st.dt = Math.max(-N, Math.min(N, st.dt + 1));
+            else if(act === 'lift-') st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift - 0.2).toFixed(2)));
+            else if(act === 'lift+') st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift + 0.2).toFixed(2)));
+            else if(act === 'trimIn') st.trimIn = (st.trimIn + 2 < st.trimOut) ? st.trimIn + 2 : 0;
+            else if(act === 'trimOut') st.trimOut = (st.trimOut - 2 > st.trimIn) ? st.trimOut - 2 : Math.max(0, N - 1);
+            else if(act === 'rot-') st.rot = +((st.rot || 0) - 0.26).toFixed(3);
+            else if(act === 'rot+') st.rot = +((st.rot || 0) + 0.26).toFixed(3);
+            else if(typeof act === 'object'){
+              if(act.dt) st.dt = Math.max(-N, Math.min(N, st.dt + act.dt));
+              if(act.lift) st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift + act.lift).toFixed(2)));
+              if(act.rot) st.rot = +((st.rot || 0) + act.rot).toFixed(3);
+              if(act.split) st.splitAt = (st.splitAt === f) ? null : f;
+              if(act.resetPlane){
+                st.dt = 0; st.trimIn = 0; st.trimOut = Math.max(0, N - 1); st.lift = 0; st.rot = 0; st.splitAt = null;
+              }
             }
             scheduleDotSync();
             renderAll();
@@ -4776,7 +4817,7 @@
           }
           if(hit.atoSelectPlane){
             selectedTunnelPlaneId = hit.atoSelectPlane;
-            if(tunnelTool === 'split'){
+            if(String(tunnelTool).toUpperCase() === 'SPLIT'){
               const st = getPlaneTubeState(hit.atoSelectPlane, N);
               const splitFrame = (hit.fi !== undefined && hit.fi !== null) ? hit.fi : f;
               st.splitAt = (st.splitAt === splitFrame) ? null : splitFrame;

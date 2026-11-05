@@ -1687,6 +1687,130 @@
             object-fit: contain;
         }
 
+        /* ── MOBILE PHONE ERGONOMICS (<= 767px) ── */
+        @media (max-width: 767px) {
+            :root {
+                --tab-h: 44px;
+            }
+            #studio-top-bar {
+                flex-wrap: wrap;
+                padding: 4px 6px;
+                gap: 4px;
+                overflow-x: visible;
+            }
+            #stb-scene-group {
+                order: 1;
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            #icaro-scene-select {
+                width: 100%;
+                max-width: none;
+                height: 30px;
+                font-size: 11.5px;
+            }
+            #stb-transport-group {
+                order: 2;
+                flex: 0 0 auto;
+                gap: 3px;
+            }
+            #stb-views-group {
+                order: 3;
+                flex: 1 1 100%;
+                width: 100%;
+                overflow-x: auto;
+                scrollbar-width: none;
+                padding-top: 2px;
+            }
+            #stb-views-group::-webkit-scrollbar { display: none; }
+            #icaro-stage-bar {
+                width: max-content;
+            }
+            .isv-btn {
+                font-size: 11px;
+                padding: 5px 9px;
+                min-height: 28px;
+            }
+            .stb-btn {
+                font-size: 11px;
+                padding: 5px 8px;
+                min-height: 30px;
+            }
+            #wormStatePill, #stb-strip-btn {
+                display: none !important;
+            }
+            #canvas-zone {
+                flex: 0 0 34% !important;
+                min-height: 125px !important;
+            }
+            #timeline-zone {
+                flex: 1 1 66% !important;
+            }
+            body.mob-focus-stage #canvas-zone {
+                flex: 1 1 100% !important;
+            }
+            body.mob-focus-stage #timeline-zone {
+                display: none !important;
+            }
+            body.mob-focus-inspect #canvas-zone {
+                display: none !important;
+            }
+            body.mob-focus-inspect #timeline-zone {
+                flex: 1 1 100% !important;
+            }
+            .insp-bar {
+                padding: 4px 6px;
+                gap: 4px;
+            }
+            .insp-seg button {
+                font-size: 11px;
+                padding: 5px 9px;
+                min-height: 28px;
+            }
+            .plane-pill {
+                font-size: 10.5px;
+                padding: 4px 8px;
+                min-height: 26px;
+            }
+            .insp-pill {
+                display: none !important;
+            }
+            #ato-badge, #ato-status {
+                display: none !important;
+            }
+            #ato-top-hud {
+                top: 4px;
+                max-width: calc(100% - 8px);
+                padding: 3px 4px;
+            }
+            .ato-hud-btn {
+                font-size: 10px;
+                padding: 4px 7px;
+                min-height: 26px;
+            }
+            #ato-dock {
+                bottom: 4px;
+                max-width: calc(100% - 8px);
+                overflow-x: auto;
+            }
+            #ato-dock button {
+                height: 32px;
+                font-size: 10px;
+                padding: 0 8px;
+            }
+            .tab-btn {
+                flex-direction: row !important;
+                gap: 4px !important;
+                padding: 0 4px !important;
+            }
+            .tab-letter {
+                font-size: 15px !important;
+            }
+            .tab-sub {
+                font-size: 8.5px !important;
+            }
+        }
+
     </style>
 </head>
 
@@ -1738,10 +1862,10 @@
 
             <!-- ── UNIFIED STUDIO TOP BAR ── -->
             <div id="studio-top-bar">
-                <div class="stb-group">
+                <div class="stb-group" id="stb-scene-group">
                     <select id="icaro-scene-select" onchange="window.ICARO_SECONDHAND_INSPECTOR && window.ICARO_SECONDHAND_INSPECTOR.selectSceneValue(this.value)" title="Select Scene to Explore"></select>
                 </div>
-                <div class="stb-group">
+                <div class="stb-group" id="stb-views-group">
                     <div id="icaro-stage-bar" role="group" aria-label="Stage View Mode">
                         <button type="button" class="isv-btn" data-icaro-sview="composite" aria-pressed="true">Composite</button>
                         <button type="button" class="isv-btn beflix-accent" data-icaro-sview="beflix" aria-pressed="false" title="128×96 Multiplane BEFLIX Dot-Matrix View">★ BEFLIX</button>
@@ -1754,12 +1878,13 @@
                         <button type="button" class="isv-btn" data-icaro-sview="all4" aria-pressed="false">All 4</button>
                     </div>
                 </div>
-                <div class="stb-group">
+                <div class="stb-group" id="stb-transport-group">
                     <button type="button" class="stb-btn" onclick="stepSequence(-1)" title="Previous Frame">◄</button>
                     <button type="button" class="stb-btn play-act" id="top-play-btn" onclick="engageSequence()">▶ PLAY</button>
                     <button type="button" class="stb-btn" onclick="stepSequence(1)" title="Next Frame">►</button>
+                    <button type="button" class="stb-btn" id="mob-focus-btn" onclick="cycleMobileFocus()" title="Switch Layout: Split / Stage / Tube Inspector">⬒ SPLIT</button>
                     <span class="insp-pill" id="wormStatePill">All 6 planes · f 01/33</span>
-                    <button type="button" class="stb-btn" onclick="document.body.classList.toggle('show-filmstrip'); rescaleWorkspace();" title="Toggle Classic Filmstrip">▦ Strip</button>
+                    <button type="button" class="stb-btn" id="stb-strip-btn" onclick="document.body.classList.toggle('show-filmstrip'); rescaleWorkspace();" title="Toggle Classic Filmstrip">▦ Strip</button>
                 </div>
             </div>
 
@@ -5992,26 +6117,48 @@ SHF 2 1 24</textarea>
             return { cells, slices: [], hull, depth };
         }
 
+        let _mobFocusMode = 0; // 0 = split, 1 = stage, 2 = inspect
+        function cycleMobileFocus() {
+            _mobFocusMode = (_mobFocusMode + 1) % 3;
+            document.body.classList.remove('mob-focus-stage', 'mob-focus-inspect', 'deck-collapsed');
+            const btn = document.getElementById('mob-focus-btn');
+            if (_mobFocusMode === 1) {
+                document.body.classList.add('mob-focus-stage', 'deck-collapsed');
+                if (btn) btn.textContent = '▣ STAGE';
+            } else if (_mobFocusMode === 2) {
+                document.body.classList.add('mob-focus-inspect');
+                if (btn) btn.textContent = '▣ TUBE';
+            } else {
+                if (btn) btn.textContent = '⬒ SPLIT';
+            }
+            setTimeout(() => {
+                rescaleWorkspace();
+                if (document.getElementById('ato-zone').classList.contains('active')) atoResize();
+                if (window.ICARO_SECONDHAND_INSPECTOR) window.ICARO_SECONDHAND_INSPECTOR.render();
+            }, 30);
+        }
+
         function drawAtoCornerLathe(clips) {
-            if (!atoW || !atoH || atoW < 360) return;
-            const rBoxW = 148, rBoxH = 148;
-            const rx = atoW - rBoxW - 10, ry = 44;
+            if (!atoW || !atoH || atoW < 300) return;
+            const isMob = atoW < 520;
+            const rBoxW = isMob ? 104 : 148, rBoxH = isMob ? 104 : 148;
+            const rx = atoW - rBoxW - (isMob ? 6 : 10), ry = isMob ? 38 : 44;
             atoCtx.save();
             atoCtx.fillStyle = 'rgba(255, 255, 255, 0.94)';
             atoCtx.strokeStyle = '#000';
-            atoCtx.lineWidth = 2.5;
+            atoCtx.lineWidth = 2.2;
             atoCtx.fillRect(rx, ry, rBoxW, rBoxH);
             atoCtx.strokeRect(rx, ry, rBoxW, rBoxH);
             atoCtx.fillStyle = '#0f172a';
-            atoCtx.fillRect(rx, ry, rBoxW, 18);
+            atoCtx.fillRect(rx, ry, rBoxW, 16);
             atoCtx.fillStyle = '#fff';
-            atoCtx.font = '900 9px ui-monospace, monospace';
+            atoCtx.font = `900 ${isMob ? 7.5 : 9}px ui-monospace, monospace`;
             atoCtx.textAlign = 'center';
             atoCtx.textBaseline = 'middle';
-            atoCtx.fillText(`LATHE CROSS-SEC · F${String(state.cur + 1).padStart(2, '0')}`, rx + rBoxW / 2, ry + 9);
+            atoCtx.fillText(`LATHE · F${String(state.cur + 1).padStart(2, '0')}`, rx + rBoxW / 2, ry + 8);
 
-            const cx = rx + rBoxW / 2, cy = ry + 18 + (rBoxH - 18) / 2;
-            const maxR = 52;
+            const cx = rx + rBoxW / 2, cy = ry + 16 + (rBoxH - 16) / 2;
+            const maxR = isMob ? 34 : 52;
             atoCtx.strokeStyle = 'rgba(0,0,0,0.14)';
             atoCtx.lineWidth = 1;
             [0.38, 0.68, 1.0].forEach(fr => {
