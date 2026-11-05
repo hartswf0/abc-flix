@@ -1548,17 +1548,19 @@
         body.deck-collapsed #icaro-inspector-deck {
             display: none !important;
         }
-        /* Hide filmstrip & noisy frame controls by default unless toggled */
-        #tl-controls, #tl-strip {
+        /* Filmstrip & frame controls visible by default (toggleable with ▦ Strip button) */
+        #tl-controls {
+            display: flex !important;
+            flex: 0 0 auto !important;
+        }
+        #tl-strip {
+            display: flex !important;
+            flex: 0 0 46px !important;
+            min-height: 46px !important;
+        }
+        body.hide-filmstrip #tl-controls,
+        body.hide-filmstrip #tl-strip {
             display: none !important;
-        }
-        body.show-filmstrip #tl-controls {
-            display: flex !important;
-        }
-        body.show-filmstrip #tl-strip {
-            display: flex !important;
-            flex: 0 0 42px !important;
-            min-height: 42px !important;
         }
         #cvStage {
             position: absolute;
@@ -1884,7 +1886,7 @@
                     <button type="button" class="stb-btn" onclick="stepSequence(1)" title="Next Frame">►</button>
                     <button type="button" class="stb-btn" id="mob-focus-btn" onclick="cycleMobileFocus()" title="Switch Layout: Split / Stage / Tube Inspector">⬒ SPLIT</button>
                     <span class="insp-pill" id="wormStatePill">All 6 planes · f 01/33</span>
-                    <button type="button" class="stb-btn" id="stb-strip-btn" onclick="document.body.classList.toggle('show-filmstrip'); rescaleWorkspace();" title="Toggle Classic Filmstrip">▦ Strip</button>
+                    <button type="button" class="stb-btn" id="stb-strip-btn" onclick="document.body.classList.toggle('hide-filmstrip'); rescaleWorkspace();" title="Show/Hide Bottom Frame Strip">▦ Strip</button>
                 </div>
             </div>
 
@@ -1977,7 +1979,8 @@
                     <div class="insp-bar">
                         <div class="insp-strip">
                             <div class="insp-seg" role="group" aria-label="Bottom View Lens">
-                                <button type="button" data-wmode="tunnel" aria-pressed="true">1 · Tube (ATO)</button>
+                                <button type="button" data-wmode="cbus" aria-pressed="false" style="background:#0f172a;color:#5eead4;border-right:1px solid #475569;" title="Genuine ICARO Harness c-bus 3D Arc-Tunnel Operator">◉ Tube (c-bus)</button>
+                                <button type="button" data-wmode="tunnel" aria-pressed="true">1 · Rings &amp; Lathe</button>
                                 <button type="button" data-wmode="parallel" aria-pressed="false">2 · 3D Butter</button>
                                 <button type="button" data-wmode="lanes" aria-pressed="false">3 · 6 Planes</button>
                                 <button type="button" data-wmode="parts" aria-pressed="false">4 · Parts</button>
@@ -2009,6 +2012,7 @@
                         </div>
                     </div>
                     <div id="wormStageWrap">
+                        <iframe id="cbus-inline-frame" src="c-bus.html" style="position:absolute;inset:0;width:100%;height:100%;border:0;display:none;z-index:5;"></iframe>
                         <canvas id="cvWorm" width="680" height="340"></canvas>
                     </div>
                     <div class="insp-bar" style="border-top:1px solid #DED2BF; border-bottom:0;">
@@ -7046,9 +7050,21 @@ SHF 2 1 24</textarea>
         }
 
         // ═══════════════════════════════════════════════════
-        // ── ATO-BUS EMITTER SHIM (Parent Harness Bridge) ──
+        // ── ATO-BUS EMITTER SHIM (Parent Harness + Inline c-bus Bridge) ──
         // ═══════════════════════════════════════════════════
-        const _ATOBUS_ACTIVE = (window.parent !== window);
+        function _getBusTargets() {
+            const targets = [];
+            if (window.parent !== window) targets.push(window.parent);
+            const inlineCbus = document.getElementById('cbus-inline-frame');
+            if (inlineCbus && inlineCbus.contentWindow) targets.push(inlineCbus.contentWindow);
+            return targets;
+        }
+        function _postToBusTargets(payload) {
+            const targets = _getBusTargets();
+            for (const t of targets) {
+                try { t.postMessage(payload, '*'); } catch (e) {}
+            }
+        }
         const _gridCache = new Map();
 
         function _getCachedGrid(frameIndex) {
@@ -7064,15 +7080,16 @@ SHF 2 1 24</textarea>
 
         let _atoBusSyncTimer = null;
         function _atoBusEmitSync() {
-            if (!_ATOBUS_ACTIVE) return;
             clearTimeout(_atoBusSyncTimer);
             _atoBusSyncTimer = setTimeout(() => {
+                const targets = _getBusTargets();
+                if (!targets.length) return;
                 const frames = state.frames.map((f, i) => ({
                     index: i,
                     grid: Array.from(_getCachedGrid(i)),
                     version: f._v || 0
                 }));
-                window.parent.postMessage({
+                _postToBusTargets({
                     type: 'FRAMES_SYNC',
                     _origin: 'engine',
                     frames: frames,
@@ -7080,32 +7097,30 @@ SHF 2 1 24</textarea>
                     cursor: state.cur,
                     gridW: G_COLS,
                     gridH: G_ROWS
-                }, '*');
+                });
             }, 30);
         }
 
         function _atoBusEmitCursor() {
-            if (!_ATOBUS_ACTIVE) return;
-            window.parent.postMessage({
+            _postToBusTargets({
                 type: 'CURSOR_MOVE',
                 _origin: 'engine',
                 cursor: state.cur,
                 total: state.frames.length
-            }, '*');
+            });
         }
 
         function _atoBusEmitPlay(playing) {
-            if (!_ATOBUS_ACTIVE) return;
-            window.parent.postMessage({
+            _postToBusTargets({
                 type: 'PLAY_SYNC',
                 playing: playing,
                 cursor: state.cur,
                 total: state.frames.length
-            }, '*');
+            });
         }
 
         let _busInboundGoto = false;
-        if (_ATOBUS_ACTIVE) {
+        (function initBusBridge() {
             const _origRebuild = rebuildTrack;
             window._rebuildTrackNoSync = _origRebuild;
             rebuildTrack = function() { touchAllFrames(); _origRebuild.apply(this, arguments); _atoBusEmitSync(); };
@@ -7143,8 +7158,11 @@ SHF 2 1 24</textarea>
                     _atoBusEmitSync();
                     _atoBusEmitCursor();
                 }
+                if (d.type === 'SCENE_SELECT' && d.sceneId && window.ICARO_SECONDHAND_INSPECTOR) {
+                    window.ICARO_SECONDHAND_INSPECTOR.selectSceneValue('worm:' + d.sceneId);
+                }
             });
-        }
+        })();
     </script>
 </body>
 

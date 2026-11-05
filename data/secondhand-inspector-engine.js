@@ -4502,6 +4502,14 @@
       if(el) el.value = 'worm:' + curWorm.shot_id;
     });
 
+    const cbusFrame = document.getElementById('cbus-inline-frame');
+    if(cbusFrame && cbusFrame.contentWindow){
+      try{ cbusFrame.contentWindow.postMessage({ type: 'SCENE_SELECT', sceneId: curWorm.shot_id }, '*'); }catch(e){}
+    }
+    if(window.parent && window.parent !== window){
+      try{ window.parent.postMessage({ type: 'SCENE_SELECT', sceneId: curWorm.shot_id }, '*'); }catch(e){}
+    }
+
     buildPlanesUI();
     loadVariantJson(curWorm, 'gwp');
   }
@@ -4586,9 +4594,20 @@
   }
 
   function syncSubModeToolbars(){
-    if(tunnelSubSeg) tunnelSubSeg.style.display = (wormMode === 'tunnel') ? '' : 'none';
+    if(tunnelSubSeg) tunnelSubSeg.style.display = (wormMode === 'tunnel' || wormMode === 'cbus') ? '' : 'none';
     if(parallelSubSeg) parallelSubSeg.style.display = (wormMode === 'parallel') ? '' : 'none';
     if(parThemeBtn) parThemeBtn.style.display = (wormMode === 'tunnel' || wormMode === 'parallel' || wormMode === 'all') ? '' : 'none';
+    const cbusFrame = document.getElementById('cbus-inline-frame');
+    if(cbusFrame){
+      if(wormMode === 'cbus'){
+        if(!cbusFrame.getAttribute('src')) cbusFrame.setAttribute('src', 'c-bus.html');
+        cbusFrame.style.display = 'block';
+        if(cvWorm) cvWorm.style.display = 'none';
+      } else {
+        cbusFrame.style.display = 'none';
+        if(cvWorm) cvWorm.style.display = 'block';
+      }
+    }
   }
 
   function syncBeflixButtons(){
@@ -4941,6 +4960,17 @@
       btn.addEventListener('click', ()=>{
         tunnelSubMode = btn.dataset.tsub;
         document.querySelectorAll('[data-tsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        if(wormMode === 'cbus'){
+          const cbusFrame = document.getElementById('cbus-inline-frame');
+          const viewMap = { barrel: 0, inside: 1, outside: 2, side: 3, bench: 4 };
+          if(tunnelSubMode === 'rings'){
+            wormMode = 'tunnel';
+            document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.wmode==='tunnel'?'true':'false'));
+            syncSubModeToolbars();
+          } else if(cbusFrame && cbusFrame.contentWindow && viewMap[tunnelSubMode] !== undefined){
+            cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: viewMap[tunnelSubMode] }, '*');
+          }
+        }
         renderAll();
       });
     });
