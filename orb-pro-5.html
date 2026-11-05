@@ -220,12 +220,15 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .foot button b{font-size:15px;font-weight:600;line-height:1}
 .foot button:last-child{border-right:none}
 </style>
+<script src="./data/secondhand-doodle-bundle.js"></script>
 </head>
 <body>
 
 <div class="bar">
   <button id="view">ORB</button>
   <button id="camk">CAM</button>
+  <button id="doodle6L" style="background:#EF9F3A;color:#111;font-weight:700" title="Load Giraffe 6 Multiplane Layers into Orb">★ 6 LAYERS</button>
+  <a href="./abc-flix-secondhand-doodle.html" style="padding:0 8px;display:flex;align-items:center;border-right:1px solid var(--ink);text-decoration:none;color:var(--ink);font-weight:700;font-size:10px" title="Open Full 109-Lot Secondhand Doodle Studio">↗ 109 LOTS</a>
   <span id="where"></span>
   <button id="add">+ ADD</button>
   <button id="undo">UNDO</button>
@@ -3494,6 +3497,53 @@ $("fMotion").onclick=()=>openTray("motion");
 $("fRender").onclick=()=>openTray("render");
 $("add").onclick=()=>document.getElementById("file").click();
 $("undo").onclick=()=>{undo();draw();};
+function loadGiraffe6LayersIntoOrb(){
+  const b=window.ABC_SECONDHAND_BUNDLE;
+  if(!b||!b.gwp_shot)return;
+  const gwp=b.gwp_shot;
+  const W_src=gwp.W||480,H_src=gwp.H||360,zRef=gwp.z_ref||2;
+  const planes=(gwp.planes||[]).slice().sort((a,b)=>b.z-a.z); // sky..fore
+  S.layers=planes.map(p=>({n:(p.label||p.id).toUpperCase().slice(0,8),vis:true,mode:"OVER",op:1,key:false,kt:0.90}));
+  S.layer=planes.findIndex(p=>p.id==="char");
+  if(S.layer<0)S.layer=0;
+  const N_orb=12;
+  S.frames=N_orb;S.frame=0;S.strokes=[];
+  const N_src=(gwp.cast&&gwp.cast.frames)?gwp.cast.frames.length:33;
+  planes.forEach((plane,lIdx)=>{
+    const k=zRef/Math.max(0.2,plane.z);
+    const tone=plane.id==="char"?9:(plane.z<=1.5?8:(plane.z<=2.8?7:(plane.z<=4?6:(plane.z<=7?5:4))));
+    const rad=(plane.id==="char"?3.2:2.4)*D2R;
+    for(let ofi=0;ofi<N_orb;ofi++){
+      const sfi=Math.min(N_src-1,Math.round((ofi/(N_orb-1))*(N_src-1)));
+      const cam=(gwp.camera&&gwp.camera[sfi])||[0,0];
+      const dx=(Array.isArray(cam)?cam[0]:0)*k,dy=(Array.isArray(cam)?cam[1]:0)*k;
+      let stList=[];
+      if(plane.id==="char"&&gwp.cast&&gwp.cast.frames&&gwp.cast.frames[sfi]){
+        stList=gwp.cast.frames[sfi];
+      }else if(Array.isArray(gwp.objects)){
+        for(const ob of gwp.objects){
+          if(ob.plane!==plane.id)continue;
+          const ost=(ob.frames&&ob.frames[sfi]&&ob.frames[sfi].length)?ob.frames[sfi]:(ob.strokes||[]);
+          for(const s of ost)stList.push(s.map(p=>[p[0]+dx,p[1]+dy]));
+        }
+      }
+      for(const s of stList){
+        if(!s||s.length<2)continue;
+        const pts=[];
+        for(let i=0;i<s.length;i++){
+          const u=clamp(0.32+(s[i][0]/W_src)*0.36,0.02,0.98);
+          const v=clamp(0.26+(s[i][1]/H_src)*0.48,0.04,0.96);
+          pts.push(dirUV(u,v));
+        }
+        S.strokes.push({pts,r:rad,ink:tone,f:ofi,to:ofi,v:0,L:lIdx});
+      }
+    }
+  });
+  S.epoch++;cache.clear();SMALL_CACHE.clear();reel.dataset.sig="";
+  if(S.tray==="layer")buildTray();
+  draw();
+}
+if($("doodle6L"))$("doodle6L").onclick=loadGiraffe6LayersIntoOrb;
 addEventListener("resize",()=>{NEED_FIT=true;reel.dataset.sig="";draw();});
 addEventListener("orientationchange",()=>{NEED_FIT=true;reel.dataset.sig="";draw();});
 if(typeof ResizeObserver==="function"){
@@ -3502,6 +3552,7 @@ if(typeof ResizeObserver==="function"){
   ro.observe(stage.parentElement);}
 /* ================= boot ===================================================== */
 sessionOffer();
+if(!S.strokes.length)loadGiraffe6LayersIntoOrb();
 fit();draw();
 </script>
 </body>
