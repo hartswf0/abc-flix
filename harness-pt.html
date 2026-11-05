@@ -150,8 +150,8 @@
     </style>
 </head>
 <body>
-    <div id="harness" class="max-engine">
-        <iframe id="engine-frame" src="icaro-pro-bus.html"></iframe>
+    <div id="harness">
+        <iframe id="engine-frame" src="icaro-pro-bus-pt.html"></iframe>
         <div id="bus-strip">
             <div class="bus-dot" id="bus-dot"></div>
             <span id="bus-msg">IDLE</span>
@@ -160,7 +160,7 @@
             <span id="bus-cursor">CUR 0</span>
             <div class="bus-spacer"></div>
             <button class="bus-btn" id="bus-view">BARREL</button>
-            <button class="bus-toggle active" id="bus-toggle">ENGINE ▣</button>
+            <button class="bus-toggle" id="bus-toggle">SPLIT ⬒</button>
             <div id="sync-bar"></div>
         </div>
         <iframe id="tunnel-frame" loading="lazy"></iframe>
@@ -191,7 +191,7 @@
             const loadTime = (performance.now() - _t0).toFixed(0);
             console.log('[HARNESS] Engine loaded in ' + loadTime + 'ms — now loading tunnel');
             engineReady = false;
-            tunnel.src = 'c-bus.html';
+            tunnel.src = 'c-bus-pt.html';
         };
 
         // ── STATE ──
@@ -242,7 +242,7 @@
         const harness = document.getElementById('harness');
         const busToggle = document.getElementById('bus-toggle');
         const MODES = ['split', 'max-engine', 'max-tunnel'];
-        let mobileMode = 1; // default max-engine so Top Stage + Bottom Views fill screen
+        let mobileMode = 0; // default max-engine so Top Stage + Bottom Views fill screen
 
         busToggle.onclick = () => {
             mobileMode = (mobileMode + 1) % MODES.length;
@@ -305,15 +305,36 @@
             }
         }
 
-        // ── MESSAGE ROUTER (with rAF pooling for cursor messages) ──
+        // ── MESSAGE ROUTER (Hardened — Error Elimination) ──
+        // STRUCTURAL GUARANTEES:
+        // 1. Only messages from known sources are processed
+        // 2. Messages must be {type: string} — malformed payloads rejected
+        // 3. Router NEVER forwards back to origin — echo impossible
+        // 4. _origin tags preserved for downstream validation
+        const VALID_TYPES = new Set([
+            'FRAMES_SYNC', 'FRAME_PATCH', 'CURSOR_MOVE', 'GOTO_FRAME',
+            'PLAY_SYNC', 'CLIP_SELECT', 'CLIP_ARRANGE', 'STRIP_REORDER', 'REQUEST_SYNC', 'RIP_PROGRESS',
+            'VIEW_CYCLE'
+        , 'SCENE_SELECT']);
+
         window.addEventListener('message', e => {
             const d = e.data;
-            if (!d || !d.type) return;
+
+            // ── GATE 1: Shape validation (rejects malformed messages) ──
+            if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+
+            // ── GATE 2: Known type validation ──
+            if (!VALID_TYPES.has(d.type)) return;
 
             msgCount++;
 
-            if (e.source === engine.contentWindow) {
-                // ENGINE → TUNNEL
+            // ── GATE 3: Source identification (rejects unknown sources) ──
+            const fromEngine = e.source === engine.contentWindow;
+            const fromTunnel = e.source === tunnel.contentWindow;
+            if (!fromEngine && !fromTunnel) return; // Unknown source — drop
+
+            if (fromEngine) {
+                // ENGINE → TUNNEL (never back to engine)
                 lastEngineMsg = Date.now();
                 engineReady = true;
 
@@ -364,8 +385,8 @@
                     }
                 }
 
-            } else if (e.source === tunnel.contentWindow) {
-                // TUNNEL → ENGINE
+            } else if (fromTunnel) {
+                // TUNNEL → ENGINE (never back to tunnel)
                 lastTunnelMsg = Date.now();
                 tunnelReady = true;
 

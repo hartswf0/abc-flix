@@ -5,7 +5,9 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-    <title>Arc-Tunnel Operator — Live Video Instrument</title>
+    <title>Arc-Tunnel Operator — Live Video & Secondhand Motion Instrument</title>
+    <script src="./data/secondhand-doodle-bundle.js"></script>
+    <script src="./data/worms_108.js"></script>
     <style>
         :root {
             --bg: #fff;
@@ -15,7 +17,7 @@
             --left: 56px;
             --right: 300px;
             --bottom: 52px;
-            --top: 0px; /* No top bar in bus mode */
+            --top: 38px;
         }
 
         * {
@@ -116,8 +118,38 @@
             flex: 1
         }
 
-        /* Top bar hidden in bus mode — controlled by harness */
-        #top { display: none !important; }
+        #top {
+            position: fixed;
+            z-index: 18;
+            left: var(--left);
+            right: var(--right);
+            top: 0;
+            height: var(--top);
+            border-bottom: 2px solid var(--border);
+            background: rgba(255, 255, 255, 0.96);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0 8px;
+            pointer-events: auto;
+            overflow-x: auto;
+        }
+        #top select {
+            height: 26px;
+            border: 2px solid #000;
+            background: #fff;
+            color: #000;
+            font: 900 10px ui-monospace, monospace;
+            padding: 0 6px;
+            max-width: 240px;
+            cursor: pointer;
+        }
+        #top button {
+            height: 26px;
+            font-size: 9.5px;
+            padding: 0 7px;
+            white-space: nowrap;
+        }
 
         #brand {
             font-weight: 900;
@@ -269,6 +301,15 @@
             color: #fff;
         }
 
+        /* Tool category colors (when active) */
+        #dock button.on[data-cat="time"] { background: #166534; }
+        #dock button.on[data-cat="vis"] { background: #1e40af; }
+        #dock button.on[data-cat="ann"] { background: #92400e; }
+        /* Subtle tint when inactive */
+        #dock button[data-cat="time"] { color: #22c55e; }
+        #dock button[data-cat="vis"] { color: #60a5fa; }
+        #dock button[data-cat="ann"] { color: #fbbf24; }
+
         #badge {
             position: fixed;
             z-index: 22;
@@ -320,7 +361,7 @@
 
         .slots {
             display: grid;
-            grid-template-columns: repeat(5, 1fr)
+            grid-template-columns: repeat(4, 1fr)
         }
 
         .slot {
@@ -467,7 +508,10 @@
         <button id="resetBtn">RST</button>
     </nav>
     <header id="top">
-        <div id="brand">ARC-TUNNEL LIVE</div>
+        <div id="brand">ATO · TUBE</div>
+        <select id="smSceneSelect" title="Select Secondhand Motion or Worm Scene"></select>
+        <button id="smLayersBtn" class="on" title="Toggle 6 Concentric Multiplane Layer Rings vs Frame Clips">6 LAYER RINGS</button>
+        <button id="smBeflixBtn" title="Toggle 128×96 BEFLIX Dot-Matrix Texture on Tube">★ BEFLIX</button>
         <button id="playBtn">PLAY</button>
         <button id="snapBtn" class="on">SNAP</button>
         <div class="mode">
@@ -490,13 +534,13 @@
         <div class="slots" id="slots"></div>
     </section>
     <section id="dock">
-        <button data-tool="MOVE" class="on">MOVE</button>
-        <button data-tool="TRIM">TRIM</button>
-        <button data-tool="ROLL">ROLL</button>
-        <button data-tool="LIFT">LIFT</button>
-        <button data-tool="SPLIT">SPLIT</button>
-        <button data-tool="ROUTE">ROUTE</button>
-        <button data-tool="STORE">STORE</button>
+        <button data-tool="MOVE" data-cat="time" class="on">MOVE</button>
+        <button data-tool="TRIM" data-cat="time">TRIM</button>
+        <button data-tool="ROLL" data-cat="vis">ROLL</button>
+        <button data-tool="LIFT" data-cat="vis">LIFT</button>
+        <button data-tool="SPLIT" data-cat="time">SPLIT</button>
+        <button data-tool="ROUTE" data-cat="ann">ROUTE</button>
+        <button data-tool="STORE" data-cat="ann">STORE</button>
     </section>
     <footer id="bottom">
         <div id="tracks"></div>
@@ -762,6 +806,19 @@
                         haptic([12, 30, 12])
                     } else if (kind === 'jog') {
                         tone(880, .004, .001, 'triangle');
+                    } else if (kind === 'mode') {
+                        tone(660, .008, .003, 'square');
+                        setTimeout(() => tone(990, .006, .002, 'square'), 18);
+                        haptic([3, 8, 3]);
+                    } else if (kind === 'thud') {
+                        tone(180, .025, .008, 'sine');
+                        haptic([8, 20, 6]);
+                    } else if (kind === 'grab') {
+                        tone(440, .006, .002, 'triangle');
+                        haptic(3);
+                    } else if (kind === 'release') {
+                        tone(660, .008, .003, 'triangle');
+                        haptic([2, 6, 2]);
                     } else {
                         tone(1120, .008, S.unit === 'EDGE' ? .0025 : .0045, 'triangle');
                         haptic(S.unit === 'EDGE' ? 2 : 4)
@@ -820,11 +877,15 @@
                     c.start = Number.isFinite(+c.start) ? +c.start : 0;
                     c.dur = Math.max(SNAP, Number.isFinite(+c.dur) ? +c.dur : SNAP);
                     c.track = norm(+c.track || 0);
+                    c.rot = Number.isFinite(+c.rot) ? +c.rot : 0;
+                    c.lift = Number.isFinite(+c.lift) ? +c.lift : 0;
                     return Object.assign(mk(0, 0, 0), c, {
                         id: String(c.id || id()),
                         vStart: c.start,
                         vTrack: c.track,
-                        vDur: c.dur
+                        vDur: c.dur,
+                        _frameIndex: (c._frameIndex !== undefined) ? c._frameIndex : undefined,
+                        _userEdited: c._userEdited || false
                     });
                 }
                 function seed() {
@@ -844,7 +905,7 @@
                 function projectPayload() {
                     return {
                         app: 'Arc-Tunnel Operator',
-                        version: 12,
+                        version: 13,
                         exportedAt: new Date().toISOString(),
                         state: {
                             view: S.view,
@@ -857,9 +918,23 @@
                             snap: S.snap
                         },
                         nextId,
-                        clips: clips.map(c => Object.assign({}, c)),
+                        clips: clips.map(c => ({
+                            id: c.id,
+                            start: c.start,
+                            dur: c.dur,
+                            track: c.track,
+                            rot: c.rot || 0,
+                            lift: c.lift || 0,
+                            locked: c.locked || false,
+                            labelDx: c.labelDx || 0,
+                            labelDy: c.labelDy || 0,
+                            _frameIndex: c._frameIndex,
+                            _userEdited: c._userEdited || false
+                        })),
                         bank: bank.map(b => Object.assign({}, b)),
-                        routes: routes.map(r => Object.assign({}, r))
+                        routes: routes.map(r => Object.assign({}, r)),
+                        clipCount: clips.length,
+                        routeCount: routes.length
                     }
                 }
                 function applyProjectPayload(d) {
@@ -873,7 +948,9 @@
                     drawTracks();
                     drawStore();
                     drawOps();
-                    save()
+                    _wakeBus();
+                    save();
+                    toast('LOADED ' + clips.length + ' CLIPS, ' + routes.length + ' ROUTES');
                 }
                 function save() {
                     try {
@@ -941,15 +1018,19 @@
                     }
                 }
                 function exportEDL() {
-                    let lines = ['TITLE: ARC-TUNNEL OPERATOR', ''];
-                    clips.slice().sort( (a, b) => a.start - b.start).forEach( (c, i) => lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur}`));
+                    let lines = ['TITLE: ARC-TUNNEL OPERATOR', 'EXPORTED: ' + new Date().toISOString(), ''];
+                    clips.slice().sort( (a, b) => a.start - b.start).forEach( (c, i) => {
+                        let fi = c._frameIndex !== undefined ? ' FRAME:' + (c._frameIndex + 1) : '';
+                        let rot = c.rot ? ' ROT:' + Math.round(c.rot * 180 / Math.PI) + '\u00B0' : '';
+                        let lift = c.lift ? ' LIFT:' + c.lift.toFixed(2) : '';
+                        lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} TRACK:${NAMES[c.track]} START:${c.start} END:${c.start + c.dur}${fi}${rot}${lift}`);
+                    });
                     let edl = lines.join(String.fromCharCode(10));
                     safeClipboardWrite(edl).then(ok => {
                         downloadText(edl, 'arc_tunnel_edl_' + Date.now() + '.txt', 'text/plain');
                         tick('export');
                         toast(ok ? 'EDL COPIED + DOWNLOADED' : 'EDL DOWNLOADED')
-                    }
-                    )
+                    })
                 }
                 function requestImport() {
                     importFile.value = '';
@@ -1081,6 +1162,10 @@
                     }
                 }
                 function angle(c, track=isClip(c) ? c.vTrack : S.active) {
+                    if (c && c._layerIdx !== undefined) {
+                        const nL = Math.max(1, c._totalLayers || 6);
+                        return (c._layerIdx / nL) * Math.PI * 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0);
+                    }
                     return track * Math.PI / 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0)
                 }
                 function trackAngle(track) {
@@ -1095,10 +1180,14 @@
                             mid: null,
                             depth: 1e9
                         };
-                    let rr = R + (c.vLift || 0) * 36
+                    let nL = (c && c._layerIdx !== undefined) ? Math.max(1, c._totalLayers || 6) : 4;
+                    let halfSpan = (c && c._layerIdx !== undefined) ? (Math.PI / nL) * 0.84 : (Math.PI / 4 - .05);
+                    let rr = (c && c._layerIdx !== undefined)
+                        ? R * (0.66 + 0.54 * (c._layerIdx / Math.max(1, nL - 1))) + (c.vLift || 0) * 36
+                        : R + (c.vLift || 0) * 36
                       , base = angle(c)
-                      , a0 = base - Math.PI / 4 + .05
-                      , a1 = base + Math.PI / 4 - .05
+                      , a0 = base - halfSpan
+                      , a1 = base + halfSpan
                       , z0 = c.vStart
                       , z1 = c.vStart + c.vDur
                       , mobile = W < 900
@@ -1455,7 +1544,7 @@
 
                         // Per-clip save/restore (not per-cell — LAW 9 Main Thread Sanctity)
                         ctx.save();
-                        const baseFill = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        const baseFill = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
                         ctx.setLineDash(sel ? [] : st.dash);
                         ctx.strokeStyle = '#000';
 
@@ -1466,10 +1555,10 @@
                             ctx.fillStyle = baseFill;
                             ctx.fill(p);
 
-                            // Hatch/thumbnail: only on near cells, thumbnail only on nearest
-                            if (!sel && cell.d < (isMobile ? 3500 : 5500)) {
-                                const isNearest = (cell.d === nearestD);
-                                _busCurrentClip = isNearest ? c : null; // thumbnail only on nearest cell
+                            // Hatch/thumbnail: show on ALL near cells (hold-frame model)
+                            // Extended clips show their source frame across the entire face
+                            if ((c._frameIndex !== undefined || !sel) && cell.d < (isMobile ? 3500 : 5500)) {
+                                _busCurrentClip = c; // thumbnail on ALL near cells
                                 hatch(p, st.hatch, b);
                                 _busCurrentClip = null;
                             }
@@ -1595,14 +1684,23 @@
                           , hov = S.hover && S.hover.clip === c;
                         if (x1 < A.x - 90 || x0 > A.x + A.w + 90)
                             continue;
+                        // Apply visual rotation in flat views
+                        let hasRot = c.rot && Math.abs(c.rot) > 0.01;
+                        let cx = x0 + Math.max(5, w) / 2, cy = top + h / 2;
+                        if (hasRot) {
+                            ctx.save();
+                            ctx.translate(cx, cy);
+                            ctx.rotate(c.rot);
+                            ctx.translate(-cx, -cy);
+                        }
                         let p = new Path2D();
                         p.rect(x0, top, Math.max(5, w), h);
                         ctx.save();
                         ctx.globalAlpha = 0.85;
-                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
                         ctx.fill(p);
                         ctx.restore();
-                        if (!sel)
+                        if (!sel || c._frameIndex !== undefined)
                             { _busCurrentClip = c; hatch(p, STYLES[c.track].hatch, {
                                 x: x0,
                                 y: top,
@@ -1613,6 +1711,15 @@
                         ctx.lineWidth = sel ? 5 : 2;
                         ctx.strokeStyle = '#000';
                         ctx.stroke(p);
+                        // Rotation angle indicator
+                        if (hasRot) {
+                            ctx.fillStyle = '#ef4444';
+                            ctx.font = '700 7px ui-monospace';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(Math.round(c.rot * 180 / Math.PI) + '\u00B0', x0 + Math.max(5, w) - 3, top + h - 2);
+                        }
+                        if (hasRot) ctx.restore(); // Undo rotation transform
                         if (sel) {
                             ctx.strokeStyle = '#fff';
                             ctx.lineWidth = 2;
@@ -1636,6 +1743,23 @@
                         ctx.setLineDash([]);
                         if (sel || hov || w > 88)
                             tag((x0 + x1) / 2, y, c.id, sel);
+                        // Track layer pip — colored dot showing POSSIBLE/PLAUSIBLE/PROBABLE/PREFERRED
+                        ctx.save();
+                        ctx.fillStyle = TRACK_COLORS[c.track] || '#888';
+                        ctx.beginPath();
+                        ctx.arc(x0 + 6, top + 6, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                        ctx.stroke();
+                        // Track initial letter
+                        if (w > 40) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = '900 7px ui-monospace';
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(SHORT[c.track], x0 + 13, top + 2);
+                        }
+                        ctx.restore();
                         rendered.push({
                             type: 'bench',
                             clip: c,
@@ -1667,6 +1791,67 @@
                         w: 76,
                         h: A.h - 16
                     });
+
+                    // ── LIFT INDICATORS — vertical nub on each clip ──
+                    for (const c of clips) {
+                        if (!c.lift && c.lift !== 0) continue;
+                        if (Math.abs(c.lift) < 0.05) continue;
+                        let x0 = benchX(c.vStart)
+                          , x1 = benchX(c.vStart + c.vDur)
+                          , mx = (x0 + x1) / 2
+                          , y = laneY(c.vTrack)
+                          , h = laneH();
+                        if (x1 < A.x - 90 || x0 > A.x + A.w + 90) continue;
+                        // Nub: vertical bar extending up (positive) or down (negative) from clip center
+                        let nubH = Math.abs(c.lift) * h * 0.6;
+                        let nubY = c.lift > 0 ? y - h/2 - nubH : y + h/2;
+                        ctx.save();
+                        ctx.fillStyle = c.lift > 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.5)';
+                        ctx.fillRect(mx - 3, nubY, 6, nubH);
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(mx - 3, nubY, 6, nubH);
+                        // Label
+                        ctx.fillStyle = '#000';
+                        ctx.font = '700 7px ui-monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = c.lift > 0 ? 'bottom' : 'top';
+                        ctx.fillText((c.lift > 0 ? '+' : '') + c.lift.toFixed(2), mx, c.lift > 0 ? nubY - 2 : nubY + nubH + 2);
+                        ctx.restore();
+                    }
+
+                    // ── ROUTE LINES — dashed connections between linked clips ──
+                    if (routes.length > 0) {
+                        ctx.save();
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([6, 4]);
+                        ctx.strokeStyle = '#000';
+                        for (const r of routes) {
+                            let a = clips.find(c => c.id === r.from)
+                              , b = clips.find(c => c.id === r.to);
+                            if (!a || !b) continue;
+                            let ax1 = (benchX(a.vStart) + benchX(a.vStart + a.vDur)) / 2
+                              , ay = laneY(a.vTrack)
+                              , bx = (benchX(b.vStart) + benchX(b.vStart + b.vDur)) / 2
+                              , by = laneY(b.vTrack);
+                            ctx.beginPath();
+                            ctx.moveTo(ax1, ay);
+                            ctx.lineTo(bx, by);
+                            ctx.stroke();
+                            // Route label at midpoint
+                            tag((ax1 + bx) / 2, (ay + by) / 2, r.type || 'ROUTE');
+                        }
+                        // Active route drag line
+                        if (S.drag && S.drag.mode === 'route' && S.drag.clip) {
+                            ctx.beginPath();
+                            ctx.moveTo(S.drag.sx, S.drag.sy);
+                            ctx.lineTo(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy);
+                            ctx.stroke();
+                            tag(S.drag.mx || S.drag.sx, S.drag.my || S.drag.sy, 'ROUTE');
+                        }
+                        ctx.setLineDash([]);
+                        ctx.restore();
+                    }
                 }
 
                 function outsideP() {
@@ -1765,10 +1950,10 @@
                           , b = bounds(pts);
                         ctx.save();
                         ctx.globalAlpha = 0.85;
-                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
                         ctx.fill(pp);
                         ctx.restore();
-                        if (!sel)
+                        if (!sel || c._frameIndex !== undefined)
                             { _busCurrentClip = c; hatch(pp, STYLES[c.track].hatch, b); _busCurrentClip = null; }
                         ctx.setLineDash(sel ? [] : STYLES[c.track].dash);
                         ctx.lineWidth = sel ? 5 : 2;
@@ -2043,6 +2228,9 @@
                     for (const g of gizmosToRender) {
                         renderGizmos(g.c, g.m, g.hw, g.hh, g.rect);
                     }
+                    if (typeof _smDrawCornerLathe === 'function') {
+                        _smDrawCornerLathe();
+                    }
 
                     readout.textContent = S.hover && S.hover.clip ? `HOVER: ${String(S.hover.mode).toUpperCase()} [${S.hover.clip.id}]` : S.selected ? `${S.selected.id} ${S.unit} ${fmt(S.selected.start)} ${fmt(S.selected.dur)}` : `TIME ${fmt(S.cam)}`;
                     modeName.textContent = VIEWS[S.view];
@@ -2137,8 +2325,13 @@
                     last = ts;
 
                     // ── MOTION: only when something is moving ──
-                    if (S.play) {
+                    if (S.play && !_BUSRX_ACTIVE) {
+                        // Standalone mode: tunnel advances its own clock
                         S.cam += dt * 0.16 * S.playRate;
+                        _dirty = true;
+                    } else if (S.play && _BUSRX_ACTIVE) {
+                        // Coupled mode: engine is the clock — tunnel follows CURSOR_MOVE
+                        // Just keep dirty so we re-render (camera is set by message handler)
                         _dirty = true;
                     } else if (!S.drag && !S.scrub && Math.abs(S.inertia) > 0.05) {
                         S.cam += S.inertia * (dt / 16);
@@ -2201,20 +2394,19 @@
                     _perf.renderMs += performance.now() - t0;
                     _perf.frames++;
 
-                    // ── CONTINUOUS CAMERA→FRAME SYNC ──
-                    // When camera moves (scrub, scroll, inertia, playback),
-                    // derive which frame we're over and tell the engine
-                    if (_BUSRX_ACTIVE && _busFrameTotal > 0) {
-                        const frameIdx = Math.max(0, Math.min(
-                            _busFrameTotal - 1,
-                            Math.round(S.cam / (SNAP * 2))
-                        ));
+                    // ── CONTINUOUS CAMERA→FRAME SYNC (Hold-Frame Model) ──
+                    // Derives which SOURCE FRAME the camera is over by checking
+                    // which clip's [vStart, vStart+vDur) range contains S.cam.
+                    // This means extending a clip = holding that frame longer.
+                    if (_BUSRX_ACTIVE && _busFrameTotal > 0 && !S.drag) {
+                        const frameIdx = _busDeriveFrame(S.cam);
                         const now = performance.now();
                         if (frameIdx !== _busCamLastFrame && now - _busCamLastEmit > 60) {
                             _busCamLastFrame = frameIdx;
                             _busCamLastEmit = now;
                             window.parent.postMessage({
                                 type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
                                 cursor: frameIdx,
                                 source: 'camera'
                             }, '*');
@@ -2239,8 +2431,12 @@
                     }
                     S.selected = c;
                     S.active = c.track;
-                    selBig.textContent = c.id;
-                    selMeta.textContent = `${S.tool} ${S.unit} ${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
+                    // Update active track for hold-frame derivation
+                    if (typeof c._frameIndex === 'number') _busActiveTrack = c.track;
+                    selBig.textContent = typeof c._frameIndex === 'number' ? `F${c._frameIndex + 1}` : c.id;
+                    const holdBeats = Math.round(c.dur / SNAP);
+                    const frameInfo = typeof c._frameIndex === 'number' ? `HOLD ${holdBeats}× ` : (c._layerIdx !== undefined ? `RING ${c._layerIdx + 1}/${c._totalLayers || 6} · ` : '');
+                    selMeta.textContent = `${frameInfo}${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
                     drawTracks();
                     drawOps();
                     if (src === 'object' && c !== old) {
@@ -2304,11 +2500,16 @@
                     bank.unshift({
                         id: c.id,
                         dur: c.dur,
-                        track: c.track
+                        start: c.start,
+                        track: c.track,
+                        lift: c.lift || 0,
+                        frameIndex: c._frameIndex,
+                        timestamp: Date.now()
                     });
-                    bank.splice(5);
+                    bank.splice(8);
+                    tick('export');
                     drawStore();
-                    toast('STORED ' + c.id)
+                    toast('STORED ' + c.id + ' (' + NAMES[c.track] + ')')
                 }
                 function drawTracks() {
                     tracksEl.innerHTML = '';
@@ -2330,14 +2531,44 @@
                 function drawStore() {
                     storeCount.textContent = bank.length;
                     slotsEl.innerHTML = '';
-                    for (let i = 0; i < 5; i++) {
+                    for (let i = 0; i < 8; i++) {
                         let s = bank[i]
                           , d = document.createElement('div');
                         d.className = 'slot';
-                        d.innerHTML = s ? `<b>${s.id}</b><small>${NAMES[s.track]}</small>` : '<b>EMPTY</b><small>STORE</small>';
-                        if (s)
-                            d.onclick = () => addClip(S.cam + SNAP * (i + 1), s.track);
+                        if (s) {
+                            d.innerHTML = `<b>${s.id}</b><small>${NAMES[s.track]} F${(s.frameIndex||0)+1}</small>`;
+                            d.onclick = () => {
+                                // RECALL: jump camera to stored clip position
+                                S.cam = s.start + s.dur / 2;
+                                tick('snap');
+                                toast('RECALL ' + s.id);
+                                _wakeBus();
+                            };
+                        } else {
+                            d.innerHTML = '<b>EMPTY</b><small>STORE</small>';
+                        }
                         slotsEl.appendChild(d)
+                    }
+                    // Export button
+                    if (bank.length > 0) {
+                        let ex = document.createElement('div');
+                        ex.className = 'slot';
+                        ex.style.gridColumn = '1 / -1';
+                        ex.style.textAlign = 'center';
+                        ex.style.fontWeight = '900';
+                        ex.style.letterSpacing = '0.08em';
+                        ex.innerHTML = '<b>EXPORT STORE</b><small>DOWNLOAD JSON</small>';
+                        ex.onclick = () => {
+                            const data = JSON.stringify({ store: bank, exported: new Date().toISOString() }, null, 2);
+                            const blob = new Blob([data], { type: 'application/json' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = 'icaro-store-' + Date.now() + '.json';
+                            a.click();
+                            tick('export');
+                            toast('EXPORTED ' + bank.length + ' CLIPS');
+                        };
+                        slotsEl.appendChild(ex);
                     }
                 }
                 function op(id, label, act, state) {
@@ -2366,21 +2597,33 @@
                     op('unit', 'UNIT', 'clip beat cell edge', S.unit);
                     op('move', 'MOVE', 'center plate / front lip', S.tool);
                     op('trim', 'TRIM', 'nose lip / rear lip', S.tool);
-                    op('roll', 'ROLL', 'rotate knob', S.tool);
-                    op('lift', 'LIFT', 'inside outside nub', S.tool);
-                    op('route', 'ROUTE', 'socket arrow', routes.length + ' ROUTES');
-                    op('store', 'STORE', 'send to tray', bank.length + ' STORED');
+                    op('roll', 'ROLL', 'angular rotation', S.selected ? Math.round((S.selected.rot||0) * 180 / Math.PI) + '\u00B0' : '0\u00B0');
+                    op('lift', 'LIFT', 'compositing weight', S.selected ? (S.selected.lift||0).toFixed(2) : '0.00');
+                    op('route', 'ROUTE', 'narrative link', routes.length + ' ROUTES');
+                    op('store', 'STORE', 'snapshot + recall', bank.length + ' STORED');
                     op('edl', 'EDL', 'download edit list', 'READY');
                     op('import', 'IMPORT', 'load project JSON', 'FILE');
                     op('project', 'PROJECT', 'download full state', 'JSON')
                 }
+                // Tool descriptions — what each tool MEANS in the coupled system
+                const TOOL_DESC = {
+                    MOVE:  'REPOSITION IN TIME + TRACK',
+                    TRIM:  'EXTEND / SHORTEN HOLD',
+                    ROLL:  'ANGULAR ROTATION',
+                    LIFT:  'COMPOSITING WEIGHT',
+                    SPLIT: 'CUT AT PLAYHEAD',
+                    ROUTE: 'NARRATIVE LINK',
+                    STORE: 'SNAPSHOT + RECALL'
+                };
+
                 function setTool(t) {
                     S.tool = t;
                     [...dock.querySelectorAll('button')].forEach(b => b.classList.toggle('on', b.dataset.tool === t));
                     // Toggle store panel visibility
                     const storeEl = document.getElementById('store');
                     if (storeEl) storeEl.classList.toggle('show', t === 'STORE');
-                    toast(t);
+                    // Show tool description
+                    setStatus(TOOL_DESC[t] || t);
                     drawOps();
                     if (S.selected)
                         select(S.selected, 'tool')
@@ -2412,6 +2655,7 @@
                 function cycleUnit() {
                     let i = UNITS.indexOf(S.unit);
                     S.unit = UNITS[(i + 1) % UNITS.length];
+                    tick('mode');
                     toast('UNIT ' + S.unit);
                     drawOps();
                     if (S.selected)
@@ -2419,9 +2663,64 @@
                 }
                 function setView(v) {
                     S.view = v;
+                    tick('mode');
                     toast(VIEWS[v]);
-                    drawOps()
+                    drawOps();
+                    _wakeBus();
+                    render(performance.now());
                 }
+
+                // ── CLIP UNDO STACK ──
+                // Captures clip state before drag operations.
+                // Right-click, Cmd+Z, or context menu to undo.
+                const _clipUndoMax = 30;
+                const _clipUndoStack = [];
+                let _clipUndoIndex = -1;
+
+                function pushClipUndo(clip) {
+                    if (!clip) return;
+                    const snap = {
+                        clipId: clip.id,
+                        start: clip.start, dur: clip.dur,
+                        track: clip.track, rot: clip.rot,
+                        lift: clip.lift, locked: clip.locked
+                    };
+                    _clipUndoStack.length = _clipUndoIndex + 1;
+                    _clipUndoStack.push(snap);
+                    if (_clipUndoStack.length > _clipUndoMax) _clipUndoStack.shift();
+                    _clipUndoIndex = _clipUndoStack.length - 1;
+                }
+
+                function clipUndo() {
+                    if (_clipUndoIndex < 0) { toast('NOTHING TO UNDO'); return; }
+                    const snap = _clipUndoStack[_clipUndoIndex];
+                    const c = clips.find(cl => cl.id === snap.clipId);
+                    if (c) {
+                        c.start = snap.start; c.dur = snap.dur;
+                        c.track = snap.track; c.rot = snap.rot;
+                        c.lift = snap.lift; c.locked = snap.locked;
+                        c.vStart = c.start; c.vDur = c.dur;
+                        c.vTrack = c.track; c.vLift = c.lift;
+                        select(c, 'undo');
+                    }
+                    _clipUndoIndex--;
+                    _wakeBus();
+                    toast('UNDO');
+                }
+
+                // Right-click undo on tunnel canvas
+                canvas.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    clipUndo();
+                });
+
+                // Cmd+Z / Ctrl+Z for clip undo
+                window.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        clipUndo();
+                    }
+                });
 
                 canvas.addEventListener('pointerdown', e => {
                     _wakeBus();
@@ -2447,11 +2746,13 @@
                         if (S.selected === h.clip && e.detail >= 2)
                             cycleUnit();
                         if (h.mode === 'split') {
+                            pushClipUndo(h.clip); // Snapshot before split
                             let ptr = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start + h.clip.dur / 2);
                             cutClip(h.clip, magneticSnap(ptr));
                             return;
                         }
                         select(h.clip, 'object');
+                        pushClipUndo(h.clip); // Snapshot BEFORE drag mutation
                         let ptrZ = (S.view >= 3) ? benchTime(e.clientX) : timeFromScreen(e.clientX, e.clientY, h.clip.track, h.clip.start);
                         S.drag = {
                             mode: h.mode,
@@ -2471,6 +2772,7 @@
                             axisLock: null,
                             lastSnapZ: h.clip.start
                         };
+                        tick('grab');
                         setStatus(String(h.mode).toUpperCase())
                     } else {
                         S.scrub = {
@@ -2563,9 +2865,13 @@
                             select(c, 'lane');
                             save()
                         } else if (d.mode === 'rotate') {
+                            // ROLL = angular rotation
+                            // Tube views: rotates clip around barrel axis
+                            // Bench/side views: tilts clip visually
                             c.rot = d.rot + dx * .012;
                             if (S.snap)
                                 c.rot = Math.round(c.rot / (Math.PI / 4)) * (Math.PI / 4);
+                            tick('ratchet', 0.9 + Math.abs(c.rot) * 0.3);
                             select(c, 'rot');
                             save()
                         } else if (d.mode === 'lift') {
@@ -2645,6 +2951,9 @@
                             tick('drop');
                             toast('ROUTED')
                         }
+                        // ── EMIT CLIP ARRANGEMENT TO ENGINE ──
+                        // Closes the one-way mirror: engine learns spatial order
+                        _busEmitArrangement();
                         S.drag = null
                     }
                     if (S.scrub) {
@@ -2936,6 +3245,29 @@
                 // ═══════════════════════════════════════════════════
                 const _BUSRX_ACTIVE = (window.parent !== window);
 
+                // ── SHARED: Emit full clip arrangement to engine ──
+                function _busEmitArrangement() {
+                    if (!_BUSRX_ACTIVE) return;
+                    const arrangement = clips
+                        .filter(c => c._frameIndex !== undefined)
+                        .sort((a, b) => a.vStart - b.vStart)
+                        .map(c => ({
+                            frameIndex: c._frameIndex,
+                            vStart: c.vStart,
+                            vDur: c.vDur,
+                            track: c.track,
+                            lift: c.lift || 0,
+                            rot: c.rot || 0
+                        }));
+                    window.parent.postMessage({
+                        type: 'CLIP_ARRANGE',
+                        _origin: 'tunnel',
+                        arrangement: arrangement,
+                        playOrder: arrangement.map(a => a.frameIndex)
+                    }, '*');
+                }
+
+
                 // ── TWO-TIER CACHE (LAW 7 — O(1) Memory) ──
                 // Tier 1: Raw grid data (cheap, unbounded)
                 const _busGridStore = new Map();  // index → { grid, version }
@@ -3008,6 +3340,40 @@
                 let _busFrameTotal = 0;
                 let _busCamLastFrame = -1;  // Last frame index emitted via camera sync
                 let _busCamLastEmit = 0;    // Timestamp of last camera sync emit
+                let _busActiveTrack = -1;   // -1 = all tracks, 0-3 = specific track
+
+                // ── HOLD-FRAME DERIVATION ──
+                // Replaces the old linear Math.round(S.cam / (SNAP * 2)).
+                // Walks clips to find which clip's [vStart, vStart+vDur) 
+                // contains the camera position, then returns that clip's
+                // source frame. Extending a clip = holding that frame longer.
+                function _busDeriveFrame(cam) {
+                    // Determine active track from selection
+                    const track = (S.selected && S.selected._frameIndex !== undefined)
+                        ? S.selected.track : _busActiveTrack;
+
+                    let best = -1, bestDist = Infinity;
+                    for (let i = 0; i < clips.length; i++) {
+                        const c = clips[i];
+                        if (c._frameIndex === undefined) continue;
+                        // Track filter: -1 = all tracks
+                        if (track >= 0 && c.track !== track) continue;
+                        const cStart = c.vStart;
+                        const cEnd = c.vStart + c.vDur;
+                        // Camera is inside this clip's range
+                        if (cam >= cStart && cam < cEnd) {
+                            return c._frameIndex;
+                        }
+                        // Track nearest clip for fallback
+                        const mid = (cStart + cEnd) / 2;
+                        const dist = Math.abs(cam - mid);
+                        if (dist < bestDist) { bestDist = dist; best = c._frameIndex; }
+                    }
+                    // Fallback: nearest clip, or linear
+                    if (best >= 0) return best;
+                    return Math.max(0, Math.min(_busFrameTotal - 1,
+                        Math.round(cam / (SNAP * 2))));
+                }
 
                 // Shade palette matching icaro-pro BEFLIX engine
                 const _BUS_SHADES = [
@@ -3046,6 +3412,8 @@
                     drawTracks();
                     drawOps();
                     toast(total + ' FRAMES RECEIVED');
+                    // Emit initial arrangement so engine knows spatial order
+                    _busEmitArrangement();
                 }
 
                 // ── INCREMENTAL CLIP SYNC (Non-Destructive) ──
@@ -3100,29 +3468,329 @@
                     if (total !== prevTotal) {
                         toast(total + ' FRAMES (' + (total > prevTotal ? '+' : '') + (total - prevTotal) + ')');
                     }
+                    // Emit arrangement so engine knows updated spatial order
+                    _busEmitArrangement();
                 }
 
                 // Rendering context: which clip is currently being drawn
                 let _busCurrentClip = null;
 
-                // Patch hatch() to draw frame thumbnails on clip faces
-                // THROTTLED: _busCurrentClip is only set on the NEAREST cell per clip
-                // so thumbnail drawImage+clip happens at most ONCE per clip, not 200× per clip
+                // Patch hatch() to draw frame or Secondhand Motion layer thumbnails on clip faces
                 const _origHatch = hatch;
                 hatch = function(p, kind, b) {
                     if (_busCurrentClip && _busCurrentClip._frameIndex !== undefined) {
-                        const entry = _busFrameCache.get(_busCurrentClip._frameIndex);
-                        if (entry && entry.canvas) {
+                        const thumb = window._busGetThumb ? window._busGetThumb(_busCurrentClip._frameIndex) : null;
+                        if (thumb) {
                             ctx.save();
                             ctx.clip(p);
-                            ctx.globalAlpha = 0.85;
-                            ctx.drawImage(entry.canvas, b.x, b.y, b.w, b.h);
+                            ctx.globalAlpha = 0.92;
+                            ctx.drawImage(thumb, b.x, b.y, b.w, b.h);
                             ctx.restore();
                             return;
                         }
                     }
                     _origHatch(p, kind, b);
                 };
+
+                // ══════════════════════════════════════════════════════════════════
+                // ── SECONDHAND MOTION 6-LAYER RING ENGINE (DEFAULT: SM-0004 GIRAFFE) ──
+                // ══════════════════════════════════════════════════════════════════
+                let _smLayersMode = true;
+                let _smBeflixMode = false;
+                let _smCurrentSceneId = 'SM-0004';
+                let _smActiveClip = null;
+                let _smLayerTexCache = new Map();
+
+                function _smGetAllScenes() {
+                    const out = [];
+                    const bundle = window.SECONDHAND_DOODLE_BUNDLE;
+                    if (bundle && Array.isArray(bundle.clips)) {
+                        bundle.clips.forEach(c => out.push({ id: c.id, label: `${c.id} · ${c.title} (${(c.planes || []).length} layers)`, clip: c }));
+                    }
+                    if (Array.isArray(window.WORMS_108)) {
+                        window.WORMS_108.forEach(w => {
+                            const wid = w.id || (`WORM-${String(out.length + 1).padStart(3, '0')}`);
+                            if (!out.some(x => x.id === wid)) {
+                                out.push({ id: wid, label: `${wid} · ${w.title || w.film || 'Worm Study'}`, worm: w });
+                            }
+                        });
+                    }
+                    return out;
+                }
+
+                function _smBuildClipFromWorm(w) {
+                    const nF = 24;
+                    const planes = [
+                        { id: 'fg', name: 'Foreground Subject', z: 1.4, parallaxK: 2.0, role: 'Animated', tint: '#d97706', parts: [{ id: 'body', name: 'Subject Body', stroke: '#1c1917', fill: '#faf6ee', w: 3, closed: true, frames: [] }] },
+                        { id: 'mid', name: 'Midground Action', z: 2.4, parallaxK: 1.3, role: 'Animated', tint: '#2563eb', parts: [{ id: 'mid_p', name: 'Mid Contour', stroke: '#1e3a8a', fill: '#dbeafe', w: 2.5, closed: true, frames: [] }] },
+                        { id: 'bg', name: 'Horizon Layer', z: 5.0, parallaxK: 0.6, role: 'Static', tint: '#16a34a', parts: [{ id: 'bg_p', name: 'Horizon Line', stroke: '#14532d', fill: '#dcfce7', w: 2, closed: false, frames: [] }] }
+                    ];
+                    for (let fi = 0; fi < nF; fi++) {
+                        const u = fi / Math.max(1, nF - 1);
+                        const cx = 120 + u * 280;
+                        const cy = 155 + Math.sin(u * Math.PI * 4) * 16;
+                        planes[0].parts[0].frames.push([[cx - 26, cy - 30], [cx + 26, cy - 30], [cx + 30, cy + 30], [cx - 30, cy + 30]]);
+                        const mx = 180 + Math.cos(u * Math.PI * 2) * 70;
+                        planes[1].parts[0].frames.push([[mx - 35, 180], [mx + 35, 180], [mx + 25, 225], [mx - 25, 225]]);
+                        planes[2].parts[0].frames.push([[20, 210], [180, 198], [340, 208], [500, 195]]);
+                    }
+                    return { id: w.id || 'WORM', title: w.title || 'Worm Scene', nFrames: nF, stageW: 520, stageH: 292, planes };
+                }
+
+                function _smRenderLayerThumb(plane, planeIdx, fi, clipObj) {
+                    const key = `${clipObj.id}_p${planeIdx}_f${fi}_${_smBeflixMode ? 'bfx' : 'vec'}`;
+                    if (_smLayerTexCache.has(key)) return _smLayerTexCache.get(key);
+                    const c = document.createElement('canvas');
+                    c.width = 256; c.height = 192;
+                    const x = c.getContext('2d');
+                    const stW = clipObj.stageW || 520, stH = clipObj.stageH || 292;
+
+                    if (_smBeflixMode) {
+                        const gw = 64, gh = 48;
+                        const tmp = document.createElement('canvas');
+                        tmp.width = gw; tmp.height = gh;
+                        const tx = tmp.getContext('2d');
+                        tx.fillStyle = '#FFFFFF';
+                        tx.fillRect(0, 0, gw, gh);
+                        const sx = gw / stW, sy = gh / stH;
+                        (plane.parts || []).forEach(part => {
+                            const fArr = part.frames || [];
+                            const pts = fArr[Math.min(fi, fArr.length - 1)] || fArr[0];
+                            if (!pts || pts.length < 2) return;
+                            tx.save();
+                            tx.beginPath();
+                            pts.forEach((pt, idx) => {
+                                const px = pt[0] * sx, py = pt[1] * sy;
+                                if (idx === 0) tx.moveTo(px, py); else tx.lineTo(px, py);
+                            });
+                            if (part.closed) {
+                                tx.closePath();
+                                tx.fillStyle = '#444444';
+                                tx.fill();
+                            }
+                            tx.strokeStyle = '#000000';
+                            tx.lineWidth = 1.6;
+                            tx.stroke();
+                            tx.restore();
+                        });
+                        const img = tx.getImageData(0, 0, gw, gh).data;
+                        x.fillStyle = '#FAF6EE';
+                        x.fillRect(0, 0, 256, 192);
+                        const cw = 256 / gw, ch = 192 / gh;
+                        x.strokeStyle = 'rgba(0,0,0,0.14)';
+                        x.lineWidth = 0.5;
+                        for (let gx = 0; gx <= gw; gx += 4) { x.beginPath(); x.moveTo(gx * cw, 0); x.lineTo(gx * cw, 192); x.stroke(); }
+                        for (let gy = 0; gy <= gh; gy += 4) { x.beginPath(); x.moveTo(0, gy * ch); x.lineTo(256, gy * ch); x.stroke(); }
+                        for (let gy = 0; gy < gh; gy++) {
+                            for (let gx = 0; gx < gw; gx++) {
+                                const i = (gy * gw + gx) * 4;
+                                const lum = (img[i] + img[i + 1] + img[i + 2]) / 3;
+                                const cx = (gx + 0.5) * cw, cy = (gy + 0.5) * ch;
+                                if (lum < 235) {
+                                    const rad = Math.max(0.9, (1 - lum / 255) * (cw * 0.56));
+                                    x.fillStyle = lum < 90 ? '#111111' : (plane.tint || '#c86400');
+                                    x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.fill();
+                                } else {
+                                    x.fillStyle = 'rgba(0,0,0,0.18)';
+                                    x.fillRect(cx - 0.4, cy - 0.4, 0.8, 0.8);
+                                }
+                            }
+                        }
+                    } else {
+                        x.fillStyle = '#FAF6EE';
+                        x.fillRect(0, 0, 256, 192);
+                        x.strokeStyle = 'rgba(0,0,0,0.08)';
+                        x.lineWidth = 1;
+                        for (let gx = 0; gx < 256; gx += 32) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, 192); x.stroke(); }
+                        for (let gy = 0; gy < 192; gy += 32) { x.beginPath(); x.moveTo(0, gy); x.lineTo(256, gy); x.stroke(); }
+                        const sx = 256 / stW, sy = 192 / stH;
+                        (plane.parts || []).forEach(part => {
+                            const fArr = part.frames || [];
+                            const pts = fArr[Math.min(fi, fArr.length - 1)] || fArr[0];
+                            if (!pts || pts.length < 2) return;
+                            x.save();
+                            x.beginPath();
+                            pts.forEach((pt, idx) => {
+                                const px = pt[0] * sx, py = pt[1] * sy;
+                                if (idx === 0) x.moveTo(px, py); else x.lineTo(px, py);
+                            });
+                            if (part.closed) {
+                                x.closePath();
+                                x.fillStyle = part.fill || '#FAF6EE';
+                                x.fill();
+                            }
+                            x.strokeStyle = part.stroke || plane.tint || '#111111';
+                            x.lineWidth = Math.max(2, (part.w || 2.5) * 0.95);
+                            x.lineCap = 'round';
+                            x.lineJoin = 'round';
+                            x.stroke();
+                            x.restore();
+                        });
+                    }
+
+                    // Header strip on every layer ring face
+                    x.fillStyle = plane.tint || TRACK_COLORS[planeIdx % TRACK_COLORS.length] || '#111';
+                    x.fillRect(0, 0, 256, 22);
+                    x.fillStyle = '#fff';
+                    x.font = '900 11px ui-monospace, monospace';
+                    x.textAlign = 'left';
+                    x.textBaseline = 'middle';
+                    x.fillText(`P${planeIdx + 1}: ${String(plane.name || '').slice(0, 18)} · z=${plane.z}`, 6, 11);
+
+                    if (_smLayerTexCache.size > 180) {
+                        const firstKey = _smLayerTexCache.keys().next().value;
+                        _smLayerTexCache.delete(firstKey);
+                    }
+                    _smLayerTexCache.set(key, c);
+                    return c;
+                }
+
+                function _smSeedLayerClips(clipObj) {
+                    if (!clipObj) return;
+                    _smActiveClip = clipObj;
+                    _smLayerTexCache.clear();
+                    const planes = clipObj.planes || [];
+                    const nF = Math.max(12, clipObj.nFrames || 33);
+                    clips.length = 0;
+                    nextId = 1;
+                    planes.forEach((plane, pIdx) => {
+                        const start = pIdx * SNAP * 1.5;
+                        const dur = Math.max(SNAP * 8, nF * SNAP * 0.75);
+                        const c = mk(start, dur, pIdx % 4);
+                        c.id = `P${pIdx + 1}:${String(plane.name || 'Layer').slice(0, 12)}`;
+                        c.name = c.id;
+                        c._frameIndex = 'layer_' + pIdx;
+                        c._layerIdx = pIdx;
+                        c._totalLayers = planes.length;
+                        c._planeId = plane.id;
+                        c.lift = Number(((pIdx - (planes.length - 1) / 2) * 0.22).toFixed(2));
+                        c.vLift = c.lift;
+                        clips.push(c);
+                    });
+                    S.cam = SNAP * 4;
+                    select(clips[1] || clips[0] || null, 'sm-seed');
+                    drawTracks();
+                    drawOps();
+                    _wakeBus();
+                }
+
+                function _smLoadSceneById(sceneId, notifyParent = true) {
+                    const all = _smGetAllScenes();
+                    const found = all.find(s => s.id === sceneId) || all[0];
+                    if (!found) return;
+                    _smCurrentSceneId = found.id;
+                    const selEl = document.getElementById('smSceneSelect');
+                    if (selEl && selEl.value !== found.id) selEl.value = found.id;
+                    const clipObj = found.clip || _smBuildClipFromWorm(found.worm);
+                    if (_smLayersMode) {
+                        _smSeedLayerClips(clipObj);
+                    } else {
+                        _smActiveClip = clipObj;
+                        _wakeBus();
+                    }
+                    toast(`LOADED ${found.id}`);
+                    if (notifyParent && _BUSRX_ACTIVE) {
+                        window.parent.postMessage({
+                            type: 'SCENE_SELECT',
+                            _origin: 'tunnel',
+                            sceneId: found.id
+                        }, '*');
+                    }
+                }
+
+                function _smDrawCornerLathe() {
+                    if (!_smLayersMode || !W || !H || W < 420) return;
+                    const A = area();
+                    const rBoxW = 144, rBoxH = 144;
+                    const rx = A.x + A.w - rBoxW - 10, ry = A.y + 10;
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2.5;
+                    ctx.fillRect(rx, ry, rBoxW, rBoxH);
+                    ctx.strokeRect(rx, ry, rBoxW, rBoxH);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(rx, ry, rBoxW, 18);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '900 9px ui-monospace, monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const nF = (_smActiveClip && _smActiveClip.nFrames) || 33;
+                    const fi = ((Math.floor(Math.max(0, S.cam) / (SNAP * 0.5)) % nF) + nF) % nF;
+                    ctx.fillText(`LATHE CROSS-SEC · F${String(fi + 1).padStart(2, '0')}`, rx + rBoxW / 2, ry + 9);
+
+                    const cx = rx + rBoxW / 2, cy = ry + 18 + (rBoxH - 18) / 2;
+                    const maxR = 48;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+                    ctx.lineWidth = 1;
+                    [0.4, 0.7, 1.0].forEach(fr => {
+                        ctx.beginPath(); ctx.arc(cx, cy, maxR * fr, 0, Math.PI * 2); ctx.stroke();
+                    });
+                    clips.forEach((c, idx) => {
+                        const isSel = S.selected === c;
+                        const nL = Math.max(1, c._totalLayers || clips.length || 6);
+                        const ang = angle(c);
+                        const span = (Math.PI * 2 / nL) * 0.78;
+                        const rad = clamp(maxR * (0.42 + 0.50 * ((c._layerIdx ?? idx) / Math.max(1, nL - 1)) + (c.vLift || 0) * 0.16), 12, maxR + 6);
+                        const col = TRACK_COLORS[c.track % TRACK_COLORS.length] || '#000';
+                        ctx.strokeStyle = col;
+                        ctx.lineWidth = isSel ? 5 : 3;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, rad, ang - span / 2, ang + span / 2);
+                        ctx.stroke();
+                        const lx = cx + Math.cos(ang) * rad, ly = cy + Math.sin(ang) * rad;
+                        ctx.fillStyle = isSel ? '#000' : '#fff';
+                        ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI * 2); ctx.fill();
+                        ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+                        ctx.fillStyle = isSel ? '#fff' : '#000';
+                        ctx.font = '900 7px ui-monospace, monospace';
+                        ctx.fillText(String((c._layerIdx ?? idx) + 1), lx, ly + 0.5);
+                        rendered.push({ type: 'clip', clip: c, x: lx - 8, y: ly - 8, w: 16, h: 16 });
+                    });
+                    ctx.restore();
+                }
+
+                (function initSecondhandTubeBar() {
+                    const selEl = document.getElementById('smSceneSelect');
+                    const layersBtn = document.getElementById('smLayersBtn');
+                    const beflixBtn = document.getElementById('smBeflixBtn');
+                    const all = _smGetAllScenes();
+                    if (selEl && all.length) {
+                        selEl.innerHTML = '';
+                        all.forEach(item => {
+                            const opt = document.createElement('option');
+                            opt.value = item.id;
+                            opt.textContent = item.label;
+                            selEl.appendChild(opt);
+                        });
+                        const def = all.find(x => x.id === 'SM-0004') || all[0];
+                        selEl.value = def.id;
+                        selEl.onchange = () => _smLoadSceneById(selEl.value, true);
+                        _smLoadSceneById(def.id, false);
+                    }
+                    if (layersBtn) {
+                        layersBtn.onclick = () => {
+                            _smLayersMode = !_smLayersMode;
+                            layersBtn.classList.toggle('on', _smLayersMode);
+                            layersBtn.textContent = _smLayersMode ? '6 LAYER RINGS' : 'BUS FRAMES';
+                            if (_smLayersMode && _smActiveClip) {
+                                _smSeedLayerClips(_smActiveClip);
+                            } else if (!_smLayersMode && _busFrameTotal > 0) {
+                                _busSeedFromFrames(_busFrameTotal);
+                            }
+                            _wakeBus();
+                        };
+                    }
+                    if (beflixBtn) {
+                        beflixBtn.onclick = () => {
+                            _smBeflixMode = !_smBeflixMode;
+                            beflixBtn.classList.toggle('on', _smBeflixMode);
+                            _smLayerTexCache.clear();
+                            toast(_smBeflixMode ? '★ BEFLIX 128×96 DOTS ON TUBE' : 'VECTOR DOODLE LAYERS ON TUBE');
+                            _wakeBus();
+                        };
+                    }
+                })();
 
                 // Patch into the rendering pipeline to set _busCurrentClip
                 // We intercept every .forEach call on sorted clip arrays
@@ -3131,9 +3799,13 @@
 
                 window.addEventListener('message', e => {
                     const d = e.data;
-                    if (!d || !d.type) return;
+                    // ── MESSAGE VALIDATION (Structural) ──
+                    // Reject malformed messages. Makes type-error crashes impossible.
+                    if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+                    // Reject messages from self (echo prevention at protocol level)
+                    if (d._origin === 'tunnel') return;
                     _perf.busMsg++;
-                    _wakeBus(); // Any bus message requires re-render
+                    _wakeBus(); // Any valid bus message requires re-render
 
                     if (d.type === 'FRAMES_SYNC') {
                         _busGridW = d.gridW || 128;
@@ -3161,33 +3833,46 @@
                             if (idx < d.frames.length) {
                                 setTimeout(processBatch, 0); // yield to keep UI alive
                             } else {
-                                // All thumbnails processed — reconcile clips
-                                const hasFrameMapped = clips.some(c => c._frameIndex !== undefined);
-                                if (!hasFrameMapped || clips.length === 0) {
-                                    // First time: full seed
-                                    _busSeedFromFrames(d.total);
-                                } else {
-                                    // Subsequent: incremental sync (preserves user edits)
-                                    _busSyncFromFrames(d.total);
+                                // All thumbnails processed — reconcile clips if in BUS FRAMES mode
+                                if (!_smLayersMode) {
+                                    const hasFrameMapped = clips.some(c => typeof c._frameIndex === 'number');
+                                    if (!hasFrameMapped || clips.length === 0) {
+                                        _busSeedFromFrames(d.total);
+                                    } else {
+                                        _busSyncFromFrames(d.total);
+                                    }
                                 }
                                 _wakeBus(); // trigger re-render with new thumbs
                                 // Dismiss loading overlay if engine is done
                                 if (_busRipDone) _dismissRipOverlay();
+                                // LAW 2: Navigate camera AFTER clips exist
+                                if (typeof d.cursor === 'number' && !_smLayersMode) {
+                                    const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                                    if (targetClip) {
+                                        S.cam = targetClip.vStart + targetClip.vDur / 2;
+                                    } else {
+                                        S.cam = d.cursor * SNAP * 2;
+                                    }
+                                    _busCamLastFrame = d.cursor;
+                                }
                             }
                         }
                         processBatch();
-
-                        // Navigate camera to cursor position
-                        if (typeof d.cursor === 'number') {
-                            S.cam = d.cursor * SNAP * 2;
-                            _busCamLastFrame = d.cursor; // Prevent echo back
-                        }
                     }
 
                     if (d.type === 'CURSOR_MOVE') {
-                        if (typeof d.cursor === 'number') {
-                            S.cam = d.cursor * SNAP * 2;
-                            _busCamLastFrame = d.cursor; // Prevent echo back
+                        // Don't fight the user's drag — skip cursor sync during interaction
+                        if (!S.drag && typeof d.cursor === 'number') {
+                            // LAW 2: Frame index is shared unit, position lookup is LOCAL
+                            const targetClip = clips.find(c => c._frameIndex === d.cursor);
+                            if (targetClip) {
+                                S.cam = targetClip.vStart + targetClip.vDur / 2;
+                            } else {
+                                S.cam = d.cursor * SNAP * 2;
+                            }
+                            _busCamLastFrame = d.cursor;
+                            // SYNCHRONOUS RENDER — eliminate rAF delay
+                            render(performance.now());
                         }
                     }
 
@@ -3211,9 +3896,11 @@
                         if (d.playing && !S.play) {
                             S.play = true;
                             S.playRate = 1;
+                            tick('thud');
                             statusEl.textContent = 'PLAYING';
                         } else if (!d.playing && S.play) {
                             S.play = false;
+                            tick('thud');
                             statusEl.textContent = 'IDLE';
                         }
                     }
@@ -3222,7 +3909,38 @@
                         // Harness requested view change
                         if (typeof d.view === 'number') {
                             S.view = d.view % VIEWS.length;
+                            tick('mode');
+                            _wakeBus();
+                            render(performance.now());
                         }
+                    }
+
+                    if (d.type === 'SCENE_SELECT' && d.sceneId) {
+                        _smLoadSceneById(d.sceneId, false);
+                    }
+
+                    // ── STRIP REORDER — engine reordered frames, reposition clips ──
+                    if (d.type === 'STRIP_REORDER' && Array.isArray(d.order)) {
+                        const newOrder = d.order;
+                        // Reposition clips to match engine's new order
+                        for (let pos = 0; pos < newOrder.length; pos++) {
+                            const fi = newOrder[pos];
+                            const clip = clips.find(c => c._frameIndex === fi);
+                            if (clip) {
+                                clip.start = pos * SNAP * 2;
+                                clip.vStart = clip.start;
+                                clip.vDur = SNAP * 2;
+                                clip.dur = SNAP * 2;
+                                clip.track = fi % 4;
+                                clip._userEdited = true;
+                            }
+                        }
+                        clips.sort((a, b) => a.start - b.start);
+                        drawTracks();
+                        drawOps();
+                        save();
+                        toast('STRIP REORDER');
+                        _wakeBus();
                     }
 
                     // ── LOADING OVERLAY ──
@@ -3326,25 +4044,38 @@
                 select = function(c, reason) {
                     _origSelect(c, reason);
                     if (_BUSRX_ACTIVE && c) {
-                        if (c._frameIndex !== undefined) {
+                        if (typeof c._frameIndex === 'number') {
                             window.parent.postMessage({
                                 type: 'GOTO_FRAME',
+                                _origin: 'tunnel',
                                 cursor: c._frameIndex
                             }, '*');
                         }
                         // Broadcast clip info to harness for bus strip display
                         window.parent.postMessage({
                             type: 'CLIP_SELECT',
+                            _origin: 'tunnel',
                             name: c.name || ('SC-' + String(c.id).padStart(3,'0')),
                             track: c.track,
                             start: c.start,
-                            dur: c.dur
+                            dur: c.dur,
+                            planeId: c._planeId || null
                         }, '*');
                     }
                 };
 
-                // Expose bus thumbnail lookup for rendering
+                // Expose bus + Secondhand Motion layer thumbnail lookup for rendering
                 window._busGetThumb = function(frameIndex) {
+                    if (typeof frameIndex === 'string' && frameIndex.indexOf('layer_') === 0 && _smActiveClip) {
+                        const pIdx = parseInt(frameIndex.slice(6), 10);
+                        const planes = _smActiveClip.planes || [];
+                        const plane = planes[pIdx];
+                        if (plane) {
+                            const nF = Math.max(1, _smActiveClip.nFrames || 33);
+                            const fi = ((Math.floor(Math.max(0, S.cam) / (SNAP * 0.5)) % nF) + nF) % nF;
+                            return _smRenderLayerThumb(plane, pIdx, fi, _smActiveClip);
+                        }
+                    }
                     const entry = _busFrameCache.get(frameIndex);
                     return entry ? entry.canvas : null;
                 };

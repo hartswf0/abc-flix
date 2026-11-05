@@ -21,6 +21,7 @@
             --act-a: #0033cc;
             --act-b: #c8a800;
             --act-c: #e60000;
+            --act-s: #0d9488;
             --bw: 3px;
             --sh: 3px;
             --tab-h: 60px;
@@ -266,10 +267,12 @@
             border: 2px solid #999;
             background: var(--white);
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
         }
 
         #primary-buffer {
-            image-rendering: pixelated;
+            width: 100%;
+            height: 100%;
             display: block;
             touch-action: none;
             cursor: crosshair;
@@ -1372,6 +1375,138 @@
             background: #38F27B;
             color: #081A0E;
         }
+        .isv-btn.ato-accent {
+            color: #5EEAD4;
+            border-left: 1px solid #4A4238;
+            border-right: 1px solid #4A4238;
+        }
+        .isv-btn.ato-accent[aria-pressed="true"] {
+            background: #0D9488;
+            color: #FFFFFF;
+        }
+        .tab-btn.on-s {
+            background: var(--act-s);
+            color: var(--white);
+        }
+        #ato-zone {
+            flex: 0 0 44% !important;
+            min-height: 180px !important;
+            position: relative;
+            overflow: hidden;
+            background: #f8fafc;
+            display: none;
+            border-bottom: 2px solid #000;
+        }
+        #ato-zone.active {
+            display: flex;
+        }
+        body.deck-collapsed #ato-zone {
+            flex: 1 1 0% !important;
+        }
+        #ato-zone canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #bgStage { z-index: 0; background: #fff; }
+        #stage { z-index: 1; background: transparent; cursor: crosshair; touch-action: none; }
+        #ato-top-hud {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 32;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 2px solid #000;
+            padding: 3px 6px;
+            box-shadow: 3px 3px 0 #000;
+            pointer-events: auto;
+            max-width: calc(100% - 20px);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        #ato-top-hud::-webkit-scrollbar { display: none; }
+        .ato-hud-btn {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 9.5px;
+            font-weight: 900;
+            padding: 3px 7px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #e2e8f0;
+            cursor: pointer;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        .ato-hud-btn.on {
+            background: #f8fafc;
+            color: #0f172a;
+            border-color: #fff;
+        }
+        .ato-hud-btn.beflix-on {
+            background: #38F27B;
+            color: #052e16;
+            border-color: #38F27B;
+        }
+        #ato-badge {
+            position: absolute;
+            top: 44px;
+            left: 10px;
+            z-index: 30;
+            border: 2.5px solid var(--black);
+            background: rgba(255, 255, 255, 0.94);
+            padding: 5px 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            box-shadow: 3px 3px 0 #000;
+            pointer-events: none;
+            min-width: 148px;
+        }
+        #ato-badge .big { font-size: 13px; line-height: 14px; color: #000; }
+        #ato-badge .meta { font-size: 8.5px; margin-top: 3px; color: #555; }
+        #ato-dock {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: flex;
+            border: 2px solid var(--black);
+            background: var(--white);
+            box-shadow: 3px 3px 0 #000;
+            pointer-events: auto;
+        }
+        #ato-dock button {
+            border: 0;
+            border-right: 1px solid var(--black);
+            height: 30px;
+            font-size: 10px;
+            background: transparent;
+            color: var(--black);
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 0 9px;
+        }
+        #ato-dock button:last-child { border-right: 0; }
+        #ato-dock button.on { background: var(--black); color: #fff; }
+        #ato-status {
+            position: absolute;
+            bottom: 8px;
+            right: 10px;
+            z-index: 30;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #0d9488;
+            font-size: 10px;
+            background: rgba(255,255,255,0.92);
+            padding: 3px 7px;
+            border: 1.5px solid var(--black);
+        }
         .stb-btn {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 10px;
@@ -1610,12 +1745,13 @@
                     <div id="icaro-stage-bar" role="group" aria-label="Stage View Mode">
                         <button type="button" class="isv-btn" data-icaro-sview="composite" aria-pressed="true">Composite</button>
                         <button type="button" class="isv-btn beflix-accent" data-icaro-sview="beflix" aria-pressed="false" title="128×96 Multiplane BEFLIX Dot-Matrix View">★ BEFLIX</button>
+                        <button type="button" class="isv-btn" data-icaro-sview="dots" aria-pressed="false" title="Edit directly on the 128×96 pixel dot-matrix grid">Dot Matrix (128×96)</button>
+                        <button type="button" class="isv-btn ato-accent" id="top-ato-btn" aria-pressed="false" onclick="toggleAtoZone(false)" title="Open Full-Stage 3D ATO Tube Sequencer (Barrel / Inside / Outside / Side / Bench)">◉ 3D TUBE (ATO)</button>
                         <button type="button" class="isv-btn" data-icaro-sview="xray" aria-pressed="false">Parts X-Ray</button>
                         <button type="button" class="isv-btn" data-icaro-sview="cartoon" aria-pressed="false">Cartoon</button>
                         <button type="button" class="isv-btn" data-icaro-sview="cutout" aria-pressed="false">Cutout</button>
                         <button type="button" class="isv-btn" data-icaro-sview="footage" aria-pressed="false">Footage</button>
                         <button type="button" class="isv-btn" data-icaro-sview="all4" aria-pressed="false">All 4</button>
-                        <button type="button" class="isv-btn" data-icaro-sview="dots" aria-pressed="false" title="Edit directly on the 128×96 pixel grid">Edit 128×96</button>
                     </div>
                 </div>
                 <div class="stb-group">
@@ -1669,6 +1805,46 @@
                 </div>
             </div>
 
+            <!-- ── ATO 3D TUBE STAGE ZONE (Full-Stage 3D Tunnel / Lathe Sequencer) ── -->
+            <div id="ato-zone">
+                <canvas id="bgStage"></canvas>
+                <canvas id="stage"></canvas>
+
+                <div id="ato-top-hud">
+                    <button type="button" class="ato-hud-btn on" id="ato-mode-layers" onclick="atoSetClipMode('layers')" title="Map 6 Multiplane Depth Layers onto Concentric 3D Tunnel Rings">6 LAYER RINGS</button>
+                    <button type="button" class="ato-hud-btn" id="ato-mode-frames" onclick="atoSetClipMode('frames')" title="Map Sequence Frames around the 3D Tunnel">FRAME CLIPS</button>
+                    <span style="width:1px;height:16px;background:#475569;margin:0 2px;"></span>
+                    <button type="button" class="ato-hud-btn on" data-atoview="0" onclick="atoSetView(0)">BARREL</button>
+                    <button type="button" class="ato-hud-btn" data-atoview="1" onclick="atoSetView(1)">INSIDE</button>
+                    <button type="button" class="ato-hud-btn" data-atoview="2" onclick="atoSetView(2)">OUTSIDE</button>
+                    <button type="button" class="ato-hud-btn" data-atoview="3" onclick="atoSetView(3)">SIDE</button>
+                    <button type="button" class="ato-hud-btn" data-atoview="4" onclick="atoSetView(4)">BENCH</button>
+                    <span style="width:1px;height:16px;background:#475569;margin:0 2px;"></span>
+                    <button type="button" class="ato-hud-btn" id="ato-beflix-btn" onclick="atoToggleBeflixTex()" title="Render 3D Tunnel Cards as BEFLIX 128×96 Dot Matrix">★ BEFLIX</button>
+                    <button type="button" class="ato-hud-btn" onclick="atoTogglePlay()">▶ PLAY</button>
+                    <button type="button" class="ato-hud-btn" onclick="atoResetLayerEdits()" title="Reset all layer time/trim/lift/roll edits">↺ RESET</button>
+                    <button type="button" class="ato-hud-btn" onclick="openAtoOpsSheet()" title="Open Sequence & EDL Sheet">⚙ OPS</button>
+                    <button type="button" class="ato-hud-btn" style="background:#ef4444;color:#fff;border-color:#ef4444;" onclick="toggleAtoZone(false)" title="Exit 3D Tube Stage back to Composite Stage">✕ STAGE</button>
+                </div>
+
+                <div id="ato-badge">
+                    <div class="big" id="ato-selBig">6 LAYERS</div>
+                    <div class="meta" id="ato-selMeta">TAP RING OR CARD</div>
+                </div>
+
+                <div id="ato-dock">
+                    <button data-tool="MOVE" class="on" onclick="atoSetTool('MOVE')">MOVE</button>
+                    <button data-tool="TRIM" onclick="atoSetTool('TRIM')">TRIM</button>
+                    <button data-tool="ROLL" onclick="atoSetTool('ROLL')">ROLL</button>
+                    <button data-tool="LIFT" onclick="atoSetTool('LIFT')">LIFT</button>
+                    <button data-tool="SPLIT" onclick="atoSetTool('SPLIT')">SPLIT</button>
+                    <button data-tool="ROUTE" onclick="atoSetTool('ROUTE')">ROUTE</button>
+                    <button data-tool="STORE" onclick="atoSetTool('STORE')">STORE</button>
+                </div>
+
+                <div id="ato-status">BARREL · 6 LAYERS</div>
+            </div>
+
             <!-- ── TIMELINE & BOTTOM MULTI-VIEW INSPECTOR ── -->
             <div id="timeline-zone">
                 <!-- ── BOTTOM MULTI-VIEW ANALYSIS, 3D LAYER TUNNEL & PARTS INSPECTOR ── -->
@@ -1676,7 +1852,7 @@
                     <div class="insp-bar">
                         <div class="insp-strip">
                             <div class="insp-seg" role="group" aria-label="Bottom View Lens">
-                                <button type="button" data-wmode="tunnel" aria-pressed="true">1 · Tunnel Rings</button>
+                                <button type="button" data-wmode="tunnel" aria-pressed="true">1 · Tube (ATO)</button>
                                 <button type="button" data-wmode="parallel" aria-pressed="false">2 · 3D Butter</button>
                                 <button type="button" data-wmode="lanes" aria-pressed="false">3 · 6 Planes</button>
                                 <button type="button" data-wmode="parts" aria-pressed="false">4 · Parts</button>
@@ -1692,6 +1868,7 @@
                                 <button type="button" data-tsub="barrel" aria-pressed="false">Barrel</button>
                                 <button type="button" data-tsub="inside" aria-pressed="false">Inside</button>
                                 <button type="button" data-tsub="outside" aria-pressed="false">Outside</button>
+                                <button type="button" data-tsub="side" aria-pressed="false">Side</button>
                                 <button type="button" data-tsub="bench" aria-pressed="false">Bench</button>
                             </div>
                             <div class="insp-seg" id="parallelSubSeg" role="group" aria-label="3D Butter Sub-Mode" style="display:none">
@@ -1759,6 +1936,7 @@
                 <div class="tab-badge" id="tab-c-badge" style="background:#000000;"></div>
             </button>
             <button class="tab-btn" id="tab-d" onclick="execNav('D')"><span class="tab-letter">D</span>SAVE</button>
+            <button class="tab-btn" id="tab-s" onclick="toggleAtoZone(true)"><span class="tab-letter">S</span>TUBE</button>
             <button class="tab-btn" onclick="toggleManual()" style="flex:0 0 52px;"><span
                     class="tab-letter">?</span>HELP</button>
         </nav>
@@ -2078,6 +2256,56 @@ SHF 2 1 24</textarea>
         </div>
     </div>
 
+    <!-- ── SHEET S: SEQUENCE & 3D TUBE OPS ── -->
+    <div class="sheet" id="sheet-s">
+        <div class="sheet-handle">
+            <span class="sheet-title" style="color:var(--act-s);">S · 3D TUBE (ATO) OPS</span>
+            <button class="sheet-close" onclick="closeAllSheets()">×</button>
+        </div>
+        <div class="sheet-body">
+            <div class="sh-label">SECONDHAND MOTION LAYER RINGS</div>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="atoSetClipMode('layers'); closeAllSheets()" style="background:var(--act-s);color:var(--white);font-size:10px;">6 LAYER RINGS</button>
+                <button class="sh-btn" onclick="atoSetClipMode('frames'); closeAllSheets()" style="font-size:10px;">FRAME CLIPS</button>
+            </div>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="atoToggleBeflixTex(); closeAllSheets()" style="font-size:10px;">★ TOGGLE BEFLIX DOTS</button>
+                <button class="sh-btn" onclick="atoResetLayerEdits(); closeAllSheets()" style="font-size:10px;">↺ RESET LAYER EDITS</button>
+            </div>
+            <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
+                <div class="sh-label">ATO TUNNEL OPS</div>
+                <button class="sh-btn" onclick="atoSeed(); closeAllSheets()" style="font-size:10px;">GENERATE PROCEDURAL CLIPS</button>
+                <button class="sh-btn" onclick="atoSyncFromFrames(); closeAllSheets()" style="font-size:10px;">SYNC CLIPS FROM TIMELINE</button>
+                <div class="sh-row">
+                    <button class="sh-btn" onclick="atoExportProject()" style="font-size:10px;">EXPORT PROJECT</button>
+                    <button class="sh-btn" onclick="document.getElementById('ato-import-file').click()" style="font-size:10px;">IMPORT PROJECT</button>
+                </div>
+                <div class="sh-row">
+                    <button class="sh-btn" onclick="atoExportSnapshot()" style="font-size:10px;">SNAPSHOT (PNG)</button>
+                    <button class="sh-btn" onclick="atoExportEDL()" style="font-size:10px;">EXPORT EDL</button>
+                </div>
+            </div>
+            <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
+                <div class="sh-label">3D TUBE VIEW</div>
+                <div class="sh-row">
+                    <button class="sh-btn" onclick="atoCycleView()" style="font-size:10px;">CYCLE VIEW</button>
+                    <button class="sh-btn" onclick="atoTogglePlay()" style="font-size:10px;">PLAY / STOP</button>
+                </div>
+            </div>
+            <div style="border-top:2px solid var(--black); padding-top:10px; margin-top:4px;">
+                <div class="sh-label">TRACKS</div>
+                <div class="sh-row" id="ato-track-btns">
+                    <button class="sh-btn" onclick="atoSetTrack(0)" style="font-size:10px; color:#ec4899;">P</button>
+                    <button class="sh-btn" onclick="atoSetTrack(1)" style="font-size:10px; color:#3b82f6;">L</button>
+                    <button class="sh-btn" onclick="atoSetTrack(2)" style="font-size:10px; color:#22c55e;">B</button>
+                    <button class="sh-btn" onclick="atoSetTrack(3)" style="font-size:10px; color:#f59e0b;">F</button>
+                </div>
+            </div>
+            <div id="ato-clip-info" style="font-size:10px; font-weight:900; color:#999; text-align:center; padding:8px; text-transform:uppercase;">6 LAYER RINGS</div>
+        </div>
+    </div>
+
+    <input id="ato-import-file" type="file" accept="application/json,.json" style="display:none">
     <input id="script-input" type="file" accept=".txt,.bfx" style="display:none" onchange="loadScriptFile(event)">
 
     <input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="ingestMultiMedia(event)">
@@ -2178,19 +2406,19 @@ SHF 2 1 24</textarea>
             { id: 6, hex: '#333333', rgb: [0, 0, 0, 230] },
             { id: 7, hex: '#000000', rgb: [0, 0, 0, 255] }       // max dot
         ];
-        // Pre-rendered dot stamps for fast circle rendering
+        // Pre-rendered dot stamps for fast circle rendering (bold non-linear curve so levels 1..3 are unmistakable)
         const DOT_STAMPS = [];
         function buildDotStamps() {
-            const maxR = B_SZ * 0.45;
+            const maxR = B_SZ * 0.49;
             for (let v = 0; v < 8; v++) {
                 const c = document.createElement('canvas');
                 c.width = B_SZ; c.height = B_SZ;
                 if (v > 0) {
                     const dc = c.getContext('2d');
-                    const r = maxR * (v / 7);
-                    dc.fillStyle = '#000000';
+                    const r = maxR * (0.42 + 0.58 * Math.pow(v / 7, 0.68));
+                    dc.fillStyle = (v >= 5) ? '#0e0c0a' : (v >= 3 ? '#1e1b18' : '#3a342c');
                     dc.beginPath();
-                    dc.arc(B_SZ / 2, B_SZ / 2, Math.max(0.4, r), 0, Math.PI * 2);
+                    dc.arc(B_SZ / 2, B_SZ / 2, Math.max(1.1, r), 0, Math.PI * 2);
                     dc.fill();
                 }
                 DOT_STAMPS[v] = c;
@@ -2208,6 +2436,212 @@ SHF 2 1 24</textarea>
             return 7;
         }
         let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0, patchBox: null };
+
+        // ── ATO 3D TUBE SEQUENCER STATE & SECONDHAND LAYER RING BRIDGE ──
+        const ATO_VIEWS = ['BARREL', 'INSIDE', 'OUTSIDE', 'SIDE', 'BENCH'];
+        const ATO_NAMES = ['POSSIBLE', 'PLAUSIBLE', 'PROBABLE', 'PREFERRED', 'LAYER 5', 'LAYER 6'];
+        const ATO_SHORT = ['P', 'L', 'B', 'F', 'L5', 'L6'];
+        const ATO_TRACK_COLORS = ['#c85018', '#9a6b18', '#1d5a8a', '#256b48', '#3f5878', '#5e6e82'];
+        const ATO_STYLES = [
+            { dash: [], hatch: 2, color: '#c85018' },
+            { dash: [8, 4], hatch: 1, color: '#9a6b18' },
+            { dash: [4, 4], hatch: 0, color: '#1d5a8a' },
+            { dash: [12, 4, 2, 4], hatch: 3, color: '#256b48' },
+            { dash: [6, 4], hatch: 1, color: '#3f5878' },
+            { dash: [2, 5], hatch: 0, color: '#5e6e82' }
+        ];
+        const ATO_SNAP = 60, ATO_R = 150, ATO_FAR = 7200;
+        let atoNextId = 1;
+        const atoClips = [];
+        const atoRoutes = [];
+        const _thumbCache = new Map();
+        const _layerThumbCache = new Map();
+        let _derivedClipsCache = null;
+        let _derivedClipsCacheKey = '';
+        let _tunnelPlayOrder = null;
+        let _tunnelArrangement = null;
+
+        const ATO = {
+            view: 0, tool: 'MOVE', unit: 'CLIP',
+            cam: 420, zoom: 0.52, roll: -0.25,
+            active: 0, selected: null, hover: null,
+            drag: null, scrub: null, play: false,
+            playRate: 1, inertia: 0, snap: true,
+            clipMode: 'layers', beflixTex: false
+        };
+
+        function getThumb(frameIndex) {
+            if (frameIndex < 0 || frameIndex >= state.frames.length) return null;
+            const f = state.frames[frameIndex];
+            const v = f._v || 0;
+            const cached = _thumbCache.get(frameIndex);
+            if (cached && cached.version === v) return cached.canvas;
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            renderDotFrame(f, c);
+            const tc = c.getContext('2d');
+            tc.strokeStyle = '#000'; tc.lineWidth = 3;
+            tc.strokeRect(0, 0, c.width, c.height);
+            _thumbCache.set(frameIndex, { canvas: c, version: v });
+            return c;
+        }
+
+        function getLayerSliceCanvas(planeId, fi) {
+            const insp = window.ICARO_SECONDHAND_INSPECTOR;
+            if (!insp || typeof insp.drawLayerPreviewInRect !== 'function') return getThumb(fi);
+            const worm = insp.getCurrentWorm && insp.getCurrentWorm();
+            const shotId = worm ? worm.shot_id : 'default';
+            const asBeflix = !!(ATO.beflixTex || (insp.isBeflixMode && insp.isBeflixMode()));
+            const st = insp.getPlaneTubeState ? insp.getPlaneTubeState(planeId) : null;
+            const stKey = st ? `${st.dt}:${st.trimIn}:${st.trimOut}:${st.lift}:${st.rot}` : '0';
+            const key = `${shotId}:${planeId}:${fi}:${asBeflix ? 1 : 0}:${stKey}`;
+            if (_layerThumbCache.has(key)) return _layerThumbCache.get(key);
+            if (_layerThumbCache.size > 260) _layerThumbCache.clear();
+            const c = document.createElement('canvas');
+            c.width = 128; c.height = 96;
+            const cx = c.getContext('2d');
+            insp.drawLayerPreviewInRect(cx, planeId, fi, 0, 0, 128, 96, asBeflix);
+            _layerThumbCache.set(key, c);
+            return c;
+        }
+
+        function invalidateThumb(frameIndex) {
+            if (frameIndex !== undefined) {
+                if (state.frames[frameIndex]) state.frames[frameIndex]._v = (state.frames[frameIndex]._v || 0) + 1;
+                _thumbCache.delete(frameIndex);
+            } else {
+                for (let i = 0; i < state.frames.length; i++) state.frames[i]._v = (state.frames[i]._v || 0) + 1;
+                _thumbCache.clear();
+            }
+            _layerThumbCache.clear();
+            _derivedClipsCache = null;
+        }
+        function touchAllFrames() { invalidateThumb(); }
+
+        function deriveClips() {
+            const insp = window.ICARO_SECONDHAND_INSPECTOR;
+            if (ATO.clipMode === 'layers' && insp && typeof insp.getActivePlanes === 'function') {
+                const planes = insp.getActivePlanes() || [];
+                const N = Math.max(1, insp.getFrameCount ? insp.getFrameCount() : state.frames.length);
+                if (planes.length > 0) {
+                    const clips = [];
+                    planes.forEach((p, idx) => {
+                        const st = insp.getPlaneTubeState ? insp.getPlaneTubeState(p.id) : { dt: 0, trimIn: 0, trimOut: N - 1, lift: 0, rot: 0, splitAt: null };
+                        const shortLbl = String(p.label || p.id).split('(')[0].trim().slice(0, 15);
+                        const fStart = Math.max(0, Math.min(N - 1, st.trimIn + st.dt));
+                        const fEnd = Math.max(fStart, Math.min(N - 1, st.trimOut + st.dt));
+                        const hasSplit = (st.splitAt !== null && st.splitAt > st.trimIn && st.splitAt <= st.trimOut);
+                        if (hasSplit) {
+                            const splitF = Math.max(fStart + 1, Math.min(fEnd, st.splitAt + st.dt));
+                            clips.push({
+                                id: `${shortLbl} [A]`,
+                                planeId: p.id,
+                                zDepth: p.z,
+                                layerIdx: idx,
+                                totalLayers: planes.length,
+                                frameStart: fStart,
+                                frameEnd: Math.max(fStart, splitF - 1),
+                                vStart: fStart * ATO_SNAP,
+                                vDur: Math.max(ATO_SNAP, (splitF - fStart) * ATO_SNAP - 10),
+                                vTrack: idx % 6,
+                                track: idx % 6,
+                                vLift: st.lift || 0,
+                                lift: st.lift || 0,
+                                rot: (st.rot || 0) * Math.PI / 180,
+                                isLayerRing: true,
+                                fullTube: false
+                            });
+                            clips.push({
+                                id: `${shortLbl} [B]`,
+                                planeId: p.id,
+                                zDepth: p.z,
+                                layerIdx: idx,
+                                totalLayers: planes.length,
+                                frameStart: splitF,
+                                frameEnd: fEnd,
+                                vStart: splitF * ATO_SNAP + 10,
+                                vDur: Math.max(ATO_SNAP, (fEnd - splitF + 1) * ATO_SNAP),
+                                vTrack: idx % 6,
+                                track: idx % 6,
+                                vLift: st.lift || 0,
+                                lift: st.lift || 0,
+                                rot: (st.rot || 0) * Math.PI / 180,
+                                isLayerRing: true,
+                                fullTube: false
+                            });
+                        } else {
+                            clips.push({
+                                id: `${shortLbl} z=${p.z}`,
+                                planeId: p.id,
+                                zDepth: p.z,
+                                layerIdx: idx,
+                                totalLayers: planes.length,
+                                frameStart: fStart,
+                                frameEnd: fEnd,
+                                vStart: fStart * ATO_SNAP,
+                                vDur: Math.max(ATO_SNAP, (fEnd - fStart + 1) * ATO_SNAP),
+                                vTrack: idx % 6,
+                                track: idx % 6,
+                                vLift: st.lift || 0,
+                                lift: st.lift || 0,
+                                rot: (st.rot || 0) * Math.PI / 180,
+                                isLayerRing: true,
+                                fullTube: false
+                            });
+                        }
+                    });
+                    return clips;
+                }
+            }
+            if (_tunnelArrangement && _tunnelArrangement.length > 0) {
+                const key = JSON.stringify(_tunnelPlayOrder);
+                if (_derivedClipsCache && _derivedClipsCacheKey === key) return _derivedClipsCache;
+                const clips = _tunnelArrangement.map(a => ({
+                    id: 'F' + (a.frameIndex + 1),
+                    frameStart: a.frameIndex,
+                    frameEnd: a.frameIndex,
+                    vStart: a.vStart,
+                    vDur: a.vDur,
+                    vTrack: a.track,
+                    vLift: a.lift || 0,
+                    track: a.track,
+                    rot: a.rot || 0,
+                    lift: a.lift || 0,
+                    isBoundary: false,
+                    fullTube: true
+                }));
+                _derivedClipsCache = clips;
+                _derivedClipsCacheKey = key;
+                return clips;
+            }
+            const key = state.frames.length + '';
+            if (_derivedClipsCache && _derivedClipsCacheKey === key) return _derivedClipsCache;
+            const clips = [];
+            for (let i = 0; i < state.frames.length; i++) {
+                clips.push({
+                    id: 'F' + (i + 1),
+                    frameStart: i,
+                    frameEnd: i,
+                    vStart: i * ATO_SNAP,
+                    vDur: ATO_SNAP,
+                    vTrack: i % 4,
+                    vLift: 0,
+                    track: i % 4,
+                    rot: 0,
+                    lift: 0,
+                    isBoundary: !!state.frames[i].clipBoundary,
+                    fullTube: true
+                });
+            }
+            _derivedClipsCache = clips;
+            _derivedClipsCacheKey = key;
+            return clips;
+        }
+
+        function syncCameraFromCursor() {
+            if (!state.frames.length) return;
+            ATO.cam = state.cur * ATO_SNAP;
+        }
 
         // ══════════════════════════════════════════════════
         // ██ ANTIFRAGILE ENGINE: UNDO · AUTOSAVE · GUARD
@@ -2371,6 +2805,10 @@ SHF 2 1 24</textarea>
         const inkCtx = inkBuf.getContext('2d', { willReadFrequently: true });
         const compBuf = document.createElement('canvas'); compBuf.width = W; compBuf.height = H;
         const compCtx = compBuf.getContext('2d', { willReadFrequently: true });
+        const atoCanvas = document.getElementById('stage');
+        const atoCtx = atoCanvas ? atoCanvas.getContext('2d') : null;
+        const atoBgCanvas = document.getElementById('bgStage');
+        const atoBgCtx = atoBgCanvas ? atoBgCanvas.getContext('2d', { alpha: false }) : null;
         let playRAF, lastT = 0, audioCtx = null;
 
         function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
@@ -2389,9 +2827,26 @@ SHF 2 1 24</textarea>
             injectFrame(true);
             window.addEventListener('resize', rescaleWorkspace);
             rescaleWorkspace();
+            if (typeof ResizeObserver !== 'undefined') {
+                const ro = new ResizeObserver(() => {
+                    rescaleWorkspace();
+                    if (typeof atoResize === 'function') atoResize();
+                });
+                const cz = document.getElementById('canvas-zone');
+                const az = document.getElementById('ato-zone');
+                if (cz) ro.observe(cz);
+                if (az) ro.observe(az);
+            }
+            document.querySelectorAll('[data-icaro-sview]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const atoZone = document.getElementById('ato-zone');
+                    if (atoZone && atoZone.classList.contains('active')) {
+                        toggleAtoZone(false);
+                    }
+                });
+            });
             if (window.ICARO_SECONDHAND_INSPECTOR) window.ICARO_SECONDHAND_INSPECTOR.mount();
             setTimeout(rescaleWorkspace, 60);
-            // Autosave removed (NSDK) — BEFLIX export is the save mechanism
         };
         function toggleManual() { playTick(); document.getElementById('manual-modal').classList.toggle('on'); }
 
@@ -2399,24 +2854,73 @@ SHF 2 1 24</textarea>
             const zone = document.getElementById('canvas-zone');
             const wrap = document.getElementById('canvas-wrapper');
             if (!zone || zone.clientWidth === 0) return;
-            const padding = 12;
+            const padding = 10;
             const sc = Math.min((zone.clientWidth - padding) / W, (zone.clientHeight - padding) / H);
-            cvs.style.width = (W * sc) + 'px'; cvs.style.height = (H * sc) + 'px';
-            cvs.width = W; cvs.height = H;
-            wrap.style.width = (W * sc) + 'px'; wrap.style.height = (H * sc) + 'px';
+            const cssW = Math.max(64, Math.floor(W * sc));
+            const cssH = Math.max(48, Math.floor(H * sc));
+            wrap.style.width = cssW + 'px';
+            wrap.style.height = cssH + 'px';
+            cvs.style.width = '100%';
+            cvs.style.height = '100%';
+            if (cvs.width !== W || cvs.height !== H) {
+                cvs.width = W; cvs.height = H;
+            }
             renderOutput();
+        }
+
+        function toggleAtoZone(fromLeftRail) {
+            playTick();
+            const atoZone = document.getElementById('ato-zone');
+            const icaroZone = document.getElementById('canvas-zone');
+            const topBtn = document.getElementById('top-ato-btn');
+            const tabS = document.getElementById('tab-s');
+            if (!atoZone || !icaroZone) return;
+            const isOpen = atoZone.classList.contains('active');
+            closeAllSheets();
+            if (!isOpen) {
+                atoZone.classList.add('active');
+                icaroZone.style.display = 'none';
+                if (topBtn) topBtn.setAttribute('aria-pressed', 'true');
+                if (tabS) tabS.classList.add('on-s');
+                syncCameraFromCursor();
+                if (typeof atoResize === 'function') atoResize();
+                if (typeof atoStartLoop === 'function') atoStartLoop();
+            } else {
+                atoZone.classList.remove('active');
+                icaroZone.style.display = '';
+                if (topBtn) topBtn.setAttribute('aria-pressed', 'false');
+                if (tabS) tabS.className = 'tab-btn';
+                if (typeof atoStopLoop === 'function') atoStopLoop();
+                requestAnimationFrame(rescaleWorkspace);
+            }
+            updatePlayOverlay();
+        }
+
+        function openAtoOpsSheet() {
+            playTick();
+            const sheetEl = document.getElementById('sheet-s');
+            if (sheetEl) {
+                sheetEl.classList.add('on');
+                document.getElementById('sheet-backdrop').classList.add('on');
+            }
         }
 
         // ── NAV / SHEETS ──
         function execNav(id, silent = false) {
+            if (id === 'S') {
+                toggleAtoZone(true);
+                return;
+            }
             if (!silent) playTick();
             const wasActive = state.activeNav === id;
             closeAllSheets();
             if (!wasActive) {
                 state.activeNav = id;
-                ['a', 'b', 'c', 'd'].forEach(c => document.getElementById('tab-' + c).className = 'tab-btn');
-                document.getElementById('tab-' + id.toLowerCase()).classList.add('on-' + id.toLowerCase());
-                document.getElementById('sheet-' + id.toLowerCase()).classList.add('on');
+                ['a', 'b', 'c', 'd', 's'].forEach(c => { const el = document.getElementById('tab-' + c); if (el) el.className = 'tab-btn'; });
+                const tabEl = document.getElementById('tab-' + id.toLowerCase());
+                if (tabEl) tabEl.classList.add('on-' + id.toLowerCase());
+                const sheetEl = document.getElementById('sheet-' + id.toLowerCase());
+                if (sheetEl) sheetEl.classList.add('on');
                 document.getElementById('sheet-backdrop').classList.add('on');
                 if (id === 'C') document.getElementById('draw-toolbar').classList.add('on');
             }
@@ -2425,13 +2929,16 @@ SHF 2 1 24</textarea>
         }
 
         function closeAllSheets() {
-            ['a', 'b', 'c', 'd'].forEach(id => {
+            const atoZone = document.getElementById('ato-zone');
+            const atoActive = atoZone && atoZone.classList.contains('active');
+            ['a', 'b', 'c', 'd', 's'].forEach(id => {
                 const s = document.getElementById('sheet-' + id); if (s) s.classList.remove('on');
-                const t = document.getElementById('tab-' + id); if (t) t.className = 'tab-btn';
+                const t = document.getElementById('tab-' + id);
+                if (t) t.className = (id === 's' && atoActive) ? 'tab-btn on-s' : 'tab-btn';
             });
             document.getElementById('sheet-backdrop').classList.remove('on');
             if (state.activeNav !== 'C') document.getElementById('draw-toolbar').classList.remove('on');
-                state.activeNav = null;
+            state.activeNav = null;
             updatePlayOverlay();
         }
 
@@ -3653,59 +4160,118 @@ SHF 2 1 24</textarea>
             }
         }
 
-        // Full dot-matrix renderer (used for main canvas and export, NOT thumbnails)
-        function renderDotFrame(f, targetCanvas) {
-            const tc = targetCanvas.getContext('2d');
-            // White background
-            tc.fillStyle = '#FFFFFF';
-            tc.fillRect(0, 0, W, H);
-            // Fine horizontal ruled lines
-            tc.strokeStyle = 'rgba(0,0,0,0.06)';
-            tc.lineWidth = 0.5;
-            for (let gy = 0; gy < G_ROWS; gy++) {
-                const py = gy * B_SZ + B_SZ * 0.5;
-                tc.beginPath(); tc.moveTo(0, py); tc.lineTo(W, py); tc.stroke();
-            }
-            // If frame has a source image, sample it as luminance dots
+        function extractDotGrid(f) {
+            if (!f) return new Uint8Array(G_ROWS * G_COLS);
             let srcGrid = null;
             if (f.src) {
-                const tmpSrc = document.createElement('canvas');
-                tmpSrc.width = G_COLS; tmpSrc.height = G_ROWS;
-                const tmpCtx = tmpSrc.getContext('2d');
-                tmpCtx.imageSmoothingEnabled = true;
-                tmpCtx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
-                const srcPx = tmpCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
-                srcGrid = new Uint8Array(G_ROWS * G_COLS);
-                for (let i = 0; i < G_ROWS * G_COLS; i++) {
-                    const pi = i * 4;
-                    const lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
-                    srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+                const fv = f._v || 0;
+                if (f._srcGrid && f._srcGridVersion === fv) {
+                    srcGrid = f._srcGrid;
+                } else {
+                    const tmpSrc = document.createElement('canvas');
+                    tmpSrc.width = G_COLS; tmpSrc.height = G_ROWS;
+                    const tmpCtx = tmpSrc.getContext('2d');
+                    tmpCtx.imageSmoothingEnabled = true;
+                    tmpCtx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
+                    const srcPx = tmpCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
+                    srcGrid = new Uint8Array(G_ROWS * G_COLS);
+                    for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                        const pi = i * 4;
+                        const lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
+                        srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+                    }
+                    f._srcGrid = srcGrid;
+                    f._srcGridVersion = fv;
                 }
             }
-            // Sample each grid cell from the pixel layers and stamp a dot
+            const grid = new Uint8Array(G_ROWS * G_COLS);
             for (let gy = 0; gy < G_ROWS; gy++) {
                 for (let gx = 0; gx < G_COLS; gx++) {
                     const sX = gx * B_SZ + Math.floor(B_SZ / 2);
                     const sY = gy * B_SZ + Math.floor(B_SZ / 2);
                     const sIdx = (sY * W + sX) * 4;
-                    // Hand layer takes priority, then script layer, then src
                     let val = 0;
-                    const hAlpha = f.handLayer[sIdx + 3];
+                    const hAlpha = f.handLayer ? f.handLayer[sIdx + 3] : 0;
                     if (hAlpha >= 16) {
                         val = alphaToLevel(hAlpha);
                     } else {
-                        const sAlpha = f.scriptLayer[sIdx + 3];
+                        const sAlpha = f.scriptLayer ? f.scriptLayer[sIdx + 3] : 0;
                         if (sAlpha >= 16) {
                             val = alphaToLevel(sAlpha);
                         } else if (srcGrid) {
                             val = srcGrid[gy * G_COLS + gx];
                         }
                     }
-                    if (val > 0 && DOT_STAMPS[val]) {
-                        tc.drawImage(DOT_STAMPS[val], gx * B_SZ, gy * B_SZ);
+                    grid[gy * G_COLS + gx] = val;
+                }
+            }
+            return grid;
+        }
+
+        function renderDotGrid(grid, targetCanvas) {
+            const tc = targetCanvas.getContext('2d');
+            // Warm archival paper ground
+            tc.fillStyle = '#FAF6EE';
+            tc.fillRect(0, 0, W, H);
+            // Crisp 128x96 cell grid lines
+            tc.strokeStyle = 'rgba(22, 20, 18, 0.13)';
+            tc.lineWidth = 0.5;
+            tc.beginPath();
+            for (let gx = 0; gx <= G_COLS; gx++) {
+                const px = gx * B_SZ;
+                tc.moveTo(px, 0); tc.lineTo(px, H);
+            }
+            for (let gy = 0; gy <= G_ROWS; gy++) {
+                const py = gy * B_SZ;
+                tc.moveTo(0, py); tc.lineTo(W, py);
+            }
+            tc.stroke();
+            // 8x8 block register lines
+            tc.strokeStyle = 'rgba(22, 20, 18, 0.25)';
+            tc.lineWidth = 0.75;
+            tc.beginPath();
+            for (let gx = 0; gx <= G_COLS; gx += 8) {
+                const px = gx * B_SZ;
+                tc.moveTo(px, 0); tc.lineTo(px, H);
+            }
+            for (let gy = 0; gy <= G_ROWS; gy += 8) {
+                const py = gy * B_SZ;
+                tc.moveTo(0, py); tc.lineTo(W, py);
+            }
+            tc.stroke();
+            // Center optical axis crosshairs
+            tc.strokeStyle = 'rgba(200, 80, 24, 0.28)';
+            tc.lineWidth = 1;
+            tc.beginPath();
+            tc.moveTo((G_COLS / 2) * B_SZ, 0); tc.lineTo((G_COLS / 2) * B_SZ, H);
+            tc.moveTo(0, (G_ROWS / 2) * B_SZ); tc.lineTo(W, (G_ROWS / 2) * B_SZ);
+            tc.stroke();
+            // Empty-cell center pinholes + bold dot stamps
+            tc.fillStyle = 'rgba(22, 20, 18, 0.22)';
+            for (let gy = 0; gy < G_ROWS; gy++) {
+                for (let gx = 0; gx < G_COLS; gx++) {
+                    const val = grid[gy * G_COLS + gx];
+                    if (val > 0 && DOT_STAMPS[Math.min(val, 7)]) {
+                        tc.drawImage(DOT_STAMPS[Math.min(val, 7)], gx * B_SZ, gy * B_SZ);
+                    } else {
+                        tc.fillRect(gx * B_SZ + 2, gy * B_SZ + 2, 1, 1);
                     }
                 }
             }
+        }
+
+        // Full dot-matrix renderer (used for main canvas and export, NOT thumbnails)
+        function renderDotFrame(f, targetCanvas) {
+            renderDotGrid(extractDotGrid(f), targetCanvas);
+        }
+
+        function highlightFrame(idx) {
+            const trk = document.getElementById('tl-strip');
+            if (!trk) return;
+            trk.querySelectorAll('.tl-frame').forEach(el => {
+                const j = parseInt(el.getAttribute('data-idx'));
+                el.classList.toggle('on', j === idx);
+            });
         }
 
         function renderOutput() {
@@ -5201,11 +5767,19 @@ SHF 2 1 24</textarea>
             updateStatusBar();
         };
 
+        window.icaroOnSecondhandSceneUpdated = function() {
+            invalidateThumb();
+            if (typeof atoRender === 'function' && atoLoopActive) {
+                atoRender();
+            }
+        };
+
         window.icaroSetCursorFromInspector = function(newCur) {
             if (!state.frames.length) return;
             const c = Math.max(0, Math.min(state.frames.length - 1, newCur));
             if (c !== state.cur) {
                 state.cur = c;
+                syncCameraFromCursor();
                 renderOutput();
                 highlightFrame(state.cur);
                 updateStatusBar();
@@ -5257,7 +5831,6 @@ SHF 2 1 24</textarea>
         document.addEventListener('DOMContentLoaded', () => {
             const toEl = document.getElementById('t-to');
             if (toEl) {
-                // Set initial value to match frame count
                 const observer = new MutationObserver(() => {
                     if (state.frames.length > 0) {
                         toEl.max = state.frames.length;
@@ -5266,6 +5839,1165 @@ SHF 2 1 24</textarea>
                 });
             }
         });
+
+        // ══════════════════════════════════════════════════════════════════
+        // ██ ATO: ARC-TUNNEL OPERATOR ENGINE (3D TUBE + 6 LAYER RINGS)
+        // ══════════════════════════════════════════════════════════════════
+        let atoDPR = 1, atoW = 0, atoH = 0;
+        let atoRendered = [];
+        let atoAnimFrame = null;
+        let atoLoopActive = false;
+        let currentSnapZ = null;
+        const atoBank = [];
+
+        const atoClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const atoLerp = (a, b, t) => a + (b - a) * t;
+        const atoNorm = t => ((Math.round(t) % 6) + 6) % 6;
+        function atoStep() { return ({ CLIP: 60, BEAT: 30, CELL: 15, EDGE: 5 }[ATO.unit] || ATO_SNAP); }
+        function atoQsnap(v) { return ATO.snap ? Math.round(v / atoStep()) * atoStep() : v; }
+        function atoId() { return 'SC-' + String(atoNextId++).padStart(3, '0'); }
+        function atoMk(start, dur, track) {
+            return { id: atoId(), start: atoQsnap(start), dur: Math.max(ATO_SNAP, atoQsnap(dur)), track: atoNorm(track), rot: 0, lift: 0, locked: false, vStart: start, vTrack: track, vLift: 0, vDur: dur };
+        }
+
+        function atoResize() {
+            if (!atoCanvas || !atoBgCanvas) return;
+            atoDPR = Math.min(2, devicePixelRatio || 1);
+            const zone = document.getElementById('ato-zone');
+            if (!zone || !zone.classList.contains('active')) return;
+            atoW = zone.clientWidth; atoH = zone.clientHeight;
+            if (!atoW || !atoH) return;
+            atoCanvas.width = Math.round(atoW * atoDPR); atoCanvas.height = Math.round(atoH * atoDPR);
+            atoCtx.setTransform(atoDPR, 0, 0, atoDPR, 0, 0);
+            atoBgCanvas.width = Math.round(atoW * atoDPR); atoBgCanvas.height = Math.round(atoH * atoDPR);
+            atoBgCtx.setTransform(atoDPR, 0, 0, atoDPR, 0, 0);
+            atoRender();
+        }
+        window.addEventListener('resize', atoResize);
+
+        function atoArea() {
+            return { x: 0, y: 0, w: atoW, h: atoH, cx: atoW * 0.5, cy: atoH * 0.52 };
+        }
+
+        function atoProject(x, y, z) {
+            const A = atoArea();
+            const dz = z - ATO.cam + 900;
+            if (dz < 40) return null;
+            const v = ATO.view;
+            if (v === 3) {
+                const scale = ATO.zoom * 0.34;
+                return { x: A.cx + (z - ATO.cam) * scale, y: A.cy + y * scale * 2 - x * scale * 0.5, s: scale, d: dz };
+            }
+            if (v === 4) {
+                const scale = ATO.zoom * 0.25;
+                const trackY = Math.atan2(y, x) / (Math.PI / 2);
+                return { x: A.cx + (z - ATO.cam) * scale, y: A.cy + trackY * 80, s: scale, d: dz };
+            }
+            const s = 720 / dz;
+            const drift = v === 1 ? 0 : (z - ATO.cam) * 0.052;
+            const vertShift = v === 1 ? 0 : -(z - ATO.cam) * 0.016;
+            return { x: A.cx + x * s + drift, y: A.cy + y * s + vertShift, s, d: dz };
+        }
+
+        function atoAngle(c) {
+            if (c && c.isLayerRing) {
+                const nL = Math.max(1, c.totalLayers || 6);
+                return (c.layerIdx / nL) * Math.PI * 2 - Math.PI / 2 + ATO.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0);
+            }
+            const track = c ? c.vTrack : ATO.active;
+            return track * Math.PI / 2 - Math.PI / 2 + ATO.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0);
+        }
+        function atoTrackAngle(track, nTracks = 4) {
+            return (track / Math.max(1, nTracks)) * Math.PI * 2 - Math.PI / 2 + ATO.roll;
+        }
+        function atoRadiusForClip(c) {
+            if (c && c.isLayerRing) {
+                const nL = Math.max(1, c.totalLayers || 6);
+                return ATO_R * (0.64 + 0.58 * (c.layerIdx / Math.max(1, nL - 1))) + (c.vLift || 0) * 38;
+            }
+            return ATO_R + ((c && c.vLift) || 0) * 36;
+        }
+
+        function atoTubeGeom(c) {
+            if (!c) return { cells: [], slices: [], hull: [], depth: 1e9 };
+            const rr = atoRadiusForClip(c);
+            const base = atoAngle(c);
+            const nL = (c && c.isLayerRing) ? Math.max(1, c.totalLayers || 6) : 4;
+            const halfSpan = (Math.PI / nL) * 0.84;
+            const a0 = base - halfSpan, a1 = base + halfSpan;
+            const z0 = c.vStart, z1 = c.vStart + c.vDur;
+            const zSteps = atoClamp(Math.ceil((z1 - z0) / ATO_SNAP), 2, 18);
+            const aSub = c.isLayerRing ? 4 : 6;
+            let cells = [], slices = [], hull = [], depth = 1e9;
+            for (let zi = 0; zi < zSteps; zi++) {
+                let za = atoLerp(z0, z1, zi / zSteps), zb = atoLerp(z0, z1, (zi + 1) / zSteps);
+                const fi = (typeof c.frameStart === 'number')
+                    ? Math.round(atoLerp(c.frameStart, c.frameEnd ?? c.frameStart, (zi + 0.5) / zSteps))
+                    : zi;
+                let sliceCells = [];
+                for (let ai = 0; ai < aSub; ai++) {
+                    let aa = atoLerp(a0, a1, ai / aSub), ab = atoLerp(a0, a1, (ai + 1) / aSub);
+                    let raw = [
+                        [Math.cos(aa) * rr, Math.sin(aa) * rr, za],
+                        [Math.cos(ab) * rr, Math.sin(ab) * rr, za],
+                        [Math.cos(ab) * rr, Math.sin(ab) * rr, zb],
+                        [Math.cos(aa) * rr, Math.sin(aa) * rr, zb]
+                    ];
+                    let pts = [], ok = true, cd = 1e9;
+                    for (const p of raw) {
+                        let q = atoProject(p[0], p[1], p[2]);
+                        if (!q) { ok = false; break; }
+                        pts.push(q); cd = Math.min(cd, q.d); depth = Math.min(depth, q.d);
+                    }
+                    if (ok) {
+                        const cellObj = { pts, d: cd, fi };
+                        cells.push(cellObj);
+                        sliceCells.push(cellObj);
+                    }
+                }
+                if (sliceCells.length) {
+                    slices.push({ cells: sliceCells, fi, d: sliceCells[0].d });
+                }
+            }
+            return { cells, slices, hull, depth };
+        }
+
+        function atoFullTubeGeom(c) {
+            if (!c) return { cells: [], slices: [], hull: [], depth: 1e9 };
+            const rr = ATO_R + ((c && c.vLift) || 0) * 32;
+            const z0 = c.vStart, z1 = c.vStart + c.vDur;
+            const zSteps = atoClamp(Math.ceil((z1 - z0) / ATO_SNAP), 1, 8);
+            const aSteps = 16;
+            let cells = [], hull = [], depth = 1e9;
+            for (let zi = 0; zi < zSteps; zi++) {
+                let za = atoLerp(z0, z1, zi / zSteps), zb = atoLerp(z0, z1, (zi + 1) / zSteps);
+                for (let ai = 0; ai < aSteps; ai++) {
+                    let aa = ATO.roll + (ai / aSteps) * Math.PI * 2;
+                    let ab = ATO.roll + ((ai + 1) / aSteps) * Math.PI * 2;
+                    let raw = [
+                        [Math.cos(aa) * rr, Math.sin(aa) * rr, za],
+                        [Math.cos(ab) * rr, Math.sin(ab) * rr, za],
+                        [Math.cos(ab) * rr, Math.sin(ab) * rr, zb],
+                        [Math.cos(aa) * rr, Math.sin(aa) * rr, zb]
+                    ];
+                    let pts = [], ok = true, cd = 1e9;
+                    for (const p of raw) {
+                        let q = atoProject(p[0], p[1], p[2]);
+                        if (!q) { ok = false; break; }
+                        pts.push(q); cd = Math.min(cd, q.d); depth = Math.min(depth, q.d);
+                    }
+                    if (ok) cells.push({ pts, d: cd });
+                }
+            }
+            return { cells, slices: [], hull, depth };
+        }
+
+        function drawAtoCornerLathe(clips) {
+            if (!atoW || !atoH || atoW < 360) return;
+            const rBoxW = 148, rBoxH = 148;
+            const rx = atoW - rBoxW - 10, ry = 44;
+            atoCtx.save();
+            atoCtx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+            atoCtx.strokeStyle = '#000';
+            atoCtx.lineWidth = 2.5;
+            atoCtx.fillRect(rx, ry, rBoxW, rBoxH);
+            atoCtx.strokeRect(rx, ry, rBoxW, rBoxH);
+            atoCtx.fillStyle = '#0f172a';
+            atoCtx.fillRect(rx, ry, rBoxW, 18);
+            atoCtx.fillStyle = '#fff';
+            atoCtx.font = '900 9px ui-monospace, monospace';
+            atoCtx.textAlign = 'center';
+            atoCtx.textBaseline = 'middle';
+            atoCtx.fillText(`LATHE CROSS-SEC · F${String(state.cur + 1).padStart(2, '0')}`, rx + rBoxW / 2, ry + 9);
+
+            const cx = rx + rBoxW / 2, cy = ry + 18 + (rBoxH - 18) / 2;
+            const maxR = 52;
+            atoCtx.strokeStyle = 'rgba(0,0,0,0.14)';
+            atoCtx.lineWidth = 1;
+            [0.38, 0.68, 1.0].forEach(fr => {
+                atoCtx.beginPath(); atoCtx.arc(cx, cy, maxR * fr, 0, Math.PI * 2); atoCtx.stroke();
+            });
+            clips.forEach((c, idx) => {
+                const isSel = ATO.selected && (ATO.selected === c || (c.planeId && ATO.selected.planeId === c.planeId));
+                const nL = c.isLayerRing ? Math.max(1, c.totalLayers || 6) : 4;
+                const ang = atoAngle(c);
+                const span = (Math.PI * 2 / nL) * 0.78;
+                const rad = maxR * (0.40 + 0.52 * ((c.layerIdx ?? c.track ?? idx) / Math.max(1, nL - 1)) + (c.vLift || 0) * 0.16);
+                const col = (ATO_STYLES[c.track % ATO_STYLES.length] || ATO_STYLES[0]).color;
+                atoCtx.strokeStyle = col;
+                atoCtx.lineWidth = isSel ? 5 : 3;
+                atoCtx.beginPath();
+                atoCtx.arc(cx, cy, atoClamp(rad, 12, maxR + 6), ang - span / 2, ang + span / 2);
+                atoCtx.stroke();
+                const lx = cx + Math.cos(ang) * atoClamp(rad, 12, maxR + 6);
+                const ly = cy + Math.sin(ang) * atoClamp(rad, 12, maxR + 6);
+                atoCtx.fillStyle = isSel ? '#000' : '#fff';
+                atoCtx.beginPath(); atoCtx.arc(lx, ly, 6, 0, Math.PI * 2); atoCtx.fill();
+                atoCtx.strokeStyle = col; atoCtx.lineWidth = 1.5; atoCtx.stroke();
+                atoCtx.fillStyle = isSel ? '#fff' : '#000';
+                atoCtx.font = '900 7px ui-monospace, monospace';
+                atoCtx.fillText(String((c.layerIdx ?? idx) + 1), lx, ly + 0.5);
+                atoRendered.push({ type: 'clip', clip: c, x: lx - 8, y: ly - 8, w: 16, h: 16 });
+            });
+            atoCtx.restore();
+        }
+
+        function atoRender() {
+            if (!atoW || !atoH || !atoCtx || !atoBgCtx) return;
+            atoRendered = [];
+            let gizmosToRender = [];
+
+            atoBgCtx.fillStyle = '#f8fafc'; atoBgCtx.fillRect(0, 0, atoW, atoH);
+            atoBgCtx.fillStyle = '#e2e8f0';
+            for (let i = 0; i < 24; i++) {
+                const gy = ((i * 37) % Math.max(1, atoH));
+                atoBgCtx.fillRect((i * 83) % Math.max(1, atoW), gy, 90, 1.5);
+            }
+            atoBgCtx.fillStyle = 'rgba(255,255,255,0.88)'; atoBgCtx.fillRect(0, 0, atoW, atoH);
+
+            atoBgCtx.save(); atoBgCtx.globalAlpha = 0.14; atoBgCtx.strokeStyle = '#000';
+            for (let x = 0; x < atoW; x += 40) { atoBgCtx.beginPath(); atoBgCtx.moveTo(x, 0); atoBgCtx.lineTo(x, atoH); atoBgCtx.stroke(); }
+            for (let y = 0; y < atoH; y += 40) { atoBgCtx.beginPath(); atoBgCtx.moveTo(0, y); atoBgCtx.lineTo(atoW, y); atoBgCtx.stroke(); }
+            atoBgCtx.restore();
+
+            atoCtx.clearRect(0, 0, atoW, atoH);
+
+            if (ATO.view === 0 || ATO.view === 1) drawAtoTubeView(gizmosToRender);
+            else if (ATO.view === 2) drawAtoOutside(gizmosToRender);
+            else if (ATO.view === 3) drawAtoSide(gizmosToRender);
+            else drawAtoBench(gizmosToRender);
+
+            drawAtoSnapLine();
+            drawAtoDragConstraints();
+            drawAtoRoutes();
+
+            for (const gz of gizmosToRender) {
+                atoRenderGizmos(gz.c, gz.m, gz.hw, gz.hh);
+            }
+
+            const derivedClipList = deriveClips();
+            drawAtoCornerLathe(derivedClipList);
+
+            const derivedCount = derivedClipList.length || atoClips.length;
+            if (!ATO.selected) {
+                const badge = document.getElementById('ato-selBig');
+                const meta = document.getElementById('ato-selMeta');
+                if (badge) badge.textContent = ATO.clipMode === 'layers' ? (derivedCount + ' LAYER RINGS') : (derivedCount + ' CLIPS');
+                if (meta) meta.textContent = 'TAP RING OR DRAG GIZMO';
+            }
+
+            const statusEl = document.getElementById('ato-status');
+            if (statusEl && !ATO.drag && !ATO.scrub && !ATO.hover) {
+                statusEl.textContent = ATO_VIEWS[ATO.view] + ' · ' + (ATO.clipMode === 'layers' ? '6 LAYERS' : 'FRAMES') + (ATO.beflixTex ? ' · ★ BEFLIX' : '');
+            }
+
+            const info = document.getElementById('ato-clip-info');
+            if (info) info.textContent = derivedCount + (ATO.clipMode === 'layers' ? ' LAYER RINGS' : ' CLIPS') + ' · CAM ' + Math.round(ATO.cam);
+        }
+
+        function atoTag(x, y, text, active = false, accentColor = null) {
+            let fs = 10.5, w = Math.max(48, String(text).length * 6.5 + 12), h = fs + 8;
+            x = atoClamp(x - w / 2, 4, atoW - w - 4);
+            y = atoClamp(y - h / 2, 40, atoH - h - 42);
+            atoCtx.fillStyle = active ? (accentColor || '#000') : '#fff';
+            atoCtx.strokeStyle = accentColor || '#000'; atoCtx.lineWidth = active ? 2.5 : 1.8;
+            atoCtx.beginPath(); atoCtx.rect(x, y, w, h); atoCtx.fill(); atoCtx.stroke();
+            atoCtx.fillStyle = active ? '#fff' : '#000';
+            atoCtx.font = `900 ${fs}px ui-monospace, monospace`; atoCtx.textAlign = 'center'; atoCtx.textBaseline = 'middle';
+            atoCtx.fillText(String(text), x + w / 2, y + h / 2);
+            return { x, y, w, h };
+        }
+
+        function atoHatch(p, kind, b) {
+            atoCtx.save(); atoCtx.clip(p); atoCtx.globalAlpha = 0.35;
+            atoCtx.strokeStyle = '#000'; atoCtx.lineWidth = 0.7;
+            let st = kind === 3 ? 8 : 10;
+            if (kind === 0) for (let x = b.x; x < b.x + b.w; x += st) { atoCtx.beginPath(); atoCtx.moveTo(x, b.y); atoCtx.lineTo(x, b.y + b.h); atoCtx.stroke(); }
+            else if (kind === 1) for (let y = b.y; y < b.y + b.h; y += st) { atoCtx.beginPath(); atoCtx.moveTo(b.x, y); atoCtx.lineTo(b.x + b.w, y); atoCtx.stroke(); }
+            else if (kind === 2) for (let x = b.x - b.h; x < b.x + b.w; x += st) { atoCtx.beginPath(); atoCtx.moveTo(x, b.y + b.h); atoCtx.lineTo(x + b.h, b.y); atoCtx.stroke(); }
+            else for (let x = b.x - b.h; x < b.x + b.w; x += st) { atoCtx.beginPath(); atoCtx.moveTo(x, b.y); atoCtx.lineTo(x + b.h, b.y + b.h); atoCtx.stroke(); atoCtx.beginPath(); atoCtx.moveTo(x, b.y + b.h); atoCtx.lineTo(x + b.h, b.y); atoCtx.stroke(); }
+            atoCtx.restore();
+        }
+
+        function drawAtoTubeView(gizmosToRender) {
+            const derivedClipList = deriveClips();
+            const clipSource = derivedClipList.length ? derivedClipList : atoClips;
+            const nRails = (ATO.clipMode === 'layers' && derivedClipList.length) ? derivedClipList.length : 4;
+
+            atoCtx.save();
+            for (let t = 0; t < nRails; t++) {
+                const a = atoTrackAngle(t, nRails);
+                const style = ATO_STYLES[t % ATO_STYLES.length];
+                atoCtx.setLineDash(style.dash);
+                atoCtx.lineWidth = (t === ATO.active ? 2.6 : 1.2);
+                atoCtx.strokeStyle = style.color || '#000';
+                atoCtx.globalAlpha = t === ATO.active ? 0.85 : 0.28;
+                atoCtx.beginPath();
+                for (let i = 0; i <= 40; i++) {
+                    const z = ATO.cam - 900 + i * (ATO_FAR / 40);
+                    const q = atoProject(Math.cos(a) * ATO_R, Math.sin(a) * ATO_R, z);
+                    if (q) i ? atoCtx.lineTo(q.x, q.y) : atoCtx.moveTo(q.x, q.y);
+                }
+                atoCtx.stroke();
+            }
+            atoCtx.restore();
+
+            // Concentric depth ring markers along Z
+            atoCtx.save(); atoCtx.strokeStyle = '#000'; atoCtx.globalAlpha = 0.22;
+            for (let z = atoQsnap(ATO.cam - 900); z < ATO.cam + ATO_FAR; z += ATO_SNAP * 2) {
+                let q = atoProject(0, 0, z);
+                if (q && q.s > 0.04) {
+                    atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * q.s, 0, Math.PI * 2); atoCtx.stroke();
+                    if (ATO.clipMode === 'layers') {
+                        atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * 0.68 * q.s, 0, Math.PI * 2); atoCtx.stroke();
+                        atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * 1.18 * q.s, 0, Math.PI * 2); atoCtx.stroke();
+                    }
+                }
+            }
+            atoCtx.restore();
+
+            // Playhead ring
+            let pRing = atoProject(0, 0, ATO.cam);
+            if (pRing) {
+                atoCtx.save(); atoCtx.strokeStyle = '#ef4444'; atoCtx.lineWidth = 3.5;
+                atoCtx.beginPath(); atoCtx.arc(pRing.x, pRing.y, ATO_R * pRing.s, 0, Math.PI * 2); atoCtx.stroke();
+                atoCtx.restore();
+            }
+
+            const withGeom = clipSource.map(c => ({
+                c, g: c.fullTube ? atoFullTubeGeom(c) : atoTubeGeom(c)
+            }));
+            withGeom.sort((a, b) => b.g.depth - a.g.depth);
+
+            for (const { c, g } of withGeom) {
+                const isSel = ATO.selected && (ATO.selected === c || (c.planeId && ATO.selected.planeId === c.planeId));
+                const isHov = ATO.hover && ATO.hover.clip === c;
+                const style = ATO_STYLES[(c.track || 0) % ATO_STYLES.length] || ATO_STYLES[0];
+                if (!g.cells.length) continue;
+
+                if (c.isLayerRing && g.slices && g.slices.length) {
+                    // Render sampled layer slices along the curved 3D sector!
+                    for (let si = 0; si < g.slices.length; si++) {
+                        const sl = g.slices[si];
+                        const tex = getLayerSliceCanvas(c.planeId, sl.fi);
+                        let sxArr = [], syArr = [];
+                        atoCtx.save();
+                        atoCtx.beginPath();
+                        for (const cell of sl.cells) {
+                            atoCtx.moveTo(cell.pts[0].x, cell.pts[0].y);
+                            for (let i = 1; i < cell.pts.length; i++) atoCtx.lineTo(cell.pts[i].x, cell.pts[i].y);
+                            atoCtx.closePath();
+                            for (const pt of cell.pts) { sxArr.push(pt.x); syArr.push(pt.y); }
+                        }
+                        const bx = Math.min(...sxArr), by = Math.min(...syArr);
+                        const bw = Math.max(...sxArr) - bx, bh = Math.max(...syArr) - by;
+                        atoCtx.clip();
+                        if (tex && bw > 6 && bh > 6) {
+                            atoCtx.globalAlpha = isSel ? 0.98 : (isHov ? 0.92 : 0.86);
+                            atoCtx.drawImage(tex, bx, by, bw, bh);
+                        } else {
+                            atoCtx.fillStyle = '#faf6ee';
+                            atoCtx.fillRect(bx, by, bw, bh);
+                        }
+                        atoCtx.restore();
+                        if (bw > 8 && bh > 8) {
+                            atoRendered.push({ type: 'clip', clip: c, x: bx, y: by, w: bw, h: bh });
+                        }
+                    }
+                } else {
+                    const hasFrameData = typeof c.frameStart === 'number' && c.frameStart < state.frames.length;
+                    let thumbCanvas = hasFrameData ? getThumb(c.frameStart) : null;
+                    if (thumbCanvas) {
+                        atoCtx.save(); atoCtx.beginPath();
+                        for (const cell of g.cells) {
+                            atoCtx.moveTo(cell.pts[0].x, cell.pts[0].y);
+                            for (let i = 1; i < cell.pts.length; i++) atoCtx.lineTo(cell.pts[i].x, cell.pts[i].y);
+                            atoCtx.closePath();
+                        }
+                        atoCtx.clip();
+                        let allX = [], allY = [];
+                        for (const cell of g.cells) for (const pt of cell.pts) { allX.push(pt.x); allY.push(pt.y); }
+                        const bx = Math.min(...allX), by = Math.min(...allY);
+                        const bw = Math.max(...allX) - bx, bh = Math.max(...allY) - by;
+                        if (bw > 4 && bh > 4) {
+                            atoCtx.globalAlpha = isSel ? 1.0 : (isHov ? 0.98 : 0.94);
+                            atoCtx.drawImage(thumbCanvas, bx, by, bw, bh);
+                        }
+                        atoCtx.restore();
+                    }
+                }
+
+                // Wireframe
+                atoCtx.globalAlpha = 1;
+                atoCtx.setLineDash(isSel ? [] : style.dash);
+                atoCtx.strokeStyle = isSel ? style.color : (c.isLayerRing ? style.color : '#000');
+                atoCtx.lineWidth = isSel ? 3 : (c.isLayerRing ? 1.3 : 0.7);
+                for (const cell of g.cells) {
+                    atoCtx.beginPath(); atoCtx.moveTo(cell.pts[0].x, cell.pts[0].y);
+                    for (let i = 1; i < cell.pts.length; i++) atoCtx.lineTo(cell.pts[i].x, cell.pts[i].y);
+                    atoCtx.closePath(); atoCtx.stroke();
+                }
+                atoCtx.setLineDash([]);
+
+                const mZ = c.isLayerRing ? atoClamp(ATO.cam, c.vStart + ATO_SNAP * 0.5, c.vStart + c.vDur - ATO_SNAP * 0.5) : (c.vStart + c.vDur * 0.5);
+                const a = atoAngle(c);
+                const rr = atoRadiusForClip(c);
+                const m = atoProject(Math.cos(a) * rr, Math.sin(a) * rr, mZ);
+                if (m) {
+                    const labelText = c.id;
+                    if (c.isLayerRing || isSel || isHov || m.s > 0.3) {
+                        const tb = atoTag(m.x, m.y, labelText, isSel, style.color);
+                        atoRendered.push({ type: 'clip', clip: c, x: tb.x, y: tb.y, w: tb.w, h: tb.h });
+                    }
+                    if (isSel) {
+                        gizmosToRender.push({ c, m: { x: m.x, y: m.y }, hw: 52, hh: 30 });
+                    }
+                }
+            }
+        }
+
+        function atoOutsideP() {
+            let m = atoW < 900;
+            return {
+                cx0: m ? 88 : 165, cy0: atoH * 0.55,
+                cx1: atoW - (m ? 60 : 175), cy1: atoH * 0.44,
+                rx0: m ? 54 : 96, ry0: m ? 112 : 185,
+                rx1: m ? 20 : 38, ry1: m ? 54 : 96,
+                front: -120, span: Math.max(1800, state.frames.length * ATO_SNAP + 360)
+            };
+        }
+        function atoOC(s, P) { return { x: atoLerp(P.cx0, P.cx1, s), y: atoLerp(P.cy0, P.cy1, s) }; }
+        function atoORad(s, P, rScale = 1) { return { rx: atoLerp(P.rx0, P.rx1, s) * rScale, ry: atoLerp(P.ry0, P.ry1, s) * rScale }; }
+        function atoOPoint(s, a, P, rScale = 1) { let c = atoOC(s, P), r = atoORad(s, P, rScale); return { x: c.x + Math.cos(a) * r.rx, y: c.y + Math.sin(a) * r.ry }; }
+        function atoOS(z, P) { return atoClamp((z - P.front) / P.span, 0, 1); }
+
+        function drawAtoOutside(gizmosToRender) {
+            let P = atoOutsideP();
+            atoCtx.strokeStyle = '#000';
+            for (let i = 0; i <= 16; i++) {
+                let c = atoOC(i / 16, P), r = atoORad(i / 16, P);
+                atoCtx.lineWidth = i === 0 ? 2.5 : 1; atoCtx.globalAlpha = 0.25;
+                atoCtx.beginPath(); atoCtx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2); atoCtx.stroke();
+            }
+            atoCtx.globalAlpha = 1;
+
+            const derivedClipList = deriveClips();
+            const clipSource = derivedClipList.length ? derivedClipList : atoClips;
+            let arr = [];
+            for (const c of clipSource) {
+                let s0 = atoOS(c.vStart, P), s1 = atoOS(c.vStart + c.vDur, P);
+                if (s1 <= 0 || s0 >= 1) continue;
+                arr.push({ c, s0: atoClamp(s0, 0, 0.995), s1: atoClamp(Math.max(s1, s0 + 0.02), 0, 0.995), m: (s0 + s1) / 2 });
+            }
+            arr.sort((a, b) => b.m - a.m).forEach(o => {
+                let c = o.c;
+                let sel = ATO.selected && (ATO.selected === c || (c.planeId && ATO.selected.planeId === c.planeId));
+                let hov = ATO.hover && ATO.hover.clip === c;
+                let nL = c.isLayerRing ? Math.max(1, c.totalLayers || 6) : 4;
+                let halfSpan = (Math.PI / nL) * 0.82;
+                let a0 = atoAngle(c) - halfSpan, a1 = atoAngle(c) + halfSpan;
+                let rScale = c.isLayerRing ? (0.72 + 0.45 * (c.layerIdx / Math.max(1, nL - 1)) + (c.vLift || 0) * 0.18) : (1 + (c.vLift || 0) * 0.2);
+                let pts = [], s0 = o.s0, s1 = o.s1;
+                for (let i = 0; i <= 12; i++) pts.push(atoOPoint(atoLerp(s0, s1, i / 12), a0, P, rScale));
+                for (let j = 1; j <= 5; j++) pts.push(atoOPoint(s1, atoLerp(a0, a1, j / 5), P, rScale));
+                for (let i = 11; i >= 0; i--) pts.push(atoOPoint(atoLerp(s0, s1, i / 12), a1, P, rScale));
+                for (let j = 4; j > 0; j--) pts.push(atoOPoint(s0, atoLerp(a0, a1, j / 5), P, rScale));
+
+                let pp = new Path2D(); pp.moveTo(pts[0].x, pts[0].y);
+                for (let i = 1; i < pts.length; i++) pp.lineTo(pts[i].x, pts[i].y); pp.closePath();
+                let bx = pts.map(p => p.x), by = pts.map(p => p.y);
+                let bb = { x: Math.min(...bx), y: Math.min(...by), w: Math.max(...bx) - Math.min(...bx), h: Math.max(...by) - Math.min(...by) };
+                let style = ATO_STYLES[(c.track || 0) % ATO_STYLES.length] || ATO_STYLES[0];
+
+                const tex = c.isLayerRing ? getLayerSliceCanvas(c.planeId, state.cur) : getThumb(c.frameStart || 0);
+                atoCtx.save();
+                atoCtx.clip(pp);
+                if (tex && bb.w > 8 && bb.h > 8) {
+                    atoCtx.globalAlpha = sel ? 0.96 : 0.82;
+                    atoCtx.drawImage(tex, bb.x, bb.y, bb.w, bb.h);
+                } else {
+                    atoCtx.fillStyle = '#fff'; atoCtx.fill(pp);
+                }
+                atoCtx.restore();
+
+                atoCtx.setLineDash(sel ? [] : style.dash);
+                atoCtx.lineWidth = sel ? 3.5 : 2; atoCtx.strokeStyle = style.color || '#000'; atoCtx.stroke(pp);
+                atoCtx.setLineDash([]);
+                let mp = atoOPoint((s0 + s1) / 2, (a0 + a1) / 2, P, rScale);
+                atoTag(mp.x, mp.y, c.id, sel, style.color);
+                if (sel) gizmosToRender.push({ c, m: mp, hw: 54, hh: 34 });
+                atoRendered.push({ type: 'clip', clip: c, pts });
+            });
+
+            let s = atoOS(ATO.cam, P), cc = atoOC(s, P), rr = atoORad(s, P);
+            atoCtx.lineWidth = 3.5; atoCtx.strokeStyle = '#ef4444';
+            atoCtx.beginPath(); atoCtx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2); atoCtx.stroke();
+        }
+
+        function drawAtoSide(gizmosToRender) {
+            // True Orthographic Side Cross-Section (X = Time Z, Y = Radial Depth / Layer Lift)
+            drawAtoBench(gizmosToRender, true);
+            atoCtx.save(); atoCtx.lineWidth = 2.5; atoCtx.setLineDash([6, 5]); atoCtx.strokeStyle = '#0f172a';
+            atoCtx.strokeRect(14, 40, atoW - 180, atoH - 84); atoCtx.restore();
+        }
+
+        function atoBenchX(z) {
+            const totalZ = Math.max(600, state.frames.length * ATO_SNAP);
+            const leftPad = 128, rightPad = 175;
+            const availW = Math.max(160, atoW - leftPad - rightPad);
+            if (ATO.clipMode === 'layers') {
+                return leftPad + (z / totalZ) * availW;
+            }
+            const A = atoArea(); return A.w * 0.5 + (z - ATO.cam) * ATO.zoom;
+        }
+        function atoBenchTime(x) {
+            const totalZ = Math.max(600, state.frames.length * ATO_SNAP);
+            const leftPad = 128, rightPad = 175;
+            const availW = Math.max(160, atoW - leftPad - rightPad);
+            if (ATO.clipMode === 'layers') {
+                return ((x - leftPad) / availW) * totalZ;
+            }
+            const A = atoArea(); return ATO.cam + (x - A.w * 0.5) / ATO.zoom;
+        }
+        function atoLaneCount() {
+            const clips = deriveClips();
+            if (ATO.clipMode === 'layers' && clips.length) return Math.max(4, clips[0].totalLayers || clips.length);
+            return 4;
+        }
+        function atoLaneY(t) {
+            const nL = atoLaneCount();
+            const topPad = 52, botPad = 52;
+            return topPad + ((atoH - topPad - botPad) * (t + 0.5)) / nL;
+        }
+        function atoLaneH() {
+            const nL = atoLaneCount();
+            const topPad = 52, botPad = 52;
+            return atoClamp(((atoH - topPad - botPad) / nL) * 0.72, 24, 64);
+        }
+
+        function drawAtoBench(gizmosToRender, isSideElev = false) {
+            const derivedClipList = deriveClips();
+            const clipSource = derivedClipList.length ? derivedClipList : atoClips;
+            const nL = atoLaneCount();
+
+            for (let t = 0; t < nL; t++) {
+                let y = atoLaneY(t), h = atoLaneH();
+                const style = ATO_STYLES[t % ATO_STYLES.length];
+                atoCtx.strokeStyle = style.color || '#000';
+                atoCtx.setLineDash(style.dash);
+                atoCtx.lineWidth = t === ATO.active ? 2.5 : 1.2;
+                atoCtx.beginPath(); atoCtx.moveTo(16, y); atoCtx.lineTo(atoW - 170, y); atoCtx.stroke();
+                atoCtx.setLineDash([]);
+                const layerClip = clipSource.find(c => (c.layerIdx ?? c.track) === t);
+                const lbl = layerClip ? layerClip.id : (ATO_NAMES[t] || ('TRACK ' + (t + 1)));
+                atoCtx.fillStyle = style.color || '#000';
+                atoCtx.font = '900 10px ui-monospace, monospace';
+                atoCtx.textAlign = 'left'; atoCtx.textBaseline = 'middle';
+                atoCtx.fillText(lbl, 20, y);
+            }
+
+            for (const c of clipSource) {
+                let x0 = atoBenchX(c.vStart), x1 = atoBenchX(c.vStart + c.vDur);
+                let w = Math.max(12, x1 - x0);
+                let laneIdx = c.layerIdx ?? c.vTrack ?? c.track ?? 0;
+                let y = atoLaneY(laneIdx) - (isSideElev ? (c.vLift || 0) * 18 : 0);
+                let h = atoLaneH();
+                let top = y - h / 2;
+                let sel = ATO.selected && (ATO.selected === c || (c.planeId && ATO.selected.planeId === c.planeId));
+                let hov = ATO.hover && ATO.hover.clip === c;
+                let style = ATO_STYLES[laneIdx % ATO_STYLES.length] || ATO_STYLES[0];
+
+                let p = new Path2D(); p.rect(x0, top, w, h);
+                atoCtx.save();
+                atoCtx.fillStyle = '#faf6ee';
+                atoCtx.fill(p);
+                atoCtx.clip(p);
+
+                if (c.isLayerRing) {
+                    const nThumbs = atoClamp(Math.floor(w / (h * 1.25)), 1, 8);
+                    const tw = w / nThumbs;
+                    for (let ti = 0; ti < nThumbs; ti++) {
+                        const sFi = Math.round(atoLerp(c.frameStart, c.frameEnd, (ti + 0.5) / nThumbs));
+                        const tex = getLayerSliceCanvas(c.planeId, sFi);
+                        if (tex) {
+                            atoCtx.drawImage(tex, x0 + ti * tw, top, tw - 1, h);
+                        }
+                    }
+                } else if (typeof c.frameStart === 'number' && c.frameStart < state.frames.length) {
+                    let thumb = getThumb(c.frameStart);
+                    if (thumb) atoCtx.drawImage(thumb, x0, top, w, h);
+                }
+                atoCtx.restore();
+
+                atoCtx.setLineDash(sel ? [] : style.dash);
+                atoCtx.lineWidth = sel ? 3.5 : 2;
+                atoCtx.strokeStyle = style.color || '#000';
+                atoCtx.stroke(p);
+                atoCtx.setLineDash([]);
+
+                atoRendered.push({ type: 'bench', clip: c, x0, x1: x0 + w, y, top, h });
+
+                if (sel) {
+                    let mx = x0 + w * 0.5, hw = atoClamp(w * 0.45, 34, 140), hh = atoClamp(h * 0.5, 16, 32);
+                    gizmosToRender.push({ c, m: { x: mx, y }, hw, hh });
+                }
+            }
+
+            let ax = atoBenchX(ATO.cam);
+            atoCtx.lineWidth = 2.5; atoCtx.strokeStyle = '#ef4444';
+            atoCtx.beginPath(); atoCtx.moveTo(ax, 42); atoCtx.lineTo(ax, atoH - 42); atoCtx.stroke();
+            atoCtx.fillStyle = '#ef4444'; atoCtx.fillRect(ax - 32, 42, 64, 18);
+            atoCtx.fillStyle = '#fff'; atoCtx.font = '900 10px ui-monospace, monospace';
+            atoCtx.textAlign = 'center'; atoCtx.textBaseline = 'middle';
+            atoCtx.fillText('F' + String(state.cur + 1).padStart(2, '0'), ax, 51);
+            atoRendered.push({ type: 'lathe', x: ax - 32, y: 42, w: 64, h: atoH - 84 });
+        }
+
+        function drawAtoRoutes() {
+            if (!atoRoutes.length) return;
+            const clips = deriveClips();
+            atoCtx.save(); atoCtx.lineWidth = 2; atoCtx.setLineDash([8, 5]); atoCtx.strokeStyle = '#000';
+            for (const r of atoRoutes) {
+                let a = clips.find(c => c.id === r.from), b = clips.find(c => c.id === r.to);
+                if (!a || !b) continue;
+                if (ATO.view >= 3) {
+                    let xa = atoBenchX(a.vStart + a.vDur / 2), ya = atoLaneY(a.track || 0);
+                    let xb = atoBenchX(b.vStart + b.vDur / 2), yb = atoLaneY(b.track || 0);
+                    atoCtx.beginPath(); atoCtx.moveTo(xa, ya); atoCtx.lineTo(xb, yb); atoCtx.stroke();
+                    atoTag((xa + xb) / 2, (ya + yb) / 2, r.type || 'ROUTE');
+                }
+            }
+            atoCtx.restore();
+        }
+
+        function drawAtoSnapLine() {
+            if (!ATO.drag || currentSnapZ === null || !ATO.snap) return;
+            atoCtx.save(); atoCtx.strokeStyle = '#22c55e'; atoCtx.lineWidth = 3; atoCtx.setLineDash([8, 8]);
+            if (ATO.view >= 3) {
+                let x = atoBenchX(currentSnapZ);
+                atoCtx.beginPath(); atoCtx.moveTo(x, 40); atoCtx.lineTo(x, atoH - 40); atoCtx.stroke();
+            } else {
+                let q = atoProject(0, 0, currentSnapZ);
+                if (q) { atoCtx.beginPath(); atoCtx.arc(q.x, q.y, Math.max(1, ATO_R * q.s), 0, Math.PI * 2); atoCtx.stroke(); }
+            }
+            atoCtx.restore();
+        }
+
+        function drawAtoDragConstraints() {
+            if (!ATO.drag || !ATO.drag.clip || !ATO.drag.axisLock) return;
+            atoCtx.save(); atoCtx.lineWidth = 3; atoCtx.strokeStyle = '#3b82f6'; atoCtx.globalAlpha = 0.75;
+            let c = ATO.drag.clip;
+            if (ATO.drag.axisLock === 'time' && ATO.view >= 3) {
+                let y = atoLaneY(c.layerIdx ?? c.track ?? 0);
+                atoCtx.beginPath(); atoCtx.moveTo(16, y); atoCtx.lineTo(atoW - 170, y); atoCtx.stroke();
+            }
+            atoCtx.restore();
+        }
+
+        function atoLoop() {
+            if (!atoLoopActive) return;
+            if (ATO.play) {
+                const maxZ = Math.max(ATO_SNAP, (state.frames.length - 1) * ATO_SNAP);
+                ATO.cam += ATO.playRate * 3;
+                if (ATO.cam > maxZ) ATO.cam = 0;
+                if (ATO.cam < 0) ATO.cam = maxZ;
+                syncCursorFromATO();
+            }
+            if (ATO.inertia && Math.abs(ATO.inertia) > 0.5) {
+                ATO.cam += ATO.inertia;
+                ATO.inertia *= 0.92;
+                syncCursorFromATO();
+            } else ATO.inertia = 0;
+            atoRender();
+            atoAnimFrame = requestAnimationFrame(atoLoop);
+        }
+        function atoStartLoop() { atoLoopActive = true; atoResize(); if (!atoAnimFrame) atoLoop(); }
+        function atoStopLoop() { atoLoopActive = false; if (atoAnimFrame) { cancelAnimationFrame(atoAnimFrame); atoAnimFrame = null; } }
+
+        function syncCursorFromATO() {
+            if (!state.frames.length) return;
+            const targetFrame = atoClamp(Math.round(ATO.cam / ATO_SNAP), 0, state.frames.length - 1);
+            if (targetFrame !== state.cur) {
+                state.cur = targetFrame;
+                renderOutput();
+                highlightFrame(state.cur);
+                updateStatusBar();
+            }
+        }
+
+        function atoFmt(z) {
+            let u = Math.max(0, Math.round((Number.isFinite(z) ? z : 0) / ATO_SNAP));
+            return String(Math.floor(u / 60)).padStart(2, '0') + ':' + String(u % 60).padStart(2, '0');
+        }
+
+        function atoMagneticSnap(v, tr = -1, ignoreId = null, dur = 0) {
+            currentSnapZ = null;
+            let z = atoQsnap(v);
+            if (!ATO.snap) return z;
+            const clips = deriveClips();
+            let bd = Math.abs(v - z), thresh = Math.max(atoStep() * 1.5, ATO_SNAP);
+            for (const c of clips) {
+                if (c.id === ignoreId || (tr !== -1 && c.track !== tr)) continue;
+                let targets = [c.vStart, c.vStart + c.vDur];
+                if (dur > 0) targets.push(c.vStart - dur, c.vStart + c.vDur - dur);
+                for (let t of targets) {
+                    if (Math.abs(v - t) < bd && Math.abs(v - t) <= thresh) {
+                        bd = Math.abs(v - t); z = t;
+                        currentSnapZ = t + (t < v ? dur : 0);
+                    }
+                }
+            }
+            return z;
+        }
+
+        function atoHitPoly(pt, pts) {
+            let h = false;
+            for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                let xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+                if (((yi > pt.y) != (yj > pt.y)) && pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || 1e-6) + xi) h = !h;
+            }
+            return h;
+        }
+
+        function atoHit(x, y) {
+            for (let i = atoRendered.length - 1; i >= 0; i--) {
+                let r = atoRendered[i];
+                if (r.type === 'lathe' && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)
+                    return { mode: 'lathe', clip: null };
+                if (r.clip && r.r && Math.hypot(x - r.x, y - r.y) < r.r + 10)
+                    return { clip: r.clip, mode: r.type };
+                if (r.clip && r.w && r.type !== 'clip' && x >= r.x - 6 && x <= r.x + r.w + 6 && y >= r.y - 6 && y <= r.y + r.h + 6)
+                    return { clip: r.clip, mode: r.type };
+                if ((r.type === 'bench' || r.type === 'clip') && r.clip) {
+                    let hitBody = false;
+                    if (r.type === 'bench') hitBody = (x >= r.x0 && x <= r.x1 && y >= r.top && y <= r.top + r.h);
+                    else if (r.pts) hitBody = atoHitPoly({ x, y }, r.pts);
+                    else if (r.w) hitBody = (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+                    if (hitBody) {
+                        let mode = 'move';
+                        if (ATO.tool === 'TRIM') {
+                            let cTime = r.clip.vStart + r.clip.vDur / 2;
+                            mode = (ATO.view >= 3 ? atoBenchTime(x) : ATO.cam) < cTime ? 'start' : 'end';
+                        } else if (ATO.tool === 'ROLL') mode = 'rotate';
+                        else if (ATO.tool === 'LIFT') mode = 'lift';
+                        else if (ATO.tool === 'ROUTE') mode = 'route';
+                        else if (ATO.tool === 'SPLIT') mode = 'split';
+                        else if (ATO.tool === 'STORE') mode = 'store';
+                        return { clip: r.clip, mode };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function atoHandle(x, y, r, type, c, label, isHov) {
+            atoCtx.beginPath(); atoCtx.arc(x, y, r, 0, Math.PI * 2);
+            atoCtx.fillStyle = isHov ? '#fef08a' : '#fff'; atoCtx.fill();
+            atoCtx.lineWidth = isHov ? 3.5 : 2.5; atoCtx.strokeStyle = '#000'; atoCtx.stroke();
+            atoCtx.fillStyle = '#000'; atoCtx.font = '900 9.5px ui-monospace, monospace';
+            atoCtx.textAlign = 'center'; atoCtx.textBaseline = 'middle';
+            atoCtx.fillText(label, x, y);
+            atoRendered.push({ type, clip: c, x, y, r });
+        }
+        function atoSquare(x, y, w, h, type, c, label, isHov) {
+            atoCtx.fillStyle = isHov ? '#fef08a' : '#fff';
+            atoCtx.fillRect(x - w / 2, y - h / 2, w, h);
+            atoCtx.lineWidth = isHov ? 3.5 : 2.5; atoCtx.strokeStyle = '#000';
+            atoCtx.strokeRect(x - w / 2, y - h / 2, w, h);
+            atoCtx.fillStyle = '#000'; atoCtx.font = '900 9.5px ui-monospace, monospace';
+            atoCtx.textAlign = 'center'; atoCtx.textBaseline = 'middle';
+            atoCtx.fillText(label, x, y);
+            atoRendered.push({ type, clip: c, x: x - w / 2, y: y - h / 2, w, h });
+        }
+
+        function atoRenderGizmos(c, m, hw, hh) {
+            let mode = ATO.hover?.clip === c ? ATO.hover.mode : null;
+            // Always show compact handles around the selected layer/clip so direct manipulation is immediate!
+            atoSquare(m.x - hw - 16, m.y, 24, 24, 'start', c, 'S', mode === 'start' || ATO.tool === 'TRIM');
+            atoSquare(m.x + hw + 16, m.y, 24, 24, 'end', c, 'E', mode === 'end' || ATO.tool === 'TRIM');
+            atoSquare(m.x, m.y, 34, 24, 'move', c, 'M', mode === 'move' || ATO.tool === 'MOVE');
+            atoHandle(m.x - 22, m.y - hh - 16, 13, 'lift', c, '↑', mode === 'lift' || ATO.tool === 'LIFT');
+            atoHandle(m.x + 22, m.y - hh - 16, 13, 'rotate', c, 'R', mode === 'rotate' || ATO.tool === 'ROLL');
+            if (ATO.tool === 'SPLIT') {
+                atoSquare(m.x, m.y + hh + 16, 34, 20, 'split', c, 'CUT', mode === 'split');
+            }
+        }
+
+        function atoSelect(c) {
+            ATO.selected = c;
+            const selBig = document.getElementById('ato-selBig');
+            const selMeta = document.getElementById('ato-selMeta');
+            if (c) {
+                if (selBig) selBig.textContent = c.id;
+                if (selMeta) {
+                    if (c.isLayerRing && window.ICARO_SECONDHAND_INSPECTOR) {
+                        const st = window.ICARO_SECONDHAND_INSPECTOR.getPlaneTubeState(c.planeId);
+                        selMeta.textContent = `F${c.frameStart + 1}..${c.frameEnd + 1} · Δt=${st.dt} · Lift=${st.lift}`;
+                    } else {
+                        selMeta.textContent = (ATO_NAMES[c.track || 0] || 'TRACK') + ' | ' + atoFmt(c.vStart) + ' → ' + atoFmt(c.vStart + c.vDur);
+                    }
+                }
+            } else {
+                if (selBig) selBig.textContent = ATO.clipMode === 'layers' ? '6 LAYERS' : 'NO CLIP';
+                if (selMeta) selMeta.textContent = 'TAP RING OR CARD';
+            }
+        }
+
+        function atoSetStatus(x) {
+            const el = document.getElementById('ato-status');
+            if (el) el.textContent = x;
+        }
+
+        if (atoCanvas) {
+            atoCanvas.addEventListener('pointerdown', e => {
+                const rect = atoCanvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+                ATO.inertia = 0; ATO.play = false;
+
+                let h = atoHit(mx, my);
+                if (h && h.clip) {
+                    const insp = window.ICARO_SECONDHAND_INSPECTOR;
+                    if (h.mode === 'split') {
+                        if (h.clip.isLayerRing && insp) {
+                            const st = insp.getPlaneTubeState(h.clip.planeId);
+                            insp.setPlaneTubeState(h.clip.planeId, { splitAt: (st.splitAt === state.cur ? null : state.cur) });
+                            invalidateThumb();
+                            playTick(); fireToast('SPLIT LAYER ' + h.clip.planeId.toUpperCase());
+                        } else if (typeof h.clip.frameStart === 'number' && h.clip.frameStart < state.frames.length) {
+                            state.frames[h.clip.frameStart].clipBoundary = true;
+                            _derivedClipsCache = null;
+                            playTick(); fireToast('SPLIT AT FRAME ' + (h.clip.frameStart + 1));
+                        }
+                        return;
+                    }
+                    if (h.mode === 'store') {
+                        atoBank.push({ ...h.clip }); playTick(); fireToast('STORED (' + atoBank.length + ')');
+                        return;
+                    }
+                    atoSelect(h.clip);
+                    const origSt = (h.clip.isLayerRing && insp) ? { ...insp.getPlaneTubeState(h.clip.planeId) } : null;
+                    ATO.drag = {
+                        mode: h.mode, clip: h.clip, origSt,
+                        sx: mx, sy: my, mx: mx, my: my,
+                        origStart: h.clip.vStart, origTrack: h.clip.track || 0,
+                        start: h.clip.vStart, dur: h.clip.vDur,
+                        track: h.clip.track || 0, rot: h.clip.rot || 0, lift: h.clip.lift || 0,
+                        axisLock: null, lastSnapZ: h.clip.vStart
+                    };
+                    atoSetStatus(String(h.mode).toUpperCase() + ' · ' + h.clip.id);
+                } else {
+                    ATO.scrub = { x: mx, y: my, cam: ATO.cam, roll: ATO.roll, lastTime: performance.now(), lastCam: ATO.cam };
+                    atoSetStatus('SCRUB / ORBIT');
+                }
+            });
+
+            atoCanvas.addEventListener('pointermove', e => {
+                const rect = atoCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left, y = e.clientY - rect.top;
+
+                if (ATO.drag && ATO.drag.clip) {
+                    let d = ATO.drag, c = d.clip;
+                    d.mx = x; d.my = y;
+                    let dx = x - d.sx, dy = y - d.sy;
+                    const insp = window.ICARO_SECONDHAND_INSPECTOR;
+
+                    if (c.isLayerRing && d.origSt && insp) {
+                        const N = Math.max(1, insp.getFrameCount ? insp.getFrameCount() : state.frames.length);
+                        const framesPerPx = (ATO.view >= 3) ? (N / Math.max(160, atoW - 300)) : (N / 260);
+                        const fDelta = Math.round((ATO.view >= 3 ? dx : (dx - dy * 0.5)) * framesPerPx);
+                        if (d.mode === 'move' || d.mode === 'lane') {
+                            insp.setPlaneTubeState(c.planeId, { dt: d.origSt.dt + fDelta });
+                        } else if (d.mode === 'start') {
+                            insp.setPlaneTubeState(c.planeId, { trimIn: d.origSt.trimIn + fDelta });
+                        } else if (d.mode === 'end') {
+                            insp.setPlaneTubeState(c.planeId, { trimOut: d.origSt.trimOut + fDelta });
+                        } else if (d.mode === 'rotate') {
+                            insp.setPlaneTubeState(c.planeId, { rot: Math.round((d.origSt.rot || 0) + dx * 0.65) });
+                        } else if (d.mode === 'lift') {
+                            insp.setPlaneTubeState(c.planeId, { lift: +((d.origSt.lift || 0) - dy / 85).toFixed(2) });
+                        }
+                        _derivedClipsCache = null;
+                        const refreshed = deriveClips().find(cl => cl.planeId === c.planeId);
+                        if (refreshed) { d.clip = refreshed; atoSelect(refreshed); }
+                        return;
+                    }
+
+                    let timeDelta = ATO.view >= 3 ? (dx / ATO.zoom) : (-dy * 15);
+                    if (d.mode === 'move' || d.mode === 'lane') {
+                        c.vStart = atoMagneticSnap(d.start + timeDelta, c.track, c.id, c.vDur);
+                        atoSelect(c);
+                    } else if (d.mode === 'start') {
+                        let ns = atoMagneticSnap(d.start + timeDelta, c.track, c.id);
+                        c.vStart = ns; c.vDur = Math.max(ATO_SNAP, (d.start + d.dur) - ns);
+                        atoSelect(c);
+                    } else if (d.mode === 'end') {
+                        let ne = atoMagneticSnap(d.start + d.dur + timeDelta, c.track, c.id);
+                        c.vDur = Math.max(ATO_SNAP, ne - c.vStart);
+                        atoSelect(c);
+                    } else if (d.mode === 'rotate') {
+                        c.rot = (d.rot || 0) + dx * 0.012;
+                        atoSelect(c);
+                    } else if (d.mode === 'lift') {
+                        c.lift = atoClamp((d.lift || 0) - dy / 70, -1, 1.5);
+                        c.vLift = c.lift;
+                        atoSelect(c);
+                    }
+                    return;
+                }
+                if (ATO.scrub) {
+                    let dx = x - ATO.scrub.x, dy = y - ATO.scrub.y;
+                    if (ATO.view >= 3) {
+                        ATO.cam = atoClamp(atoBenchTime(x), 0, Math.max(ATO_SNAP, (state.frames.length - 1) * ATO_SNAP));
+                    } else {
+                        ATO.cam = atoClamp(ATO.scrub.cam + dy * 4.5, 0, Math.max(ATO_SNAP, (state.frames.length - 1) * ATO_SNAP));
+                        ATO.roll = ATO.scrub.roll + dx * 0.006;
+                    }
+                    syncCursorFromATO();
+                    return;
+                }
+                ATO.hover = atoHit(x, y);
+                if (ATO.hover) {
+                    let m = ATO.hover.mode;
+                    atoCanvas.style.cursor = (m === 'start' || m === 'end') ? 'col-resize' :
+                        (m === 'move' || m === 'lane') ? 'grab' :
+                        (m === 'rotate' || m === 'lift') ? 'ns-resize' : 'pointer';
+                } else atoCanvas.style.cursor = 'crosshair';
+            });
+
+            atoCanvas.addEventListener('pointerup', () => {
+                if (ATO.drag) {
+                    playClack();
+                    ATO.drag = null;
+                }
+                ATO.scrub = null;
+                currentSnapZ = null;
+            });
+
+            atoCanvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                ATO.inertia = 0;
+                if (e.ctrlKey || e.metaKey) ATO.zoom = atoClamp(ATO.zoom - e.deltaY * 0.001, 0.22, 1.3);
+                else if (e.altKey) ATO.roll += e.deltaY * 0.006;
+                else {
+                    ATO.cam = atoClamp(ATO.cam + e.deltaY * 1.5, 0, Math.max(ATO_SNAP, (state.frames.length - 1) * ATO_SNAP));
+                }
+                syncCursorFromATO();
+            }, { passive: false });
+        }
+
+        function atoSetTool(t) {
+            ATO.tool = t; playTick();
+            document.querySelectorAll('#ato-dock button').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+            fireToast('ATO TOOL: ' + t);
+        }
+
+        function atoSetClipMode(mode) {
+            ATO.clipMode = mode;
+            ATO.selected = null;
+            _derivedClipsCache = null;
+            const bLayers = document.getElementById('ato-mode-layers');
+            const bFrames = document.getElementById('ato-mode-frames');
+            if (bLayers) bLayers.classList.toggle('on', mode === 'layers');
+            if (bFrames) bFrames.classList.toggle('on', mode === 'frames');
+            playTick();
+            atoRender();
+            fireToast(mode === 'layers' ? '6 MULTIPLANE LAYER RINGS' : 'SEQUENCE FRAME CLIPS');
+        }
+
+        function atoSetView(vIdx) {
+            ATO.view = vIdx;
+            switch (ATO.view) {
+                case 0: ATO.roll = -0.25; ATO.zoom = 0.52; break;
+                case 1: ATO.roll = 0; ATO.zoom = 0.8; break;
+                case 2: ATO.roll = -0.6; ATO.zoom = 0.35; break;
+                case 3: ATO.roll = 0; ATO.zoom = 0.52; break;
+                case 4: ATO.roll = 0; ATO.zoom = 0.52; break;
+            }
+            document.querySelectorAll('#ato-top-hud [data-atoview]').forEach(b => {
+                b.classList.toggle('on', parseInt(b.dataset.atoview) === ATO.view);
+            });
+            playTick();
+            atoRender();
+            fireToast('TUBE VIEW: ' + ATO_VIEWS[ATO.view]);
+        }
+
+        function atoCycleView() {
+            atoSetView((ATO.view + 1) % ATO_VIEWS.length);
+        }
+
+        function atoToggleBeflixTex() {
+            ATO.beflixTex = !ATO.beflixTex;
+            _layerThumbCache.clear();
+            const btn = document.getElementById('ato-beflix-btn');
+            if (btn) btn.classList.toggle('beflix-on', ATO.beflixTex);
+            playTick();
+            atoRender();
+            fireToast(ATO.beflixTex ? 'TUBE: ★ BEFLIX 128×96 DOTS' : 'TUBE: CUTOUT + INK');
+        }
+
+        function atoResetLayerEdits() {
+            if (window.ICARO_SECONDHAND_INSPECTOR && typeof window.ICARO_SECONDHAND_INSPECTOR.resetAllLayerTubeEdits === 'function') {
+                window.ICARO_SECONDHAND_INSPECTOR.resetAllLayerTubeEdits();
+            }
+            invalidateThumb();
+            playClack();
+            atoRender();
+            fireToast('ALL LAYER TUBE EDITS RESET');
+        }
+
+        function atoSeed() {
+            ATO.clipMode = 'frames';
+            atoClips.length = 0; atoNextId = 1;
+            for (let t = 0; t < 4; t++) {
+                let z = 0 + t * 120;
+                while (z < 2400) {
+                    const d = atoQsnap(180 + Math.random() * 360);
+                    atoClips.push(atoMk(z, d, t));
+                    z += d + ATO_SNAP;
+                }
+            }
+            playThud(); fireToast(atoClips.length + ' CLIPS GENERATED');
+        }
+
+        function atoSyncFromFrames() {
+            _derivedClipsCache = null;
+            invalidateThumb();
+            syncCameraFromCursor();
+            playClack(); fireToast('CLIPS SYNCED WITH SCENE');
+        }
+
+        function atoTogglePlay() { ATO.play = !ATO.play; playClack(); fireToast(ATO.play ? 'TUBE PLAYING' : 'TUBE STOPPED'); }
+        function atoSetTrack(t) { ATO.active = t; playTick(); fireToast('TRACK: ' + (ATO_NAMES[t] || t)); }
+
+        function atoExportProject() {
+            const payload = { app: 'ICARO-ATO', version: 2, exportedAt: new Date().toISOString(), ato: { ...ATO, selected: null, hover: null, drag: null }, clips: deriveClips() };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'icaro_ato_project_' + Date.now() + '.json'; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 500);
+            playThud(); fireToast('PROJECT EXPORTED');
+        }
+
+        function atoExportSnapshot() {
+            try {
+                const c = document.createElement('canvas'); c.width = atoW * atoDPR; c.height = atoH * atoDPR;
+                const cx = c.getContext('2d');
+                cx.drawImage(atoBgCanvas, 0, 0); cx.drawImage(atoCanvas, 0, 0);
+                const a = document.createElement('a'); a.href = c.toDataURL('image/png');
+                a.download = 'icaro_ato_snapshot_' + Date.now() + '.png'; a.click();
+                fireToast('SNAPSHOT EXPORTED');
+            } catch (e) { fireToast('SNAPSHOT BLOCKED'); }
+        }
+
+        function atoExportEDL() {
+            let lines = ['TITLE: ICARO-ATO SECONDHAND LAYER TUNNEL', ''];
+            deriveClips().forEach((c, i) => lines.push(`${String(i + 1).padStart(3, '0')} ${c.id} START:${c.vStart} DUR:${c.vDur} LIFT:${c.vLift || 0}`));
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'icaro_ato_edl_' + Date.now() + '.txt'; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 500);
+            playThud(); fireToast('EDL EXPORTED');
+        }
+
+        // ═══════════════════════════════════════════════════
+        // ── ATO-BUS EMITTER SHIM (Parent Harness Bridge) ──
+        // ═══════════════════════════════════════════════════
+        const _ATOBUS_ACTIVE = (window.parent !== window);
+        const _gridCache = new Map();
+
+        function _getCachedGrid(frameIndex) {
+            const f = state.frames[frameIndex];
+            if (!f) return new Uint8Array(G_ROWS * G_COLS);
+            const v = f._v || 0;
+            const cached = _gridCache.get(frameIndex);
+            if (cached && cached.version === v) return cached.grid;
+            const grid = extractDotGrid(f);
+            _gridCache.set(frameIndex, { grid, version: v });
+            return grid;
+        }
+
+        let _atoBusSyncTimer = null;
+        function _atoBusEmitSync() {
+            if (!_ATOBUS_ACTIVE) return;
+            clearTimeout(_atoBusSyncTimer);
+            _atoBusSyncTimer = setTimeout(() => {
+                const frames = state.frames.map((f, i) => ({
+                    index: i,
+                    grid: Array.from(_getCachedGrid(i)),
+                    version: f._v || 0
+                }));
+                window.parent.postMessage({
+                    type: 'FRAMES_SYNC',
+                    _origin: 'engine',
+                    frames: frames,
+                    total: state.frames.length,
+                    cursor: state.cur,
+                    gridW: G_COLS,
+                    gridH: G_ROWS
+                }, '*');
+            }, 30);
+        }
+
+        function _atoBusEmitCursor() {
+            if (!_ATOBUS_ACTIVE) return;
+            window.parent.postMessage({
+                type: 'CURSOR_MOVE',
+                _origin: 'engine',
+                cursor: state.cur,
+                total: state.frames.length
+            }, '*');
+        }
+
+        function _atoBusEmitPlay(playing) {
+            if (!_ATOBUS_ACTIVE) return;
+            window.parent.postMessage({
+                type: 'PLAY_SYNC',
+                playing: playing,
+                cursor: state.cur,
+                total: state.frames.length
+            }, '*');
+        }
+
+        let _busInboundGoto = false;
+        if (_ATOBUS_ACTIVE) {
+            const _origRebuild = rebuildTrack;
+            window._rebuildTrackNoSync = _origRebuild;
+            rebuildTrack = function() { touchAllFrames(); _origRebuild.apply(this, arguments); _atoBusEmitSync(); };
+
+            const _origRenderOutput = renderOutput;
+            renderOutput = function() {
+                _origRenderOutput.apply(this, arguments);
+                if (!_busInboundGoto) _atoBusEmitCursor();
+            };
+
+            const _origEngage = engageSequence;
+            engageSequence = function() {
+                _origEngage.apply(this, arguments);
+                _atoBusEmitPlay(state.playing);
+            };
+
+            window.addEventListener('message', e => {
+                const d = e.data;
+                if (!d || typeof d !== 'object' || typeof d.type !== 'string' || d._origin === 'engine') return;
+                if (d.type === 'GOTO_FRAME' && typeof d.cursor === 'number') {
+                    if (state.playing) return;
+                    const newCur = Math.max(0, Math.min(state.frames.length - 1, d.cursor));
+                    if (newCur !== state.cur) {
+                        state.cur = newCur;
+                        _busInboundGoto = true;
+                        renderOutput(); updateStatusBar();
+                        _busInboundGoto = false;
+                        highlightFrame(state.cur);
+                    }
+                }
+                if (d.type === 'PLAY_SYNC' && d.playing !== state.playing) {
+                    engageSequence();
+                }
+                if (d.type === 'REQUEST_SYNC') {
+                    _atoBusEmitSync();
+                    _atoBusEmitCursor();
+                }
+            });
+        }
     </script>
 </body>
 
