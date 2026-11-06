@@ -627,7 +627,8 @@
                     play: false,
                     playRate: 1,
                     inertia: 0,
-                    playingClip: null
+                    playingClip: null,
+                    onion: true
                 };
                 const F = {
                     ctx: null,
@@ -1127,6 +1128,15 @@
                         d: dz
                     }
                 }
+                const ONION_FACTORS = [0.46, 0.74, 1.02, 1.28];
+                function shellFactor(track) {
+                    const idx = ((Math.round(track) % 4) + 4) % 4;
+                    return S.onion ? ONION_FACTORS[idx] : 1.0;
+                }
+                function shellR(track, lift = 0) {
+                    return R * shellFactor(track) + (lift || 0) * 36;
+                }
+
                 function angle(c, track=isClip(c) ? c.vTrack : S.active) {
                     return track * Math.PI / 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0)
                 }
@@ -1142,10 +1152,11 @@
                             mid: null,
                             depth: 1e9
                         };
-                    let rr = R + (c.vLift || 0) * 36
+                    let rr = shellR(c.vTrack, c.vLift)
                       , base = angle(c)
-                      , a0 = base - Math.PI / 4 + .05
-                      , a1 = base + Math.PI / 4 - .05
+                      , halfSpan = S.onion ? Math.PI * 0.34 : (Math.PI / 4 - .05)
+                      , a0 = base - halfSpan
+                      , a1 = base + halfSpan
                       , z0 = c.vStart
                       , z1 = c.vStart + c.vDur
                       , mobile = W < 900
@@ -1379,9 +1390,11 @@
                         if (!a || !b)
                             continue;
                         let mZ_a = (a.vStart + a.vStart + a.vDur) / 2
-                          , mZ_b = (b.vStart + b.vStart + b.vDur) / 2;
-                        let ma = project(Math.cos(angle(a)) * R, Math.sin(angle(a)) * R, mZ_a)
-                          , mb = project(Math.cos(angle(b)) * R, Math.sin(angle(b)) * R, mZ_b);
+                          , mZ_b = (b.vStart + b.vStart + b.vDur) / 2
+                          , rA = shellR(a.vTrack, a.vLift)
+                          , rB = shellR(b.vTrack, b.vLift);
+                        let ma = project(Math.cos(angle(a)) * rA, Math.sin(angle(a)) * rA, mZ_a)
+                          , mb = project(Math.cos(angle(b)) * rB, Math.sin(angle(b)) * rB, mZ_b);
                         if (ma && mb) {
                             ctx.beginPath();
                             ctx.moveTo(ma.x, ma.y);
@@ -1405,14 +1418,15 @@
                     ctx.save();
                     for (let t = 0; t < 4; t++) {
                         let a = trackAngle(t);
+                        let rt = shellR(t, 0);
                         ctx.setLineDash(STYLES[t].dash);
-                        ctx.lineWidth = (t === S.active ? 3 : 1.4);
-                        ctx.strokeStyle = '#000';
-                        ctx.globalAlpha = t === S.active || S.selected ? .85 : .22;
+                        ctx.lineWidth = (t === S.active ? 3 : 1.5);
+                        ctx.strokeStyle = S.onion ? (TRACK_COLORS[t] || '#000') : '#000';
+                        ctx.globalAlpha = t === S.active || S.selected ? .88 : (S.onion ? .42 : .22);
                         ctx.beginPath();
                         for (let i = 0; i <= pts; i++) {
                             let z = S.cam - 900 + i * (FAR / pts)
-                              , q = project(Math.cos(a) * R, Math.sin(a) * R, z);
+                              , q = project(Math.cos(a) * rt, Math.sin(a) * rt, z);
                             if (q)
                                 i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
                         }
@@ -1445,30 +1459,69 @@
 
                 function drawTubeView() {
                     railLines();
-                    // Batch all rings into one path — single stroke call
                     const ringStep = W < 900 ? SNAP * 4 : SNAP * 2;
                     ctx.save();
-                    ctx.strokeStyle = '#000';
-                    ctx.globalAlpha = .25;
-                    ctx.beginPath();
-                    for (let z = qsnap(S.cam - 900); z < S.cam + FAR; z += ringStep) {
-                        let q = project(0, 0, z);
-                        if (q && q.s > .04) {
-                            ctx.moveTo(q.x + R * q.s, q.y);
-                            ctx.arc(q.x, q.y, R * q.s, 0, Math.PI * 2);
+                    if (S.onion) {
+                        for (let t = 3; t >= 0; t--) {
+                            const rt = shellR(t, 0);
+                            ctx.strokeStyle = TRACK_COLORS[t] || '#000';
+                            ctx.lineWidth = t === S.active ? 1.6 : 1.0;
+                            ctx.globalAlpha = t === S.active ? .38 : .22;
+                            ctx.beginPath();
+                            for (let z = qsnap(S.cam - 900); z < S.cam + FAR; z += ringStep) {
+                                let q = project(0, 0, z);
+                                if (q && q.s > .04) {
+                                    ctx.moveTo(q.x + rt * q.s, q.y);
+                                    ctx.arc(q.x, q.y, rt * q.s, 0, Math.PI * 2);
+                                }
+                            }
+                            ctx.stroke();
                         }
+                    } else {
+                        ctx.strokeStyle = '#000';
+                        ctx.globalAlpha = .25;
+                        ctx.beginPath();
+                        for (let z = qsnap(S.cam - 900); z < S.cam + FAR; z += ringStep) {
+                            let q = project(0, 0, z);
+                            if (q && q.s > .04) {
+                                ctx.moveTo(q.x + R * q.s, q.y);
+                                ctx.arc(q.x, q.y, R * q.s, 0, Math.PI * 2);
+                            }
+                        }
+                        ctx.stroke();
                     }
-                    ctx.stroke();
                     ctx.restore();
 
                     let pRing = project(0, 0, S.cam);
                     if (pRing) {
                         ctx.save();
-                        ctx.strokeStyle = '#ef4444';
-                        ctx.lineWidth = 4;
-                        ctx.beginPath();
-                        ctx.arc(pRing.x, pRing.y, R * pRing.s, 0, Math.PI * 2);
-                        ctx.stroke();
+                        if (S.onion) {
+                            const rInner = shellR(0, 0) * pRing.s;
+                            const rOuter = shellR(3, 0) * pRing.s;
+                            ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+                            ctx.lineWidth = 1.5;
+                            for (let t = 0; t < 4; t++) {
+                                const a = trackAngle(t);
+                                ctx.beginPath();
+                                ctx.moveTo(pRing.x + Math.cos(a) * rInner, pRing.y + Math.sin(a) * rInner);
+                                ctx.lineTo(pRing.x + Math.cos(a) * rOuter, pRing.y + Math.sin(a) * rOuter);
+                                ctx.stroke();
+                            }
+                            for (let t = 3; t >= 0; t--) {
+                                const rt = shellR(t, 0) * pRing.s;
+                                ctx.strokeStyle = t === S.active ? '#ef4444' : (TRACK_COLORS[t] || '#ef4444');
+                                ctx.lineWidth = t === S.active ? 3.5 : 2.2;
+                                ctx.beginPath();
+                                ctx.arc(pRing.x, pRing.y, rt, 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+                        } else {
+                            ctx.strokeStyle = '#ef4444';
+                            ctx.lineWidth = 4;
+                            ctx.beginPath();
+                            ctx.arc(pRing.x, pRing.y, R * pRing.s, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
                         ctx.restore();
                     }
 
@@ -1503,8 +1556,9 @@
                         // Per-clip save/restore (not per-cell — LAW 9 Main Thread Sanctity)
                         ctx.save();
                         const baseFill = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
+                        const trackStroke = S.onion ? (TRACK_COLORS[c.track] || '#000') : '#000';
                         ctx.setLineDash(sel ? [] : st.dash);
-                        ctx.strokeStyle = '#000';
+                        ctx.strokeStyle = sel ? '#000' : trackStroke;
 
                         for (const cell of g.cells) {
                             let p = path(cell.pts)
@@ -1523,7 +1577,7 @@
 
                             // Stroke: skip on far cells (too small to see outline)
                             if (cell.d < 4500 || sel || hov) {
-                                ctx.lineWidth = sel ? 4 : hov ? 3 : 1.5;
+                                ctx.lineWidth = sel ? 4 : hov ? 3 : 1.7;
                                 ctx.stroke(p);
                                 if (sel) {
                                     ctx.strokeStyle = '#fff';
@@ -1536,8 +1590,9 @@
                         ctx.restore();
 
                         let mZ = (c.vStart + c.vStart + c.vDur) / 2;
+                        let mR = shellR(c.vTrack, c.vLift);
                         let A = area();
-                        let mP = project(Math.cos(angle(c)) * R, Math.sin(angle(c)) * R, mZ) || {
+                        let mP = project(Math.cos(angle(c)) * mR, Math.sin(angle(c)) * mR, mZ) || {
                             x: A.cx, y: A.cy, s: 1
                         };
 
@@ -1842,12 +1897,12 @@
                         ry: lerp(P.ry0, P.ry1, s)
                     }
                 }
-                function opoint(s, a, P) {
+                function opoint(s, a, P, mult=1) {
                     let c = oc(s, P)
                       , r = orad(s, P);
                     return {
-                        x: c.x + Math.cos(a) * r.rx,
-                        y: c.y + Math.sin(a) * r.ry
+                        x: c.x + Math.cos(a) * r.rx * mult,
+                        y: c.y + Math.sin(a) * r.ry * mult
                     }
                 }
                 function os(z, P) {
@@ -1856,26 +1911,46 @@
 
                 function drawOutside() {
                     let P = outsideP();
-                    ctx.strokeStyle = '#000';
-                    for (let i = 0; i <= 18; i++) {
-                        let c = oc(i / 18, P)
-                          , r = orad(i / 18, P);
-                        ctx.lineWidth = i === 0 ? 3 : 1;
-                        ctx.globalAlpha = 0.3;
-                        ctx.beginPath();
-                        ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
-                        ctx.stroke()
+                    if (S.onion) {
+                        for (let t = 3; t >= 0; t--) {
+                            const mf = shellFactor(t);
+                            ctx.strokeStyle = TRACK_COLORS[t] || '#000';
+                            for (let i = 0; i <= 14; i++) {
+                                let c = oc(i / 14, P)
+                                  , r = orad(i / 14, P);
+                                ctx.lineWidth = i === 0 ? 2.2 : 0.9;
+                                ctx.globalAlpha = 0.24;
+                                ctx.beginPath();
+                                ctx.ellipse(c.x, c.y, r.rx * mf, r.ry * mf, 0, 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+                        }
+                    } else {
+                        ctx.strokeStyle = '#000';
+                        for (let i = 0; i <= 18; i++) {
+                            let c = oc(i / 18, P)
+                              , r = orad(i / 18, P);
+                            ctx.lineWidth = i === 0 ? 3 : 1;
+                            ctx.globalAlpha = 0.3;
+                            ctx.beginPath();
+                            ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
+                            ctx.stroke()
+                        }
                     }
                     ctx.globalAlpha = 1;
-                    [-1.22, -.92, -.52, -.08, .34, .72, 1.08].forEach(a => {
+                    [-1.22, -.92, -.52, -.08, .34, .72, 1.08].forEach((a, idx) => {
+                        const mf = S.onion ? shellFactor(idx % 4) : 1;
+                        ctx.strokeStyle = S.onion ? (TRACK_COLORS[idx % 4] || '#000') : '#000';
+                        ctx.globalAlpha = S.onion ? 0.35 : 1;
                         ctx.beginPath();
                         for (let i = 0; i <= 36; i++) {
-                            let q = opoint(i / 36, a, P);
+                            let q = opoint(i / 36, a, P, mf);
                             i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)
                         }
                         ctx.stroke()
                     }
                     );
+                    ctx.globalAlpha = 1;
                     let arr = [];
                     for (const c of clips) {
                         let s0 = os(c.vStart, P)
@@ -1893,19 +1968,21 @@
                         let c = o.c
                           , sel = S.selected === c
                           , hov = S.hover && S.hover.clip === c
-                          , a0 = angle(c) - Math.PI / 4 + .05
-                          , a1 = angle(c) + Math.PI / 4 - .05
+                          , mf = shellFactor(c.vTrack)
+                          , halfSpan = S.onion ? Math.PI * 0.34 : (Math.PI / 4 - .05)
+                          , a0 = angle(c) - halfSpan
+                          , a1 = angle(c) + halfSpan
                           , pts = []
                           , s0 = o.s0
                           , s1 = o.s1;
                         for (let i = 0; i <= 14; i++)
-                            pts.push(opoint(lerp(s0, s1, i / 14), a0, P));
+                            pts.push(opoint(lerp(s0, s1, i / 14), a0, P, mf));
                         for (let j = 1; j <= 6; j++)
-                            pts.push(opoint(s1, lerp(a0, a1, j / 6), P));
+                            pts.push(opoint(s1, lerp(a0, a1, j / 6), P, mf));
                         for (let i = 13; i >= 0; i--)
-                            pts.push(opoint(lerp(s0, s1, i / 14), a1, P));
+                            pts.push(opoint(lerp(s0, s1, i / 14), a1, P, mf));
                         for (let j = 5; j > 0; j--)
-                            pts.push(opoint(s0, lerp(a0, a1, j / 6), P));
+                            pts.push(opoint(s0, lerp(a0, a1, j / 6), P, mf));
                         let pp = path(pts)
                           , b = bounds(pts);
                         ctx.save();
@@ -1917,7 +1994,7 @@
                             { _busCurrentClip = c; hatch(pp, STYLES[c.track].hatch, b); _busCurrentClip = null; }
                         ctx.setLineDash(sel ? [] : STYLES[c.track].dash);
                         ctx.lineWidth = sel ? 5 : 2;
-                        ctx.strokeStyle = '#000';
+                        ctx.strokeStyle = sel ? '#000' : (S.onion ? (TRACK_COLORS[c.track] || '#000') : '#000');
                         ctx.stroke(pp);
 
                         if (sel) {
@@ -1927,7 +2004,7 @@
                             let visS0 = Math.max(0.05, s0)
                               , visS1 = Math.min(0.95, s1);
                             let mS = (visS0 + visS1) / 2
-                              , mP = opoint(mS, angle(c), P)
+                              , mP = opoint(mS, angle(c), P, mf)
                               , spread = clamp(100 * (1.1 - mS), 45, 140);
                             gizmosToRender.push({
                                 c,
@@ -1939,7 +2016,7 @@
                         }
                         ctx.setLineDash([]);
                         if (sel || hov) {
-                            let m = opoint((s0 + s1) / 2, (a0 + a1) / 2, P);
+                            let m = opoint((s0 + s1) / 2, (a0 + a1) / 2, P, mf);
                             tag(m.x, m.y, c.id, sel)
                         }
                         rendered.push({
@@ -1952,11 +2029,22 @@
                     let s = os(S.cam, P)
                       , cc = oc(s, P)
                       , rr = orad(s, P);
-                    ctx.lineWidth = 4;
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.beginPath();
-                    ctx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2);
-                    ctx.stroke();
+                    if (S.onion) {
+                        for (let t = 3; t >= 0; t--) {
+                            const mf = shellFactor(t);
+                            ctx.lineWidth = t === S.active ? 3.5 : 2;
+                            ctx.strokeStyle = t === S.active ? '#ef4444' : (TRACK_COLORS[t] || '#ef4444');
+                            ctx.beginPath();
+                            ctx.ellipse(cc.x, cc.y, rr.rx * mf, rr.ry * mf, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    } else {
+                        ctx.lineWidth = 4;
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.beginPath();
+                        ctx.ellipse(cc.x, cc.y, rr.rx, rr.ry, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
                     tag(cc.x, area().y + 24, fmt(S.cam))
                 }
 
@@ -3570,6 +3658,7 @@
 
                     if (d.type === 'VIEW_CYCLE') {
                         // Harness requested view change
+                        if (typeof d.onion === 'boolean') S.onion = d.onion;
                         if (typeof d.view === 'number') {
                             S.view = d.view % VIEWS.length;
                             tick('mode');

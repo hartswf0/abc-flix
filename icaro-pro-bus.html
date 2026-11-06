@@ -1979,26 +1979,29 @@
                     <div class="insp-bar">
                         <div class="insp-strip">
                             <div class="insp-seg" role="group" aria-label="Bottom View Lens">
-                                <button type="button" data-wmode="parallel" aria-pressed="true">1 · 3D Butter</button>
-                                <button type="button" data-wmode="cbus" aria-pressed="false" style="background:#0f172a;color:#5eead4;border-right:1px solid #475569;" title="Genuine ICARO Harness c-bus 3D Arc-Tunnel Operator">2 · Tube (c-bus)</button>
-                                <button type="button" data-wmode="lanes" aria-pressed="false">3 · 6 Planes</button>
-                                <button type="button" data-wmode="parts" aria-pressed="false">4 · Parts</button>
-                                <button type="button" data-wmode="strobe" aria-pressed="false">5 · Trail</button>
-                                <button type="button" data-wmode="kymo" aria-pressed="false">6 · Graphs</button>
-                                <button type="button" data-wmode="anatomy" aria-pressed="false">7 · Rig</button>
-                                <button type="button" data-wmode="box" aria-pressed="false">8 · Depth Box</button>
+                                <button type="button" data-wmode="onion" aria-pressed="true" style="background:#7c2d12;color:#fed7aa;" title="Concentric Nested 3D Onion Tubes (1 Tube per Depth Layer)">1 · Onion Tube</button>
+                                <button type="button" data-wmode="parallel" aria-pressed="false">2 · 3D Butter</button>
+                                <button type="button" data-wmode="cbus" aria-pressed="false" style="background:#0f172a;color:#5eead4;border-right:1px solid #475569;" title="Genuine ICARO Harness c-bus 3D Arc-Tunnel Operator (4 Concentric Onion Shells)">3 · Tube (c-bus)</button>
+                                <button type="button" data-wmode="lanes" aria-pressed="false">4 · 6 Planes</button>
+                                <button type="button" data-wmode="parts" aria-pressed="false">5 · Parts</button>
+                                <button type="button" data-wmode="strobe" aria-pressed="false">6 · Trail</button>
+                                <button type="button" data-wmode="kymo" aria-pressed="false">7 · Graphs</button>
+                                <button type="button" data-wmode="anatomy" aria-pressed="false">8 · Rig</button>
+                                <button type="button" data-wmode="box" aria-pressed="false">9 · Depth Box</button>
                                 <button type="button" data-wmode="wall" aria-pressed="false">All 109</button>
                                 <button type="button" data-wmode="all" aria-pressed="false">All</button>
                             </div>
                             <div class="insp-seg" id="tunnelSubSeg" role="group" aria-label="3D Tunnel Sub-Mode" style="display:none">
-                                <button type="button" data-tsub="barrel" aria-pressed="true">Barrel</button>
+                                <button type="button" data-tsub="onion" aria-pressed="true">Onion (4 Tubes)</button>
+                                <button type="button" data-tsub="barrel" aria-pressed="false">Single Barrel</button>
                                 <button type="button" data-tsub="inside" aria-pressed="false">Inside</button>
                                 <button type="button" data-tsub="outside" aria-pressed="false">Outside</button>
                                 <button type="button" data-tsub="side" aria-pressed="false">Side</button>
                                 <button type="button" data-tsub="bench" aria-pressed="false">Bench</button>
                             </div>
                             <div class="insp-seg" id="parallelSubSeg" role="group" aria-label="3D Butter Sub-Mode">
-                                <button type="button" data-psub="butter" aria-pressed="true">Butter Loaf</button>
+                                <button type="button" data-psub="onion" aria-pressed="true">Onion Tube</button>
+                                <button type="button" data-psub="butter" aria-pressed="false">Butter Loaf</button>
                                 <button type="button" data-psub="slices" aria-pressed="false">All Slices</button>
                                 <button type="button" data-psub="radial" aria-pressed="false">Radial Fan</button>
                                 <button type="button" data-psub="dual" aria-pressed="false">2-Rail</button>
@@ -6060,12 +6063,14 @@ SHF 2 1 24</textarea>
         function atoTrackAngle(track, nTracks = 4) {
             return (track / Math.max(1, nTracks)) * Math.PI * 2 - Math.PI / 2 + ATO.roll;
         }
+        const ATO_ONION_FACTORS = [0.48, 0.74, 1.00, 1.26];
         function atoRadiusForClip(c) {
             if (c && c.isLayerRing) {
                 const nL = Math.max(1, c.totalLayers || 6);
-                return ATO_R * (0.64 + 0.58 * (c.layerIdx / Math.max(1, nL - 1))) + (c.vLift || 0) * 38;
+                return ATO_R * (0.48 + 0.78 * (c.layerIdx / Math.max(1, nL - 1))) + (c.vLift || 0) * 38;
             }
-            return ATO_R + ((c && c.vLift) || 0) * 36;
+            const tIdx = ((Math.round((c && c.vTrack) || 0) % 4) + 4) % 4;
+            return ATO_R * ATO_ONION_FACTORS[tIdx] + ((c && c.vLift) || 0) * 36;
         }
 
         function atoTubeGeom(c) {
@@ -6114,7 +6119,7 @@ SHF 2 1 24</textarea>
 
         function atoFullTubeGeom(c) {
             if (!c) return { cells: [], slices: [], hull: [], depth: 1e9 };
-            const rr = ATO_R + ((c && c.vLift) || 0) * 32;
+            const rr = atoRadiusForClip(c);
             const z0 = c.vStart, z1 = c.vStart + c.vDur;
             const zSteps = atoClamp(Math.ceil((z1 - z0) / ATO_SNAP), 1, 8);
             const aSteps = 16;
@@ -6300,39 +6305,48 @@ SHF 2 1 24</textarea>
             for (let t = 0; t < nRails; t++) {
                 const a = atoTrackAngle(t, nRails);
                 const style = ATO_STYLES[t % ATO_STYLES.length];
+                const rt = ATO_R * (ATO_ONION_FACTORS[t % 4] || 1);
                 atoCtx.setLineDash(style.dash);
-                atoCtx.lineWidth = (t === ATO.active ? 2.6 : 1.2);
+                atoCtx.lineWidth = (t === ATO.active ? 2.6 : 1.4);
                 atoCtx.strokeStyle = style.color || '#000';
-                atoCtx.globalAlpha = t === ATO.active ? 0.85 : 0.28;
+                atoCtx.globalAlpha = t === ATO.active ? 0.85 : 0.36;
                 atoCtx.beginPath();
                 for (let i = 0; i <= 40; i++) {
                     const z = ATO.cam - 900 + i * (ATO_FAR / 40);
-                    const q = atoProject(Math.cos(a) * ATO_R, Math.sin(a) * ATO_R, z);
+                    const q = atoProject(Math.cos(a) * rt, Math.sin(a) * rt, z);
                     if (q) i ? atoCtx.lineTo(q.x, q.y) : atoCtx.moveTo(q.x, q.y);
                 }
                 atoCtx.stroke();
             }
             atoCtx.restore();
 
-            // Concentric depth ring markers along Z
-            atoCtx.save(); atoCtx.strokeStyle = '#000'; atoCtx.globalAlpha = 0.22;
-            for (let z = atoQsnap(ATO.cam - 900); z < ATO.cam + ATO_FAR; z += ATO_SNAP * 2) {
-                let q = atoProject(0, 0, z);
-                if (q && q.s > 0.04) {
-                    atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * q.s, 0, Math.PI * 2); atoCtx.stroke();
-                    if (ATO.clipMode === 'layers') {
-                        atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * 0.68 * q.s, 0, Math.PI * 2); atoCtx.stroke();
-                        atoCtx.beginPath(); atoCtx.arc(q.x, q.y, ATO_R * 1.18 * q.s, 0, Math.PI * 2); atoCtx.stroke();
+            // Concentric Onion Tube rings along Z
+            atoCtx.save();
+            for (let t = 3; t >= 0; t--) {
+                const rt = ATO_R * ATO_ONION_FACTORS[t];
+                const style = ATO_STYLES[t % ATO_STYLES.length];
+                atoCtx.strokeStyle = style.color || '#000';
+                atoCtx.globalAlpha = t === ATO.active ? 0.34 : 0.20;
+                atoCtx.lineWidth = t === ATO.active ? 1.5 : 1.0;
+                for (let z = atoQsnap(ATO.cam - 900); z < ATO.cam + ATO_FAR; z += ATO_SNAP * 2) {
+                    let q = atoProject(0, 0, z);
+                    if (q && q.s > 0.04) {
+                        atoCtx.beginPath(); atoCtx.arc(q.x, q.y, rt * q.s, 0, Math.PI * 2); atoCtx.stroke();
                     }
                 }
             }
             atoCtx.restore();
 
-            // Playhead ring
+            // Concentric Playhead Onion Rings
             let pRing = atoProject(0, 0, ATO.cam);
             if (pRing) {
-                atoCtx.save(); atoCtx.strokeStyle = '#ef4444'; atoCtx.lineWidth = 3.5;
-                atoCtx.beginPath(); atoCtx.arc(pRing.x, pRing.y, ATO_R * pRing.s, 0, Math.PI * 2); atoCtx.stroke();
+                atoCtx.save();
+                for (let t = 3; t >= 0; t--) {
+                    const rt = ATO_R * ATO_ONION_FACTORS[t] * pRing.s;
+                    atoCtx.strokeStyle = t === ATO.active ? '#ef4444' : (ATO_STYLES[t % ATO_STYLES.length].color || '#ef4444');
+                    atoCtx.lineWidth = t === ATO.active ? 3.5 : 2.0;
+                    atoCtx.beginPath(); atoCtx.arc(pRing.x, pRing.y, rt, 0, Math.PI * 2); atoCtx.stroke();
+                }
                 atoCtx.restore();
             }
 

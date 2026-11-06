@@ -544,8 +544,8 @@
         <div class="strip">
           <div class="seg" role="group" aria-label="Worm Lens">
             <button type="button" data-wmode="all" aria-pressed="false">All</button>
-            <button type="button" data-wmode="parallel" aria-pressed="false">1 · 3D Butter</button>
-            <button type="button" data-wmode="lanes" aria-pressed="true">2 · Planes</button>
+            <button type="button" data-wmode="parallel" aria-pressed="true">1 · Onion &amp; 3D Butter</button>
+            <button type="button" data-wmode="lanes" aria-pressed="false">2 · Planes</button>
             <button type="button" data-wmode="parts" aria-pressed="false">3 · Parts</button>
             <button type="button" data-wmode="strobe" aria-pressed="false">4 · Trail</button>
             <button type="button" data-wmode="kymo" aria-pressed="false">5 · Graphs</button>
@@ -554,13 +554,14 @@
             <button type="button" data-wmode="wall" aria-pressed="false">All 109</button>
           </div>
           <!-- Bound strictly to valid state: only visible when Lens 1 (3D Stretch) is active -->
-          <div class="seg" id="parallelSubSeg" role="group" aria-label="3D Timeline Mode" style="display:none">
-            <button type="button" data-psub="butter" aria-pressed="true">Butter Loaf</button>
+          <div class="seg" id="parallelSubSeg" role="group" aria-label="3D Timeline Mode">
+            <button type="button" data-psub="onion" aria-pressed="true">Onion Tube</button>
+            <button type="button" data-psub="butter" aria-pressed="false">Butter Loaf</button>
             <button type="button" data-psub="slices" aria-pressed="false">All Slices</button>
             <button type="button" data-psub="radial" aria-pressed="false">Radial Fan</button>
             <button type="button" data-psub="dual" aria-pressed="false">2-Rail</button>
           </div>
-          <button type="button" class="btn" id="parThemeBtn" aria-pressed="true" style="display:none">Dark / Paper</button>
+          <button type="button" class="btn" id="parThemeBtn" aria-pressed="true">Dark / Paper</button>
         </div>
         <span class="state-pill" id="wormStatePill">6 planes · f 01/33</span>
       </div>
@@ -689,8 +690,8 @@
   let shotCache = new Map();
   let frameImgCache = new Map();
 
-  let wormMode = 'lanes';
-  let parallelSubMode = 'butter';
+  let wormMode = 'parallel';
+  let parallelSubMode = 'onion';
   let parallelDark = true;
   let mobPipMode = false;
   let view = 'composite';
@@ -1710,6 +1711,275 @@
       const rx = Math.cos(ang) * baseRad * 1.12 * radScale;
       const ry = Math.sin(ang) * baseRad * 0.82 * radScale;
       return {x: c.x + rx, y: c.y + ry, s: c.s, ang, radScale};
+    }
+
+    // Sub-mode: ONION TUBE (Concentric nested 3D tubes — one cylinder shell per depth layer!)
+    if(parallelSubMode === 'onion'){
+      const onionShells = activeList.slice().sort((a, b) => {
+        if(a.id === 'char') return -1;
+        if(b.id === 'char') return 1;
+        return (Number(a.z) || 2) - (Number(b.z) || 2);
+      });
+      const S_CNT = Math.max(1, onionShells.length);
+      const ONION_PAL = ['#EF9F3A', '#32D74B', '#409CFF', '#BF5AF2', '#64D2FF', '#FF453A', '#FFD60A'];
+
+      function shellRadiusFrac(sIdx){
+        const base = S_CNT === 1 ? 0.65 : (0.28 + 0.80 * (sIdx / (S_CNT - 1)));
+        return base * (1 + explodeAmt * 0.55);
+      }
+      function shellAngle(sIdx){
+        return -Math.PI * 0.68 + (sIdx / Math.max(2, S_CNT)) * (Math.PI * 2);
+      }
+      function onionRadiiAt(sIdx, perspS){
+        const rho = shellRadiusFrac(sIdx);
+        const rs = Math.max(0.60, perspS);
+        return {
+          rx: baseRad * 1.16 * rho * rs,
+          ry: baseRad * 0.84 * rho * rs,
+          rho
+        };
+      }
+      function onionShellPt(sIdx, u, customAng){
+        const c = spinePt(u);
+        const ang = customAng !== undefined ? customAng : shellAngle(sIdx);
+        const rad = onionRadiiAt(sIdx, c.s);
+        const tilt = -0.10;
+        const ex = Math.cos(ang) * rad.rx;
+        const ey = Math.sin(ang) * rad.ry;
+        const rx = ex * Math.cos(tilt) - ey * Math.sin(tilt);
+        const ry = ex * Math.sin(tilt) + ey * Math.cos(tilt);
+        return {x: c.x + rx, y: c.y + ry, s: c.s, ang, rx: rad.rx, ry: rad.ry};
+      }
+
+      const cStart = spinePt(0.05), cEnd = spinePt(0.94);
+
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const top0 = onionShellPt(sIdx, 0.05, -Math.PI * 0.5);
+        const top1 = onionShellPt(sIdx, 0.94, -Math.PI * 0.5);
+        const bot0 = onionShellPt(sIdx, 0.05, Math.PI * 0.5);
+        const bot1 = onionShellPt(sIdx, 0.94, Math.PI * 0.5);
+
+        ctx.save();
+        ctx.fillStyle = col;
+        ctx.globalAlpha = dark ? 0.055 : 0.045;
+        ctx.beginPath();
+        ctx.moveTo(top0.x, top0.y);
+        ctx.lineTo(top1.x, top1.y);
+        ctx.lineTo(bot1.x, bot1.y);
+        ctx.lineTo(bot0.x, bot0.y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.42;
+        ctx.lineWidth = sIdx === 0 ? 1.8 : 1.1;
+        ctx.setLineDash(sIdx % 2 === 1 ? [5, 3] : []);
+        ctx.beginPath();
+        ctx.moveTo(top0.x, top0.y); ctx.lineTo(top1.x, top1.y);
+        ctx.moveTo(bot0.x, bot0.y); ctx.lineTo(bot1.x, bot1.y);
+        ctx.stroke();
+
+        const p0 = onionShellPt(sIdx, 0.05);
+        const p1 = onionShellPt(sIdx, 0.94);
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.72;
+        ctx.lineWidth = sIdx === 0 ? 2.2 : 1.4;
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.50)`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(cStart.x, cStart.y); ctx.lineTo(cEnd.x, cEnd.y); ctx.stroke();
+
+      const maxSlices = Math.min(N, S_CNT > 3 ? 8 : 11);
+      const sliceSet = new Set([0, N - 1, fi]);
+      drawnArr.forEach(k => { if(k >= 0 && k < N) sliceSet.add(k); });
+      for(let s = 0; s < maxSlices; s++){
+        const ti = maxSlices === 1 ? 0 : Math.round((s / (maxSlices - 1)) * (N - 1));
+        sliceSet.add(ti);
+      }
+      const sliceFrames = Array.from(sliceSet).sort((a, b) => a - b);
+
+      let activePt = spinePt(0.5);
+      const sliceNodes = sliceFrames.map(ti => {
+        const rawU = N > 1 ? (ti / (N - 1)) : 0.5;
+        let partShift = 0;
+        if(ti < fi) partShift = -0.04;
+        else if(ti > fi) partShift = 0.04;
+        const u = Math.max(0.05, Math.min(0.94, 0.08 + rawU * 0.83 + partShift));
+        const pt = spinePt(u);
+        if(ti === fi) activePt = pt;
+        return {ti, rawU, u, pt};
+      });
+
+      for(const sn of sliceNodes){
+        if(sn.ti === fi) continue;
+        const isKey = (sn.ti === 0 || drawnSet.has(sn.ti));
+
+        ctx.save();
+        for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+          const col = ONION_PAL[sIdx % ONION_PAL.length];
+          const rad = onionRadiiAt(sIdx, sn.pt.s);
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = isKey ? 0.52 : 0.26;
+          ctx.lineWidth = isKey ? 1.4 : 0.9;
+          ctx.beginPath();
+          ctx.ellipse(sn.pt.x, sn.pt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+          const plane = onionShells[sIdx];
+          const col = ONION_PAL[sIdx % ONION_PAL.length];
+          const kSpeed = zRef / Math.max(0.3, plane.z);
+          const fLayer = Math.max(0, Math.min(N - 1, Math.round(sn.ti * Math.min(1.2, Math.max(0.35, kSpeed)))));
+          const sp = onionShellPt(sIdx, sn.u);
+          const cx = Math.max(36, Math.min(W - 140, sp.x));
+          const cy = Math.max(topSafe + 24, Math.min(H - botSafe - 24, sp.y));
+
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = isKey ? 0.38 : 0.18;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(sn.pt.x, sn.pt.y); ctx.lineTo(cx, cy); ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          const pw = Math.round((sIdx === 0 ? 54 : 44) * sn.pt.s);
+          const ph = Math.round((sIdx === 0 ? 44 : 36) * sn.pt.s);
+          drawUpright3DCard(ctx, cx, cy, pw, ph, fLayer, {
+            plane: sIdx === 0 && plane.id === 'char' ? null : plane,
+            borderColor: col,
+            borderWidth: sIdx === 0 ? 1.6 : 1.2,
+            bgFill: '#FFFDF5',
+            alpha: isKey ? 0.86 : 0.72,
+            cropToMask: sIdx === 0 && plane.id === 'char',
+            butterSlab: true,
+            slabDepth: Math.max(2.5, 4.0 * sn.pt.s),
+            togglePlane: true,
+            label: isKey ? `O${sIdx+1} z=${plane.z}` : null,
+            labelColor: col
+          });
+        }
+      }
+
+      ctx.save();
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const rad = onionRadiiAt(sIdx, activePt.s);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.06;
+        ctx.beginPath();
+        ctx.ellipse(activePt.x, activePt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.95;
+        ctx.lineWidth = sIdx === 0 ? 2.8 : 2.1;
+        ctx.setLineDash(sIdx % 2 === 1 ? [6, 3] : []);
+        ctx.beginPath();
+        ctx.ellipse(activePt.x, activePt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const uAct = N > 1 ? (0.08 + (fi / (N - 1)) * 0.83) : 0.5;
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const plane = onionShells[sIdx];
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const sp = onionShellPt(sIdx, uAct);
+        const cx = Math.max(46, Math.min(W - 144, sp.x));
+        const cy = Math.max(topSafe + 32, Math.min(H - botSafe - 32, sp.y));
+        const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 8);
+
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.9;
+        ctx.beginPath();
+        ctx.moveTo(activePt.x, activePt.y);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+        ctx.restore();
+
+        drawUpright3DCard(ctx, cx, cy, sIdx === 0 ? 78 : 64, sIdx === 0 ? 64 : 52, fi, {
+          plane: sIdx === 0 && plane.id === 'char' ? null : plane,
+          borderColor: col,
+          borderWidth: sIdx === 0 ? 2.6 : 2.0,
+          bgFill: '#FFFDF5',
+          cropToMask: sIdx === 0 && plane.id === 'char',
+          butterSlab: true,
+          slabDepth: sIdx === 0 ? 7.5 : 5.0,
+          togglePlane: true,
+          label: `O${sIdx+1}·${shortLbl} z=${plane.z}`,
+          labelColor: col
+        });
+      }
+
+      const boxW = 122, boxH = 132;
+      const bx = W - boxW - 8, by = 8;
+      ctx.save();
+      ctx.fillStyle = dark ? 'rgba(12, 14, 20, 0.92)' : 'rgba(251, 250, 246, 0.94)';
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.45)`;
+      ctx.lineWidth = 1.4;
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeRect(bx, by, boxW, boxH);
+
+      ctx.fillStyle = '#EF9F3A';
+      ctx.fillRect(bx, by, boxW, 15);
+      ctx.fillStyle = '#161412';
+      ctx.font = '800 8.5px "JetBrains Mono", monospace';
+      ctx.fillText(`ONION (${S_CNT} TUBES) f${String(fi+1).padStart(2,'0')}`, bx + 5, by + 10.5);
+
+      const ocx = bx + boxW * 0.5, ocy = by + 15 + (boxH - 15) * 0.5;
+      const maxR = Math.min(boxW, boxH - 18) * 0.42;
+
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.18)`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(ocx - maxR - 4, ocy); ctx.lineTo(ocx + maxR + 4, ocy);
+      ctx.moveTo(ocx, ocy - maxR - 4); ctx.lineTo(ocx, ocy + maxR + 4);
+      ctx.stroke();
+
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const plane = onionShells[sIdx];
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const rFrac = S_CNT === 1 ? 0.65 : (0.24 + 0.76 * (sIdx / (S_CNT - 1)));
+        const r = maxR * rFrac;
+        const ang = shellAngle(sIdx);
+
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.10;
+        ctx.beginPath();
+        ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.92;
+        ctx.lineWidth = sIdx === 0 ? 2.4 : 1.7;
+        ctx.beginPath();
+        ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const nx = ocx + Math.cos(ang) * r;
+        const ny = ocy + Math.sin(ang) * r;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(nx, ny, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#161412';
+        ctx.font = '800 7.5px "JetBrains Mono", monospace';
+        ctx.fillText(String(sIdx + 1), nx - 2.5, ny + 2.5);
+
+        pushHitBox({
+          x: nx - 9, y: ny - 9, w: 18, h: 18,
+          planeId: plane.id, togglePlane: true
+        });
+      }
+      ctx.restore();
+      return;
     }
 
     // Sub-mode: BUTTER LOAF (All time slices AND all parallel depth rails sliced simultaneously!)

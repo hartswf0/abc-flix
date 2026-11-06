@@ -17,7 +17,7 @@
   let frameImgCache = new Map();
 
   let wormMode = 'parallel';   // 'parallel' | 'cbus' | 'lanes' | 'parts' | 'strobe' | 'kymo' | 'anatomy' | 'box' | 'wall' | 'all'
-  let parallelSubMode = 'butter'; // 'butter' | 'slices' | 'radial' | 'dual'
+  let parallelSubMode = 'onion'; // 'onion' | 'butter' | 'slices' | 'radial' | 'dual'
   let parallelDark = true;
   let view = 'composite';      // 'dots' | 'all4' | 'composite' | 'xray' | 'cutout' | 'cartoon' | 'footage' | 'masks'
   let stageInDotsMode = false; // Default top stage to high-res 'composite' or 'dots' (user can switch 1-click!)
@@ -1035,6 +1035,286 @@
       const rx = Math.cos(ang) * baseRad * 1.12 * radScale;
       const ry = Math.sin(ang) * baseRad * 0.82 * radScale;
       return {x: c.x + rx, y: c.y + ry, s: c.s, ang, radScale};
+    }
+
+    // Sub-mode: ONION TUBE (Concentric nested 3D tubes — one cylinder shell per depth layer!)
+    if(parallelSubMode === 'onion'){
+      // Order shells from innermost core (Subject / near) to outermost skin (Sky / far)
+      const onionShells = activeList.slice().sort((a, b) => {
+        if(a.id === 'char') return -1;
+        if(b.id === 'char') return 1;
+        return (Number(a.z) || 2) - (Number(b.z) || 2);
+      });
+      const S_CNT = Math.max(1, onionShells.length);
+      const ONION_PAL = ['#EF9F3A', '#32D74B', '#409CFF', '#BF5AF2', '#64D2FF', '#FF453A', '#FFD60A'];
+
+      function shellRadiusFrac(sIdx){
+        const base = S_CNT === 1 ? 0.65 : (0.28 + 0.80 * (sIdx / (S_CNT - 1)));
+        return base * (1 + explodeAmt * 0.55);
+      }
+      function shellAngle(sIdx){
+        return -Math.PI * 0.68 + (sIdx / Math.max(2, S_CNT)) * (Math.PI * 2);
+      }
+      function onionRadiiAt(sIdx, perspS){
+        const rho = shellRadiusFrac(sIdx);
+        const rs = Math.max(0.60, perspS);
+        return {
+          rx: baseRad * 1.16 * rho * rs,
+          ry: baseRad * 0.84 * rho * rs,
+          rho
+        };
+      }
+      function onionShellPt(sIdx, u, customAng){
+        const c = spinePt(u);
+        const ang = customAng !== undefined ? customAng : shellAngle(sIdx);
+        const rad = onionRadiiAt(sIdx, c.s);
+        const tilt = -0.10;
+        const ex = Math.cos(ang) * rad.rx;
+        const ey = Math.sin(ang) * rad.ry;
+        const rx = ex * Math.cos(tilt) - ey * Math.sin(tilt);
+        const ry = ex * Math.sin(tilt) + ey * Math.cos(tilt);
+        return {x: c.x + rx, y: c.y + ry, s: c.s, ang, rx: rad.rx, ry: rad.ry};
+      }
+
+      const cStart = spinePt(0.05), cEnd = spinePt(0.94);
+
+      // 1. Draw translucent nested cylinder walls from outermost skin to innermost core
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const top0 = onionShellPt(sIdx, 0.05, -Math.PI * 0.5);
+        const top1 = onionShellPt(sIdx, 0.94, -Math.PI * 0.5);
+        const bot0 = onionShellPt(sIdx, 0.05, Math.PI * 0.5);
+        const bot1 = onionShellPt(sIdx, 0.94, Math.PI * 0.5);
+
+        ctx.save();
+        ctx.fillStyle = col;
+        ctx.globalAlpha = dark ? 0.055 : 0.045;
+        ctx.beginPath();
+        ctx.moveTo(top0.x, top0.y);
+        ctx.lineTo(top1.x, top1.y);
+        ctx.lineTo(bot1.x, bot1.y);
+        ctx.lineTo(bot0.x, bot0.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Top & bottom silhouette rails + shell angle rail
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.42;
+        ctx.lineWidth = sIdx === 0 ? 1.8 : 1.1;
+        ctx.setLineDash(sIdx % 2 === 1 ? [5, 3] : []);
+        ctx.beginPath();
+        ctx.moveTo(top0.x, top0.y); ctx.lineTo(top1.x, top1.y);
+        ctx.moveTo(bot0.x, bot0.y); ctx.lineTo(bot1.x, bot1.y);
+        ctx.stroke();
+
+        const p0 = onionShellPt(sIdx, 0.05);
+        const p1 = onionShellPt(sIdx, 0.94);
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.72;
+        ctx.lineWidth = sIdx === 0 ? 2.2 : 1.4;
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Central core axis line
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.50)`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(cStart.x, cStart.y); ctx.lineTo(cEnd.x, cEnd.y); ctx.stroke();
+
+      // 2. Sample time stations along the Onion Tube
+      const maxSlices = Math.min(N, S_CNT > 3 ? 8 : 11);
+      const sliceSet = new Set([0, N - 1, fi]);
+      drawnArr.forEach(k => { if(k >= 0 && k < N) sliceSet.add(k); });
+      for(let s = 0; s < maxSlices; s++){
+        const ti = maxSlices === 1 ? 0 : Math.round((s / (maxSlices - 1)) * (N - 1));
+        sliceSet.add(ti);
+      }
+      const sliceFrames = Array.from(sliceSet).sort((a, b) => a - b);
+
+      let activePt = spinePt(0.5);
+      const sliceNodes = sliceFrames.map(ti => {
+        const rawU = N > 1 ? (ti / (N - 1)) : 0.5;
+        let partShift = 0;
+        if(ti < fi) partShift = -0.04;
+        else if(ti > fi) partShift = 0.04;
+        const u = Math.max(0.05, Math.min(0.94, 0.08 + rawU * 0.83 + partShift));
+        const pt = spinePt(u);
+        if(ti === fi) activePt = pt;
+        return {ti, rawU, u, pt};
+      });
+
+      // 3. Draw concentric onion rings + shell cards for non-active slices (back-to-front)
+      for(const sn of sliceNodes){
+        if(sn.ti === fi) continue;
+        const isKey = (sn.ti === 0 || drawnSet.has(sn.ti));
+
+        // Concentric nested onion rings at slice sn.ti
+        ctx.save();
+        for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+          const col = ONION_PAL[sIdx % ONION_PAL.length];
+          const rad = onionRadiiAt(sIdx, sn.pt.s);
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = isKey ? 0.52 : 0.26;
+          ctx.lineWidth = isKey ? 1.4 : 0.9;
+          ctx.beginPath();
+          ctx.ellipse(sn.pt.x, sn.pt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Draw cards on each concentric shell at key/sampled slices
+        for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+          const plane = onionShells[sIdx];
+          const col = ONION_PAL[sIdx % ONION_PAL.length];
+          const kSpeed = zRef / Math.max(0.3, plane.z);
+          const fLayer = Math.max(0, Math.min(N - 1, Math.round(sn.ti * Math.min(1.2, Math.max(0.35, kSpeed)))));
+          const sp = onionShellPt(sIdx, sn.u);
+          const cx = Math.max(36, Math.min(W - 140, sp.x));
+          const cy = Math.max(topSafe + 24, Math.min(H - botSafe - 24, sp.y));
+
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = isKey ? 0.38 : 0.18;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(sn.pt.x, sn.pt.y); ctx.lineTo(cx, cy); ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          const pw = Math.round((sIdx === 0 ? 54 : 44) * sn.pt.s);
+          const ph = Math.round((sIdx === 0 ? 44 : 36) * sn.pt.s);
+          drawUpright3DCard(ctx, cx, cy, pw, ph, fLayer, {
+            plane: sIdx === 0 && plane.id === 'char' ? null : plane,
+            borderColor: col,
+            borderWidth: sIdx === 0 ? 1.6 : 1.2,
+            bgFill: '#FFFDF5',
+            alpha: isKey ? 0.86 : 0.72,
+            cropToMask: sIdx === 0 && plane.id === 'char',
+            butterSlab: true,
+            slabDepth: Math.max(2.5, 4.0 * sn.pt.s),
+            togglePlane: true,
+            label: isKey ? `O${sIdx+1} z=${plane.z}` : null,
+            labelColor: col
+          });
+        }
+      }
+
+      // 4. Draw ACTIVE PLAYHEAD ONION CROSS-SECTION at fi (all concentric rings glowing + peeled cards)
+      ctx.save();
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const rad = onionRadiiAt(sIdx, activePt.s);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.06;
+        ctx.beginPath();
+        ctx.ellipse(activePt.x, activePt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.95;
+        ctx.lineWidth = sIdx === 0 ? 2.8 : 2.1;
+        ctx.setLineDash(sIdx % 2 === 1 ? [6, 3] : []);
+        ctx.beginPath();
+        ctx.ellipse(activePt.x, activePt.y, rad.rx, rad.ry, -0.10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const uAct = N > 1 ? (0.08 + (fi / (N - 1)) * 0.83) : 0.5;
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const plane = onionShells[sIdx];
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const sp = onionShellPt(sIdx, uAct);
+        const cx = Math.max(46, Math.min(W - 144, sp.x));
+        const cy = Math.max(topSafe + 32, Math.min(H - botSafe - 32, sp.y));
+        const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 8);
+
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.9;
+        ctx.beginPath();
+        ctx.moveTo(activePt.x, activePt.y);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+        ctx.restore();
+
+        drawUpright3DCard(ctx, cx, cy, sIdx === 0 ? 78 : 64, sIdx === 0 ? 64 : 52, fi, {
+          plane: sIdx === 0 && plane.id === 'char' ? null : plane,
+          borderColor: col,
+          borderWidth: sIdx === 0 ? 2.6 : 2.0,
+          bgFill: '#FFFDF5',
+          cropToMask: sIdx === 0 && plane.id === 'char',
+          butterSlab: true,
+          slabDepth: sIdx === 0 ? 7.5 : 5.0,
+          togglePlane: true,
+          label: `O${sIdx+1}·${shortLbl} z=${plane.z}`,
+          labelColor: col
+        });
+      }
+
+      // 5. Head-On Concentric Onion Cross-Section Widget (Top-Right Corner)
+      const boxW = 122, boxH = 132;
+      const bx = W - boxW - 8, by = 8;
+      ctx.save();
+      ctx.fillStyle = dark ? 'rgba(12, 14, 20, 0.92)' : 'rgba(251, 250, 246, 0.94)';
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.45)`;
+      ctx.lineWidth = 1.4;
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeRect(bx, by, boxW, boxH);
+
+      ctx.fillStyle = '#EF9F3A';
+      ctx.fillRect(bx, by, boxW, 15);
+      ctx.fillStyle = '#161412';
+      ctx.font = '800 8.5px "JetBrains Mono", monospace';
+      ctx.fillText(`ONION (${S_CNT} TUBES) f${String(fi+1).padStart(2,'0')}`, bx + 5, by + 10.5);
+
+      const ocx = bx + boxW * 0.5, ocy = by + 15 + (boxH - 15) * 0.5;
+      const maxR = Math.min(boxW, boxH - 18) * 0.42;
+
+      // Crosshair axes
+      ctx.strokeStyle = `rgba(${lineRGB}, 0.18)`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(ocx - maxR - 4, ocy); ctx.lineTo(ocx + maxR + 4, ocy);
+      ctx.moveTo(ocx, ocy - maxR - 4); ctx.lineTo(ocx, ocy + maxR + 4);
+      ctx.stroke();
+
+      for(let sIdx = S_CNT - 1; sIdx >= 0; sIdx--){
+        const plane = onionShells[sIdx];
+        const col = ONION_PAL[sIdx % ONION_PAL.length];
+        const rFrac = S_CNT === 1 ? 0.65 : (0.24 + 0.76 * (sIdx / (S_CNT - 1)));
+        const r = maxR * rFrac;
+        const ang = shellAngle(sIdx);
+
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.10;
+        ctx.beginPath();
+        ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.92;
+        ctx.lineWidth = sIdx === 0 ? 2.4 : 1.7;
+        ctx.beginPath();
+        ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const nx = ocx + Math.cos(ang) * r;
+        const ny = ocy + Math.sin(ang) * r;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(nx, ny, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#161412';
+        ctx.font = '800 7.5px "JetBrains Mono", monospace';
+        ctx.fillText(String(sIdx + 1), nx - 2.5, ny + 2.5);
+
+        pushHitBox({
+          x: nx - 9, y: ny - 9, w: 18, h: 18,
+          planeId: plane.id, togglePlane: true
+        });
+      }
+      ctx.restore();
+      return;
     }
 
     // Sub-mode: BUTTER LOAF (All time slices AND all parallel depth rails sliced simultaneously!)
@@ -3393,8 +3673,18 @@
 
     document.querySelectorAll('[data-wmode]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        wormMode = btn.dataset.wmode;
+        const modeVal = btn.dataset.wmode;
+        if(modeVal === 'onion'){
+          wormMode = 'parallel';
+          parallelSubMode = 'onion';
+        } else if(modeVal === 'parallel' && parallelSubMode === 'onion'){
+          wormMode = 'parallel';
+          parallelSubMode = 'butter';
+        } else {
+          wormMode = modeVal;
+        }
         document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.psub===parallelSubMode?'true':'false'));
         syncSubModeToolbars();
         renderAll();
       });
@@ -3404,10 +3694,19 @@
       btn.addEventListener('click', ()=>{
         document.querySelectorAll('[data-tsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         const cbusFrame = document.getElementById('cbus-inline-frame');
-        const viewMap = { barrel: 0, inside: 1, outside: 2, side: 3, bench: 4 };
-        if(cbusFrame && cbusFrame.contentWindow && viewMap[btn.dataset.tsub] !== undefined){
+        const sub = btn.dataset.tsub;
+        if(cbusFrame && cbusFrame.contentWindow){
           try {
-            cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: viewMap[btn.dataset.tsub] }, '*');
+            if(sub === 'onion'){
+              cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: 0, onion: true }, '*');
+            } else if(sub === 'barrel'){
+              cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: 0, onion: false }, '*');
+            } else {
+              const viewMap = { inside: 1, outside: 2, side: 3, bench: 4 };
+              if(viewMap[sub] !== undefined){
+                cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: viewMap[sub] }, '*');
+              }
+            }
           } catch(e){}
         }
       });
@@ -3417,6 +3716,10 @@
       btn.addEventListener('click', ()=>{
         parallelSubMode = btn.dataset.psub;
         document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        document.querySelectorAll('[data-wmode]').forEach(b=>{
+          if(b.dataset.wmode === 'onion') b.setAttribute('aria-pressed', parallelSubMode === 'onion' && wormMode === 'parallel' ? 'true' : 'false');
+          else if(b.dataset.wmode === 'parallel') b.setAttribute('aria-pressed', parallelSubMode !== 'onion' && wormMode === 'parallel' ? 'true' : 'false');
+        });
         renderAll();
       });
     });
