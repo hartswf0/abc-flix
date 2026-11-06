@@ -1979,9 +1979,8 @@
                     <div class="insp-bar">
                         <div class="insp-strip">
                             <div class="insp-seg" role="group" aria-label="Bottom View Lens">
-                                <button type="button" data-wmode="cbus" aria-pressed="false" style="background:#0f172a;color:#5eead4;border-right:1px solid #475569;" title="Genuine ICARO Harness c-bus 3D Arc-Tunnel Operator">◉ Tube (c-bus)</button>
-                                <button type="button" data-wmode="tunnel" aria-pressed="true">1 · Rings &amp; Lathe</button>
-                                <button type="button" data-wmode="parallel" aria-pressed="false">2 · 3D Butter</button>
+                                <button type="button" data-wmode="parallel" aria-pressed="true">1 · 3D Butter</button>
+                                <button type="button" data-wmode="cbus" aria-pressed="false" style="background:#0f172a;color:#5eead4;border-right:1px solid #475569;" title="Genuine ICARO Harness c-bus 3D Arc-Tunnel Operator">2 · Tube (c-bus)</button>
                                 <button type="button" data-wmode="lanes" aria-pressed="false">3 · 6 Planes</button>
                                 <button type="button" data-wmode="parts" aria-pressed="false">4 · Parts</button>
                                 <button type="button" data-wmode="strobe" aria-pressed="false">5 · Trail</button>
@@ -1991,15 +1990,14 @@
                                 <button type="button" data-wmode="wall" aria-pressed="false">All 109</button>
                                 <button type="button" data-wmode="all" aria-pressed="false">All</button>
                             </div>
-                            <div class="insp-seg" id="tunnelSubSeg" role="group" aria-label="3D Tunnel Sub-Mode">
-                                <button type="button" data-tsub="rings" aria-pressed="true">Rings</button>
-                                <button type="button" data-tsub="barrel" aria-pressed="false">Barrel</button>
+                            <div class="insp-seg" id="tunnelSubSeg" role="group" aria-label="3D Tunnel Sub-Mode" style="display:none">
+                                <button type="button" data-tsub="barrel" aria-pressed="true">Barrel</button>
                                 <button type="button" data-tsub="inside" aria-pressed="false">Inside</button>
                                 <button type="button" data-tsub="outside" aria-pressed="false">Outside</button>
                                 <button type="button" data-tsub="side" aria-pressed="false">Side</button>
                                 <button type="button" data-tsub="bench" aria-pressed="false">Bench</button>
                             </div>
-                            <div class="insp-seg" id="parallelSubSeg" role="group" aria-label="3D Butter Sub-Mode" style="display:none">
+                            <div class="insp-seg" id="parallelSubSeg" role="group" aria-label="3D Butter Sub-Mode">
                                 <button type="button" data-psub="butter" aria-pressed="true">Butter Loaf</button>
                                 <button type="button" data-psub="slices" aria-pressed="false">All Slices</button>
                                 <button type="button" data-psub="radial" aria-pressed="false">Radial Fan</button>
@@ -2007,7 +2005,6 @@
                             </div>
                         </div>
                         <div class="insp-strip" style="flex-shrink:0;">
-                            <button type="button" class="plane-pill beflix-pill" data-beflix-toggle="true" aria-pressed="false" title="Render Stage & Multi-View Cards as BEFLIX 128×96 Dot Matrix">★ BEFLIX</button>
                             <button type="button" class="plane-pill" id="parThemeBtn" aria-pressed="true">Dark / Paper</button>
                         </div>
                     </div>
@@ -2596,7 +2593,7 @@ SHF 2 1 24</textarea>
             active: 0, selected: null, hover: null,
             drag: null, scrub: null, play: false,
             playRate: 1, inertia: 0, snap: true,
-            clipMode: 'layers', beflixTex: false
+            clipMode: 'frames', beflixTex: false
         };
 
         function getThumb(frameIndex) {
@@ -5868,27 +5865,51 @@ SHF 2 1 24</textarea>
             }
         }
 
+        const _INK_U32 = new Uint32Array(8);
+        (function initInkU32() {
+            const buf = new ArrayBuffer(32);
+            const u8 = new Uint8Array(buf);
+            const u32 = new Uint32Array(buf);
+            for (let i = 0; i < 8; i++) {
+                const rgb = INKS[i] ? INKS[i].rgb : [0, 0, 0, 0];
+                u8[i * 4] = rgb[0];
+                u8[i * 4 + 1] = rgb[1];
+                u8[i * 4 + 2] = rgb[2];
+                u8[i * 4 + 3] = rgb[3];
+            }
+            for (let i = 0; i < 8; i++) _INK_U32[i] = u32[i];
+        })();
+
         window.icaroStampDoodleFrames = function(gridsByFrame) {
             if (!Array.isArray(gridsByFrame) || !gridsByFrame.length) return;
             state.frames = [];
+            _gridCache.clear();
             for (let fi = 0; fi < gridsByFrame.length; fi++) {
                 injectFrame(true);
                 const fObj = state.frames[state.frames.length - 1];
                 const grid = gridsByFrame[fi];
+                const u32Layer = new Uint32Array(fObj.scriptLayer.buffer, fObj.scriptLayer.byteOffset, W * H);
                 for (let gy = 0; gy < G_ROWS; gy++) {
+                    const rowOff = gy * G_COLS;
+                    const pyBase = gy * B_SZ;
                     for (let gx = 0; gx < G_COLS; gx++) {
-                        const lvl = grid[gy * G_COLS + gx];
-                        if (lvl > 0 && INKS[lvl]) {
-                            const col = INKS[lvl].rgb;
+                        const lvl = grid[rowOff + gx];
+                        if (lvl > 0) {
+                            const c32 = _INK_U32[lvl];
+                            const pxBase = gx * B_SZ;
                             for (let by = 0; by < B_SZ; by++) {
-                                for (let bx = 0; bx < B_SZ; bx++) {
-                                    bindPixel(fObj.scriptLayer, gx * B_SZ + bx, gy * B_SZ + by, col);
-                                }
+                                let pIdx = (pyBase + by) * W + pxBase;
+                                u32Layer[pIdx] = c32;
+                                u32Layer[pIdx + 1] = c32;
+                                u32Layer[pIdx + 2] = c32;
+                                u32Layer[pIdx + 3] = c32;
+                                u32Layer[pIdx + 4] = c32;
                             }
                         }
                     }
                 }
                 fObj._v = (fObj._v || 0) + 1;
+                _gridCache.set(fi, { grid: grid, version: fObj._v });
             }
             if (state.cur >= state.frames.length) state.cur = 0;
             renderOutput();
@@ -6138,7 +6159,7 @@ SHF 2 1 24</textarea>
             setTimeout(() => {
                 rescaleWorkspace();
                 if (document.getElementById('ato-zone').classList.contains('active')) atoResize();
-                if (window.ICARO_SECONDHAND_INSPECTOR) window.ICARO_SECONDHAND_INSPECTOR.render();
+                if (window.ICARO_SECONDHAND_INSPECTOR) window.ICARO_SECONDHAND_INSPECTOR.renderAll();
             }, 30);
         }
 
@@ -7119,6 +7140,11 @@ SHF 2 1 24</textarea>
             });
         }
 
+        window.icaroEmitBusSyncNow = function() {
+            _atoBusEmitSync();
+            _atoBusEmitCursor();
+        };
+
         let _busInboundGoto = false;
         (function initBusBridge() {
             const _origRebuild = rebuildTrack;
@@ -7136,6 +7162,14 @@ SHF 2 1 24</textarea>
                 _origEngage.apply(this, arguments);
                 _atoBusEmitPlay(state.playing);
             };
+
+            const inlineCbus = document.getElementById('cbus-inline-frame');
+            if (inlineCbus) {
+                inlineCbus.addEventListener('load', () => {
+                    _atoBusEmitSync();
+                    _atoBusEmitCursor();
+                });
+            }
 
             window.addEventListener('message', e => {
                 const d = e.data;

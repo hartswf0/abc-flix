@@ -5,9 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-    <title>Arc-Tunnel Operator — Live Video & Secondhand Motion Instrument</title>
-    <script src="./data/secondhand-doodle-bundle.js"></script>
-    <script src="./data/worms_108.js"></script>
+    <title>Arc-Tunnel Operator — Live Video Instrument</title>
     <style>
         :root {
             --bg: #fff;
@@ -17,7 +15,7 @@
             --left: 56px;
             --right: 300px;
             --bottom: 52px;
-            --top: 38px;
+            --top: 0px; /* No top bar in bus mode */
         }
 
         * {
@@ -118,38 +116,8 @@
             flex: 1
         }
 
-        #top {
-            position: fixed;
-            z-index: 18;
-            left: var(--left);
-            right: var(--right);
-            top: 0;
-            height: var(--top);
-            border-bottom: 2px solid var(--border);
-            background: rgba(255, 255, 255, 0.96);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 0 8px;
-            pointer-events: auto;
-            overflow-x: auto;
-        }
-        #top select {
-            height: 26px;
-            border: 2px solid #000;
-            background: #fff;
-            color: #000;
-            font: 900 10px ui-monospace, monospace;
-            padding: 0 6px;
-            max-width: 240px;
-            cursor: pointer;
-        }
-        #top button {
-            height: 26px;
-            font-size: 9.5px;
-            padding: 0 7px;
-            white-space: nowrap;
-        }
+        /* Top bar hidden in bus mode — controlled by harness */
+        #top { display: none !important; }
 
         #brand {
             font-weight: 900;
@@ -443,17 +411,13 @@
             opacity: 1
         }
 
-        @media(max-width: 900px) {
+        @media (max-width: 900px), (max-height: 480px) {
             :root {
                 --left: 36px;
                 --right: 36px;
                 --bottom: 38px;
-                --top: 34px;
+                --top: 0px;
             }
-            #top { padding: 0 4px; gap: 4px; }
-            #brand { display: none; }
-            #top select { max-width: 145px; font-size: 9.5px; height: 24px; }
-            #top button { height: 24px; font-size: 8.5px; padding: 0 5px; }
 
             /* Rail — compact */
             #rail { width: var(--left); gap: 2px; padding: 4px 3px; }
@@ -486,11 +450,10 @@
             }
             #dock button { height: 28px; min-width: 44px; font-size: 8px; padding: 0 4px; }
 
-            /* Badge — HIDDEN on mobile, info goes to bus strip */
+            /* Badge — HIDDEN on compact/mobile, info goes to bus strip */
             #badge { display: none !important; }
 
             #toast { bottom: 70px; font-size: 9px; }
-            }
         }
     </style>
 </head>
@@ -512,10 +475,7 @@
         <button id="resetBtn">RST</button>
     </nav>
     <header id="top">
-        <div id="brand">ATO · TUBE</div>
-        <select id="smSceneSelect" title="Select Secondhand Motion or Worm Scene"></select>
-        <button id="smLayersBtn" class="on" title="Toggle 6 Concentric Multiplane Layer Rings vs Frame Clips">6 LAYER RINGS</button>
-        <button id="smBeflixBtn" title="Toggle 128×96 BEFLIX Dot-Matrix Texture on Tube">★ BEFLIX</button>
+        <div id="brand">ARC-TUNNEL LIVE</div>
         <button id="playBtn">PLAY</button>
         <button id="snapBtn" class="on">SNAP</button>
         <div class="mode">
@@ -1138,17 +1098,18 @@
                 }
                 function area() {
                     if (_areaCache) return _areaCache;
-                    let left = W < 900 ? 36 : 56
-                      , right = W < 900 ? 36 : 300
+                    const compact = W < 900 || H < 480;
+                    let left = compact ? 36 : 56
+                      , right = compact ? 36 : 300
                       , top = 0
-                      , bottom = W < 900 ? 38 : 52;
+                      , bottom = compact ? 38 : 52;
                     _areaCache = {
                         x: left,
                         y: top,
-                        w: W - left - right,
-                        h: H - top - bottom,
-                        cx: left + (W - left - right) * .52,
-                        cy: top + (H - top - bottom) * .52
+                        w: Math.max(100, W - left - right),
+                        h: Math.max(80, H - top - bottom),
+                        cx: left + Math.max(100, W - left - right) * .52,
+                        cy: top + Math.max(80, H - top - bottom) * .48
                     };
                     return _areaCache
                 }
@@ -1157,19 +1118,16 @@
                       , dz = z - S.cam + 900;
                     if (dz < 40)
                         return null;
-                    let s = 720 / dz;
+                    let fitScale = Math.min(1, Math.max(0.55, A.h / 330));
+                    let s = (720 * fitScale) / dz;
                     return {
-                        x: A.cx + x * s + (z - S.cam) * .052,
-                        y: A.cy + y * s - (z - S.cam) * .016,
+                        x: A.cx + x * s + (z - S.cam) * .052 * fitScale,
+                        y: A.cy + y * s - (z - S.cam) * .016 * fitScale,
                         s,
                         d: dz
                     }
                 }
                 function angle(c, track=isClip(c) ? c.vTrack : S.active) {
-                    if (c && c._layerIdx !== undefined) {
-                        const nL = Math.max(1, c._totalLayers || 6);
-                        return (c._layerIdx / nL) * Math.PI * 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0);
-                    }
                     return track * Math.PI / 2 - Math.PI / 2 + S.roll + ((c && Number.isFinite(c.rot)) ? c.rot : 0)
                 }
                 function trackAngle(track) {
@@ -1184,14 +1142,10 @@
                             mid: null,
                             depth: 1e9
                         };
-                    let nL = (c && c._layerIdx !== undefined) ? Math.max(1, c._totalLayers || 6) : 4;
-                    let halfSpan = (c && c._layerIdx !== undefined) ? (Math.PI / nL) * 0.84 : (Math.PI / 4 - .05);
-                    let rr = (c && c._layerIdx !== undefined)
-                        ? R * (0.66 + 0.54 * (c._layerIdx / Math.max(1, nL - 1))) + (c.vLift || 0) * 36
-                        : R + (c.vLift || 0) * 36
+                    let rr = R + (c.vLift || 0) * 36
                       , base = angle(c)
-                      , a0 = base - halfSpan
-                      , a1 = base + halfSpan
+                      , a0 = base - Math.PI / 4 + .05
+                      , a1 = base + Math.PI / 4 - .05
                       , z0 = c.vStart
                       , z1 = c.vStart + c.vDur
                       , mobile = W < 900
@@ -1548,7 +1502,7 @@
 
                         // Per-clip save/restore (not per-cell — LAW 9 Main Thread Sanctity)
                         ctx.save();
-                        const baseFill = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
+                        const baseFill = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
                         ctx.setLineDash(sel ? [] : st.dash);
                         ctx.strokeStyle = '#000';
 
@@ -1561,7 +1515,7 @@
 
                             // Hatch/thumbnail: show on ALL near cells (hold-frame model)
                             // Extended clips show their source frame across the entire face
-                            if ((c._frameIndex !== undefined || !sel) && cell.d < (isMobile ? 3500 : 5500)) {
+                            if (!sel && cell.d < (isMobile ? 3500 : 5500)) {
                                 _busCurrentClip = c; // thumbnail on ALL near cells
                                 hatch(p, st.hatch, b);
                                 _busCurrentClip = null;
@@ -1639,11 +1593,13 @@
                 }
                 function laneY(t) {
                     let A = area();
-                    return A.y + 70 + (A.h - 140) * (t + .5) / 4
+                    let pad = A.h < 320 ? 22 : 70;
+                    return A.y + pad + (A.h - pad * 2) * (t + .5) / 4
                 }
                 function laneH() {
                     let A = area();
-                    return clamp((A.h - 140) / 4 * .55, 30, 72)
+                    let pad = A.h < 320 ? 22 : 70;
+                    return clamp((A.h - pad * 2) / 4 * .58, 22, 72)
                 }
 
                 function drawBench() {
@@ -1701,10 +1657,10 @@
                         p.rect(x0, top, Math.max(5, w), h);
                         ctx.save();
                         ctx.globalAlpha = 0.85;
-                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
                         ctx.fill(p);
                         ctx.restore();
-                        if (!sel || c._frameIndex !== undefined)
+                        if (!sel)
                             { _busCurrentClip = c; hatch(p, STYLES[c.track].hatch, {
                                 x: x0,
                                 y: top,
@@ -1860,16 +1816,16 @@
 
                 function outsideP() {
                     let A = area()
-                      , m = W < 900;
+                      , m = W < 900 || H < 480;
                     return {
-                        cx0: A.x + (m ? 88 : 185),
-                        cy0: A.y + A.h * .56,
+                        cx0: A.x + (m ? 72 : 185),
+                        cy0: A.y + A.h * .54,
                         cx1: A.x + A.w - (m ? 36 : 90),
-                        cy1: A.y + A.h * .43,
-                        rx0: m ? 58 : 112,
-                        ry0: m ? 126 : 220,
-                        rx1: m ? 18 : 40,
-                        ry1: m ? 60 : 112,
+                        cy1: A.y + A.h * .44,
+                        rx0: m ? 48 : 112,
+                        ry0: Math.min(m ? 116 : 220, A.h * 0.42),
+                        rx1: m ? 16 : 40,
+                        ry1: Math.min(m ? 52 : 112, A.h * 0.22),
                         front: S.cam - 900,
                         span: FAR + 1800
                     }
@@ -1954,10 +1910,10 @@
                           , b = bounds(pts);
                         ctx.save();
                         ctx.globalAlpha = 0.85;
-                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel && c._frameIndex === undefined ? '#000' : '#faf6ee');
+                        ctx.fillStyle = hov && !sel ? '#e2e8f0' : (sel ? '#000' : '#fff');
                         ctx.fill(pp);
                         ctx.restore();
-                        if (!sel || c._frameIndex !== undefined)
+                        if (!sel)
                             { _busCurrentClip = c; hatch(pp, STYLES[c.track].hatch, b); _busCurrentClip = null; }
                         ctx.setLineDash(sel ? [] : STYLES[c.track].dash);
                         ctx.lineWidth = sel ? 5 : 2;
@@ -2232,9 +2188,6 @@
                     for (const g of gizmosToRender) {
                         renderGizmos(g.c, g.m, g.hw, g.hh, g.rect);
                     }
-                    if (typeof _smDrawCornerLathe === 'function') {
-                        _smDrawCornerLathe();
-                    }
 
                     readout.textContent = S.hover && S.hover.clip ? `HOVER: ${String(S.hover.mode).toUpperCase()} [${S.hover.clip.id}]` : S.selected ? `${S.selected.id} ${S.unit} ${fmt(S.selected.start)} ${fmt(S.selected.dur)}` : `TIME ${fmt(S.cam)}`;
                     modeName.textContent = VIEWS[S.view];
@@ -2291,21 +2244,34 @@
                     }
                 });
 
-                // ── IFRAME VISIBILITY DETECTION ──
-                // When c-bus is display:none on mobile, stop all rendering
+                // ── IFRAME VISIBILITY & RESIZE DETECTION ──
+                // When c-bus is display:none, stop rendering; when shown, resize and request sync
                 let _iframeVisible = true;
                 const _visObserver = new IntersectionObserver(entries => {
                     const wasVisible = _iframeVisible;
                     _iframeVisible = entries[0].isIntersecting;
                     if (_iframeVisible && !wasVisible) {
-                        console.log('[ATO-PERF] Iframe visible — waking render loop');
+                        resize();
                         _wakeBus();
+                        if (_BUSRX_ACTIVE && _busFrameTotal === 0) {
+                            try { window.parent.postMessage({ type: 'REQUEST_SYNC', _origin: 'tunnel' }, '*'); } catch (e) {}
+                        }
                     } else if (!_iframeVisible && wasVisible) {
-                        console.log('[ATO-PERF] Iframe hidden — halting render loop');
                         _loopRunning = false;
                     }
                 }, { threshold: 0.01 });
                 _visObserver.observe(document.documentElement);
+                if (typeof ResizeObserver !== 'undefined') {
+                    const _ro = new ResizeObserver(() => {
+                        if (innerWidth > 0 && innerHeight > 0 && (W !== innerWidth || H !== innerHeight)) {
+                            resize();
+                            if (_BUSRX_ACTIVE && _busFrameTotal === 0) {
+                                try { window.parent.postMessage({ type: 'REQUEST_SYNC', _origin: 'tunnel' }, '*'); } catch (e) {}
+                            }
+                        }
+                    });
+                    _ro.observe(document.documentElement);
+                }
 
                 let _dirty = true;
                 let _loopRunning = false;
@@ -2436,10 +2402,10 @@
                     S.selected = c;
                     S.active = c.track;
                     // Update active track for hold-frame derivation
-                    if (typeof c._frameIndex === 'number') _busActiveTrack = c.track;
-                    selBig.textContent = typeof c._frameIndex === 'number' ? `F${c._frameIndex + 1}` : c.id;
+                    if (c._frameIndex !== undefined) _busActiveTrack = c.track;
+                    selBig.textContent = c._frameIndex !== undefined ? `F${c._frameIndex + 1}` : c.id;
                     const holdBeats = Math.round(c.dur / SNAP);
-                    const frameInfo = typeof c._frameIndex === 'number' ? `HOLD ${holdBeats}× ` : (c._layerIdx !== undefined ? `RING ${c._layerIdx + 1}/${c._totalLayers || 6} · ` : '');
+                    const frameInfo = c._frameIndex !== undefined ? `HOLD ${holdBeats}× ` : '';
                     selMeta.textContent = `${frameInfo}${NAMES[c.track]} ${fmt(c.start)} DUR ${fmt(c.dur)} ${c.locked ? 'LOCK' : ''}`;
                     drawTracks();
                     drawOps();
@@ -3232,15 +3198,6 @@
                 }
                 );
 
-                if (!load())
-                    seed();
-                resize();
-                drawTracks();
-                drawStore();
-                drawOps();
-                select(clips.find(c => c.id === 'SC-034') || clips[0] || null);
-                _wakeBus(); // Start render loop
-
                 // ═══════════════════════════════════════════════════
                 // ── ATO-BUS RECEIVER SHIM ──
                 // Receives frame data from parent harness via
@@ -3479,322 +3436,24 @@
                 // Rendering context: which clip is currently being drawn
                 let _busCurrentClip = null;
 
-                // Patch hatch() to draw frame or Secondhand Motion layer thumbnails on clip faces
+                // Patch hatch() to draw frame thumbnails on clip faces
+                // THROTTLED: _busCurrentClip is only set on the NEAREST cell per clip
+                // so thumbnail drawImage+clip happens at most ONCE per clip, not 200× per clip
                 const _origHatch = hatch;
                 hatch = function(p, kind, b) {
                     if (_busCurrentClip && _busCurrentClip._frameIndex !== undefined) {
-                        const thumb = window._busGetThumb ? window._busGetThumb(_busCurrentClip._frameIndex) : null;
-                        if (thumb) {
+                        const entry = _busFrameCache.get(_busCurrentClip._frameIndex);
+                        if (entry && entry.canvas) {
                             ctx.save();
                             ctx.clip(p);
-                            ctx.globalAlpha = 0.92;
-                            ctx.drawImage(thumb, b.x, b.y, b.w, b.h);
+                            ctx.globalAlpha = 0.85;
+                            ctx.drawImage(entry.canvas, b.x, b.y, b.w, b.h);
                             ctx.restore();
                             return;
                         }
                     }
                     _origHatch(p, kind, b);
                 };
-
-                // ══════════════════════════════════════════════════════════════════
-                // ── SECONDHAND MOTION 6-LAYER RING ENGINE (DEFAULT: SM-0004 GIRAFFE) ──
-                // ══════════════════════════════════════════════════════════════════
-                let _smLayersMode = true;
-                let _smBeflixMode = false;
-                let _smCurrentSceneId = 'SM-0004';
-                let _smActiveClip = null;
-                let _smLayerTexCache = new Map();
-
-                function _smGetAllScenes() {
-                    const out = [];
-                    const bundle = window.SECONDHAND_DOODLE_BUNDLE;
-                    if (bundle && Array.isArray(bundle.clips)) {
-                        bundle.clips.forEach(c => out.push({ id: c.id, label: `${c.id} · ${c.title} (${(c.planes || []).length} layers)`, clip: c }));
-                    }
-                    if (Array.isArray(window.WORMS_108)) {
-                        window.WORMS_108.forEach(w => {
-                            const wid = w.id || (`WORM-${String(out.length + 1).padStart(3, '0')}`);
-                            if (!out.some(x => x.id === wid)) {
-                                out.push({ id: wid, label: `${wid} · ${w.title || w.film || 'Worm Study'}`, worm: w });
-                            }
-                        });
-                    }
-                    return out;
-                }
-
-                function _smBuildClipFromWorm(w) {
-                    const nF = 24;
-                    const planes = [
-                        { id: 'fg', name: 'Foreground Subject', z: 1.4, parallaxK: 2.0, role: 'Animated', tint: '#d97706', parts: [{ id: 'body', name: 'Subject Body', stroke: '#1c1917', fill: '#faf6ee', w: 3, closed: true, frames: [] }] },
-                        { id: 'mid', name: 'Midground Action', z: 2.4, parallaxK: 1.3, role: 'Animated', tint: '#2563eb', parts: [{ id: 'mid_p', name: 'Mid Contour', stroke: '#1e3a8a', fill: '#dbeafe', w: 2.5, closed: true, frames: [] }] },
-                        { id: 'bg', name: 'Horizon Layer', z: 5.0, parallaxK: 0.6, role: 'Static', tint: '#16a34a', parts: [{ id: 'bg_p', name: 'Horizon Line', stroke: '#14532d', fill: '#dcfce7', w: 2, closed: false, frames: [] }] }
-                    ];
-                    for (let fi = 0; fi < nF; fi++) {
-                        const u = fi / Math.max(1, nF - 1);
-                        const cx = 120 + u * 280;
-                        const cy = 155 + Math.sin(u * Math.PI * 4) * 16;
-                        planes[0].parts[0].frames.push([[cx - 26, cy - 30], [cx + 26, cy - 30], [cx + 30, cy + 30], [cx - 30, cy + 30]]);
-                        const mx = 180 + Math.cos(u * Math.PI * 2) * 70;
-                        planes[1].parts[0].frames.push([[mx - 35, 180], [mx + 35, 180], [mx + 25, 225], [mx - 25, 225]]);
-                        planes[2].parts[0].frames.push([[20, 210], [180, 198], [340, 208], [500, 195]]);
-                    }
-                    return { id: w.id || 'WORM', title: w.title || 'Worm Scene', nFrames: nF, stageW: 520, stageH: 292, planes };
-                }
-
-                function _smRenderLayerThumb(plane, planeIdx, fi, clipObj) {
-                    const key = `${clipObj.id}_p${planeIdx}_f${fi}_${_smBeflixMode ? 'bfx' : 'vec'}`;
-                    if (_smLayerTexCache.has(key)) return _smLayerTexCache.get(key);
-                    const c = document.createElement('canvas');
-                    c.width = 256; c.height = 192;
-                    const x = c.getContext('2d');
-                    const stW = clipObj.stageW || 520, stH = clipObj.stageH || 292;
-
-                    if (_smBeflixMode) {
-                        const gw = 64, gh = 48;
-                        const tmp = document.createElement('canvas');
-                        tmp.width = gw; tmp.height = gh;
-                        const tx = tmp.getContext('2d');
-                        tx.fillStyle = '#FFFFFF';
-                        tx.fillRect(0, 0, gw, gh);
-                        const sx = gw / stW, sy = gh / stH;
-                        (plane.parts || []).forEach(part => {
-                            const fArr = part.frames || [];
-                            const pts = fArr[Math.min(fi, fArr.length - 1)] || fArr[0];
-                            if (!pts || pts.length < 2) return;
-                            tx.save();
-                            tx.beginPath();
-                            pts.forEach((pt, idx) => {
-                                const px = pt[0] * sx, py = pt[1] * sy;
-                                if (idx === 0) tx.moveTo(px, py); else tx.lineTo(px, py);
-                            });
-                            if (part.closed) {
-                                tx.closePath();
-                                tx.fillStyle = '#444444';
-                                tx.fill();
-                            }
-                            tx.strokeStyle = '#000000';
-                            tx.lineWidth = 1.6;
-                            tx.stroke();
-                            tx.restore();
-                        });
-                        const img = tx.getImageData(0, 0, gw, gh).data;
-                        x.fillStyle = '#FAF6EE';
-                        x.fillRect(0, 0, 256, 192);
-                        const cw = 256 / gw, ch = 192 / gh;
-                        x.strokeStyle = 'rgba(0,0,0,0.14)';
-                        x.lineWidth = 0.5;
-                        for (let gx = 0; gx <= gw; gx += 4) { x.beginPath(); x.moveTo(gx * cw, 0); x.lineTo(gx * cw, 192); x.stroke(); }
-                        for (let gy = 0; gy <= gh; gy += 4) { x.beginPath(); x.moveTo(0, gy * ch); x.lineTo(256, gy * ch); x.stroke(); }
-                        for (let gy = 0; gy < gh; gy++) {
-                            for (let gx = 0; gx < gw; gx++) {
-                                const i = (gy * gw + gx) * 4;
-                                const lum = (img[i] + img[i + 1] + img[i + 2]) / 3;
-                                const cx = (gx + 0.5) * cw, cy = (gy + 0.5) * ch;
-                                if (lum < 235) {
-                                    const rad = Math.max(0.9, (1 - lum / 255) * (cw * 0.56));
-                                    x.fillStyle = lum < 90 ? '#111111' : (plane.tint || '#c86400');
-                                    x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.fill();
-                                } else {
-                                    x.fillStyle = 'rgba(0,0,0,0.18)';
-                                    x.fillRect(cx - 0.4, cy - 0.4, 0.8, 0.8);
-                                }
-                            }
-                        }
-                    } else {
-                        x.fillStyle = '#FAF6EE';
-                        x.fillRect(0, 0, 256, 192);
-                        x.strokeStyle = 'rgba(0,0,0,0.08)';
-                        x.lineWidth = 1;
-                        for (let gx = 0; gx < 256; gx += 32) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, 192); x.stroke(); }
-                        for (let gy = 0; gy < 192; gy += 32) { x.beginPath(); x.moveTo(0, gy); x.lineTo(256, gy); x.stroke(); }
-                        const sx = 256 / stW, sy = 192 / stH;
-                        (plane.parts || []).forEach(part => {
-                            const fArr = part.frames || [];
-                            const pts = fArr[Math.min(fi, fArr.length - 1)] || fArr[0];
-                            if (!pts || pts.length < 2) return;
-                            x.save();
-                            x.beginPath();
-                            pts.forEach((pt, idx) => {
-                                const px = pt[0] * sx, py = pt[1] * sy;
-                                if (idx === 0) x.moveTo(px, py); else x.lineTo(px, py);
-                            });
-                            if (part.closed) {
-                                x.closePath();
-                                x.fillStyle = part.fill || '#FAF6EE';
-                                x.fill();
-                            }
-                            x.strokeStyle = part.stroke || plane.tint || '#111111';
-                            x.lineWidth = Math.max(2, (part.w || 2.5) * 0.95);
-                            x.lineCap = 'round';
-                            x.lineJoin = 'round';
-                            x.stroke();
-                            x.restore();
-                        });
-                    }
-
-                    // Header strip on every layer ring face
-                    x.fillStyle = plane.tint || TRACK_COLORS[planeIdx % TRACK_COLORS.length] || '#111';
-                    x.fillRect(0, 0, 256, 22);
-                    x.fillStyle = '#fff';
-                    x.font = '900 11px ui-monospace, monospace';
-                    x.textAlign = 'left';
-                    x.textBaseline = 'middle';
-                    x.fillText(`P${planeIdx + 1}: ${String(plane.name || '').slice(0, 18)} · z=${plane.z}`, 6, 11);
-
-                    if (_smLayerTexCache.size > 180) {
-                        const firstKey = _smLayerTexCache.keys().next().value;
-                        _smLayerTexCache.delete(firstKey);
-                    }
-                    _smLayerTexCache.set(key, c);
-                    return c;
-                }
-
-                function _smSeedLayerClips(clipObj) {
-                    if (!clipObj) return;
-                    _smActiveClip = clipObj;
-                    _smLayerTexCache.clear();
-                    const planes = clipObj.planes || [];
-                    const nF = Math.max(12, clipObj.nFrames || 33);
-                    clips.length = 0;
-                    nextId = 1;
-                    planes.forEach((plane, pIdx) => {
-                        const start = pIdx * SNAP * 1.5;
-                        const dur = Math.max(SNAP * 8, nF * SNAP * 0.75);
-                        const c = mk(start, dur, pIdx % 4);
-                        c.id = `P${pIdx + 1}:${String(plane.name || 'Layer').slice(0, 12)}`;
-                        c.name = c.id;
-                        c._frameIndex = 'layer_' + pIdx;
-                        c._layerIdx = pIdx;
-                        c._totalLayers = planes.length;
-                        c._planeId = plane.id;
-                        c.lift = Number(((pIdx - (planes.length - 1) / 2) * 0.22).toFixed(2));
-                        c.vLift = c.lift;
-                        clips.push(c);
-                    });
-                    S.cam = SNAP * 4;
-                    select(clips[1] || clips[0] || null, 'sm-seed');
-                    drawTracks();
-                    drawOps();
-                    _wakeBus();
-                }
-
-                function _smLoadSceneById(sceneId, notifyParent = true) {
-                    const all = _smGetAllScenes();
-                    const found = all.find(s => s.id === sceneId) || all[0];
-                    if (!found) return;
-                    _smCurrentSceneId = found.id;
-                    const selEl = document.getElementById('smSceneSelect');
-                    if (selEl && selEl.value !== found.id) selEl.value = found.id;
-                    const clipObj = found.clip || _smBuildClipFromWorm(found.worm);
-                    if (_smLayersMode) {
-                        _smSeedLayerClips(clipObj);
-                    } else {
-                        _smActiveClip = clipObj;
-                        _wakeBus();
-                    }
-                    toast(`LOADED ${found.id}`);
-                    if (notifyParent && _BUSRX_ACTIVE) {
-                        window.parent.postMessage({
-                            type: 'SCENE_SELECT',
-                            _origin: 'tunnel',
-                            sceneId: found.id
-                        }, '*');
-                    }
-                }
-
-                function _smDrawCornerLathe() {
-                    if (!_smLayersMode || !W || !H || W < 420) return;
-                    const A = area();
-                    const rBoxW = 144, rBoxH = 144;
-                    const rx = A.x + A.w - rBoxW - 10, ry = A.y + 10;
-                    ctx.save();
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 2.5;
-                    ctx.fillRect(rx, ry, rBoxW, rBoxH);
-                    ctx.strokeRect(rx, ry, rBoxW, rBoxH);
-                    ctx.fillStyle = '#0f172a';
-                    ctx.fillRect(rx, ry, rBoxW, 18);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '900 9px ui-monospace, monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const nF = (_smActiveClip && _smActiveClip.nFrames) || 33;
-                    const fi = ((Math.floor(Math.max(0, S.cam) / (SNAP * 0.5)) % nF) + nF) % nF;
-                    ctx.fillText(`LATHE CROSS-SEC · F${String(fi + 1).padStart(2, '0')}`, rx + rBoxW / 2, ry + 9);
-
-                    const cx = rx + rBoxW / 2, cy = ry + 18 + (rBoxH - 18) / 2;
-                    const maxR = 48;
-                    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
-                    ctx.lineWidth = 1;
-                    [0.4, 0.7, 1.0].forEach(fr => {
-                        ctx.beginPath(); ctx.arc(cx, cy, maxR * fr, 0, Math.PI * 2); ctx.stroke();
-                    });
-                    clips.forEach((c, idx) => {
-                        const isSel = S.selected === c;
-                        const nL = Math.max(1, c._totalLayers || clips.length || 6);
-                        const ang = angle(c);
-                        const span = (Math.PI * 2 / nL) * 0.78;
-                        const rad = clamp(maxR * (0.42 + 0.50 * ((c._layerIdx ?? idx) / Math.max(1, nL - 1)) + (c.vLift || 0) * 0.16), 12, maxR + 6);
-                        const col = TRACK_COLORS[c.track % TRACK_COLORS.length] || '#000';
-                        ctx.strokeStyle = col;
-                        ctx.lineWidth = isSel ? 5 : 3;
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, rad, ang - span / 2, ang + span / 2);
-                        ctx.stroke();
-                        const lx = cx + Math.cos(ang) * rad, ly = cy + Math.sin(ang) * rad;
-                        ctx.fillStyle = isSel ? '#000' : '#fff';
-                        ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI * 2); ctx.fill();
-                        ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
-                        ctx.fillStyle = isSel ? '#fff' : '#000';
-                        ctx.font = '900 7px ui-monospace, monospace';
-                        ctx.fillText(String((c._layerIdx ?? idx) + 1), lx, ly + 0.5);
-                        rendered.push({ type: 'clip', clip: c, x: lx - 8, y: ly - 8, w: 16, h: 16 });
-                    });
-                    ctx.restore();
-                }
-
-                (function initSecondhandTubeBar() {
-                    const selEl = document.getElementById('smSceneSelect');
-                    const layersBtn = document.getElementById('smLayersBtn');
-                    const beflixBtn = document.getElementById('smBeflixBtn');
-                    const all = _smGetAllScenes();
-                    if (selEl && all.length) {
-                        selEl.innerHTML = '';
-                        all.forEach(item => {
-                            const opt = document.createElement('option');
-                            opt.value = item.id;
-                            opt.textContent = item.label;
-                            selEl.appendChild(opt);
-                        });
-                        const def = all.find(x => x.id === 'SM-0004') || all[0];
-                        selEl.value = def.id;
-                        selEl.onchange = () => _smLoadSceneById(selEl.value, true);
-                        _smLoadSceneById(def.id, false);
-                    }
-                    if (layersBtn) {
-                        layersBtn.onclick = () => {
-                            _smLayersMode = !_smLayersMode;
-                            layersBtn.classList.toggle('on', _smLayersMode);
-                            layersBtn.textContent = _smLayersMode ? '6 LAYER RINGS' : 'BUS FRAMES';
-                            if (_smLayersMode && _smActiveClip) {
-                                _smSeedLayerClips(_smActiveClip);
-                            } else if (!_smLayersMode && _busFrameTotal > 0) {
-                                _busSeedFromFrames(_busFrameTotal);
-                            }
-                            _wakeBus();
-                        };
-                    }
-                    if (beflixBtn) {
-                        beflixBtn.onclick = () => {
-                            _smBeflixMode = !_smBeflixMode;
-                            beflixBtn.classList.toggle('on', _smBeflixMode);
-                            _smLayerTexCache.clear();
-                            toast(_smBeflixMode ? '★ BEFLIX 128×96 DOTS ON TUBE' : 'VECTOR DOODLE LAYERS ON TUBE');
-                            _wakeBus();
-                        };
-                    }
-                })();
 
                 // Patch into the rendering pipeline to set _busCurrentClip
                 // We intercept every .forEach call on sorted clip arrays
@@ -3837,20 +3496,20 @@
                             if (idx < d.frames.length) {
                                 setTimeout(processBatch, 0); // yield to keep UI alive
                             } else {
-                                // All thumbnails processed — reconcile clips if in BUS FRAMES mode
-                                if (!_smLayersMode) {
-                                    const hasFrameMapped = clips.some(c => typeof c._frameIndex === 'number');
-                                    if (!hasFrameMapped || clips.length === 0) {
-                                        _busSeedFromFrames(d.total);
-                                    } else {
-                                        _busSyncFromFrames(d.total);
-                                    }
+                                // All thumbnails processed — reconcile clips
+                                const hasFrameMapped = clips.some(c => c._frameIndex !== undefined);
+                                if (!hasFrameMapped || clips.length === 0) {
+                                    // First time: full seed
+                                    _busSeedFromFrames(d.total);
+                                } else {
+                                    // Subsequent: incremental sync (preserves user edits)
+                                    _busSyncFromFrames(d.total);
                                 }
                                 _wakeBus(); // trigger re-render with new thumbs
                                 // Dismiss loading overlay if engine is done
                                 if (_busRipDone) _dismissRipOverlay();
                                 // LAW 2: Navigate camera AFTER clips exist
-                                if (typeof d.cursor === 'number' && !_smLayersMode) {
+                                if (typeof d.cursor === 'number') {
                                     const targetClip = clips.find(c => c._frameIndex === d.cursor);
                                     if (targetClip) {
                                         S.cam = targetClip.vStart + targetClip.vDur / 2;
@@ -3917,10 +3576,6 @@
                             _wakeBus();
                             render(performance.now());
                         }
-                    }
-
-                    if (d.type === 'SCENE_SELECT' && d.sceneId) {
-                        _smLoadSceneById(d.sceneId, false);
                     }
 
                     // ── STRIP REORDER — engine reordered frames, reposition clips ──
@@ -4048,7 +3703,7 @@
                 select = function(c, reason) {
                     _origSelect(c, reason);
                     if (_BUSRX_ACTIVE && c) {
-                        if (typeof c._frameIndex === 'number') {
+                        if (c._frameIndex !== undefined) {
                             window.parent.postMessage({
                                 type: 'GOTO_FRAME',
                                 _origin: 'tunnel',
@@ -4062,30 +3717,29 @@
                             name: c.name || ('SC-' + String(c.id).padStart(3,'0')),
                             track: c.track,
                             start: c.start,
-                            dur: c.dur,
-                            planeId: c._planeId || null
+                            dur: c.dur
                         }, '*');
                     }
                 };
 
-                // Expose bus + Secondhand Motion layer thumbnail lookup for rendering
+                // Expose bus thumbnail lookup for rendering
                 window._busGetThumb = function(frameIndex) {
-                    if (typeof frameIndex === 'string' && frameIndex.indexOf('layer_') === 0 && _smActiveClip) {
-                        const pIdx = parseInt(frameIndex.slice(6), 10);
-                        const planes = _smActiveClip.planes || [];
-                        const plane = planes[pIdx];
-                        if (plane) {
-                            const nF = Math.max(1, _smActiveClip.nFrames || 33);
-                            const fi = ((Math.floor(Math.max(0, S.cam) / (SNAP * 0.5)) % nF) + nF) % nF;
-                            return _smRenderLayerThumb(plane, pIdx, fi, _smActiveClip);
-                        }
-                    }
                     const entry = _busFrameCache.get(frameIndex);
                     return entry ? entry.canvas : null;
                 };
 
+                if (_BUSRX_ACTIVE || !load())
+                    seed();
+                resize();
+                drawTracks();
+                drawStore();
+                drawOps();
+                select(clips.find(c => c.id === 'SC-034') || clips[0] || null);
+                _wakeBus(); // Start render loop
+
                 if (_BUSRX_ACTIVE) {
                     console.log('[ATO-BUS] Receiver shim active — listening for frame data');
+                    try { window.parent.postMessage({ type: 'REQUEST_SYNC', _origin: 'tunnel' }, '*'); } catch (e) {}
                 }
 
             }

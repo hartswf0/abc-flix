@@ -4,7 +4,7 @@
   // Shared Secondhand Motion Multi-Lens & Parts Inspector Engine for ICARO-PRO
   let cvWorm = null, ctxWorm = null;
   let cvStage = null, ctxStage = null;
-  let planesRow = null, parallelSubSeg = null, tunnelSubSeg = null, parThemeBtn = null, beflixToggleBtn = null;
+  let planesRow = null, parallelSubSeg = null, tunnelSubSeg = null, parThemeBtn = null;
   let restorePlanesBtn = null, zoomCrumbBtn = null;
   let kScaleRange = null, kScaleLbl = null, explodeRange = null, explodeLbl = null;
 
@@ -16,23 +16,11 @@
   let shotCache = new Map();
   let frameImgCache = new Map();
 
-  let wormMode = 'tunnel';       // 'tunnel' | 'parallel' | 'lanes' | 'parts' | 'strobe' | 'kymo' | 'anatomy' | 'box' | 'wall' | 'all'
-  let tunnelSubMode = 'rings';   // 'rings' | 'barrel' | 'inside' | 'outside' | 'side' | 'bench'
-  let tunnelRoll = -0.22;
-  let tunnelYaw = 0.0;
-  let tunnelTool = 'MOVE';       // 'MOVE' | 'TRIM' | 'LIFT' | 'ROLL' | 'SPLIT'
-  let selectedTunnelPlaneId = 'char';
-  let layerTubeState = {};       // per-plane { dt, trimIn, trimOut, lift, rot, splitAt }
-  let activeWormDrag = null;
+  let wormMode = 'parallel';   // 'parallel' | 'cbus' | 'lanes' | 'parts' | 'strobe' | 'kymo' | 'anatomy' | 'box' | 'wall' | 'all'
   let parallelSubMode = 'butter'; // 'butter' | 'slices' | 'radial' | 'dual'
-  let parallelDark = false;      // Default to high-contrast light ATO blueprint / warm paper!
-  let beflixMode = false;        // 1-click BEFLIX 128x96 dot-matrix mode across stage & bottom lenses!
-  let beflixDarkPalette = false; // Default to warm punchcard paper + bold carbon/layer ink
-  let beflixColorDots = true;    // Color multiplane layer dots + B&W archival halftone
-  let _inBeflixStampPass = false;
-  let _dotSyncTimer = null;
-  let view = 'composite';        // 'beflix' | 'dots' | 'all4' | 'composite' | 'xray' | 'cutout' | 'cartoon' | 'footage' | 'masks'
-  let stageInDotsMode = false;
+  let parallelDark = true;
+  let view = 'composite';      // 'dots' | 'all4' | 'composite' | 'xray' | 'cutout' | 'cartoon' | 'footage' | 'masks'
+  let stageInDotsMode = false; // Default top stage to high-res 'composite' or 'dots' (user can switch 1-click!)
   let f = 0;
   let soloPlaneId = null;
   let planeOn = {};
@@ -44,47 +32,6 @@
   let wormHitBoxes = [];
   let stageHitBoxes = [];
   let hitTransform = {tx: 0, ty: 0, sx: 1, sy: 1};
-
-  function getShotFrameCount(){
-    return (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-  }
-
-  function getPlaneTubeState(pid){
-    const N = getShotFrameCount();
-    if(!pid) return {dt: 0, trimIn: 0, trimOut: Math.max(0, N - 1), lift: 0, rot: 0, splitAt: null};
-    if(!layerTubeState[pid]){
-      layerTubeState[pid] = {dt: 0, trimIn: 0, trimOut: Math.max(0, N - 1), lift: 0, rot: 0, splitAt: null};
-    }
-    return layerTubeState[pid];
-  }
-
-  function resetAllLayerTubeEdits(){
-    layerTubeState = {};
-    syncPlanesToIcaroDots();
-    renderAll();
-  }
-
-  function isPlaneActiveAtFrame(pid, fi){
-    if(!pid) return true;
-    const st = layerTubeState[pid];
-    if(!st) return true;
-    return fi >= st.trimIn && fi <= st.trimOut;
-  }
-
-  function getPlaneEffectiveFrame(pid, fi){
-    const N = getShotFrameCount();
-    const st = layerTubeState[pid];
-    if(!st || !st.dt) return Math.max(0, Math.min(N - 1, fi));
-    return Math.max(0, Math.min(N - 1, Math.round(fi - st.dt)));
-  }
-
-  function scheduleDotSync(){
-    if(_dotSyncTimer) clearTimeout(_dotSyncTimer);
-    _dotSyncTimer = setTimeout(()=>{
-      _dotSyncTimer = null;
-      syncPlanesToIcaroDots();
-    }, 90);
-  }
 
   function pushHitBox(b){
     wormHitBoxes.push(Object.assign({}, b, {
@@ -168,12 +115,7 @@
     im.crossOrigin = 'anonymous';
     const pad = String(fi).padStart(3, '0');
     im.src = `https://hartswf0.github.io/secondhand-motion/shots/${worm.shot_id}/frames/f${pad}.jpg`;
-    im.onload = () => {
-      if(curWorm === worm){
-        scheduleDotSync();
-        renderAll();
-      }
-    };
+    im.onload = () => { if(curWorm === worm) renderAll(); };
     frameImgCache.set(key, im);
     return null;
   }
@@ -194,21 +136,18 @@
     return true;
   }
 
-  function camOffset(planeZ, fi, planeId){
+  function camOffset(planeZ, fi){
     const zRef = (S && S.z_ref) || (curWorm && curWorm.z_ref) || 2;
-    const tSt = planeId ? layerTubeState[planeId] : null;
-    const liftMul = tSt && tSt.lift ? Math.max(0.15, 1 + tSt.lift * 0.75) : 1.0;
-    const effFi = planeId ? getPlaneEffectiveFrame(planeId, fi) : fi;
-    const k = (zRef / Math.max(0.2, Number(planeZ) || zRef)) * kScale * liftMul;
+    const k = (zRef / Math.max(0.2, Number(planeZ) || zRef)) * kScale;
     let dx = 0, dy = 0;
-    if(S && Array.isArray(S.camera) && S.camera[effFi] != null){
-      const cam = S.camera[effFi];
+    if(S && Array.isArray(S.camera) && S.camera[fi] != null){
+      const cam = S.camera[fi];
       const cx = Array.isArray(cam) ? Number(cam[0]) : Number(cam.dx !== undefined ? cam.dx : cam.x);
       const cy = Array.isArray(cam) ? Number(cam[1]) : Number(cam.dy !== undefined ? cam.dy : cam.y);
       dx = (Number.isFinite(cx) ? cx : 0) * k;
       dy = (Number.isFinite(cy) ? cy : 0) * k;
-    } else if(curWorm && curWorm.frames && curWorm.frames[effFi]){
-      const cam = curWorm.frames[effFi].cam || [0,0];
+    } else if(curWorm && curWorm.frames && curWorm.frames[fi]){
+      const cam = curWorm.frames[fi].cam || [0,0];
       const W = (S && S.W) || curWorm.W || 480;
       const H = (S && S.H) || curWorm.H || 360;
       const cx = Number(cam[0]) || 0;
@@ -219,9 +158,6 @@
     if(explodeAmt > 0){
       const logZ = Math.log2(Math.max(0.4, Number(planeZ) || zRef) / Math.max(0.4, zRef));
       dy -= logZ * explodeAmt * 38;
-    }
-    if(tSt && tSt.lift){
-      dy -= tSt.lift * 16;
     }
     return {dx, dy};
   }
@@ -241,28 +177,12 @@
     }
     return {
       minX, minY, maxX, maxY,
-      x0: minX, y0: minY, x1: maxX, y1: maxY,
       cx: (minX + maxX) * 0.5,
       cy: (minY + maxY) * 0.5,
       w: Math.max(8, maxX - minX),
       h: Math.max(8, maxY - minY),
       nPts
     };
-  }
-
-  function normalizePartRecord(p){
-    const camShift = p.camShift || {dx: 0, dy: 0};
-    const rigShift = p.rigShift || {dx: 0, dy: 0};
-    return Object.assign(p, {
-      planeZ: p.z,
-      kMult: p.k,
-      kind: p.kind || (p.isChar ? 'char_whole' : (p.isCharStroke ? 'char_stroke' : 'object')),
-      bbox0: p.bbox0 || p.bbox,
-      off: p.off || {dx: 0, dy: 0},
-      camDisp: camShift,
-      rigDisp: rigShift,
-      totalDisp: {dx: camShift.dx + rigShift.dx, dy: camShift.dy + rigShift.dy}
-    });
   }
 
   function extractShotParts(fi, filterPlaneId){
@@ -477,112 +397,10 @@
         }
       }
     }
-    return parts.map(normalizePartRecord);
-  }
-
-  function layerColorForPlane(plane){
-    if(!plane || plane.id === 'char') return '#EF9F3A';
-    const z = Number(plane.z) || 2;
-    if(z <= 1.5) return '#D97706';
-    if(z <= 2.6) return '#EAB308';
-    if(z <= 3.8) return '#2E7A4A';
-    if(z <= 7.0) return '#2563EB';
-    return '#0284C7';
-  }
-
-  function beflixColorForPlane(plane){
-    if(!plane || plane.id === 'char') return '#FFB03A';
-    const z = Number(plane.z) || 2;
-    if(z <= 1.5) return '#F59E0B';
-    if(z <= 2.6) return '#FDE047';
-    if(z <= 3.8) return '#4ADE80';
-    if(z <= 7.0) return '#60A5FA';
-    return '#38BDF8';
-  }
-
-  const _bfxStampCv = document.createElement('canvas');
-  _bfxStampCv.width = 96; _bfxStampCv.height = 72;
-  const _bfxStampCtx = _bfxStampCv.getContext('2d', { willReadFrequently: true });
-  const _bfxSampleCv = document.createElement('canvas');
-  _bfxSampleCv.width = 32; _bfxSampleCv.height = 24;
-  const _bfxSampleCtx = _bfxSampleCv.getContext('2d', { willReadFrequently: true });
-
-  function renderStampAsBeflixDots(ctx, tx, ty, tw, th, dotColorHex, renderFn){
-    if(tw < 8 || th < 8) return;
-    _inBeflixStampPass = true;
-    try {
-      _bfxStampCtx.fillStyle = '#FBFAF6';
-      _bfxStampCtx.fillRect(0, 0, 96, 72);
-      renderFn(_bfxStampCtx, 0, 0, 96, 72);
-    } finally {
-      _inBeflixStampPass = false;
-    }
-
-    const cols = Math.max(10, Math.min(28, Math.round(tw / 3.4)));
-    const rows = Math.max(8,  Math.min(21, Math.round(th / 3.4)));
-    _bfxSampleCtx.clearRect(0, 0, cols, rows);
-    _bfxSampleCtx.drawImage(_bfxStampCv, 0, 0, 96, 72, 0, 0, cols, rows);
-    const data = _bfxSampleCtx.getImageData(0, 0, cols, rows).data;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(tx, ty, tw, th);
-    ctx.clip();
-    ctx.fillStyle = beflixDarkPalette ? '#090B10' : '#F4F0E4';
-    ctx.fillRect(tx, ty, tw, th);
-
-    const cellW = tw / cols;
-    const cellH = th / rows;
-    const baseCol = dotColorHex || '#D97706';
-
-    // Crisp mini dot-matrix cell lines
-    ctx.strokeStyle = beflixDarkPalette ? 'rgba(255,255,255,0.12)' : 'rgba(20,18,14,0.14)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    for(let c = 1; c < cols; c++){
-      const gx = tx + c * cellW;
-      ctx.moveTo(gx, ty); ctx.lineTo(gx, ty + th);
-    }
-    for(let r = 1; r < rows; r++){
-      const gy = ty + r * cellH;
-      ctx.moveTo(tx, gy); ctx.lineTo(tx + tw, gy);
-    }
-    ctx.stroke();
-
-    for(let r = 0; r < rows; r++){
-      const cy = ty + (r + 0.5) * cellH;
-      for(let c = 0; c < cols; c++){
-        const idx = (r * cols + c) * 4;
-        const R = data[idx], G = data[idx+1], B = data[idx+2];
-        const lum = 0.299 * R + 0.587 * G + 0.114 * B;
-        const sat = Math.max(R, G, B) - Math.min(R, G, B);
-        const inkSig = Math.max(0, Math.min(1, (242 - lum) / 155 + (sat > 30 ? 0.38 : 0)));
-        const cx = tx + (c + 0.5) * cellW;
-        if(inkSig > 0.10){
-          const qLvl = Math.max(1, Math.min(7, Math.round(inkSig * 7)));
-          const dSize = Math.max(1.5, Math.min(cellW, cellH) * (0.42 + 0.52 * Math.pow(qLvl / 7, 0.72)));
-          ctx.fillStyle = beflixDarkPalette
-            ? (qLvl >= 6 ? '#FFFDF8' : baseCol)
-            : (qLvl >= 6 ? '#11100D' : baseCol);
-          ctx.beginPath();
-          ctx.arc(cx, cy, dSize * 0.5, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = beflixDarkPalette ? 'rgba(255,255,255,0.20)' : 'rgba(20,18,14,0.22)';
-          ctx.fillRect(cx - 0.5, cy - 0.5, 1.0, 1.0);
-        }
-      }
-    }
-    ctx.restore();
+    return parts;
   }
 
   function drawPartInRect(ctx, part, fi, tx, ty, tw, th, opts){
-    if(beflixMode && !_inBeflixStampPass){
-      renderStampAsBeflixDots(ctx, tx, ty, tw, th, part ? part.color : '#FFB03A', (bCtx, bx, by, bw, bh)=>{
-        drawPartInRect(bCtx, part, fi, bx, by, bw, bh, opts);
-      });
-      return;
-    }
     const o = Object.assign({showSeedGhost: true, colorStrokeByIndex: false, showVertices: false}, opts || {});
     if(!part || !part.strokes || !part.strokes.length) return;
     if(part.isChar && !o.colorStrokeByIndex){
@@ -704,14 +522,7 @@
     return [];
   }
 
-  function drawSamCutoutInRect(ctx, worm, rawFi, tx, ty, tw, th, opts){
-    if(beflixMode && !_inBeflixStampPass && tw <= 260){
-      renderStampAsBeflixDots(ctx, tx, ty, tw, th, '#D97706', (bCtx, bx, by, bw, bh)=>{
-        drawSamCutoutInRect(bCtx, worm, rawFi, bx, by, bw, bh, opts);
-      });
-      return;
-    }
-    const fi = getPlaneEffectiveFrame('char', rawFi);
+  function drawSamCutoutInRect(ctx, worm, fi, tx, ty, tw, th, opts){
     const o = Object.assign({cropToMask:false, drawOutline:true, outlineColor:'#EF9F3A', drawDoodle:true, alpha:1.0}, opts||{});
     const img = getFrameImg(worm, fi);
     const W = (S && S.W) || worm.W || 480;
@@ -828,19 +639,12 @@
     ctx.restore();
   }
 
-  function drawPlaneObjectsInRect(ctx, plane, rawFi, tx, ty, tw, th, cropToPlane){
-    if(beflixMode && !_inBeflixStampPass && tw <= 260){
-      renderStampAsBeflixDots(ctx, tx, ty, tw, th, layerColorForPlane(plane), (bCtx, bx, by, bw, bh)=>{
-        drawPlaneObjectsInRect(bCtx, plane, rawFi, bx, by, bw, bh, cropToPlane);
-      });
-      return;
-    }
-    const fi = getPlaneEffectiveFrame(plane.id, rawFi);
+  function drawPlaneObjectsInRect(ctx, plane, fi, tx, ty, tw, th, cropToPlane){
     const W = (S && S.W) || curWorm.W || 480;
     const H = (S && S.H) || curWorm.H || 360;
     const zRef = (S && S.z_ref) || curWorm.z_ref || 2;
     const objs = (S && Array.isArray(S.objects)) ? S.objects.filter(o => o.plane === plane.id) : [];
-    const off = camOffset(plane.z, rawFi, plane.id);
+    const off = camOffset(plane.z, fi);
     const t = tintForPlane(plane.id, plane.z, zRef);
 
     // Subtle plane depth tint & archive footage context inside stamp boxes
@@ -1103,893 +907,6 @@
     ctx.stroke();
 
     ctx.restore();
-  }
-
-  // ============================================================================
-  // LENS 0: 3D MULTIPLANE LAYER-RING TUNNEL ('tunnel' / ATO)
-  // Brings the full original ATO / c-bus 3D Tube capabilities (RINGS, BARREL,
-  // INSIDE, OUTSIDE, SIDE, BENCH + interactive MOVE, TRIM, LIFT, ROLL, SPLIT
-  // gizmo handles + live circular Lathe Cross-Section monitor) to Secondhand Motion!
-  // ============================================================================
-  function renderTunnelLayersMode(ctx, W, H, fi, N, planes, zRef){
-    const dark = parallelDark;
-    // 1. Authentic ATO / c-bus Blueprint Grid & Scanline Background
-    if(dark){
-      ctx.fillStyle = '#0B0D14';
-      ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    } else {
-      ctx.fillStyle = '#F8FAFC';
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#E8EEF5';
-      for(let i = 0; i < 16; i++){
-        ctx.fillRect((i * 73) % W, (i * 29) % H, 140, 2);
-      }
-      ctx.strokeStyle = 'rgba(0,0,0,0.09)';
-    }
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for(let gx = 0; gx < W; gx += 40){ ctx.moveTo(gx, 0); ctx.lineTo(gx, H); }
-    for(let gy = 0; gy < H; gy += 40){ ctx.moveTo(0, gy); ctx.lineTo(W, gy); }
-    ctx.stroke();
-
-    const lineRGB = dark ? '255,255,255' : '18,16,14';
-    const planesNearFirst = planes.slice().reverse(); // Grass (z=1.2) -> Walking giraffe (z=2) -> Young giraffes (z=2.5) -> Trees (z=3) -> Far treeline (z=6) -> Sky (z=10)
-    const K = Math.max(1, planesNearFirst.length);
-    if(!selectedTunnelPlaneId || !planesNearFirst.some(p => p.id === selectedTunnelPlaneId)){
-      const charP = planesNearFirst.find(p => p.id === 'char') || planesNearFirst[0];
-      selectedTunnelPlaneId = charP ? charP.id : null;
-    }
-    const DASH_STYLES = [[], [8, 5], [12, 4, 2, 4], [3, 5], [10, 4], [6, 3]];
-
-    // Reserve right panel for the ATO Live Circular Lathe Cross-Section & Layer Ops Card
-    // On narrow mobile screens (W < 560), use a compact 144px panel so the 3D tunnel gets maximum width
-    const isCompactTube = W < 560 || H < 310;
-    const opsW = isCompactTube ? 146 : 184;
-    const W_tube = W - opsW;
-
-    function drawAtoTag(tx, ty, text, isRed, colBorder){
-      ctx.save();
-      ctx.font = '900 9.5px "JetBrains Mono", ui-monospace, monospace';
-      const tw = Math.max(46, ctx.measureText(text).width + 12);
-      const th = 17;
-      const rx = Math.max(6, Math.min(W_tube - tw - 6, tx - tw * 0.5));
-      const ry = Math.max(6, Math.min(H - 36 - th, ty - th * 0.5));
-      ctx.fillStyle = isRed ? '#EF4444' : (dark ? '#0E1017' : '#FFFFFF');
-      ctx.strokeStyle = isRed ? '#000000' : (colBorder || (dark ? '#FFFFFF' : '#000000'));
-      ctx.lineWidth = isRed ? 2.2 : 1.8;
-      ctx.fillRect(rx, ry, tw, th);
-      ctx.strokeRect(rx, ry, tw, th);
-      ctx.fillStyle = isRed ? '#FFFFFF' : (colBorder || (dark ? '#FFFDF8' : '#000000'));
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, rx + tw * 0.5, ry + th * 0.5 + 0.5);
-      ctx.restore();
-      return {x: rx, y: ry, w: tw, h: th};
-    }
-
-    // Authentic ATO / c-bus Gizmo Handles (MOVE [M], TRIM [S/E], LIFT [↑], ROLL [R], SPLIT [CUT])
-    let selectedGizmoTarget = null;
-    function recordSelectedGizmo(plane, cx, cy, hw, hh){
-      if(plane && plane.id === selectedTunnelPlaneId){
-        selectedGizmoTarget = {plane, cx, cy, hw: Math.max(26, hw), hh: Math.max(20, hh)};
-      }
-    }
-
-    function drawAtoGizmosForSelected(){
-      if(!selectedGizmoTarget) return;
-      const {plane, cx, cy, hw, hh} = selectedGizmoTarget;
-      const mx = Math.max(54, Math.min(W_tube - 54, cx));
-      const my = Math.max(44, Math.min(H - 58, cy));
-      ctx.save();
-      ctx.setLineDash([6, 4]);
-      ctx.strokeStyle = dark ? '#FFFDF8' : '#000000';
-      ctx.lineWidth = 2.4;
-      ctx.strokeRect(mx - hw - 8, my - hh - 8, (hw + 8) * 2, (hh + 8) * 2);
-      ctx.setLineDash([]);
-
-      function sqHandle(hx, hy, bw, bh, dragMode, lbl, fillCol){
-        ctx.fillStyle = fillCol || '#FEF08A';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.4;
-        ctx.fillRect(hx - bw * 0.5, hy - bh * 0.5, bw, bh);
-        ctx.strokeRect(hx - bw * 0.5, hy - bh * 0.5, bw, bh);
-        ctx.fillStyle = '#000000';
-        ctx.font = '900 10px "JetBrains Mono", ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(lbl, hx, hy + 0.5);
-        pushHitBox({
-          x: hx - bw * 0.5 - 10, y: hy - bh * 0.5 - 10, w: bw + 20, h: bh + 20,
-          atoDragMode: dragMode, planeId: plane.id
-        });
-      }
-      function cirHandle(hx, hy, r, dragMode, lbl, fillCol){
-        ctx.fillStyle = fillCol || '#FEF08A';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.arc(hx, hy, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#000000';
-        ctx.font = '900 10px "JetBrains Mono", ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(lbl, hx, hy + 0.5);
-        pushHitBox({
-          x: hx - r - 10, y: hy - r - 10, w: (r + 10) * 2, h: (r + 10) * 2,
-          atoDragMode: dragMode, planeId: plane.id
-        });
-      }
-
-      if(tunnelTool === 'MOVE'){
-        sqHandle(mx, my, 40, 24, 'move', 'M', '#FEF08A');
-        cirHandle(mx + hw + 14, my - hh - 6, 12, 'lift', '↑', '#FFFFFF');
-      } else if(tunnelTool === 'TRIM'){
-        sqHandle(mx - hw - 14, my, 28, 24, 'trimIn', 'S', '#FEF08A');
-        sqHandle(mx + hw + 14, my, 28, 24, 'trimOut', 'E', '#FEF08A');
-      } else if(tunnelTool === 'LIFT'){
-        cirHandle(mx, my - hh - 14, 14, 'lift', '↑', '#FEF08A');
-        sqHandle(mx, my, 36, 22, 'move', 'M', '#FFFFFF');
-      } else if(tunnelTool === 'ROLL'){
-        cirHandle(mx, my - hh - 14, 14, 'roll', 'R', '#FEF08A');
-        sqHandle(mx, my, 36, 22, 'move', 'M', '#FFFFFF');
-      } else if(tunnelTool === 'SPLIT'){
-        ctx.fillStyle = '#EF4444';
-        ctx.fillRect(mx - 1.5, my - hh - 16, 3, (hh + 16) * 2);
-        sqHandle(mx, my - hh - 14, 38, 22, 'split', 'CUT', '#FCA5A5');
-      }
-      ctx.restore();
-    }
-
-    // Draw Right-Hand ATO Live Lathe Cross-Section Monitor & Selected Layer Ops Panel
-    function drawAtoRightMonitorAndDock(){
-      const rx = W_tube + 4, ry = 6, rw = opsW - 8, rh = H - 12;
-      ctx.save();
-      ctx.fillStyle = dark ? 'rgba(14, 17, 25, 0.96)' : 'rgba(255, 255, 255, 0.96)';
-      ctx.strokeStyle = dark ? '#FFFDF8' : '#000000';
-      ctx.lineWidth = 2.2;
-      ctx.fillRect(rx, ry, rw, rh);
-      ctx.strokeRect(rx, ry, rw, rh);
-
-      // Header bar
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(rx, ry, rw, 19);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 8.5px "JetBrains Mono", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(`LATHE @ F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, rx + 5, ry + 12.5);
-
-      // Dynamically size the Circular Lathe Monitor to fit any canvas height without collision
-      const availForLathe = Math.max(52, rh - 172);
-      const mR  = Math.max(24, Math.min(isCompactTube ? 40 : 50, Math.floor(availForLathe * 0.46)));
-      const mCx = rx + rw * 0.5;
-      const mCy = ry + 23 + mR;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(mCx, mCy, mR, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.fillStyle = beflixMode ? (beflixDarkPalette ? '#090B10' : '#F4F0E4') : '#FBFAF6';
-      ctx.fillRect(mCx - mR, mCy - mR, mR * 2, mR * 2);
-
-      const img = getFrameImg(curWorm, fi);
-      if(img && !beflixMode){
-        ctx.globalAlpha = 0.32;
-        ctx.drawImage(img, mCx - mR, mCy - mR, mR * 2, mR * 2);
-        ctx.globalAlpha = 1;
-      }
-      // Composite active layers inside the circular lathe monitor
-      for(let i = planesNearFirst.length - 1; i >= 0; i--){
-        const p = planesNearFirst[i];
-        if(!isPlaneVisible(p.id) || !isPlaneActiveAtFrame(p.id, fi)) continue;
-        const effF = getPlaneEffectiveFrame(p.id, fi, N);
-        const off = camOffset(p.z, effF, p.id);
-        const pCol = planeColor(p.id, p.z);
-        drawSamCutoutInRect(ctx, p, effF, off, mCx - mR + 3, mCy - mR + 3, (mR - 3) * 2, (mR - 3) * 2, 0.85);
-        drawPlaneObjectsInRect(ctx, curWorm, effF, p, off, mCx - mR + 3, mCy - mR + 3, (mR - 3) * 2, (mR - 3) * 2, pCol.stroke, 1.6, null);
-      }
-      ctx.restore();
-
-      // Concentric depth ring ticks around the circular lathe monitor
-      ctx.strokeStyle = '#EF4444';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.arc(mCx, mCy, mR, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Selected Layer Readout & Direct Step Controls
-      const selPlane = planesNearFirst.find(p => p.id === selectedTunnelPlaneId) || planesNearFirst[0];
-      const st = getPlaneTubeState(selPlane ? selPlane.id : 'char', N);
-      const selCol = selPlane ? layerColorForPlane(selPlane) : '#EF9F3A';
-      const kMult = selPlane ? (zRef / Math.max(0.2, selPlane.z)) * kScale * Math.max(0.15, 1 + (st.lift || 0) * 0.75) : 1.0;
-
-      let yCur = mCy + mR + 6;
-      ctx.fillStyle = selCol;
-      ctx.fillRect(rx + 5, yCur, rw - 10, 16);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 8.5px "JetBrains Mono", monospace';
-      ctx.textAlign = 'left';
-      const pName = String((selPlane && selPlane.label) || 'Layer').split('(')[0].trim().slice(0, isCompactTube ? 12 : 16);
-      ctx.fillText(`P: ${pName.toUpperCase()}`, rx + 8, yCur + 11);
-
-      yCur += 20;
-      ctx.fillStyle = dark ? '#E2E8F0' : '#161412';
-      ctx.font = '700 8px "JetBrains Mono", monospace';
-      ctx.fillText(`z=${selPlane ? selPlane.z : 2} · k=${kMult.toFixed(2)}x`, rx + 6, yCur);
-      yCur += 11;
-      ctx.fillText(`Δt:${st.dt >= 0 ? '+' : ''}${Math.round(st.dt)}f · f${st.trimIn+1}..${st.trimOut+1}`, rx + 6, yCur);
-      yCur += 11;
-      ctx.fillText(`L:${(st.lift >= 0 ? '+' : '') + st.lift.toFixed(1)} · R:${Math.round((st.rot || 0) * 57.3)}°`, rx + 6, yCur);
-
-      // Quick +/- step buttons for the selected layer right inside the monitor panel!
-      yCur += 6;
-      const nudges = [
-        {lbl:'Δt -1f', act:'dt-'}, {lbl:'Δt +1f', act:'dt+'},
-        {lbl:'LIFT -', act:'lift-'}, {lbl:'LIFT +', act:'lift+'},
-        {lbl:'TRIM <', act:'trimIn'}, {lbl:'TRIM >', act:'trimOut'},
-        {lbl:'ROLL -', act:'rot-'}, {lbl:'ROLL +', act:'rot+'}
-      ];
-      const botY = ry + rh - 22;
-      const availBtnH = Math.max(56, botY - yCur - 4);
-      const rowStep = Math.min(20, Math.max(14, Math.floor(availBtnH / 4)));
-      const bH = Math.max(12, rowStep - 2);
-      const bW = Math.floor((rw - 14) / 2);
-      nudges.forEach((nd, idx)=>{
-        const col = idx % 2, row = Math.floor(idx / 2);
-        const bx = rx + 5 + col * (bW + 4);
-        const by = yCur + row * rowStep;
-        if(by + bH > botY - 2) return;
-        ctx.fillStyle = dark ? '#1E2433' : '#F1F5F9';
-        ctx.strokeStyle = dark ? '#64748B' : '#000000';
-        ctx.lineWidth = 1.2;
-        ctx.fillRect(bx, by, bW, bH);
-        ctx.strokeRect(bx, by, bW, bH);
-        ctx.fillStyle = dark ? '#FFFDF8' : '#000000';
-        ctx.font = '800 7.5px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(nd.lbl, bx + bW * 0.5, by + bH * 0.5 + 2.5);
-        pushHitBox({x: bx, y: by, w: bW, h: bH, atoNudge: nd.act, planeId: selPlane ? selPlane.id : 'char'});
-      });
-
-      // Reset edits & Open Full-Stage 3D Tube buttons
-      const halfW = Math.floor((rw - 14) / 2);
-      ctx.fillStyle = '#FEF08A';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.4;
-      ctx.fillRect(rx + 5, botY, halfW, 18);
-      ctx.strokeRect(rx + 5, botY, halfW, 18);
-      ctx.fillStyle = '#000000';
-      ctx.font = '900 7.5px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('RESET', rx + 5 + halfW * 0.5, botY + 11.5);
-      pushHitBox({x: rx + 5, y: botY, w: halfW, h: 18, atoResetAll: true});
-
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(rx + 9 + halfW, botY, halfW, 18);
-      ctx.strokeRect(rx + 9 + halfW, botY, halfW, 18);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillText('TUBE ⤢', rx + 9 + halfW * 1.5, botY + 11.5);
-      pushHitBox({x: rx + 9 + halfW, y: botY, w: halfW, h: 18, atoOpenFullTube: true});
-      ctx.restore();
-
-      // Bottom-left Interactive ATO Tool Dock (MOVE | TRIM | LIFT | ROLL | SPLIT)
-      const tools = [
-        {id:'MOVE',  lbl: isCompactTube ? 'MOVE' : 'MOVE [M]'},
-        {id:'TRIM',  lbl: isCompactTube ? 'TRIM' : 'TRIM [S/E]'},
-        {id:'LIFT',  lbl: isCompactTube ? 'LIFT' : 'LIFT [↑]'},
-        {id:'ROLL',  lbl: isCompactTube ? 'ROLL' : 'ROLL [R]'},
-        {id:'SPLIT', lbl: isCompactTube ? 'SPLIT' : 'SPLIT [CUT]'}
-      ];
-      const tw = isCompactTube ? Math.min(54, Math.floor((W_tube - 24) / 5)) : 64;
-      const th = 22;
-      let dx0 = 8, dy0 = H - th - 5;
-      ctx.save();
-      for(const t of tools){
-        const isOn = (tunnelTool === t.id);
-        ctx.fillStyle = isOn ? '#000000' : (dark ? '#161924' : '#FFFFFF');
-        ctx.strokeStyle = isOn ? '#EF9F3A' : '#000000';
-        ctx.lineWidth = isOn ? 2.0 : 1.5;
-        ctx.fillRect(dx0, dy0, tw, th);
-        ctx.strokeRect(dx0, dy0, tw, th);
-        ctx.fillStyle = isOn ? '#FEF08A' : (dark ? '#FFFDF8' : '#000000');
-        ctx.font = '900 8.5px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(t.lbl, dx0 + tw * 0.5, dy0 + th * 0.5 + 3);
-        pushHitBox({x: dx0, y: dy0 - 4, w: tw, h: th + 8, atoSetTool: t.id});
-        dx0 += tw + 3;
-      }
-      ctx.restore();
-    }
-
-    // -------------------------------------------------------------------------
-    // SUB-MODE 1: 'rings' — CONCENTRIC MULTIPLANE LAYER RINGS AROUND THE TUNNEL
-    // -------------------------------------------------------------------------
-    if(tunnelSubMode === 'rings'){
-      const cx0 = W_tube * 0.50;
-      const cy0 = (H - 24) * 0.51;
-      const vx = cx0 + Math.sin(tunnelRoll) * 20 + tunnelYaw * 28;
-      const vy = cy0 - 8;
-      const minRx = Math.min(W_tube, H - 30) * 0.14;
-      const minRy = Math.min(W_tube, H - 30) * 0.11;
-      const maxRx = W_tube * 0.44;
-      const maxRy = (H - 34) * 0.42;
-
-      const nBoreRings = 7;
-      ctx.save();
-      for(let b = nBoreRings; b >= 0; b--){
-        const u = b / nBoreRings;
-        const bx = vx + (cx0 - vx) * u * 0.45;
-        const by = vy + (cy0 - vy) * u * 0.45;
-        const brx = minRx * (0.22 + 0.78 * u);
-        const bry = minRy * (0.22 + 0.78 * u);
-        ctx.strokeStyle = `rgba(${lineRGB}, ${0.10 + u * 0.16})`;
-        ctx.lineWidth = b === nBoreRings ? 1.5 : 0.8;
-        ctx.beginPath();
-        ctx.ellipse(bx, by, brx, bry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      for(let sp = 0; sp < 12; sp++){
-        const a = (sp / 12) * Math.PI * 2 + tunnelRoll;
-        ctx.strokeStyle = `rgba(${lineRGB}, 0.14)`;
-        ctx.lineWidth = 0.75;
-        ctx.beginPath();
-        ctx.moveTo(vx + Math.cos(a) * minRx * 0.22, vy + Math.sin(a) * minRy * 0.22);
-        ctx.lineTo(cx0 + Math.cos(a) * maxRx, cy0 + Math.sin(a) * maxRy);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      const ringSpecs = planesNearFirst.map((plane, idx)=>{
-        const tSt = getPlaneTubeState(plane.id);
-        const uRing = K === 1 ? 0.55 : Math.max(0.05, Math.min(1.15, (idx / (K - 1)) + (tSt.lift || 0) * 0.18));
-        const rx = minRx + uRing * (maxRx - minRx);
-        const ry = minRy + uRing * (maxRy - minRy);
-        const rcx = vx + (cx0 - vx) * (0.52 + 0.48 * (1 - uRing * 0.55));
-        const rcy = vy + (cy0 - vy) * (0.52 + 0.48 * (1 - uRing * 0.55));
-        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-        const vis = isPlaneVisible(plane.id) && isPlaneActiveAtFrame(plane.id, fi);
-        const kMult = (zRef / Math.max(0.2, plane.z)) * kScale * Math.max(0.15, 1 + (tSt.lift || 0) * 0.75);
-        const baseSectorAngle = -Math.PI * 0.62 + (idx / K) * Math.PI * 2 + tunnelRoll + (tSt.rot || 0);
-        const effFi = getPlaneEffectiveFrame(plane.id, fi);
-        const parallaxArc = ((effFi / Math.max(1, N - 1)) - 0.5) * 0.55 * Math.min(2.2, kMult);
-        const activeAngle = baseSectorAngle + parallaxArc;
-        return {plane, idx, uRing, rx, ry, rcx, rcy, col, vis, kMult, baseSectorAngle, activeAngle, effFi, tSt};
-      });
-
-      const bandThickness = Math.max(6, Math.min(13, (maxRy - minRy) / Math.max(2, K) * 0.42));
-
-      for(let i = ringSpecs.length - 1; i >= 0; i--){
-        const rs = ringSpecs[i];
-        const isChar = (rs.plane.id === 'char');
-        const isSel = (rs.plane.id === selectedTunnelPlaneId);
-        ctx.save();
-        ctx.strokeStyle = rs.col;
-        ctx.globalAlpha = rs.vis ? (isSel ? 0.28 : 0.14) : 0.05;
-        ctx.lineWidth = bandThickness;
-        ctx.beginPath();
-        ctx.ellipse(rs.rcx, rs.rcy, rs.rx, rs.ry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.globalAlpha = rs.vis ? (isSel ? 1.0 : 0.78) : 0.28;
-        ctx.strokeStyle = isSel ? '#000000' : rs.col;
-        ctx.lineWidth = isSel ? 3.0 : (isChar ? 2.4 : 1.6);
-        ctx.setLineDash(rs.vis ? (isSel ? [] : DASH_STYLES[i % DASH_STYLES.length]) : [3, 4]);
-        ctx.beginPath();
-        ctx.ellipse(rs.rcx, rs.rcy, rs.rx, rs.ry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-      }
-
-      // Red Playhead Constellation Ring & Spokes
-      ctx.save();
-      ctx.strokeStyle = '#EF4444';
-      ctx.lineWidth = 2.2;
-      ctx.setLineDash([5, 3]);
-      ctx.beginPath();
-      for(let i = 0; i < ringSpecs.length; i++){
-        const rs = ringSpecs[i];
-        const px = rs.rcx + Math.cos(rs.activeAngle) * rs.rx;
-        const py = rs.rcy + Math.sin(rs.activeAngle) * rs.ry;
-        if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-
-      const activeRingCards = ringSpecs.map(rs => {
-        const isChar = (rs.plane.id === 'char');
-        const isSel = (rs.plane.id === selectedTunnelPlaneId);
-        const cw = isSel ? 82 : (isChar ? 76 : 64);
-        const ch = isSel ? 66 : (isChar ? 60 : 50);
-        const rawX = rs.rcx + Math.cos(rs.activeAngle) * rs.rx;
-        const rawY = rs.rcy + Math.sin(rs.activeAngle) * rs.ry;
-        const cx = Math.max(cw * 0.56 + 6, Math.min(W_tube - cw * 0.56 - 6, rawX));
-        const cy = Math.max(ch * 0.56 + 18, Math.min(H - 32 - ch * 0.56, rawY));
-        return {rs, isChar, isSel, cw, ch, cx, cy};
-      });
-
-      activeRingCards.sort((a, b) => (a.isSel ? 1 : 0) - (b.isSel ? 1 : 0) || (a.cy - b.cy));
-      for(const rc of activeRingCards){
-        const {rs, isChar, isSel, cw, ch, cx, cy} = rc;
-        const shortLbl = String(rs.plane.label || rs.plane.id).split('(')[0].trim().slice(0, 10);
-        drawUpright3DCard(ctx, cx, cy, cw, ch, rs.effFi, {
-          plane: isChar ? null : rs.plane,
-          borderColor: isSel ? '#000000' : rs.col,
-          borderWidth: isSel ? 3.2 : (isChar ? 2.4 : 1.8),
-          bgFill: '#FFFDF5',
-          alpha: rs.vis ? 1.0 : 0.30,
-          cropToMask: isChar,
-          butterSlab: true,
-          slabDepth: isSel ? 7.5 : 4.5,
-          noHit: true,
-          label: `R${rs.idx+1}:${shortLbl} z=${rs.plane.z}`,
-          labelColor: rs.col
-        });
-        pushHitBox({
-          x: cx - cw * 0.55, y: cy - ch * 0.55, w: cw * 1.1, h: ch * 1.1,
-          atoSelectPlane: rs.plane.id, atoDragMode: 'move', planeId: rs.plane.id
-        });
-        if(isSel) recordSelectedGizmo(rs.plane, cx, cy, cw * 0.52, ch * 0.52);
-      }
-
-      drawAtoGizmosForSelected();
-      drawAtoTag(W_tube * 0.5, 13, `RINGS · ${K} LAYER RINGS · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
-      drawAtoRightMonitorAndDock();
-      return;
-    }
-
-    // -------------------------------------------------------------------------
-    // SUB-MODE 2 & 3: 'barrel' & 'inside' — ATO 3D ARC-TUNNEL BARREL & INSIDE BORE
-    // -------------------------------------------------------------------------
-    if(tunnelSubMode === 'barrel' || tunnelSubMode === 'inside'){
-      const isInside = (tunnelSubMode === 'inside');
-      const SNAP = 60;
-      const camZ = fi * SNAP;
-      const R_base = Math.min(W_tube, H - 28) * (isInside ? 0.42 : 0.34);
-      const cx0 = W_tube * (isInside ? 0.50 : 0.47);
-      const cy0 = (H - 24) * 0.51;
-
-      function projTube(x, y, z){
-        const dz = z - camZ + (isInside ? 360 : 520);
-        if(dz < 35) return null;
-        const s = (isInside ? 460 : 480) / dz;
-        const obX = isInside ? (z - camZ) * 0.015 * tunnelYaw : (z - camZ) * 0.072;
-        const obY = isInside ? 0 : -(z - camZ) * 0.022;
-        return {x: cx0 + x * s + obX, y: cy0 + y * s + obY, s, d: dz};
-      }
-
-      function layerRadius(pIdx, planeId){
-        const tSt = getPlaneTubeState(planeId);
-        return R_base * (0.76 + (pIdx / Math.max(1, K - 1)) * 0.40 + (tSt.lift || 0) * 0.22);
-      }
-
-      function layerAngle(pIdx, planeId){
-        const tSt = getPlaneTubeState(planeId);
-        return (pIdx / K) * Math.PI * 2 - Math.PI * 0.5 + tunnelRoll + (tSt.rot || 0);
-      }
-
-      // 1. Receding tunnel depth rings
-      ctx.save();
-      for(let ti = 0; ti < N; ti += 2){
-        const z = ti * SNAP;
-        const q = projTube(0, 0, z);
-        if(!q || q.s < 0.04) continue;
-        ctx.strokeStyle = `rgba(${lineRGB}, 0.22)`;
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        ctx.arc(q.x, q.y, R_base * q.s, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      // 2. Longitudinal layer rails down the barrel
-      ctx.save();
-      for(let pIdx = 0; pIdx < K; pIdx++){
-        const plane = planesNearFirst[pIdx];
-        const a = layerAngle(pIdx, plane.id);
-        const rr = layerRadius(pIdx, plane.id);
-        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-        ctx.strokeStyle = plane.id === selectedTunnelPlaneId ? '#000000' : col;
-        ctx.setLineDash(DASH_STYLES[pIdx % DASH_STYLES.length]);
-        ctx.lineWidth = plane.id === selectedTunnelPlaneId ? 3.0 : 1.5;
-        ctx.globalAlpha = isPlaneVisible(plane.id) ? 0.85 : 0.22;
-        ctx.beginPath();
-        let started = false;
-        for(let ti = Math.max(0, fi - 6); ti < N; ti++){
-          const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, ti * SNAP);
-          if(q){
-            if(!started){ ctx.moveTo(q.x, q.y); started = true; }
-            else ctx.lineTo(q.x, q.y);
-          }
-        }
-        ctx.stroke();
-      }
-      ctx.setLineDash([]);
-      ctx.restore();
-
-      // 3. Curved ATO tubeGeom arc cells along the barrel walls for each layer
-      const segLen = Math.max(2, Math.floor(N / 6));
-      const cellsToDraw = [];
-      for(let pIdx = 0; pIdx < K; pIdx++){
-        const plane = planesNearFirst[pIdx];
-        if(!isPlaneVisible(plane.id)) continue;
-        const tSt = getPlaneTubeState(plane.id);
-        const rr = layerRadius(pIdx, plane.id);
-        const baseA = layerAngle(pIdx, plane.id);
-        const halfArc = (Math.PI / K) * 0.78;
-        const a0 = baseA - halfArc, a1 = baseA + halfArc;
-        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-
-        for(let sStart = tSt.trimIn; sStart <= tSt.trimOut; sStart += segLen){
-          const sEnd = Math.min(tSt.trimOut, sStart + segLen - 1);
-          const z0 = (sStart + tSt.dt) * SNAP, z1 = (sEnd + tSt.dt + 0.85) * SNAP;
-          if(z1 < camZ - 320) continue;
-          const pts = [];
-          let ok = true, minD = 1e9;
-          const aSteps = 5;
-          for(let i = 0; i <= aSteps; i++){
-            const a = a0 + (a1 - a0) * (i / aSteps);
-            const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, z0);
-            if(!q){ ok = false; break; }
-            pts.push(q); if(q.d < minD) minD = q.d;
-          }
-          if(!ok) continue;
-          for(let i = aSteps; i >= 0; i--){
-            const a = a0 + (a1 - a0) * (i / aSteps);
-            const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, z1);
-            if(!q){ ok = false; break; }
-            pts.push(q); if(q.d < minD) minD = q.d;
-          }
-          if(!ok || pts.length < 6) continue;
-          const midFrame = Math.max(0, Math.min(N - 1, Math.round((sStart + sEnd) * 0.5)));
-          const midQ = projTube(Math.cos(baseA) * rr, Math.sin(baseA) * rr, (z0 + z1) * 0.5);
-          cellsToDraw.push({
-            plane, pIdx, col, pts, d: minD, midFrame, midQ,
-            isSel: (plane.id === selectedTunnelPlaneId),
-            isCurSeg: (fi >= sStart + tSt.dt && fi <= sEnd + tSt.dt + 1)
-          });
-        }
-      }
-
-      cellsToDraw.sort((a, b) => b.d - a.d);
-      for(const cell of cellsToDraw){
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(cell.pts[0].x, cell.pts[0].y);
-        for(let i = 1; i < cell.pts.length; i++) ctx.lineTo(cell.pts[i].x, cell.pts[i].y);
-        ctx.closePath();
-        const alpha = Math.max(0.22, Math.min(0.92, 1 - cell.d / 2600));
-        ctx.fillStyle = cell.isSel ? 'rgba(254, 240, 138, 0.42)' : (cell.isCurSeg ? 'rgba(239, 159, 58, 0.25)' : '#FFFFFF');
-        ctx.globalAlpha = alpha;
-        ctx.fill();
-        ctx.strokeStyle = cell.isSel ? '#000000' : cell.col;
-        ctx.lineWidth = cell.isSel ? 2.6 : (cell.isCurSeg ? 2.2 : 1.3);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // 4. Red Playhead Ring (#EF4444) + Active 6 Layer Cards around the ring!
-      const pRing = projTube(0, 0, camZ);
-      if(pRing){
-        ctx.save();
-        ctx.strokeStyle = '#EF4444';
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.arc(pRing.x, pRing.y, R_base * pRing.s, 0, Math.PI * 2);
-        ctx.stroke();
-        // Vertical Red Lathe Line (authentic ATO / c-bus lathe bar)
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.moveTo(pRing.x, 8);
-        ctx.lineTo(pRing.x, H - 30);
-        ctx.stroke();
-        ctx.restore();
-
-        for(let pIdx = 0; pIdx < K; pIdx++){
-          const plane = planesNearFirst[pIdx];
-          const isChar = (plane.id === 'char');
-          const isSel = (plane.id === selectedTunnelPlaneId);
-          const a = layerAngle(pIdx, plane.id);
-          const rr = layerRadius(pIdx, plane.id);
-          const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, camZ);
-          if(!q) continue;
-          const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-          const cw = isSel ? 80 : (isChar ? 74 : 62);
-          const ch = isSel ? 64 : (isChar ? 58 : 48);
-          const cx = Math.max(cw * 0.55 + 6, Math.min(W_tube - cw * 0.55 - 6, q.x));
-          const cy = Math.max(ch * 0.55 + 18, Math.min(H - 32 - ch * 0.55, q.y));
-          const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 10);
-          const effFi = getPlaneEffectiveFrame(plane.id, fi);
-          drawUpright3DCard(ctx, cx, cy, cw, ch, effFi, {
-            plane: isChar ? null : plane,
-            borderColor: isSel ? '#000000' : col,
-            borderWidth: isSel ? 3.2 : (isChar ? 2.4 : 1.8),
-            bgFill: '#FFFDF5',
-            alpha: (isPlaneVisible(plane.id) && isPlaneActiveAtFrame(plane.id, fi)) ? 1.0 : 0.28,
-            cropToMask: isChar,
-            butterSlab: true,
-            slabDepth: isSel ? 7 : 4.5,
-            noHit: true,
-            label: `${shortLbl} z=${plane.z}`,
-            labelColor: col
-          });
-          pushHitBox({
-            x: cx - cw * 0.55, y: cy - ch * 0.55, w: cw * 1.1, h: ch * 1.1,
-            atoSelectPlane: plane.id, atoDragMode: 'move', planeId: plane.id
-          });
-          if(isSel) recordSelectedGizmo(plane, cx, cy, cw * 0.52, ch * 0.52);
-        }
-        drawAtoGizmosForSelected();
-        drawAtoTag(pRing.x, 14, `${isInside ? 'INSIDE BORE' : 'BARREL TUNNEL'} · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
-      }
-      drawAtoRightMonitorAndDock();
-      return;
-    }
-
-    // -------------------------------------------------------------------------
-    // SUB-MODE 4: 'outside' — ATO EXTERNAL TAPERED CYLINDER VIEW
-    // -------------------------------------------------------------------------
-    if(tunnelSubMode === 'outside'){
-      const P = {
-        cx0: W_tube * 0.19, cy0: (H - 24) * 0.56,
-        cx1: W_tube * 0.85, cy1: (H - 24) * 0.42,
-        rx0: W_tube * 0.13, ry0: (H - 24) * 0.35,
-        rx1: W_tube * 0.045, ry1: (H - 24) * 0.15
-      };
-      const oc = s => ({x: P.cx0 + (P.cx1 - P.cx0) * s, y: P.cy0 + (P.cy1 - P.cy0) * s});
-      const orad = (s, rScale) => ({
-        rx: (P.rx0 + (P.rx1 - P.rx0) * s) * (rScale || 1),
-        ry: (P.ry0 + (P.ry1 - P.ry0) * s) * (rScale || 1)
-      });
-      const opoint = (s, a, rScale) => {
-        const c = oc(s), r = orad(s, rScale);
-        return {x: c.x + Math.cos(a) * r.rx, y: c.y + Math.sin(a) * r.ry};
-      };
-
-      ctx.save();
-      for(let i = 0; i <= 16; i++){
-        const s = i / 16;
-        const c = oc(s), r = orad(s, 1.0);
-        ctx.strokeStyle = `rgba(${lineRGB}, ${i === 0 ? 0.55 : 0.22})`;
-        ctx.lineWidth = i === 0 ? 2.4 : 1.0;
-        ctx.beginPath();
-        ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      [-1.22, -0.82, -0.42, 0, 0.42, 0.82, 1.22].forEach(a => {
-        ctx.strokeStyle = `rgba(${lineRGB}, 0.24)`;
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        for(let i = 0; i <= 24; i++){
-          const q = opoint(i / 24, a, 1.0);
-          if(i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
-        }
-        ctx.stroke();
-      });
-      ctx.restore();
-
-      // Curved wrap-around layer bands along the cylinder
-      for(let pIdx = 0; pIdx < K; pIdx++){
-        const plane = planesNearFirst[pIdx];
-        if(!isPlaneVisible(plane.id)) continue;
-        const tSt = getPlaneTubeState(plane.id);
-        const s0 = Math.max(0, Math.min(1, (tSt.trimIn + tSt.dt) / Math.max(1, N - 1)));
-        const s1 = Math.max(s0 + 0.06, Math.min(1, (tSt.trimOut + tSt.dt + 1) / Math.max(1, N)));
-        const rScale = 0.58 + (pIdx / Math.max(1, K - 1)) * 0.46 + (tSt.lift || 0) * 0.20;
-        const aMid = -Math.PI * 0.48 + (pIdx / Math.max(1, K - 1)) * (Math.PI * 0.96) + tunnelRoll * 0.5 + (tSt.rot || 0);
-        const a0 = aMid - 0.22, a1 = aMid + 0.22;
-        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-        const isSel = (plane.id === selectedTunnelPlaneId);
-
-        ctx.save();
-        ctx.beginPath();
-        for(let i = 0; i <= 10; i++){
-          const q = opoint(s0 + (s1 - s0) * (i / 10), a0, rScale);
-          if(i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
-        }
-        for(let i = 10; i >= 0; i--){
-          const q = opoint(s0 + (s1 - s0) * (i / 10), a1, rScale);
-          ctx.lineTo(q.x, q.y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = isSel ? 'rgba(254, 240, 138, 0.55)' : 'rgba(255,255,255,0.72)';
-        ctx.fill();
-        ctx.strokeStyle = isSel ? '#000000' : col;
-        ctx.lineWidth = isSel ? 2.8 : 1.5;
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      const sPlay = N > 1 ? (fi / (N - 1)) : 0.5;
-      const cPlay = oc(sPlay), rPlay = orad(sPlay, 1.06);
-      ctx.save();
-      ctx.strokeStyle = '#EF4444';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.ellipse(cPlay.x, cPlay.y, rPlay.rx, rPlay.ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      for(let pIdx = 0; pIdx < K; pIdx++){
-        const plane = planesNearFirst[pIdx];
-        const isChar = (plane.id === 'char');
-        const isSel = (plane.id === selectedTunnelPlaneId);
-        const tSt = getPlaneTubeState(plane.id);
-        const rScale = 0.58 + (pIdx / Math.max(1, K - 1)) * 0.50 + (tSt.lift || 0) * 0.20;
-        const aMid = -Math.PI * 0.50 + (pIdx / Math.max(1, K - 1)) * (Math.PI * 1.00) + tunnelRoll * 0.5 + (tSt.rot || 0);
-        const mp = opoint(sPlay, aMid, rScale);
-        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-        const cw = isSel ? 76 : (isChar ? 70 : 58);
-        const ch = isSel ? 62 : (isChar ? 56 : 46);
-        const cx = Math.max(cw * 0.55 + 6, Math.min(W_tube - cw * 0.55 - 6, mp.x));
-        const cy = Math.max(ch * 0.55 + 18, Math.min(H - 32 - ch * 0.55, mp.y));
-        const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 10);
-        const effFi = getPlaneEffectiveFrame(plane.id, fi);
-        drawUpright3DCard(ctx, cx, cy, cw, ch, effFi, {
-          plane: isChar ? null : plane,
-          borderColor: isSel ? '#000000' : col,
-          borderWidth: isSel ? 3.2 : (isChar ? 2.4 : 1.8),
-          bgFill: '#FFFDF5',
-          alpha: (isPlaneVisible(plane.id) && isPlaneActiveAtFrame(plane.id, fi)) ? 1.0 : 0.30,
-          cropToMask: isChar,
-          butterSlab: true,
-          slabDepth: isSel ? 6.5 : 4.5,
-          noHit: true,
-          label: `${shortLbl} z=${plane.z}`,
-          labelColor: col
-        });
-        pushHitBox({
-          x: cx - cw * 0.55, y: cy - ch * 0.55, w: cw * 1.1, h: ch * 1.1,
-          atoSelectPlane: plane.id, atoDragMode: 'move', planeId: plane.id
-        });
-        if(isSel) recordSelectedGizmo(plane, cx, cy, cw * 0.52, ch * 0.52);
-      }
-
-      drawAtoGizmosForSelected();
-      drawAtoTag(cPlay.x, 14, `OUTSIDE CYLINDER · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
-      drawAtoRightMonitorAndDock();
-      return;
-    }
-
-    // -------------------------------------------------------------------------
-    // SUB-MODE 5 & 6: 'side' & 'bench' — ATO SIDE ELEVATION & UNROLLED BENCH
-    // -------------------------------------------------------------------------
-    const isSide = (tunnelSubMode === 'side');
-    const padL = 116, padR = 14, padT = 22, padB = 34;
-    const trackW = W_tube - padL - padR;
-    const availH = H - padT - padB;
-    const rowH = availH / K;
-
-    if(isSide){
-      ctx.save();
-      ctx.strokeStyle = `rgba(${lineRGB}, 0.55)`;
-      ctx.lineWidth = 2.0;
-      ctx.setLineDash([6, 5]);
-      ctx.strokeRect(6, 6, W_tube - 12, H - 36);
-      ctx.restore();
-    }
-
-    for(let pIdx = 0; pIdx < K; pIdx++){
-      const plane = planesNearFirst[pIdx];
-      const vis = isPlaneVisible(plane.id);
-      const isChar = (plane.id === 'char');
-      const isSel = (plane.id === selectedTunnelPlaneId);
-      const tSt = getPlaneTubeState(plane.id);
-      const baseCy = padT + (pIdx + 0.5) * rowH;
-      const liftPx = isSide ? -(tSt.lift || 0) * 18 : 0;
-      const cy = baseCy + liftPx;
-      const boxH = Math.max(22, rowH * 0.74);
-      const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-      const kMult = (zRef / Math.max(0.2, plane.z)) * kScale * Math.max(0.15, 1 + (tSt.lift || 0) * 0.75);
-
-      // Track rail line
-      ctx.save();
-      ctx.strokeStyle = isSel ? '#000000' : col;
-      ctx.setLineDash(DASH_STYLES[pIdx % DASH_STYLES.length]);
-      ctx.lineWidth = isSel ? 2.6 : 1.4;
-      ctx.globalAlpha = vis ? 0.85 : 0.25;
-      ctx.beginPath();
-      ctx.moveTo(padL, baseCy);
-      ctx.lineTo(W_tube - padR, baseCy);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Left track badge (click to select layer in tube)
-      ctx.fillStyle = isSel ? '#FEF08A' : (dark ? '#161924' : '#FFFFFF');
-      ctx.strokeStyle = isSel ? '#000000' : col;
-      ctx.lineWidth = isSel ? 2.4 : 1.3;
-      ctx.fillRect(10, baseCy - boxH * 0.48, padL - 16, boxH * 0.96);
-      ctx.strokeRect(10, baseCy - boxH * 0.48, padL - 16, boxH * 0.96);
-      ctx.fillStyle = col;
-      ctx.fillRect(10, baseCy - boxH * 0.48, 5, boxH * 0.96);
-      ctx.fillStyle = isSel ? '#000000' : (dark ? '#FFFDF8' : '#161412');
-      ctx.font = '800 9.5px "Bricolage Grotesque", sans-serif';
-      const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 12);
-      ctx.fillText(shortLbl, 18, baseCy - 2);
-      ctx.fillStyle = isSel ? '#161412' : (dark ? '#A0AEC0' : '#5E554B');
-      ctx.font = '700 8px "JetBrains Mono", monospace';
-      ctx.fillText(`R${pIdx+1} z=${plane.z} k=${kMult.toFixed(1)}x`, 18, baseCy + 9);
-      pushHitBox({x: 10, y: baseCy - boxH * 0.48, w: padL - 16, h: boxH * 0.96, atoSelectPlane: plane.id});
-
-      // Layer clip bar spanning [trimIn + dt .. trimOut + dt]
-      const u0 = Math.max(0, Math.min(1, (tSt.trimIn + tSt.dt) / Math.max(1, N - 1)));
-      const u1 = Math.max(u0 + 0.04, Math.min(1, (tSt.trimOut + tSt.dt + 1) / Math.max(1, N)));
-      const clipX0 = padL + u0 * trackW;
-      const clipX1 = padL + u1 * trackW;
-      const clipW  = Math.max(24, clipX1 - clipX0);
-      const clipY  = cy - boxH * 0.46;
-      const clipH  = boxH * 0.92;
-
-      if(isSide && Math.abs(liftPx) > 1){
-        ctx.strokeStyle = col;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(clipX0 + clipW * 0.5, baseCy);
-        ctx.lineTo(clipX0 + clipW * 0.5, cy);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      ctx.fillStyle = isSel ? 'rgba(254, 240, 138, 0.35)' : (dark ? '#0E1017' : '#FFFFFF');
-      ctx.strokeStyle = isSel ? '#000000' : col;
-      ctx.lineWidth = isSel ? 2.6 : 1.5;
-      ctx.fillRect(clipX0, clipY, clipW, clipH);
-
-      // Draw keyframe stamps inside the clip bar
-      const nStamps = Math.max(1, Math.min(5, Math.floor(clipW / 54)));
-      const sW = clipW / nStamps;
-      for(let c = 0; c < nStamps; c++){
-        const ti = Math.round(tSt.trimIn + (c / Math.max(1, nStamps - 1)) * Math.max(0, tSt.trimOut - tSt.trimIn));
-        const bx = clipX0 + c * sW + 2;
-        const bw = sW - 4;
-        if(isChar){
-          drawSamCutoutInRect(ctx, curWorm, ti, bx, clipY + 2, bw, clipH - 4, {cropToMask: true, drawOutline: false, drawDoodle: true});
-        } else {
-          drawPlaneObjectsInRect(ctx, plane, ti, bx, clipY + 2, bw, clipH - 4, true);
-        }
-      }
-      ctx.strokeRect(clipX0, clipY, clipW, clipH);
-
-      // Split marker if splitAt is set
-      if(tSt.splitAt !== null && tSt.splitAt > tSt.trimIn && tSt.splitAt < tSt.trimOut){
-        const spU = (tSt.splitAt + tSt.dt) / Math.max(1, N - 1);
-        const spX = padL + spU * trackW;
-        ctx.strokeStyle = '#EF4444';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.moveTo(spX, clipY - 3);
-        ctx.lineTo(spX, clipY + clipH + 3);
-        ctx.stroke();
-      }
-
-      pushHitBox({
-        x: clipX0, y: clipY, w: clipW, h: clipH,
-        atoSelectPlane: plane.id, atoDragMode: 'move', planeId: plane.id
-      });
-      if(isSel){
-        recordSelectedGizmo(plane, clipX0 + clipW * 0.5, clipY + clipH * 0.5, clipW * 0.48, clipH * 0.48);
-      }
-      ctx.restore();
-    }
-
-    // Red Lathe Playhead Bar across all 6 tracks
-    const playX = padL + (N > 1 ? (fi / (N - 1)) * trackW : trackW * 0.5);
-    ctx.save();
-    ctx.strokeStyle = '#EF4444';
-    ctx.lineWidth = 2.6;
-    ctx.beginPath();
-    ctx.moveTo(playX, 8);
-    ctx.lineTo(playX, H - 30);
-    ctx.stroke();
-    ctx.restore();
-
-    drawAtoGizmosForSelected();
-    drawAtoTag(playX, 14, `${isSide ? 'SIDE ELEVATION' : 'BENCH LATHE'} · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
-    drawAtoRightMonitorAndDock();
   }
 
   function renderParallelTimelinesMode(ctx, W, H, fi, N, planes, zRef){
@@ -2591,344 +1508,7 @@
     }
   }
 
-  const _bfxStageImgCv = document.createElement('canvas');
-  _bfxStageImgCv.width = 128; _bfxStageImgCv.height = 96;
-  const _bfxStageImgCtx = _bfxStageImgCv.getContext('2d', { willReadFrequently: true });
-  const _bfxStageInkCv = document.createElement('canvas');
-  _bfxStageInkCv.width = 128; _bfxStageInkCv.height = 96;
-  const _bfxStageInkCtx = _bfxStageInkCv.getContext('2d', { willReadFrequently: true });
-
-  const BAYER4 = [
-    [ 0,  8,  2, 10],
-    [12,  4, 14,  6],
-    [ 3, 11,  1,  9],
-    [15,  7, 13,  5]
-  ];
-
-  // Unified high-contrast 128x96 BEFLIX Dot-Matrix synthesizer (used by both Stage & ICARO-PRO buffer!)
-  function computeBeflix128x96Frame(ti){
-    const levels = new Uint8Array(128 * 96);
-    const planeIdx = new Int8Array(128 * 96);
-    planeIdx.fill(-1);
-    if(!curWorm) return {levels, planeIdx, planes: []};
-
-    const W_src = (S && S.W) || curWorm.W || 480;
-    const H_src = (S && S.H) || curWorm.H || 360;
-    const sx = 128 / W_src, sy = 96 / H_src;
-    const allPlanes = getActivePlanes(); // sorted far (z=10) to near (z=1.2)
-    const visPlanes = allPlanes.filter(p => isPlaneVisible(p.id) && (zoomPlaneId === null || p.id === zoomPlaneId));
-    const drawList = visPlanes.length ? visPlanes : allPlanes;
-
-    // 1. Archival background 4x4 Bayer halftone dither into levels 0..3
-    const img = getFrameImg(curWorm, ti);
-    if(img && zoomPlaneId === null){
-      _bfxStageImgCtx.clearRect(0, 0, 128, 96);
-      _bfxStageImgCtx.drawImage(img, 0, 0, 128, 96);
-      const imgData = _bfxStageImgCtx.getImageData(0, 0, 128, 96).data;
-      let minL = 255, maxL = 0;
-      for(let i = 0; i < 128 * 96; i += 4){
-        const lum = 0.299 * imgData[i*4] + 0.587 * imgData[i*4+1] + 0.114 * imgData[i*4+2];
-        if(lum < minL) minL = lum;
-        if(lum > maxL) maxL = lum;
-      }
-      const span = Math.max(40, maxL - minL);
-      for(let gy = 0; gy < 96; gy++){
-        for(let gx = 0; gx < 128; gx++){
-          const i = gy * 128 + gx;
-          const lum = 0.299 * imgData[i*4] + 0.587 * imgData[i*4+1] + 0.114 * imgData[i*4+2];
-          const normL = Math.max(0, Math.min(1, (lum - minL) / span));
-          const darkness = 1.0 - normL;
-          const bayerBias = (BAYER4[gy & 3][gx & 3] / 16.0 - 0.5) * 0.28;
-          const dVal = darkness + bayerBias;
-          if(dVal > 0.68) levels[i] = 3;
-          else if(dVal > 0.46) levels[i] = 2;
-          else if(dVal > 0.26) levels[i] = 1;
-        }
-      }
-    }
-
-    function inkForPlane(plane){
-      if(drawList.length === 1) return 7;
-      if(plane.id === 'char') return 7;
-      if(plane.z <= 1.5) return 6;
-      if(plane.z <= 2.8) return 6;
-      if(plane.z <= 4.0) return 5;
-      if(plane.z <= 7.0) return 4;
-      return 4;
-    }
-
-    // 2. Multiplane layers back-to-front with paper clearance halo + interior stipple + bold ink strokes
-    for(let pIdx = 0; pIdx < drawList.length; pIdx++){
-      const plane = drawList[pIdx];
-      if(!isPlaneActiveAtFrame(plane.id, ti)) continue;
-      const effTi = getPlaneEffectiveFrame(plane.id, ti);
-      const off = camOffset(plane.z, ti, plane.id);
-      let stList = [];
-      if(plane.id === 'char'){
-        if(S && S.cast && S.cast.frames && S.cast.frames[effTi]) stList = S.cast.frames[effTi];
-        else if(curWorm.frames && curWorm.frames[effTi] && curWorm.frames[effTi].doodle){
-          stList = curWorm.frames[effTi].doodle.map(s => s.map(p => [p[0]*W_src, p[1]*H_src]));
-        }
-      } else {
-        if(S && Array.isArray(S.objects)){
-          const objs = S.objects.filter(o => o.plane === plane.id);
-          for(const o of objs){
-            const ost = getObjectStrokes(o, effTi);
-            for(const s of (ost || [])){
-              if(s && s.length >= 2) stList.push(s.map(p => [p[0] + off.dx, p[1] + off.dy]));
-            }
-          }
-        }
-        if(stList.length === 0 && curWorm.depth_worms){
-          const dwObj = curWorm.depth_worms.find(d => d.id === plane.id)
-            || curWorm.depth_worms.find(d => Math.abs((d.z||0) - (plane.z||0)) < 0.25 && d.role !== 'subject');
-          if(dwObj && dwObj.strokes0){
-            const u0 = Number.isFinite(dwObj.u0) ? dwObj.u0 : 0.5;
-            const v0 = Number.isFinite(dwObj.v0) ? dwObj.v0 : 0.5;
-            for(const s of dwObj.strokes0){
-              if(s && s.length >= 2) stList.push(s.map(p => [(u0 + p[0])*W_src + off.dx, (v0 + p[1])*H_src + off.dy]));
-            }
-          }
-        }
-      }
-      if(!stList.length) continue;
-
-      // Pass 2a: Paper clearance halo + Character interior halftone fill
-      if(plane.id === 'char' || plane.z <= 3.5){
-        _bfxStageInkCtx.clearRect(0, 0, 128, 96);
-        _bfxStageInkCtx.save();
-        _bfxStageInkCtx.scale(sx, sy);
-        _bfxStageInkCtx.lineCap = 'round';
-        _bfxStageInkCtx.lineJoin = 'round';
-        // Red = halo clearance, Green = interior silhouette fill
-        _bfxStageInkCtx.strokeStyle = '#FF0000';
-        _bfxStageInkCtx.lineWidth = (plane.id === 'char') ? 13.5 : 9.5;
-        for(const s of stList){
-          if(!s || s.length < 2) continue;
-          _bfxStageInkCtx.beginPath();
-          for(let i=0;i<s.length;i++){
-            if(i===0) _bfxStageInkCtx.moveTo(s[i][0], s[i][1]);
-            else _bfxStageInkCtx.lineTo(s[i][0], s[i][1]);
-          }
-          _bfxStageInkCtx.stroke();
-        }
-        if(plane.id === 'char'){
-          _bfxStageInkCtx.fillStyle = '#00FF00';
-          const masks = (S && S.masks && S.masks[effTi]) ? S.masks[effTi] : null;
-          if(masks && masks.length){
-            for(const poly of masks){
-              if(!poly || poly.length < 3) continue;
-              _bfxStageInkCtx.beginPath();
-              for(let i=0;i<poly.length;i++){
-                if(i===0) _bfxStageInkCtx.moveTo(poly[i][0], poly[i][1]);
-                else _bfxStageInkCtx.lineTo(poly[i][0], poly[i][1]);
-              }
-              _bfxStageInkCtx.closePath();
-              _bfxStageInkCtx.fill();
-            }
-          } else {
-            for(const s of stList){
-              if(!s || s.length < 4) continue;
-              _bfxStageInkCtx.beginPath();
-              for(let i=0;i<s.length;i++){
-                if(i===0) _bfxStageInkCtx.moveTo(s[i][0], s[i][1]);
-                else _bfxStageInkCtx.lineTo(s[i][0], s[i][1]);
-              }
-              _bfxStageInkCtx.closePath();
-              _bfxStageInkCtx.fill();
-            }
-          }
-        }
-        _bfxStageInkCtx.restore();
-        const haloData = _bfxStageInkCtx.getImageData(0, 0, 128, 96).data;
-        for(let gy = 0; gy < 96; gy++){
-          for(let gx = 0; gx < 128; gx++){
-            const i = gy * 128 + gx;
-            const r = haloData[i*4], g = haloData[i*4+1], a = haloData[i*4+3];
-            if(a > 35){
-              if(g > 90 && plane.id === 'char'){
-                // Character body interior: crisp 2x2 halftone stipple!
-                levels[i] = ((gx + gy) % 2 === 0) ? 3 : 0;
-                planeIdx[i] = pIdx;
-              } else if(r > 90 && planeIdx[i] < 0){
-                // Paper clearance halo around strokes clears background dither
-                levels[i] = 0;
-                planeIdx[i] = -2;
-              }
-            }
-          }
-        }
-      }
-
-      // Pass 2b: Bold active ink strokes for this plane
-      _bfxStageInkCtx.clearRect(0, 0, 128, 96);
-      _bfxStageInkCtx.save();
-      _bfxStageInkCtx.scale(sx, sy);
-      _bfxStageInkCtx.lineCap = 'round';
-      _bfxStageInkCtx.lineJoin = 'round';
-      _bfxStageInkCtx.strokeStyle = '#FFFFFF';
-      _bfxStageInkCtx.lineWidth = (plane.id === 'char') ? 7.8 : (plane.z <= 2.5 ? 6.4 : 5.4);
-      for(const s of stList){
-        if(!s || s.length < 2) continue;
-        _bfxStageInkCtx.beginPath();
-        for(let i=0;i<s.length;i++){
-          if(i===0) _bfxStageInkCtx.moveTo(s[i][0], s[i][1]);
-          else _bfxStageInkCtx.lineTo(s[i][0], s[i][1]);
-        }
-        _bfxStageInkCtx.stroke();
-      }
-      _bfxStageInkCtx.restore();
-      const strokeData = _bfxStageInkCtx.getImageData(0, 0, 128, 96).data;
-      const lvl = inkForPlane(plane);
-      for(let i = 0; i < 128 * 96; i++){
-        const a = strokeData[i*4+3];
-        if(a > 28){
-          const boost = a > 150 ? lvl : Math.max(3, lvl - 1);
-          if(boost >= levels[i] || planeIdx[i] < pIdx){
-            levels[i] = boost;
-            planeIdx[i] = pIdx;
-          }
-        }
-      }
-    }
-
-    return {levels, planeIdx, planes: drawList};
-  }
-
-  function renderBeflixStage128x96(ctx, W, H, fi){
-    const {levels, planeIdx, planes} = computeBeflix128x96Frame(fi);
-    const dark = beflixDarkPalette;
-
-    // 1. Background (Warm Punchcard Paper #F4EFE4 or Dark CRT #080A0F)
-    ctx.fillStyle = dark ? '#080A0F' : '#F4EFE4';
-    ctx.fillRect(0, 0, W, H);
-
-    const cellW = W / 128;
-    const cellH = H / 96;
-
-    // 2. Crisp 128x96 Cell Matrix Grid + 8x8 Register Lines
-    ctx.save();
-    ctx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(20, 18, 14, 0.16)';
-    ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    for(let gx = 1; gx < 128; gx++){
-      if(gx % 8 === 0) continue;
-      const x = gx * cellW;
-      ctx.moveTo(x, 0); ctx.lineTo(x, H);
-    }
-    for(let gy = 1; gy < 96; gy++){
-      if(gy % 8 === 0) continue;
-      const y = gy * cellH;
-      ctx.moveTo(0, y); ctx.lineTo(W, y);
-    }
-    ctx.stroke();
-
-    // Major 8x8 block register lines
-    ctx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(20, 18, 14, 0.30)';
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    for(let gx = 8; gx < 128; gx += 8){
-      const x = gx * cellW;
-      ctx.moveTo(x, 0); ctx.lineTo(x, H);
-    }
-    for(let gy = 8; gy < 96; gy += 8){
-      const y = gy * cellH;
-      ctx.moveTo(0, y); ctx.lineTo(W, y);
-    }
-    ctx.stroke();
-    ctx.restore();
-
-    // 3. Plot all 128x96 cells (pinholes for empty cells + bold 8-level BEFLIX dots)
-    const minCell = Math.min(cellW, cellH);
-    const pinholeSz = Math.max(0.9, minCell * 0.18);
-
-    for(let gy = 0; gy < 96; gy++){
-      const cy = (gy + 0.5) * cellH;
-      for(let gx = 0; gx < 128; gx++){
-        const i = gy * 128 + gx;
-        const lv = levels[i];
-        const pIdx = planeIdx[i];
-        const cx = (gx + 0.5) * cellW;
-
-        if(lv === 0){
-          // Crisp empty-cell pinhole so the 128x96 matrix is visible everywhere
-          ctx.fillStyle = dark ? 'rgba(255,255,255,0.22)' : (pIdx === -2 ? 'rgba(20,18,14,0.14)' : 'rgba(20,18,14,0.28)');
-          ctx.fillRect(cx - pinholeSz * 0.5, cy - pinholeSz * 0.5, pinholeSz, pinholeSz);
-          continue;
-        }
-
-        const frac = 0.40 + 0.54 * Math.pow(lv / 7, 0.68);
-        const r = Math.max(1.1, minCell * frac * 0.5);
-
-        if(pIdx >= 0 && planes[pIdx]){
-          const plane = planes[pIdx];
-          if(beflixColorDots){
-            const col = dark ? beflixColorForPlane(plane) : layerColorForPlane(plane);
-            ctx.fillStyle = (lv >= 7 && plane.id === 'char') ? (dark ? '#FFFDF8' : '#11100D') : col;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-            if(lv >= 6){
-              ctx.strokeStyle = col;
-              ctx.lineWidth = Math.max(0.8, minCell * 0.16);
-              ctx.stroke();
-            }
-          } else {
-            ctx.fillStyle = dark ? '#FFFDF8' : '#11100D';
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else {
-          // Archival background halftone dot (levels 1..3)
-          ctx.fillStyle = dark ? 'rgba(215, 208, 194, 0.72)' : 'rgba(36, 32, 26, 0.78)';
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.88, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-
-    // 4. Interactive BEFLIX 128x96 Stage HUD Bar (click to toggle Paper/CRT & Layer Color/B&W Ink)
-    const N = getShotFrameCount();
-    ctx.save();
-    ctx.fillStyle = 'rgba(14, 15, 20, 0.92)';
-    ctx.strokeStyle = '#EF9F3A';
-    ctx.lineWidth = 1.4;
-    ctx.fillRect(6, 6, 242, 18);
-    ctx.strokeRect(6, 6, 242, 18);
-    ctx.fillStyle = '#FFB03A';
-    ctx.font = '800 9px "JetBrains Mono", monospace';
-    ctx.fillText(`BEFLIX 128×96 · ${planes.length} RINGS · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, 11, 18);
-
-    // Toggle Pill 1: PAPER vs CRT DARK
-    const p1x = W - 182, p1y = 6, p1w = 84, p1h = 18;
-    ctx.fillStyle = dark ? '#1E293B' : '#FEF08A';
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1.4;
-    ctx.fillRect(p1x, p1y, p1w, p1h);
-    ctx.strokeRect(p1x, p1y, p1w, p1h);
-    ctx.fillStyle = dark ? '#FFFDF8' : '#000000';
-    ctx.textAlign = 'center';
-    ctx.fillText(dark ? 'CRT: DARK' : 'INK: PAPER', p1x + p1w * 0.5, p1y + 12.5);
-    stageHitBoxes.push({x: p1x, y: p1y, w: p1w, h: p1h, toggleBeflixPalette: true});
-
-    // Toggle Pill 2: LAYER COLOR vs B&W MONO
-    const p2x = W - 92, p2y = 6, p2w = 86, p2h = 18;
-    ctx.fillStyle = beflixColorDots ? '#EF9F3A' : '#FFFFFF';
-    ctx.fillRect(p2x, p2y, p2w, p2h);
-    ctx.strokeRect(p2x, p2y, p2w, p2h);
-    ctx.fillStyle = '#000000';
-    ctx.fillText(beflixColorDots ? 'DOTS: COLOR' : 'DOTS: B&W', p2x + p2w * 0.5, p2y + 12.5);
-    stageHitBoxes.push({x: p2x, y: p2y, w: p2w, h: p2h, toggleBeflixColor: true});
-    ctx.restore();
-  }
-
   function renderSingleStageView(ctx, W, H, fi, vMode){
-    if(vMode === 'beflix' || (beflixMode && vMode !== 'footage' && vMode !== 'masks')){
-      renderBeflixStage128x96(ctx, W, H, fi);
-      return;
-    }
     const img = getFrameImg(curWorm, fi);
 
     if(vMode === 'footage'){
@@ -3100,22 +1680,21 @@
     const celFill = '#FBFAF6';
 
     for(const plane of planes){
-      if(!isPlaneVisible(plane.id) || !isPlaneActiveAtFrame(plane.id, fi)) continue;
+      if(!isPlaneVisible(plane.id)) continue;
       if(zoomPlaneId !== null && plane.id !== zoomPlaneId) continue;
-      const effFi = getPlaneEffectiveFrame(plane.id, fi);
-      const off = camOffset(plane.z, fi, plane.id);
+      const off = camOffset(plane.z, fi);
 
       if(plane.id === 'char'){
-        const strokes = (S && S.cast && S.cast.frames && S.cast.frames[effFi])
-          ? S.cast.frames[effFi]
-          : ((curWorm.frames && curWorm.frames[effFi] && curWorm.frames[effFi].doodle)
-              ? curWorm.frames[effFi].doodle.map(s => s.map(p => [p[0]*W, p[1]*H])) : []);
+        const strokes = (S && S.cast && S.cast.frames && S.cast.frames[fi])
+          ? S.cast.frames[fi]
+          : ((curWorm.frames && curWorm.frames[fi] && curWorm.frames[fi].doodle)
+              ? curWorm.frames[fi].doodle.map(s => s.map(p => [p[0]*W, p[1]*H])) : []);
         if(strokes.length){
           drawStrokes(ctx, strokes, {color:'rgba(0,0,0,0)', width:0.1, boilSeed, boilAmp, fill:celFill});
         }
         if(vMode === 'composite'){
           drawStrokes(ctx, strokes, {color:'rgba(251,250,246,0.92)', width:5.2, boilSeed, boilAmp});
-        } else if(effFi === 0 && vMode === 'cartoon'){
+        } else if(fi === 0 && vMode === 'cartoon'){
           drawStrokes(ctx, strokes, {color:'#EF9F3A', width:6.0, boilSeed, boilAmp});
         }
         drawStrokes(ctx, strokes, {color:'#161412', width:2.5, boilSeed, boilAmp});
@@ -3124,7 +1703,7 @@
         const depthAlpha = plane.z >= 10 ? 0.65 : (plane.z >= 6 ? 0.78 : (plane.z >= 3 ? 0.90 : 0.98));
         const depthWidth = plane.z >= 10 ? 1.6  : (plane.z >= 6 ? 1.9  : 2.2);
         for(const o of objs){
-          const ost = getObjectStrokes(o, effFi);
+          const ost = getObjectStrokes(o, fi);
           if(!ost || !ost.length) continue;
           if(vMode === 'composite'){
             drawStrokes(ctx, ost, {
@@ -3197,12 +1776,10 @@
     stageHitBoxes = [];
     const W = (S && S.W) || curWorm.W || 480;
     const H = (S && S.H) || curWorm.H || 360;
-    const SCALE = 2;
-    if(cvStage.width !== W * SCALE || cvStage.height !== H * SCALE){
-      cvStage.width = W * SCALE; cvStage.height = H * SCALE;
+    if(cvStage.width !== W || cvStage.height !== H){
+      cvStage.width = W; cvStage.height = H;
     }
     const ctx = ctxStage;
-    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#FBFAF6';
     ctx.fillRect(0, 0, W, H);
@@ -3210,9 +1787,9 @@
     if(view === 'all4'){
       const qViews = [
         {id:'composite', lbl:'Composite'},
-        {id:'beflix',    lbl:'BEFLIX 128×96'},
         {id:'xray',      lbl:'Parts X-Ray'},
-        {id:'cartoon',   lbl:'Multiplane Cartoon'}
+        {id:'cartoon',   lbl:'Multiplane Cartoon'},
+        {id:'footage',   lbl:'Archive Footage'}
       ];
       const hw = W * 0.5, hh = H * 0.5;
       qViews.forEach((qv, idx)=>{
@@ -3232,13 +1809,10 @@
         ctx.font = '700 9.5px "JetBrains Mono", monospace';
         ctx.fillText(qv.lbl, qx + 8, qy + 14.5);
       });
-    } else {
-      renderSingleStageView(ctx, W, H, fi, view);
+      return;
     }
-    // Scale stageHitBoxes to match canvas.width / canvas.height coordinate system
-    for(const hb of stageHitBoxes){
-      hb.x *= SCALE; hb.y *= SCALE; hb.w *= SCALE; hb.h *= SCALE;
-    }
+
+    renderSingleStageView(ctx, W, H, fi, view);
   }
 
   function renderPartsInspectorMode(ctx, W, H, fi, N, planes, zRef){
@@ -3555,10 +2129,6 @@
   }
 
   function renderSingleWormLens(ctx, W, H, fi, N, planes, zRef, mode){
-    if(mode === 'tunnel'){
-      renderTunnelLayersMode(ctx, W, H, fi, N, planes, zRef);
-      return;
-    }
     if(mode === 'parallel'){
       renderParallelTimelinesMode(ctx, W, H, fi, N, planes, zRef);
       return;
@@ -4186,12 +2756,12 @@
 
     if(wormMode === 'all'){
       const lenses = [
-        {id:'tunnel',   lbl:'1 · Tunnel Rings'},
-        {id:'parallel', lbl:'2 · 3D Butter'},
-        {id:'lanes',    lbl:'3 · 6 Planes'},
-        {id:'parts',    lbl:'4 · Parts'},
-        {id:'strobe',   lbl:'5 · Trail'},
-        {id:'box',      lbl:'6 · Depth Box'}
+        {id:'parallel', lbl:'1 · 3D Butter'},
+        {id:'lanes',    lbl:'2 · Planes'},
+        {id:'parts',    lbl:'3 · Parts'},
+        {id:'strobe',   lbl:'4 · Trail'},
+        {id:'kymo',     lbl:'5 · Graphs'},
+        {id:'anatomy',  lbl:'6 · Rig'}
       ];
       const cols = 3, rows = 2;
       const pad = 6, gap = 6;
@@ -4337,12 +2907,7 @@
       data._imgs = data.footage.map(src=>{
         if(typeof src === 'string' && src.startsWith('data:')){
           const im = new Image();
-          im.onload = () => {
-            if(S === data){
-              scheduleDotSync();
-              renderAll();
-            }
-          };
+          im.onload = () => { if(S === data) renderAll(); };
           im.src = src;
           return im;
         }
@@ -4352,73 +2917,147 @@
     return data;
   }
 
+  // Stamp active planes into ICARO's 128x96 state.frames so DOT MATRIX view & timeline thumbnails stay 100% in sync!
+  const _off128 = document.createElement('canvas');
+  _off128.width = 128; _off128.height = 96;
+  const _off128Ctx = _off128.getContext('2d', { willReadFrequently: true });
+  let _dotSyncTimer = null;
+
+  function scheduleDotSync(){
+    if(_dotSyncTimer) clearTimeout(_dotSyncTimer);
+    _dotSyncTimer = setTimeout(()=>{
+      _dotSyncTimer = null;
+      syncPlanesToIcaroDots();
+    }, 120);
+  }
+
   function syncPlanesToIcaroDots(){
-    if(!curWorm) return;
+    if(!curWorm || typeof window.icaroStampDoodleFrames !== 'function') return;
     const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
-    if(typeof window.icaroStampDoodleFrames === 'function'){
-      const gridsByFrame = [];
-      for(let ti = 0; ti < N; ti++){
-        const res = computeBeflix128x96Frame(ti);
-        gridsByFrame.push(res.levels);
-      }
-      window.icaroStampDoodleFrames(gridsByFrame);
-    }
-    if(typeof window.icaroOnSecondhandSceneUpdated === 'function'){
-      window.icaroOnSecondhandSceneUpdated();
-    }
-  }
-
-  function drawLayerPreviewInRect(ctx, planeIdOrIdx, fi, x, y, w, h, asBeflix){
-    if(!curWorm || !ctx) return;
+    const W_src = (S && S.W) || curWorm.W || 480;
+    const H_src = (S && S.H) || curWorm.H || 360;
+    const sx = 128 / W_src, sy = 96 / H_src;
     const planes = getActivePlanes();
-    if(!planes.length) return;
-    let plane = null;
-    if(typeof planeIdOrIdx === 'number'){
-      plane = planes[planeIdOrIdx % planes.length];
-    } else {
-      plane = planes.find(p => p.id === planeIdOrIdx) || planes[0];
-    }
-    if(!plane) return;
-    const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
-    const effFi = getPlaneEffectiveFrame(plane.id, Math.max(0, Math.min(N - 1, fi)), N);
-    const off = camOffset(plane.z, effFi, plane.id);
-    const col = planeColor(plane.id, plane.z);
+    const visPlanes = planes.filter(p => isPlaneVisible(p.id) && (zoomPlaneId === null || p.id === zoomPlaneId));
+    // Sort back-to-front (highest z first, 'char' last) so foreground strokes overwrite background in a single pass
+    const drawList = (visPlanes.length ? visPlanes : planes).slice().sort((a, b) => {
+      if(a.id === 'char') return 1;
+      if(b.id === 'char') return -1;
+      return (Number(b.z) || 2) - (Number(a.z) || 2);
+    });
 
-    if(asBeflix || beflixMode){
-      renderStampAsBeflixDots(ctx, curWorm, effFi, plane, off, x, y, w, h, col.stroke, effFi === f);
-      return;
+    function inkForPlane(plane){
+      if(drawList.length === 1) return 7;
+      if(plane.id === 'char') return 7;
+      if(plane.z <= 1.5) return 6;
+      if(plane.z <= 2.8) return 5;
+      if(plane.z <= 4.0) return 4;
+      if(plane.z <= 7.0) return 3;
+      return 2;
     }
 
-    ctx.save();
-    ctx.fillStyle = '#faf6ee';
-    ctx.fillRect(x, y, w, h);
-    const hasSam = drawSamCutoutInRect(ctx, plane, effFi, off, x, y, w, h, 0.94);
-    drawPlaneObjectsInRect(ctx, curWorm, effFi, plane, off, x, y, w, h, col.stroke, hasSam ? 1.5 : 2.1, null);
-    ctx.restore();
+    const gridsByFrame = [];
+    for(let ti = 0; ti < N; ti++){
+      _off128Ctx.clearRect(0, 0, 128, 96);
+      _off128Ctx.save();
+      _off128Ctx.scale(sx, sy);
+      _off128Ctx.lineCap = 'round';
+      _off128Ctx.lineJoin = 'round';
+      let drewAny = false;
+
+      for(const plane of drawList){
+        const off = camOffset(plane.z, ti);
+        let stList = [];
+        if(plane.id === 'char'){
+          if(S && S.cast && S.cast.frames && S.cast.frames[ti]) stList = S.cast.frames[ti];
+          else if(curWorm.frames && curWorm.frames[ti] && curWorm.frames[ti].doodle){
+            stList = curWorm.frames[ti].doodle.map(s => s.map(p => [p[0]*W_src, p[1]*H_src]));
+          }
+        } else {
+          if(S && Array.isArray(S.objects)){
+            const objs = S.objects.filter(o => o.plane === plane.id);
+            for(const o of objs){
+              const ost = getObjectStrokes(o, ti);
+              for(const s of (ost || [])){
+                if(s && s.length >= 2) stList.push(s.map(p => [p[0] + off.dx, p[1] + off.dy]));
+              }
+            }
+          }
+          if(stList.length === 0 && curWorm.depth_worms){
+            const dwObj = curWorm.depth_worms.find(d => d.id === plane.id)
+              || curWorm.depth_worms.find(d => Math.abs((d.z||0) - (plane.z||0)) < 0.25 && d.role !== 'subject');
+            if(dwObj && dwObj.strokes0){
+              const u0 = Number.isFinite(dwObj.u0) ? dwObj.u0 : 0.5;
+              const v0 = Number.isFinite(dwObj.v0) ? dwObj.v0 : 0.5;
+              for(const s of dwObj.strokes0){
+                if(s && s.length >= 2) stList.push(s.map(p => [(u0 + p[0])*W_src + off.dx, (v0 + p[1])*H_src + off.dy]));
+              }
+            }
+          }
+        }
+        if(!stList.length) continue;
+        drewAny = true;
+        const lvl = inkForPlane(plane);
+        const cVal = lvl * 32;
+        _off128Ctx.strokeStyle = `rgb(${cVal},${cVal},${cVal})`;
+        _off128Ctx.lineWidth = (plane.id === 'char') ? 6.2 : (plane.z <= 1.5 ? 5.2 : 4.4);
+        for(const s of stList){
+          if(!s || s.length < 2) continue;
+          _off128Ctx.beginPath();
+          for(let i=0;i<s.length;i++){
+            if(i===0) _off128Ctx.moveTo(s[i][0], s[i][1]);
+            else _off128Ctx.lineTo(s[i][0], s[i][1]);
+          }
+          _off128Ctx.stroke();
+        }
+      }
+      _off128Ctx.restore();
+
+      const gridLevels = new Uint8Array(128 * 96);
+      if(drewAny){
+        const aData = _off128Ctx.getImageData(0, 0, 128, 96).data;
+        for(let i=0;i<128*96;i++){
+          if(aData[i*4+3] > 60){
+            const lvl = Math.min(7, Math.max(1, Math.round(aData[i*4] / 32)));
+            gridLevels[i] = lvl;
+          }
+        }
+      }
+      gridsByFrame.push(gridLevels);
+    }
+    window.icaroStampDoodleFrames(gridsByFrame);
   }
 
-  function syncWormCanvasSize(){
-    if(!cvWorm) return;
-    const wrap = cvWorm.parentElement || cvWorm;
-    const rect = wrap.getBoundingClientRect();
-    if(rect.width < 40 || rect.height < 40) return;
-    const isNarrow = rect.width < 560;
-    const targetW = isNarrow ? 540 : 680;
-    const ratio = rect.height / Math.max(1, rect.width);
-    const targetH = Math.max(290, Math.min(540, Math.round(targetW * ratio)));
-    if(cvWorm.width !== targetW || Math.abs(cvWorm.height - targetH) > 4){
-      cvWorm.width = targetW;
-      cvWorm.height = targetH;
+  function syncSubModeToolbars(){
+    const isPar = (wormMode === 'parallel' || wormMode === 'all');
+    const isCbus = (wormMode === 'cbus');
+    if(parallelSubSeg) parallelSubSeg.style.display = isPar ? '' : 'none';
+    if(tunnelSubSeg) tunnelSubSeg.style.display = isCbus ? '' : 'none';
+    if(parThemeBtn) parThemeBtn.style.display = isPar ? '' : 'none';
+
+    const cbusFrame = document.getElementById('cbus-inline-frame');
+    if(cbusFrame){
+      if(isCbus){
+        cbusFrame.style.display = 'block';
+        if(cvWorm) cvWorm.style.display = 'none';
+        if(typeof window.icaroEmitBusSyncNow === 'function'){
+          window.icaroEmitBusSyncNow();
+        }
+      } else {
+        cbusFrame.style.display = 'none';
+        if(cvWorm) cvWorm.style.display = 'block';
+      }
     }
   }
 
   function renderAll(){
     if(!curWorm || !cvWorm) return;
-    syncWormCanvasSize();
     const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
     if(f >= N) f = N - 1;
     if(f < 0) f = 0;
-    renderWorm(f);
+    if(wormMode !== 'cbus'){
+      renderWorm(f);
+    }
     if(cvStage && !stageInDotsMode){
       renderStage(f);
     }
@@ -4493,8 +3132,6 @@
     zoomPlaneId = null;
     selectedPartId = null;
     hoveredPartId = null;
-    selectedTunnelPlaneId = 'char';
-    resetAllLayerTubeEdits();
     planeOn = {};
 
     ['icaro-scene-select', 'sheet-a-scene-select'].forEach(id => {
@@ -4504,10 +3141,10 @@
 
     const cbusFrame = document.getElementById('cbus-inline-frame');
     if(cbusFrame && cbusFrame.contentWindow){
-      try{ cbusFrame.contentWindow.postMessage({ type: 'SCENE_SELECT', sceneId: curWorm.shot_id }, '*'); }catch(e){}
+      try { cbusFrame.contentWindow.postMessage({ type: 'SCENE_SELECT', shotId: curWorm.shot_id, slug: curWorm.slug }, '*'); } catch(e){}
     }
     if(window.parent && window.parent !== window){
-      try{ window.parent.postMessage({ type: 'SCENE_SELECT', sceneId: curWorm.shot_id }, '*'); }catch(e){}
+      try { window.parent.postMessage({ type: 'SCENE_SELECT', shotId: curWorm.shot_id, slug: curWorm.slug, _origin: 'icaro' }, '*'); } catch(e){}
     }
 
     buildPlanesUI();
@@ -4593,51 +3230,15 @@
     }
   }
 
-  function syncSubModeToolbars(){
-    if(tunnelSubSeg) tunnelSubSeg.style.display = (wormMode === 'tunnel' || wormMode === 'cbus') ? '' : 'none';
-    if(parallelSubSeg) parallelSubSeg.style.display = (wormMode === 'parallel') ? '' : 'none';
-    if(parThemeBtn) parThemeBtn.style.display = (wormMode === 'tunnel' || wormMode === 'parallel' || wormMode === 'all') ? '' : 'none';
-    const cbusFrame = document.getElementById('cbus-inline-frame');
-    if(cbusFrame){
-      if(wormMode === 'cbus'){
-        if(!cbusFrame.getAttribute('src')) cbusFrame.setAttribute('src', 'c-bus.html');
-        cbusFrame.style.display = 'block';
-        if(cvWorm) cvWorm.style.display = 'none';
-      } else {
-        cbusFrame.style.display = 'none';
-        if(cvWorm) cvWorm.style.display = 'block';
-      }
-    }
-  }
-
-  function syncBeflixButtons(){
-    document.querySelectorAll('[data-beflix-toggle]').forEach(b => {
-      b.setAttribute('aria-pressed', beflixMode ? 'true' : 'false');
-    });
-  }
-
-  function toggleBeflixMode(forceState){
-    beflixMode = (typeof forceState === 'boolean') ? forceState : !beflixMode;
-    syncBeflixButtons();
-    renderAll();
-  }
-
   function setStageViewMode(vMode){
-    if(vMode === 'beflix'){
-      beflixMode = true;
-      stageInDotsMode = false;
-      view = 'beflix';
-      if(cvStage) cvStage.style.display = 'block';
-    } else if(vMode === 'dots'){
+    if(vMode === 'dots'){
       stageInDotsMode = true;
       if(cvStage) cvStage.style.display = 'none';
     } else {
       stageInDotsMode = false;
-      if(view === 'beflix') beflixMode = false;
       view = vMode;
       if(cvStage) cvStage.style.display = 'block';
     }
-    syncBeflixButtons();
     document.querySelectorAll('[data-icaro-sview]').forEach(b => {
       b.setAttribute('aria-pressed', b.dataset.icaroSview === vMode ? 'true' : 'false');
     });
@@ -4650,10 +3251,9 @@
     cvStage = document.getElementById('cvStage');
     ctxStage = cvStage ? cvStage.getContext('2d') : null;
     planesRow = document.getElementById('planesRow');
-    tunnelSubSeg = document.getElementById('tunnelSubSeg');
     parallelSubSeg = document.getElementById('parallelSubSeg');
+    tunnelSubSeg = document.getElementById('tunnelSubSeg');
     parThemeBtn = document.getElementById('parThemeBtn');
-    beflixToggleBtn = document.getElementById('beflixToggleBtn');
     restorePlanesBtn = document.getElementById('restorePlanesBtn');
     zoomCrumbBtn = document.getElementById('zoomCrumbBtn');
     kScaleRange = document.getElementById('kScaleRange');
@@ -4663,71 +3263,16 @@
 
     if(!cvWorm) return;
 
-    if(typeof ResizeObserver !== 'undefined' && cvWorm.parentElement){
-      const ro = new ResizeObserver(()=>{ renderAll(); });
-      ro.observe(cvWorm.parentElement);
-    }
-
     let isScrubbingWorm = false;
     let wormDownPt = null;
-    let wormStartRoll = tunnelRoll;
     let wormDragged = false;
 
     cvWorm.addEventListener('pointerdown', (e)=>{
       isScrubbingWorm = true;
       wormDragged = false;
-      activeWormDrag = null;
       wormDownPt = eventToCanvasPt(cvWorm, e);
-      wormStartRoll = tunnelRoll;
       cvWorm.setPointerCapture(e.pointerId);
       const hit = findWormHit(wormDownPt);
-      const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-      if(hit && hit.atoDragMode && hit.planeId){
-        selectedTunnelPlaneId = hit.planeId;
-        const st = getPlaneTubeState(hit.planeId, N);
-        if(hit.atoDragMode === 'split'){
-          st.splitAt = (st.splitAt === f) ? null : f;
-          scheduleDotSync();
-          renderAll();
-          isScrubbingWorm = false;
-          return;
-        }
-        activeWormDrag = {
-          mode: hit.atoDragMode,
-          planeId: hit.planeId,
-          startX: wormDownPt.x,
-          startY: wormDownPt.y,
-          origDt: st.dt,
-          origTrimIn: st.trimIn,
-          origTrimOut: st.trimOut,
-          origLift: st.lift,
-          origRot: st.rot
-        };
-        return;
-      }
-      const toolLower = String(tunnelTool || 'MOVE').toLowerCase();
-      if(wormMode === 'tunnel' && hit && hit.atoSelectPlane && toolLower !== 'split'){
-        const pid = hit.atoSelectPlane;
-        selectedTunnelPlaneId = pid;
-        const st = getPlaneTubeState(pid, N);
-        let dMode = toolLower;
-        if(toolLower === 'trim'){
-          const midF = (st.trimIn + st.trimOut) * 0.5;
-          dMode = ((hit.fi !== undefined ? hit.fi : f) <= midF) ? 'trimIn' : 'trimOut';
-        }
-        activeWormDrag = {
-          mode: dMode,
-          planeId: pid,
-          startX: wormDownPt.x,
-          startY: wormDownPt.y,
-          origDt: st.dt,
-          origTrimIn: st.trimIn,
-          origTrimOut: st.trimOut,
-          origLift: st.lift,
-          origRot: st.rot,
-          isDirectTrackDrag: true
-        };
-      }
       if(!hit){
         scrubFromWormEvent(e);
       }
@@ -4736,7 +3281,7 @@
       const pt = eventToCanvasPt(cvWorm, e);
       if(!isScrubbingWorm){
         const hit = findWormHit(pt);
-        cvWorm.style.cursor = hit ? (hit.atoDragMode ? 'grab' : 'pointer') : (wormMode === 'tunnel' ? 'grab' : 'ew-resize');
+        cvWorm.style.cursor = hit ? 'pointer' : 'ew-resize';
         const newHov = (hit && hit.selectPartId && hit.selectPartId !== '__NONE__') ? hit.selectPartId : null;
         if(newHov !== hoveredPartId){
           hoveredPartId = newHov;
@@ -4748,36 +3293,7 @@
         wormDragged = true;
       }
       if(wormDragged){
-        const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-        if(activeWormDrag && activeWormDrag.planeId){
-          const st = getPlaneTubeState(activeWormDrag.planeId, N);
-          const dx = pt.x - activeWormDrag.startX;
-          const dy = pt.y - activeWormDrag.startY;
-          const framesPerPx = Math.max(1, N) / Math.max(220, cvWorm.width * 0.62);
-          if(activeWormDrag.mode === 'move'){
-            st.dt = Math.max(-N, Math.min(N, Math.round(activeWormDrag.origDt + dx * framesPerPx)));
-          } else if(activeWormDrag.mode === 'trimIn'){
-            st.trimIn = Math.max(0, Math.min(st.trimOut, Math.round(activeWormDrag.origTrimIn + dx * framesPerPx)));
-          } else if(activeWormDrag.mode === 'trimOut'){
-            st.trimOut = Math.max(st.trimIn, Math.min(N - 1, Math.round(activeWormDrag.origTrimOut + dx * framesPerPx)));
-          } else if(activeWormDrag.mode === 'lift'){
-            st.lift = Math.max(-0.85, Math.min(1.5, +(activeWormDrag.origLift - dy / 110).toFixed(2)));
-          } else if(activeWormDrag.mode === 'roll'){
-            st.rot = +((activeWormDrag.origRot || 0) + (dx + dy) * 0.012).toFixed(3);
-            tunnelRoll = wormStartRoll + dy * 0.009;
-          }
-          scheduleDotSync();
-          renderAll();
-          return;
-        }
-        if(wormMode === 'tunnel' && wormDownPt){
-          const dy = pt.clientY - wormDownPt.clientY;
-          if(Math.abs(dy) > 4){
-            tunnelRoll = wormStartRoll + dy * 0.009;
-          }
-        }
         scrubFromWormEvent(e);
-        if(wormMode === 'tunnel') renderAll();
       }
     });
     cvWorm.addEventListener('pointerleave', ()=>{
@@ -4787,83 +3303,24 @@
       }
     });
     cvWorm.addEventListener('pointerup', (e)=>{
-      const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
       if(isScrubbingWorm && !wormDragged && wormDownPt){
         const pt = eventToCanvasPt(cvWorm, e);
         const hit = findWormHit(pt) || findWormHit(wormDownPt);
         if(hit){
-          if(hit.atoSetTool){
-            tunnelTool = hit.atoSetTool;
-            renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
-          }
-          if(hit.atoResetAll){
-            resetAllLayerTubeEdits();
-            scheduleDotSync();
-            renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
-          }
-          if(hit.atoOpenFullTube){
-            if(typeof window.execNav === 'function'){
-              window.execNav('S');
-            }
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
-          }
-          if(hit.atoNudge && hit.planeId){
-            selectedTunnelPlaneId = hit.planeId;
-            const st = getPlaneTubeState(hit.planeId, N);
-            const act = hit.atoNudge;
-            if(act === 'dt-') st.dt = Math.max(-N, Math.min(N, st.dt - 1));
-            else if(act === 'dt+') st.dt = Math.max(-N, Math.min(N, st.dt + 1));
-            else if(act === 'lift-') st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift - 0.2).toFixed(2)));
-            else if(act === 'lift+') st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift + 0.2).toFixed(2)));
-            else if(act === 'trimIn') st.trimIn = (st.trimIn + 2 < st.trimOut) ? st.trimIn + 2 : 0;
-            else if(act === 'trimOut') st.trimOut = (st.trimOut - 2 > st.trimIn) ? st.trimOut - 2 : Math.max(0, N - 1);
-            else if(act === 'rot-') st.rot = +((st.rot || 0) - 0.26).toFixed(3);
-            else if(act === 'rot+') st.rot = +((st.rot || 0) + 0.26).toFixed(3);
-            else if(typeof act === 'object'){
-              if(act.dt) st.dt = Math.max(-N, Math.min(N, st.dt + act.dt));
-              if(act.lift) st.lift = Math.max(-0.85, Math.min(1.5, +(st.lift + act.lift).toFixed(2)));
-              if(act.rot) st.rot = +((st.rot || 0) + act.rot).toFixed(3);
-              if(act.split) st.splitAt = (st.splitAt === f) ? null : f;
-              if(act.resetPlane){
-                st.dt = 0; st.trimIn = 0; st.trimOut = Math.max(0, N - 1); st.lift = 0; st.rot = 0; st.splitAt = null;
-              }
-            }
-            scheduleDotSync();
-            renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
-          }
-          if(hit.atoSelectPlane){
-            selectedTunnelPlaneId = hit.atoSelectPlane;
-            if(String(tunnelTool).toUpperCase() === 'SPLIT'){
-              const st = getPlaneTubeState(hit.atoSelectPlane, N);
-              const splitFrame = (hit.fi !== undefined && hit.fi !== null) ? hit.fi : f;
-              st.splitAt = (st.splitAt === splitFrame) ? null : splitFrame;
-              scheduleDotSync();
-            }
-            if(hit.fi !== undefined && hit.fi !== null && hit.fi !== f){
-              getFrameImg(curWorm, hit.fi);
-              syncFrameToIcaroHost(hit.fi);
-            } else {
-              renderAll();
-            }
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
-          }
           if(hit.selectShotIdx !== undefined){
             selectShotByIdx(hit.selectShotIdx);
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
+            isScrubbingWorm = false; wormDownPt = null; return;
           }
           if(hit.zoomPlaneOut){
             zoomPlaneId = null; selectedPartId = null;
             buildPlanesUI(); syncPlanesToIcaroDots(); renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
+            isScrubbingWorm = false; wormDownPt = null; return;
           }
           if(hit.zoomPlaneIn){
             zoomPlaneId = hit.zoomPlaneIn; selectedPartId = null;
             planeOn[hit.zoomPlaneIn] = true;
             buildPlanesUI(); syncPlanesToIcaroDots(); renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
+            isScrubbingWorm = false; wormDownPt = null; return;
           }
           if(hit.selectPartId){
             selectedPartId = (hit.selectPartId === '__NONE__') ? null : hit.selectPartId;
@@ -4873,14 +3330,14 @@
               syncSubModeToolbars();
             }
             renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
+            isScrubbingWorm = false; wormDownPt = null; return;
           }
           if(hit.setMode){
             wormMode = hit.setMode;
             document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.wmode===wormMode?'true':'false'));
             syncSubModeToolbars();
             renderAll();
-            isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; return;
+            isScrubbingWorm = false; wormDownPt = null; return;
           }
           if(hit.togglePlane && hit.planeId){
             togglePlaneVisibility(hit.planeId);
@@ -4898,17 +3355,16 @@
         }
       }
       isScrubbingWorm = false;
-      activeWormDrag = null;
       wormDownPt = null;
     });
-    cvWorm.addEventListener('pointercancel', ()=>{ isScrubbingWorm = false; activeWormDrag = null; wormDownPt = null; });
+    cvWorm.addEventListener('pointercancel', ()=>{ isScrubbingWorm = false; wormDownPt = null; });
 
     if(cvStage){
       cvStage.addEventListener('pointermove', (e)=>{
         const pt = eventToCanvasPt(cvStage, e);
         const hit = findStageHit(pt);
         cvStage.style.cursor = hit ? 'pointer' : 'default';
-        const newHov = (hit && hit.partId) ? hit.partId : null;
+        const newHov = hit ? hit.partId : null;
         if(newHov !== hoveredPartId){
           hoveredPartId = newHov;
           renderAll();
@@ -4923,26 +3379,14 @@
       cvStage.addEventListener('click', (e)=>{
         const pt = eventToCanvasPt(cvStage, e);
         const hit = findStageHit(pt);
-        if(hit){
-          if(hit.toggleBeflixPalette){
-            beflixDarkPalette = !beflixDarkPalette;
-            renderAll();
-            return;
+        if(hit && hit.partId){
+          selectedPartId = (selectedPartId === hit.partId) ? null : hit.partId;
+          if(selectedPartId && wormMode !== 'parts'){
+            wormMode = 'parts';
+            document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.wmode==='parts'?'true':'false'));
+            syncSubModeToolbars();
           }
-          if(hit.toggleBeflixColor){
-            beflixColorDots = !beflixColorDots;
-            renderAll();
-            return;
-          }
-          if(hit.partId){
-            selectedPartId = (selectedPartId === hit.partId) ? null : hit.partId;
-            if(selectedPartId && wormMode !== 'parts'){
-              wormMode = 'parts';
-              document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.wmode==='parts'?'true':'false'));
-              syncSubModeToolbars();
-            }
-            renderAll();
-          }
+          renderAll();
         }
       });
     }
@@ -4958,20 +3402,14 @@
 
     document.querySelectorAll('[data-tsub]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        tunnelSubMode = btn.dataset.tsub;
         document.querySelectorAll('[data-tsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
-        if(wormMode === 'cbus'){
-          const cbusFrame = document.getElementById('cbus-inline-frame');
-          const viewMap = { barrel: 0, inside: 1, outside: 2, side: 3, bench: 4 };
-          if(tunnelSubMode === 'rings'){
-            wormMode = 'tunnel';
-            document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.wmode==='tunnel'?'true':'false'));
-            syncSubModeToolbars();
-          } else if(cbusFrame && cbusFrame.contentWindow && viewMap[tunnelSubMode] !== undefined){
-            cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: viewMap[tunnelSubMode] }, '*');
-          }
+        const cbusFrame = document.getElementById('cbus-inline-frame');
+        const viewMap = { barrel: 0, inside: 1, outside: 2, side: 3, bench: 4 };
+        if(cbusFrame && cbusFrame.contentWindow && viewMap[btn.dataset.tsub] !== undefined){
+          try {
+            cbusFrame.contentWindow.postMessage({ type: 'VIEW_CYCLE', view: viewMap[btn.dataset.tsub] }, '*');
+          } catch(e){}
         }
-        renderAll();
       });
     });
 
@@ -4981,10 +3419,6 @@
         document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         renderAll();
       });
-    });
-
-    document.querySelectorAll('[data-beflix-toggle]').forEach(btn=>{
-      btn.addEventListener('click', ()=> toggleBeflixMode());
     });
 
     if(parThemeBtn){
@@ -5020,7 +3454,7 @@
       kScaleRange.addEventListener('input', ()=>{
         kScale = parseFloat(kScaleRange.value) || 1.0;
         if(kScaleLbl) kScaleLbl.textContent = 'k×' + kScale.toFixed(1);
-        syncPlanesToIcaroDots();
+        scheduleDotSync();
         renderAll();
       });
     }
@@ -5028,7 +3462,7 @@
       explodeRange.addEventListener('input', ()=>{
         explodeAmt = parseFloat(explodeRange.value) || 0;
         if(explodeLbl) explodeLbl.textContent = 'Exp ' + Math.round(explodeAmt * 100) + '%';
-        syncPlanesToIcaroDots();
+        scheduleDotSync();
         renderAll();
       });
     }
@@ -5066,7 +3500,7 @@
       }
     });
 
-    // Default to Composite stage + 1 · Tunnel Rings bottom view on Giraffe Walks Past!
+    // Default to Composite stage + 1 · 3D Butter bottom view on Giraffe Walks Past!
     syncSubModeToolbars();
     setStageViewMode('composite');
     if(WORMS.length){
@@ -5096,40 +3530,6 @@
       if(idx >= 0) selectShotByIdx(idx);
     },
     setStageViewMode: setStageViewMode,
-    toggleBeflixMode: toggleBeflixMode,
-    renderAll: renderAll,
-    getActivePlanes: getActivePlanes,
-    getPlaneTubeState: function(pid){
-      const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-      return getPlaneTubeState(pid, N);
-    },
-    setPlaneTubeState: function(pid, patch){
-      const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-      const st = getPlaneTubeState(pid, N);
-      if(patch){
-        if(patch.dt !== undefined) st.dt = Math.max(-N, Math.min(N, Math.round(patch.dt)));
-        if(patch.trimIn !== undefined) st.trimIn = Math.max(0, Math.min(N - 1, Math.round(patch.trimIn)));
-        if(patch.trimOut !== undefined) st.trimOut = Math.max(st.trimIn, Math.min(N - 1, Math.round(patch.trimOut)));
-        if(patch.lift !== undefined) st.lift = Math.max(-0.85, Math.min(1.5, +Number(patch.lift).toFixed(2)));
-        if(patch.rot !== undefined) st.rot = Math.round(patch.rot) % 360;
-        if(patch.splitAt !== undefined) st.splitAt = patch.splitAt;
-        scheduleDotSync();
-        renderAll();
-      }
-      return st;
-    },
-    resetAllLayerTubeEdits: function(){
-      resetAllLayerTubeEdits();
-      scheduleDotSync();
-      renderAll();
-    },
-    drawLayerPreviewInRect: drawLayerPreviewInRect,
-    computeBeflix128x96Frame: computeBeflix128x96Frame,
-    getCurrentWorm: function(){ return curWorm; },
-    getShotData: function(){ return S; },
-    isBeflixMode: function(){ return beflixMode; },
-    getFrameCount: function(){
-      return (S && S.cast && S.cast.frames) ? S.cast.frames.length : ((curWorm && curWorm.n_frames) || 1);
-    }
+    renderAll: renderAll
   };
 })();
