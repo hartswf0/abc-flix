@@ -4,7 +4,7 @@
   // Shared Secondhand Motion Multi-Lens & Parts Inspector Engine for ICARO-PRO
   let cvWorm = null, ctxWorm = null;
   let cvStage = null, ctxStage = null;
-  let planesRow = null, parallelSubSeg = null, tunnelSubSeg = null, parThemeBtn = null;
+  let planesRow = null, parallelSubSeg = null, tunnelSubSeg = null, cbusSubSeg = null, parThemeBtn = null, beflixToggleBtn = null;
   let restorePlanesBtn = null, zoomCrumbBtn = null;
   let kScaleRange = null, kScaleLbl = null, explodeRange = null, explodeLbl = null;
 
@@ -16,11 +16,15 @@
   let shotCache = new Map();
   let frameImgCache = new Map();
 
-  let wormMode = 'parallel';   // 'parallel' | 'cbus' | 'lanes' | 'parts' | 'strobe' | 'kymo' | 'anatomy' | 'box' | 'wall' | 'all'
-  let parallelSubMode = 'onion'; // 'onion' | 'butter' | 'slices' | 'radial' | 'dual'
+  let wormMode = 'parallel';     // 'parallel' | 'tunnel' | 'cbus' | 'lanes' | 'parts' | 'strobe' | 'kymo' | 'anatomy' | 'box' | 'wall' | 'all'
+  let parallelSubMode = 'butter'; // 'butter' | 'onion' | 'slices' | 'radial' | 'dual' (Default: Butter Loaf!)
+  let tunnelSubMode = 'barrel';   // 'barrel' | 'outside' | 'inside' | 'rings' | 'bench'
+  let tunnelRoll = -0.22;
+  let tunnelYaw = 0.0;
   let parallelDark = true;
-  let view = 'composite';      // 'dots' | 'all4' | 'composite' | 'xray' | 'cutout' | 'cartoon' | 'footage' | 'masks'
-  let stageInDotsMode = false; // Default top stage to high-res 'composite' or 'dots' (user can switch 1-click!)
+  let beflixMode = false;
+  let view = 'composite';        // 'beflix' | 'dots' | 'all4' | 'composite' | 'xray' | 'cutout' | 'cartoon' | 'footage' | 'masks'
+  let stageInDotsMode = false;   // Default top stage to high-res 'composite' or 'dots' (user can switch 1-click!)
   let f = 0;
   let soloPlaneId = null;
   let planeOn = {};
@@ -177,12 +181,28 @@
     }
     return {
       minX, minY, maxX, maxY,
+      x0: minX, y0: minY, x1: maxX, y1: maxY,
       cx: (minX + maxX) * 0.5,
       cy: (minY + maxY) * 0.5,
       w: Math.max(8, maxX - minX),
       h: Math.max(8, maxY - minY),
       nPts
     };
+  }
+
+  function normalizePartRecord(p){
+    const camShift = p.camShift || {dx: 0, dy: 0};
+    const rigShift = p.rigShift || {dx: 0, dy: 0};
+    return Object.assign(p, {
+      planeZ: p.z,
+      kMult: p.k || 1.0,
+      kind: p.kind || (p.isChar ? 'char_whole' : (p.isCharStroke ? 'char_stroke' : (String(p.id).startsWith('dw:') ? 'dw_fallback' : 'object'))),
+      bbox0: p.bbox0 || p.bbox,
+      off: p.off || {dx: 0, dy: 0},
+      camDisp: camShift,
+      rigDisp: rigShift,
+      totalDisp: {dx: camShift.dx + rigShift.dx, dy: camShift.dy + rigShift.dy}
+    });
   }
 
   function extractShotParts(fi, filterPlaneId){
@@ -397,7 +417,27 @@
         }
       }
     }
-    return parts;
+    return parts.map(normalizePartRecord);
+  }
+
+  function layerColorForPlane(plane){
+    if(!plane || plane.id === 'char') return '#EF9F3A';
+    const z = Number(plane.z) || 2;
+    if(z <= 1.5) return '#D97706';
+    if(z <= 2.6) return '#EAB308';
+    if(z <= 3.8) return '#2E7A4A';
+    if(z <= 7.0) return '#2563EB';
+    return '#0284C7';
+  }
+
+  function beflixColorForPlane(plane){
+    if(!plane || plane.id === 'char') return '#FFB03A';
+    const z = Number(plane.z) || 2;
+    if(z <= 1.5) return '#F59E0B';
+    if(z <= 2.6) return '#FDE047';
+    if(z <= 3.8) return '#4ADE80';
+    if(z <= 7.0) return '#60A5FA';
+    return '#38BDF8';
   }
 
   function drawPartInRect(ctx, part, fi, tx, ty, tw, th, opts){
@@ -907,6 +947,684 @@
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  // ============================================================================
+  // LENS: 3D MULTIPLANE LAYER-RING & ONION TUNNEL ('tunnel')
+  // Integrates all Arc-Tunnel views (BARREL, OUTSIDE, INSIDE, RINGS, BENCH)
+  // where the 6 multiplane depth layers form concentric Onion Tube shells & rails!
+  // ============================================================================
+  function renderTunnelLayersMode(ctx, W, H, fi, N, planes, zRef){
+    const dark = parallelDark;
+    if(dark){
+      const bg = ctx.createRadialGradient(W*0.48, H*0.48, 16, W*0.5, H*0.5, W*0.78);
+      bg.addColorStop(0, '#12151E');
+      bg.addColorStop(1, '#050609');
+      ctx.fillStyle = bg;
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, '#F3EBD9');
+      bg.addColorStop(1, '#E6D9C2');
+      ctx.fillStyle = bg;
+    }
+    ctx.fillRect(0, 0, W, H);
+
+    const lineRGB = dark ? '255,255,255' : '22,20,18';
+    const planesNearFirst = planes.slice().reverse(); // Grass (z=1.2) -> Walking giraffe (z=2) -> Young giraffes (z=2.5) -> Trees (z=3) -> Far treeline (z=6) -> Sky (z=10)
+    const K = Math.max(1, planesNearFirst.length);
+    const DASH_STYLES = [[], [6, 4], [10, 4, 2, 4], [3, 4], [8, 3], [12, 4]];
+
+    function drawAtoTag(tx, ty, text, isRed, colBorder){
+      ctx.save();
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      const tw = Math.max(44, ctx.measureText(text).width + 12);
+      const th = 16;
+      const rx = Math.max(6, Math.min(W - tw - 6, tx - tw * 0.5));
+      const ry = Math.max(6, Math.min(H - th - 6, ty - th * 0.5));
+      ctx.fillStyle = isRed ? '#EF4444' : (dark ? '#0E1017' : '#FFFFFF');
+      ctx.strokeStyle = isRed ? '#FFFFFF' : (colBorder || (dark ? '#FFFFFF' : '#161412'));
+      ctx.lineWidth = isRed ? 2.0 : 1.5;
+      ctx.fillRect(rx, ry, tw, th);
+      ctx.strokeRect(rx, ry, tw, th);
+      ctx.fillStyle = isRed ? '#FFFFFF' : (colBorder || (dark ? '#FFFDF8' : '#161412'));
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, rx + tw * 0.5, ry + th * 0.5 + 0.5);
+      ctx.restore();
+      return {x: rx, y: ry, w: tw, h: th};
+    }
+
+    // -------------------------------------------------------------------------
+    // SUB-MODE 1: 'rings' — CONCENTRIC MULTIPLANE LAYER RINGS AROUND THE TUNNEL
+    // -------------------------------------------------------------------------
+    if(tunnelSubMode === 'rings'){
+      const cx0 = W * 0.50;
+      const cy0 = H * 0.51;
+      const vx = cx0 + Math.sin(tunnelRoll) * 20 + tunnelYaw * 28;
+      const vy = cy0 - 10;
+      const minRx = Math.min(W, H) * 0.14;
+      const minRy = Math.min(W, H) * 0.11;
+      const maxRx = W * 0.455;
+      const maxRy = H * 0.435;
+
+      // 1. Draw inner receding time-tunnel bore
+      const nBoreRings = 7;
+      ctx.save();
+      for(let b = nBoreRings; b >= 0; b--){
+        const u = b / nBoreRings;
+        const bx = vx + (cx0 - vx) * u * 0.45;
+        const by = vy + (cy0 - vy) * u * 0.45;
+        const brx = minRx * (0.22 + 0.78 * u);
+        const bry = minRy * (0.22 + 0.78 * u);
+        ctx.strokeStyle = `rgba(${lineRGB}, ${0.08 + u * 0.16})`;
+        ctx.lineWidth = b === nBoreRings ? 1.5 : 0.8;
+        ctx.beginPath();
+        ctx.ellipse(bx, by, brx, bry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      for(let sp = 0; sp < 12; sp++){
+        const a = (sp / 12) * Math.PI * 2 + tunnelRoll;
+        ctx.strokeStyle = `rgba(${lineRGB}, 0.12)`;
+        ctx.lineWidth = 0.75;
+        ctx.beginPath();
+        ctx.moveTo(vx + Math.cos(a) * minRx * 0.22, vy + Math.sin(a) * minRy * 0.22);
+        ctx.lineTo(cx0 + Math.cos(a) * maxRx, cy0 + Math.sin(a) * maxRy);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 2. Draw all K Concentric Layer Rings (from outer Sky z=10 to inner Grass z=1.2)
+      const ringSpecs = planesNearFirst.map((plane, idx)=>{
+        const uRing = K === 1 ? 0.55 : (idx / (K - 1));
+        const rx = minRx + uRing * (maxRx - minRx);
+        const ry = minRy + uRing * (maxRy - minRy);
+        const rcx = vx + (cx0 - vx) * (0.52 + 0.48 * (1 - uRing * 0.55));
+        const rcy = vy + (cy0 - vy) * (0.52 + 0.48 * (1 - uRing * 0.55));
+        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+        const vis = isPlaneVisible(plane.id);
+        const kMult = (zRef / Math.max(0.2, plane.z)) * kScale;
+        const baseSectorAngle = -Math.PI * 0.62 + (idx / K) * Math.PI * 2 + tunnelRoll;
+        const parallaxArc = ((fi / Math.max(1, N - 1)) - 0.5) * 0.55 * Math.min(2.2, kMult);
+        const activeAngle = baseSectorAngle + parallaxArc;
+        return {plane, idx, uRing, rx, ry, rcx, rcy, col, vis, kMult, baseSectorAngle, activeAngle};
+      });
+
+      const bandThickness = Math.max(6, Math.min(14, (maxRy - minRy) / Math.max(2, K) * 0.44));
+
+      for(let i = ringSpecs.length - 1; i >= 0; i--){
+        const rs = ringSpecs[i];
+        const isChar = (rs.plane.id === 'char');
+        ctx.save();
+        ctx.globalAlpha = rs.vis ? 1.0 : 0.25;
+
+        ctx.strokeStyle = rs.col;
+        ctx.globalAlpha = rs.vis ? (isChar ? 0.24 : 0.14) : 0.05;
+        ctx.lineWidth = bandThickness;
+        ctx.beginPath();
+        ctx.ellipse(rs.rcx, rs.rcy, rs.rx, rs.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.globalAlpha = rs.vis ? (isChar ? 0.95 : 0.78) : 0.28;
+        ctx.strokeStyle = rs.col;
+        ctx.lineWidth = isChar ? 2.6 : 1.7;
+        ctx.setLineDash(rs.vis ? (isChar ? [] : DASH_STYLES[i % DASH_STYLES.length]) : [3, 4]);
+        ctx.beginPath();
+        ctx.ellipse(rs.rcx, rs.rcy, rs.rx, rs.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if(rs.vis){
+          const keyStations = [0, Math.floor(N * 0.5), N - 1];
+          for(let ks = 0; ks < keyStations.length; ks++){
+            const kFi = keyStations[ks];
+            if(Math.abs(kFi - fi) <= 2) continue;
+            const dFrac = (kFi - fi) / Math.max(1, N - 1);
+            const kAngle = rs.activeAngle + dFrac * 0.95;
+            const kx = rs.rcx + Math.cos(kAngle) * rs.rx;
+            const ky = rs.rcy + Math.sin(kAngle) * rs.ry;
+            if(kx < 28 || kx > W - 28 || ky < 22 || ky > H - 22) continue;
+
+            drawUpright3DCard(ctx, kx, ky, 42, 34, kFi, {
+              plane: isChar ? null : rs.plane,
+              borderColor: rs.col,
+              borderWidth: 1.1,
+              bgFill: '#FFFDF6',
+              alpha: 0.68,
+              cropToMask: isChar,
+              butterSlab: true,
+              slabDepth: 2.5,
+              togglePlane: false,
+              label: `f${String(kFi+1).padStart(2,'0')}`,
+              labelColor: rs.col
+            });
+          }
+        }
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.strokeStyle = '#EF4444';
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      for(let i = 0; i < ringSpecs.length; i++){
+        const rs = ringSpecs[i];
+        const px = rs.rcx + Math.cos(rs.activeAngle) * rs.rx;
+        const py = rs.rcy + Math.sin(rs.activeAngle) * rs.ry;
+        if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      for(const rs of ringSpecs){
+        if(!rs.vis) continue;
+        const px = rs.rcx + Math.cos(rs.activeAngle) * rs.rx;
+        const py = rs.rcy + Math.sin(rs.activeAngle) * rs.ry;
+        ctx.strokeStyle = rs.col;
+        ctx.lineWidth = rs.plane.id === 'char' ? 2.2 : 1.3;
+        ctx.globalAlpha = 0.72;
+        ctx.beginPath();
+        ctx.moveTo(vx, vy);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      drawUpright3DCard(ctx, vx, vy, 74, 58, fi, {
+        plane: null,
+        borderColor: '#EF4444',
+        borderWidth: 2.4,
+        bgFill: '#FFFDF5',
+        cropToMask: false,
+        butterSlab: true,
+        slabDepth: 5.5,
+        label: `BORE f${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`,
+        labelColor: '#EF4444'
+      });
+
+      const activeRingCards = ringSpecs.map(rs => {
+        const isChar = (rs.plane.id === 'char');
+        const cw = isChar ? 84 : 68;
+        const ch = isChar ? 68 : 54;
+        const rawX = rs.rcx + Math.cos(rs.activeAngle) * rs.rx;
+        const rawY = rs.rcy + Math.sin(rs.activeAngle) * rs.ry;
+        const cx = Math.max(cw * 0.56 + 6, Math.min(W - cw * 0.56 - 6, rawX));
+        const cy = Math.max(ch * 0.56 + 18, Math.min(H - ch * 0.56 - 6, rawY));
+        return {rs, isChar, cw, ch, cx, cy};
+      });
+
+      activeRingCards.sort((a, b) => a.cy - b.cy);
+      for(const rc of activeRingCards){
+        const {rs, isChar, cw, ch, cx, cy} = rc;
+        const shortLbl = String(rs.plane.label || rs.plane.id).split('(')[0].trim().slice(0, 11);
+        drawUpright3DCard(ctx, cx, cy, cw, ch, fi, {
+          plane: isChar ? null : rs.plane,
+          borderColor: rs.col,
+          borderWidth: isChar ? 2.8 : 2.0,
+          bgFill: '#FFFDF5',
+          alpha: rs.vis ? 1.0 : 0.32,
+          cropToMask: isChar,
+          butterSlab: true,
+          slabDepth: isChar ? 7.5 : 5.0,
+          togglePlane: true,
+          label: `R${rs.idx+1}:${shortLbl} z=${rs.plane.z}`,
+          labelColor: rs.col
+        });
+      }
+
+      drawAtoTag(W * 0.5, 13, `TUNNEL · ${K} CONCENTRIC LAYER RINGS (R1 Grass z=1.2 -> R${K} Sky z=10) · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // SUB-MODE 2 & 3: 'barrel' & 'inside' — CONCENTRIC ONION BARREL & INSIDE BORE
+    // -------------------------------------------------------------------------
+    if(tunnelSubMode === 'barrel' || tunnelSubMode === 'inside'){
+      const isInside = (tunnelSubMode === 'inside');
+      const SNAP = 60;
+      const camZ = fi * SNAP;
+      const R_base = Math.min(W, H) * (isInside ? 0.42 : 0.35);
+      const cx0 = W * (isInside ? 0.50 : 0.46);
+      const cy0 = H * (isInside ? 0.50 : 0.52);
+
+      function projTube(x, y, z){
+        const dz = z - camZ + (isInside ? 360 : 520);
+        if(dz < 35) return null;
+        const s = (isInside ? 460 : 480) / dz;
+        const obX = isInside ? (z - camZ) * 0.015 * tunnelYaw : (z - camZ) * 0.078;
+        const obY = isInside ? 0 : -(z - camZ) * 0.024;
+        return {
+          x: cx0 + x * s + obX,
+          y: cy0 + y * s + obY,
+          s,
+          d: dz
+        };
+      }
+
+      function layerRadius(pIdx){
+        // 6 distinct concentric Onion Tube radii around the barrel!
+        return R_base * (0.44 + (pIdx / Math.max(1, K - 1)) * 0.72) * (1 + explodeAmt * 0.45);
+      }
+
+      function layerAngle(pIdx){
+        return (pIdx / K) * Math.PI * 2 - Math.PI * 0.5 + tunnelRoll;
+      }
+
+      // 1. Draw receding tunnel depth rings & concentric Onion Layer Rings at key depths
+      ctx.save();
+      for(let ti = 0; ti < N; ti += 2){
+        const z = ti * SNAP;
+        const q = projTube(0, 0, z);
+        if(!q || q.s < 0.04) continue;
+        for(let pIdx = 0; pIdx < K; pIdx += (ti === fi ? 1 : 2)){
+          const rr = layerRadius(pIdx) * q.s;
+          ctx.strokeStyle = ti === fi ? layerColorForPlane(planesNearFirst[pIdx]) : `rgba(${lineRGB}, 0.16)`;
+          ctx.lineWidth = ti === fi ? 1.8 : 0.8;
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, rr, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // 2. Draw longitudinal layer rails down the concentric Onion Barrel
+      ctx.save();
+      for(let pIdx = 0; pIdx < K; pIdx++){
+        const plane = planesNearFirst[pIdx];
+        const a = layerAngle(pIdx);
+        const rr = layerRadius(pIdx);
+        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+        ctx.strokeStyle = col;
+        ctx.setLineDash(DASH_STYLES[pIdx % DASH_STYLES.length]);
+        ctx.lineWidth = plane.id === 'char' ? 2.6 : 1.5;
+        ctx.globalAlpha = isPlaneVisible(plane.id) ? 0.80 : 0.20;
+        ctx.beginPath();
+        let started = false;
+        for(let ti = Math.max(0, fi - 6); ti < N; ti++){
+          const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, ti * SNAP);
+          if(q){
+            if(!started){ ctx.moveTo(q.x, q.y); started = true; }
+            else ctx.lineTo(q.x, q.y);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // 3. Draw curved c-bus tubeGeom arc cells along the concentric barrel shells
+      const segLen = Math.max(2, Math.floor(N / 7));
+      const cellsToDraw = [];
+      for(let pIdx = 0; pIdx < K; pIdx++){
+        const plane = planesNearFirst[pIdx];
+        if(!isPlaneVisible(plane.id)) continue;
+        const rr = layerRadius(pIdx);
+        const baseA = layerAngle(pIdx);
+        const halfArc = (Math.PI / K) * 0.78;
+        const a0 = baseA - halfArc, a1 = baseA + halfArc;
+        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+
+        for(let sStart = 0; sStart < N; sStart += segLen){
+          const sEnd = Math.min(N - 1, sStart + segLen - 1);
+          const z0 = sStart * SNAP, z1 = (sEnd + 0.85) * SNAP;
+          if(z1 < camZ - 320) continue;
+          const pts = [];
+          let ok = true, minD = 1e9;
+          const aSteps = 5;
+          for(let i = 0; i <= aSteps; i++){
+            const a = a0 + (a1 - a0) * (i / aSteps);
+            const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, z0);
+            if(!q){ ok = false; break; }
+            pts.push(q); if(q.d < minD) minD = q.d;
+          }
+          if(!ok) continue;
+          for(let i = aSteps; i >= 0; i--){
+            const a = a0 + (a1 - a0) * (i / aSteps);
+            const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, z1);
+            if(!q){ ok = false; break; }
+            pts.push(q); if(q.d < minD) minD = q.d;
+          }
+          if(!ok || pts.length < 6) continue;
+          const midFrame = Math.round((sStart + sEnd) * 0.5);
+          const midQ = projTube(Math.cos(baseA) * rr, Math.sin(baseA) * rr, ((z0 + z1) * 0.5));
+          cellsToDraw.push({plane, pIdx, col, pts, d: minD, midFrame, midQ, isCurSeg: (fi >= sStart && fi <= sEnd)});
+        }
+      }
+
+      cellsToDraw.sort((a, b) => b.d - a.d);
+      for(const cell of cellsToDraw){
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cell.pts[0].x, cell.pts[0].y);
+        for(let i = 1; i < cell.pts.length; i++) ctx.lineTo(cell.pts[i].x, cell.pts[i].y);
+        ctx.closePath();
+        const alpha = Math.max(0.18, Math.min(0.85, 1 - cell.d / 2600));
+        ctx.fillStyle = cell.isCurSeg ? 'rgba(239, 159, 58, 0.22)' : (dark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.65)');
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.strokeStyle = cell.col;
+        ctx.lineWidth = cell.isCurSeg ? 2.2 : 1.2;
+        ctx.stroke();
+        ctx.restore();
+
+        if(cell.midQ && cell.midQ.s > 0.24 && !cell.isCurSeg){
+          const cw = Math.max(28, Math.round(52 * cell.midQ.s));
+          const ch = Math.max(22, Math.round(42 * cell.midQ.s));
+          if(cell.midQ.x > 24 && cell.midQ.x < W - 24 && cell.midQ.y > 20 && cell.midQ.y < H - 20){
+            drawUpright3DCard(ctx, cell.midQ.x, cell.midQ.y, cw, ch, cell.midFrame, {
+              plane: cell.plane.id === 'char' ? null : cell.plane,
+              borderColor: cell.col,
+              borderWidth: 1.2,
+              bgFill: '#FFFDF5',
+              alpha: Math.min(0.88, alpha + 0.15),
+              cropToMask: cell.plane.id === 'char',
+              butterSlab: true,
+              slabDepth: Math.max(2, 4 * cell.midQ.s),
+              togglePlane: false,
+              label: `f${String(cell.midFrame+1).padStart(2,'0')}`,
+              labelColor: cell.col
+            });
+          }
+        }
+      }
+
+      // 4. Draw Concentric Onion Playhead Rings at z = camZ + active 6 Layer Cards around the rings!
+      const pRing = projTube(0, 0, camZ);
+      if(pRing){
+        ctx.save();
+        for(let pIdx = K - 1; pIdx >= 0; pIdx--){
+          const plane = planesNearFirst[pIdx];
+          const rr = layerRadius(pIdx) * pRing.s;
+          ctx.strokeStyle = plane.id === 'char' ? '#EF4444' : layerColorForPlane(plane);
+          ctx.lineWidth = plane.id === 'char' ? 3.2 : 1.6;
+          ctx.globalAlpha = plane.id === 'char' ? 0.95 : 0.62;
+          ctx.beginPath();
+          ctx.arc(pRing.x, pRing.y, rr, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        for(let pIdx = 0; pIdx < K; pIdx++){
+          const plane = planesNearFirst[pIdx];
+          const isChar = (plane.id === 'char');
+          const a = layerAngle(pIdx);
+          const rr = layerRadius(pIdx);
+          const q = projTube(Math.cos(a) * rr, Math.sin(a) * rr, camZ);
+          if(!q) continue;
+          const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+          const cw = isChar ? 82 : 66;
+          const ch = isChar ? 66 : 52;
+          const cx = Math.max(cw * 0.55 + 6, Math.min(W - cw * 0.55 - 6, q.x));
+          const cy = Math.max(ch * 0.55 + 18, Math.min(H - ch * 0.55 - 6, q.y));
+          const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 10);
+          drawUpright3DCard(ctx, cx, cy, cw, ch, fi, {
+            plane: isChar ? null : plane,
+            borderColor: col,
+            borderWidth: isChar ? 2.6 : 1.9,
+            bgFill: '#FFFDF5',
+            alpha: isPlaneVisible(plane.id) ? 1.0 : 0.30,
+            cropToMask: isChar,
+            butterSlab: true,
+            slabDepth: isChar ? 7 : 4.5,
+            togglePlane: true,
+            label: `${shortLbl} z=${plane.z}`,
+            labelColor: col
+          });
+        }
+        drawAtoTag(pRing.x, 14, `${isInside ? 'INSIDE ONION BORE' : 'ONION BARREL TUNNEL'} (${K} SHELLS) · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
+      }
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // SUB-MODE 4: 'outside' — EXTERNAL TAPERED ONION CYLINDER VIEW
+    // -------------------------------------------------------------------------
+    if(tunnelSubMode === 'outside'){
+      const P = {
+        cx0: W * 0.19, cy0: H * 0.56,
+        cx1: W * 0.86, cy1: H * 0.42,
+        rx0: W * 0.13, ry0: H * 0.36,
+        rx1: W * 0.045, ry1: H * 0.16
+      };
+      const oc = s => ({x: P.cx0 + (P.cx1 - P.cx0) * s, y: P.cy0 + (P.cy1 - P.cy0) * s});
+      const orad = (s, rScale) => ({
+        rx: (P.rx0 + (P.rx1 - P.rx0) * s) * (rScale || 1),
+        ry: (P.ry0 + (P.ry1 - P.ry0) * s) * (rScale || 1)
+      });
+      const opoint = (s, a, rScale) => {
+        const c = oc(s), r = orad(s, rScale);
+        return {x: c.x + Math.cos(a) * r.rx, y: c.y + Math.sin(a) * r.ry};
+      };
+
+      // 1. Draw 18 elliptical time cross-sections along the cylinder
+      ctx.save();
+      for(let i = 0; i <= 18; i++){
+        const s = i / 18;
+        const c = oc(s), r = orad(s, 1.0);
+        ctx.strokeStyle = `rgba(${lineRGB}, ${i === 0 ? 0.55 : 0.22})`;
+        ctx.lineWidth = i === 0 ? 2.4 : 1.0;
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Nested concentric Onion layer rings visible at the cylinder mouth (s = 0)
+      for(let pIdx = 0; pIdx < K; pIdx++){
+        const rScale = (0.40 + (pIdx / Math.max(1, K - 1)) * 0.68) * (1 + explodeAmt * 0.45);
+        const c = oc(0), r = orad(0, rScale);
+        ctx.strokeStyle = layerColorForPlane(planesNearFirst[pIdx]);
+        ctx.globalAlpha = 0.65;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, r.rx, r.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      [-1.22, -0.82, -0.42, 0, 0.42, 0.82, 1.22].forEach(a => {
+        ctx.strokeStyle = `rgba(${lineRGB}, 0.24)`;
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        for(let i = 0; i <= 24; i++){
+          const q = opoint(i / 24, a, 1.0);
+          if(i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+        }
+        ctx.stroke();
+      });
+      ctx.restore();
+
+      // 2. Draw curved wrap-around layer bands & keyframe cards along the exterior of the concentric Onion cylinder
+      const nCols = 5;
+      for(let cIdx = nCols - 1; cIdx >= 0; cIdx--){
+        const s0 = cIdx / nCols, s1 = (cIdx + 0.82) / nCols;
+        const sMid = (s0 + s1) * 0.5;
+        const ti = Math.round(sMid * Math.max(0, N - 1));
+        for(let pIdx = 0; pIdx < K; pIdx++){
+          const plane = planesNearFirst[pIdx];
+          if(!isPlaneVisible(plane.id)) continue;
+          const rScale = (0.44 + (pIdx / Math.max(1, K - 1)) * 0.66) * (1 + explodeAmt * 0.45);
+          const aMid = -Math.PI * 0.45 + (pIdx / Math.max(1, K - 1)) * (Math.PI * 0.90) + tunnelRoll * 0.5;
+          const a0 = aMid - 0.22, a1 = aMid + 0.22;
+          const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+
+          ctx.save();
+          ctx.beginPath();
+          for(let i = 0; i <= 8; i++){
+            const q = opoint(s0 + (s1 - s0) * (i / 8), a0, rScale);
+            if(i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+          }
+          for(let i = 8; i >= 0; i--){
+            const q = opoint(s0 + (s1 - s0) * (i / 8), a1, rScale);
+            ctx.lineTo(q.x, q.y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.68)';
+          ctx.fill();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          ctx.restore();
+
+          if(Math.abs(ti - fi) > 2 && (cIdx % 2 === 0 || plane.id === 'char')){
+            const mp = opoint(sMid, aMid, rScale);
+            drawUpright3DCard(ctx, mp.x, mp.y, 44, 36, ti, {
+              plane: plane.id === 'char' ? null : plane,
+              borderColor: col,
+              borderWidth: 1.2,
+              bgFill: '#FFFDF5',
+              alpha: 0.78,
+              cropToMask: plane.id === 'char',
+              butterSlab: true,
+              slabDepth: 3,
+              togglePlane: false,
+              label: `f${String(ti+1).padStart(2,'0')}`,
+              labelColor: col
+            });
+          }
+        }
+      }
+
+      // 3. Concentric Playhead Ellipses slicing the cylinder at sPlay + active 6 Layer Cards!
+      const sPlay = N > 1 ? (fi / (N - 1)) : 0.5;
+      const cPlay = oc(sPlay);
+      ctx.save();
+      for(let pIdx = K - 1; pIdx >= 0; pIdx--){
+        const plane = planesNearFirst[pIdx];
+        const rScale = (0.44 + (pIdx / Math.max(1, K - 1)) * 0.66) * (1 + explodeAmt * 0.45);
+        const rPlay = orad(sPlay, rScale);
+        ctx.strokeStyle = plane.id === 'char' ? '#EF4444' : layerColorForPlane(plane);
+        ctx.lineWidth = plane.id === 'char' ? 3.2 : 1.6;
+        ctx.globalAlpha = plane.id === 'char' ? 0.95 : 0.60;
+        ctx.beginPath();
+        ctx.ellipse(cPlay.x, cPlay.y, rPlay.rx, rPlay.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      for(let pIdx = 0; pIdx < K; pIdx++){
+        const plane = planesNearFirst[pIdx];
+        const isChar = (plane.id === 'char');
+        const rScale = (0.44 + (pIdx / Math.max(1, K - 1)) * 0.66) * (1 + explodeAmt * 0.45);
+        const aMid = -Math.PI * 0.52 + (pIdx / Math.max(1, K - 1)) * (Math.PI * 1.04) + tunnelRoll * 0.5;
+        const mp = opoint(sPlay, aMid, rScale);
+        const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+        const cw = isChar ? 78 : 62;
+        const ch = isChar ? 64 : 50;
+        const cx = Math.max(cw * 0.55 + 6, Math.min(W - cw * 0.55 - 6, mp.x));
+        const cy = Math.max(ch * 0.55 + 18, Math.min(H - ch * 0.55 - 6, mp.y));
+        const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 10);
+        drawUpright3DCard(ctx, cx, cy, cw, ch, fi, {
+          plane: isChar ? null : plane,
+          borderColor: col,
+          borderWidth: isChar ? 2.6 : 1.9,
+          bgFill: '#FFFDF5',
+          alpha: isPlaneVisible(plane.id) ? 1.0 : 0.30,
+          cropToMask: isChar,
+          butterSlab: true,
+          slabDepth: isChar ? 6.5 : 4.5,
+          togglePlane: true,
+          label: `${shortLbl} z=${plane.z}`,
+          labelColor: col
+        });
+      }
+
+      drawAtoTag(cPlay.x, 14, `OUTSIDE ONION CYLINDER (${K} SHELLS) · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // SUB-MODE 5: 'bench' — c-bus UNROLLED MULTI-TRACK BENCH WITH LIFT & ROUTES
+    // -------------------------------------------------------------------------
+    const padL = 118, padR = 16, padT = 22, padB = 14;
+    const trackW = W - padL - padR;
+    const availH = H - padT - padB;
+    const rowH = availH / K;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(${lineRGB}, 0.45)`;
+    ctx.lineWidth = 2.0;
+    ctx.setLineDash([6, 5]);
+    ctx.strokeRect(6, 6, W - 12, H - 12);
+    ctx.restore();
+
+    for(let pIdx = 0; pIdx < K; pIdx++){
+      const plane = planesNearFirst[pIdx];
+      const vis = isPlaneVisible(plane.id);
+      const isChar = (plane.id === 'char');
+      const cy = padT + (pIdx + 0.5) * rowH;
+      const boxH = Math.max(24, rowH * 0.74);
+      const col = beflixMode ? beflixColorForPlane(plane) : layerColorForPlane(plane);
+      const kMult = (zRef / Math.max(0.2, plane.z)) * kScale;
+      const liftVal = kMult - 1.0;
+
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.setLineDash(DASH_STYLES[pIdx % DASH_STYLES.length]);
+      ctx.lineWidth = isChar ? 2.5 : 1.4;
+      ctx.globalAlpha = vis ? 0.85 : 0.25;
+      ctx.beginPath();
+      ctx.moveTo(padL, cy);
+      ctx.lineTo(W - padR, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = dark ? '#161924' : '#FFFFFF';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = isChar ? 2.0 : 1.3;
+      ctx.fillRect(12, cy - boxH * 0.48, padL - 18, boxH * 0.96);
+      ctx.strokeRect(12, cy - boxH * 0.48, padL - 18, boxH * 0.96);
+      ctx.fillStyle = col;
+      ctx.fillRect(12, cy - boxH * 0.48, 5, boxH * 0.96);
+      ctx.fillStyle = dark ? '#FFFDF8' : '#161412';
+      ctx.font = '700 9.5px "Bricolage Grotesque", sans-serif';
+      const shortLbl = String(plane.label || plane.id).split('(')[0].trim().slice(0, 12);
+      ctx.fillText(shortLbl, 21, cy - 2);
+      ctx.fillStyle = dark ? '#A0AEC0' : '#5E554B';
+      ctx.font = '600 8px "JetBrains Mono", monospace';
+      ctx.fillText(`R${pIdx+1} z=${plane.z} k=${kMult.toFixed(1)}x`, 21, cy + 9);
+      pushHitBox({x: 12, y: cy - boxH * 0.48, w: padL - 18, h: boxH * 0.96, fi, planeId: plane.id, togglePlane: true});
+
+      const nClips = 5;
+      const segW = trackW / nClips;
+      for(let c = 0; c < nClips; c++){
+        const ti = Math.round((c / (nClips - 1)) * Math.max(0, N - 1));
+        const bx = padL + c * segW + 3;
+        const bw = segW - 6;
+        const by = cy - boxH * 0.46;
+        const bh = boxH * 0.92;
+
+        ctx.fillStyle = dark ? '#0E1017' : '#FBFAF6';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(bx, by, bw, bh);
+        if(isChar){
+          drawSamCutoutInRect(ctx, curWorm, ti, bx + 2, by + 2, bw - 4, bh - 4, {cropToMask: true, drawOutline: false, drawDoodle: true});
+        } else {
+          drawPlaneObjectsInRect(ctx, plane, ti, bx + 2, by + 2, bw - 4, bh - 4, true);
+        }
+        ctx.strokeRect(bx, by, bw, bh);
+        pushHitBox({x: bx, y: by, w: bw, h: bh, fi: ti});
+
+        if(Math.abs(liftVal) > 0.08 && c === 2){
+          const nubH = Math.min(12, Math.abs(liftVal) * 8);
+          const nubY = liftVal > 0 ? by - nubH : by + bh;
+          ctx.fillStyle = liftVal > 0 ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)';
+          ctx.fillRect(bx + bw * 0.5 - 3, nubY, 6, nubH);
+        }
+      }
+      ctx.restore();
+    }
+
+    const playX = padL + (N > 1 ? (fi / (N - 1)) * trackW : trackW * 0.5);
+    ctx.save();
+    ctx.strokeStyle = '#EF4444';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(playX, 10);
+    ctx.lineTo(playX, H - 10);
+    ctx.stroke();
+    ctx.restore();
+    drawAtoTag(playX, 14, `BENCH LATHE · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, true);
   }
 
   function renderParallelTimelinesMode(ctx, W, H, fi, N, planes, zRef){
@@ -1788,7 +2506,116 @@
     }
   }
 
+  const _bfxStageImgCv = document.createElement('canvas');
+  _bfxStageImgCv.width = 128; _bfxStageImgCv.height = 96;
+  const _bfxStageImgCtx = _bfxStageImgCv.getContext('2d', { willReadFrequently: true });
+  const _bfxStageInkCv = document.createElement('canvas');
+  _bfxStageInkCv.width = 128; _bfxStageInkCv.height = 96;
+  const _bfxStageInkCtx = _bfxStageInkCv.getContext('2d', { willReadFrequently: true });
+
+  function renderBeflixStage128x96(ctx, W, H, fi){
+    const img = getFrameImg(curWorm, fi);
+    const W_src = (S && S.W) || curWorm.W || 480;
+    const H_src = (S && S.H) || curWorm.H || 360;
+    const sx = 128 / W_src, sy = 96 / H_src;
+    const planes = getActivePlanes();
+
+    _bfxStageImgCtx.clearRect(0, 0, 128, 96);
+    if(img){
+      _bfxStageImgCtx.drawImage(img, 0, 0, 128, 96);
+    }
+    const imgData = img ? _bfxStageImgCtx.getImageData(0, 0, 128, 96).data : null;
+
+    _bfxStageInkCtx.clearRect(0, 0, 128, 96);
+    _bfxStageInkCtx.save();
+    _bfxStageInkCtx.scale(sx, sy);
+    _bfxStageInkCtx.lineCap = 'round';
+    _bfxStageInkCtx.lineJoin = 'round';
+
+    for(const plane of planes){
+      if(!isPlaneVisible(plane.id)) continue;
+      if(zoomPlaneId !== null && plane.id !== zoomPlaneId) continue;
+      const off = camOffset(plane.z, fi);
+      const pCol = beflixColorForPlane(plane);
+
+      if(plane.id === 'char'){
+        const strokes = (S && S.cast && S.cast.frames && S.cast.frames[fi])
+          ? S.cast.frames[fi]
+          : ((curWorm.frames && curWorm.frames[fi] && curWorm.frames[fi].doodle)
+              ? curWorm.frames[fi].doodle.map(s => s.map(p => [p[0]*W_src, p[1]*H_src])) : []);
+        if(strokes.length){
+          drawStrokes(_bfxStageInkCtx, strokes, {color: pCol, width: 6.0, fill: '#FFFDF8'});
+          drawStrokes(_bfxStageInkCtx, strokes, {color: pCol, width: 5.5});
+        }
+      } else if(S && Array.isArray(S.objects)){
+        const objs = S.objects.filter(o => o.plane === plane.id);
+        for(const o of objs){
+          const ost = getObjectStrokes(o, fi);
+          if(!ost || !ost.length) continue;
+          drawStrokes(_bfxStageInkCtx, ost, {
+            color: pCol,
+            width: plane.z <= 2.5 ? 5.2 : 4.2,
+            dx: off.dx, dy: off.dy
+          });
+        }
+      } else if(curWorm && Array.isArray(curWorm.depth_worms)){
+        const dwObj = curWorm.depth_worms.find(d => d.id === plane.id);
+        if(dwObj && Array.isArray(dwObj.strokes0) && dwObj.strokes0.length){
+          const u0 = Number.isFinite(dwObj.u0) ? dwObj.u0 : 0.5;
+          const v0 = Number.isFinite(dwObj.v0) ? dwObj.v0 : 0.5;
+          const mapped = dwObj.strokes0.map(s => s.map(p => [(u0 + p[0])*W_src + off.dx, (v0 + p[1])*H_src + off.dy]));
+          drawStrokes(_bfxStageInkCtx, mapped, {color: pCol, width: 4.5});
+        }
+      }
+    }
+    _bfxStageInkCtx.restore();
+    const inkData = _bfxStageInkCtx.getImageData(0, 0, 128, 96).data;
+
+    ctx.fillStyle = '#0A0B0F';
+    ctx.fillRect(0, 0, W, H);
+    const cellW = W / 128;
+    const cellH = H / 96;
+
+    for(let gy = 0; gy < 96; gy++){
+      const cy = (gy + 0.5) * cellH;
+      for(let gx = 0; gx < 128; gx++){
+        const idx = (gy * 128 + gx) * 4;
+        const cx = (gx + 0.5) * cellW;
+        const iA = inkData[idx + 3];
+        if(iA > 38){
+          const iR = inkData[idx], iG = inkData[idx+1], iB = inkData[idx+2];
+          const dSz = Math.max(1.8, Math.min(cellW, cellH) * 0.86);
+          ctx.fillStyle = `rgb(${iR},${iG},${iB})`;
+          ctx.fillRect(cx - dSz * 0.5, cy - dSz * 0.5, dSz, dSz);
+        } else if(imgData){
+          const r = imgData[idx], g = imgData[idx+1], b = imgData[idx+2];
+          const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          const q = Math.round((1 - lum) * 6);
+          if(q >= 1){
+            const dSz = Math.max(0.8, Math.min(cellW, cellH) * (0.18 + 0.36 * (q / 6)));
+            ctx.fillStyle = `rgba(210, 202, 186, ${0.18 + 0.28 * (q / 6)})`;
+            ctx.fillRect(cx - dSz * 0.5, cy - dSz * 0.5, dSz, dSz);
+          }
+        }
+      }
+    }
+
+    const N = (S && S.cast && S.cast.frames) ? S.cast.frames.length : (curWorm.n_frames || 1);
+    ctx.fillStyle = 'rgba(10, 11, 15, 0.88)';
+    ctx.strokeStyle = '#FFB03A';
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(8, 7, 254, 17);
+    ctx.strokeRect(8, 7, 254, 17);
+    ctx.fillStyle = '#FFB03A';
+    ctx.font = '700 9.5px "JetBrains Mono", monospace';
+    ctx.fillText(`BEFLIX 128×96 · ${planes.length} LAYER RINGS · F${String(fi+1).padStart(2,'0')}/${String(N).padStart(2,'0')}`, 13, 18.5);
+  }
+
   function renderSingleStageView(ctx, W, H, fi, vMode){
+    if(vMode === 'beflix' || (beflixMode && vMode !== 'footage' && vMode !== 'masks')){
+      renderBeflixStage128x96(ctx, W, H, fi);
+      return;
+    }
     const img = getFrameImg(curWorm, fi);
 
     if(vMode === 'footage'){
@@ -2409,6 +3236,10 @@
   }
 
   function renderSingleWormLens(ctx, W, H, fi, N, planes, zRef, mode){
+    if(mode === 'tunnel'){
+      renderTunnelLayersMode(ctx, W, H, fi, N, planes, zRef);
+      return;
+    }
     if(mode === 'parallel'){
       renderParallelTimelinesMode(ctx, W, H, fi, N, planes, zRef);
       return;
@@ -3037,11 +3868,11 @@
     if(wormMode === 'all'){
       const lenses = [
         {id:'parallel', lbl:'1 · 3D Butter'},
-        {id:'lanes',    lbl:'2 · Planes'},
-        {id:'parts',    lbl:'3 · Parts'},
-        {id:'strobe',   lbl:'4 · Trail'},
-        {id:'kymo',     lbl:'5 · Graphs'},
-        {id:'anatomy',  lbl:'6 · Rig'}
+        {id:'tunnel',   lbl:'2 · Layer Tube'},
+        {id:'lanes',    lbl:'4 · Planes'},
+        {id:'parts',    lbl:'5 · Parts'},
+        {id:'strobe',   lbl:'6 · Trail'},
+        {id:'box',      lbl:'9 · Depth Box'}
       ];
       const cols = 3, rows = 2;
       const pad = 6, gap = 6;
@@ -3310,10 +4141,12 @@
 
   function syncSubModeToolbars(){
     const isPar = (wormMode === 'parallel' || wormMode === 'all');
+    const isTun = (wormMode === 'tunnel');
     const isCbus = (wormMode === 'cbus');
     if(parallelSubSeg) parallelSubSeg.style.display = isPar ? '' : 'none';
-    if(tunnelSubSeg) tunnelSubSeg.style.display = isCbus ? '' : 'none';
-    if(parThemeBtn) parThemeBtn.style.display = isPar ? '' : 'none';
+    if(tunnelSubSeg) tunnelSubSeg.style.display = isTun ? '' : 'none';
+    if(cbusSubSeg) cbusSubSeg.style.display = isCbus ? '' : 'none';
+    if(parThemeBtn) parThemeBtn.style.display = (isPar || isTun) ? '' : 'none';
 
     const cbusFrame = document.getElementById('cbus-inline-frame');
     if(cbusFrame){
@@ -3533,7 +4366,9 @@
     planesRow = document.getElementById('planesRow');
     parallelSubSeg = document.getElementById('parallelSubSeg');
     tunnelSubSeg = document.getElementById('tunnelSubSeg');
+    cbusSubSeg = document.getElementById('cbusSubSeg');
     parThemeBtn = document.getElementById('parThemeBtn');
+    beflixToggleBtn = document.getElementById('beflixToggleBtn');
     restorePlanesBtn = document.getElementById('restorePlanesBtn');
     zoomCrumbBtn = document.getElementById('zoomCrumbBtn');
     kScaleRange = document.getElementById('kScaleRange');
@@ -3545,12 +4380,14 @@
 
     let isScrubbingWorm = false;
     let wormDownPt = null;
+    let wormStartRoll = tunnelRoll;
     let wormDragged = false;
 
     cvWorm.addEventListener('pointerdown', (e)=>{
       isScrubbingWorm = true;
       wormDragged = false;
       wormDownPt = eventToCanvasPt(cvWorm, e);
+      wormStartRoll = tunnelRoll;
       cvWorm.setPointerCapture(e.pointerId);
       const hit = findWormHit(wormDownPt);
       if(!hit){
@@ -3561,7 +4398,7 @@
       const pt = eventToCanvasPt(cvWorm, e);
       if(!isScrubbingWorm){
         const hit = findWormHit(pt);
-        cvWorm.style.cursor = hit ? 'pointer' : 'ew-resize';
+        cvWorm.style.cursor = hit ? 'pointer' : (wormMode === 'tunnel' ? 'grab' : 'ew-resize');
         const newHov = (hit && hit.selectPartId && hit.selectPartId !== '__NONE__') ? hit.selectPartId : null;
         if(newHov !== hoveredPartId){
           hoveredPartId = newHov;
@@ -3573,7 +4410,14 @@
         wormDragged = true;
       }
       if(wormDragged){
+        if(wormMode === 'tunnel' && wormDownPt){
+          const dy = pt.clientY - wormDownPt.clientY;
+          if(Math.abs(dy) > 4){
+            tunnelRoll = wormStartRoll + dy * 0.009;
+          }
+        }
         scrubFromWormEvent(e);
+        if(wormMode === 'tunnel') renderAll();
       }
     });
     cvWorm.addEventListener('pointerleave', ()=>{
@@ -3673,19 +4517,17 @@
 
     document.querySelectorAll('[data-wmode]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        const modeVal = btn.dataset.wmode;
-        if(modeVal === 'onion'){
-          wormMode = 'parallel';
-          parallelSubMode = 'onion';
-        } else if(modeVal === 'parallel' && parallelSubMode === 'onion'){
-          wormMode = 'parallel';
-          parallelSubMode = 'butter';
-        } else {
-          wormMode = modeVal;
-        }
+        wormMode = btn.dataset.wmode;
         document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
-        document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.psub===parallelSubMode?'true':'false'));
         syncSubModeToolbars();
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll('[data-lsub]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        tunnelSubMode = btn.dataset.lsub;
+        document.querySelectorAll('[data-lsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         renderAll();
       });
     });
@@ -3716,10 +4558,6 @@
       btn.addEventListener('click', ()=>{
         parallelSubMode = btn.dataset.psub;
         document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
-        document.querySelectorAll('[data-wmode]').forEach(b=>{
-          if(b.dataset.wmode === 'onion') b.setAttribute('aria-pressed', parallelSubMode === 'onion' && wormMode === 'parallel' ? 'true' : 'false');
-          else if(b.dataset.wmode === 'parallel') b.setAttribute('aria-pressed', parallelSubMode !== 'onion' && wormMode === 'parallel' ? 'true' : 'false');
-        });
         renderAll();
       });
     });
