@@ -4005,6 +4005,11 @@
       });
       planesRow.appendChild(btn);
     });
+    const planesCountLbl = document.getElementById('insp-planes-count-lbl');
+    if(planesCountLbl){
+      const visCnt = planes.filter(p => isPlaneVisible(p.id)).length;
+      planesCountLbl.textContent = visCnt === planes.length ? `${planes.length}` : `${visCnt}/${planes.length}`;
+    }
   }
 
   function hydrateShotData(data){
@@ -4148,6 +4153,24 @@
     if(cbusSubSeg) cbusSubSeg.style.display = isCbus ? '' : 'none';
     if(parThemeBtn) parThemeBtn.style.display = (isPar || isTun) ? '' : 'none';
 
+    const activeLensLbl = document.getElementById('insp-active-lens-lbl');
+    if(activeLensLbl){
+      const activeMainBtn = document.querySelector(`[data-wmode="${wormMode}"]`);
+      const mainTxt = activeMainBtn ? activeMainBtn.textContent.trim() : wormMode;
+      let subTxt = '';
+      if(isPar){
+        const b = document.querySelector(`[data-psub="${parallelSubMode}"]`);
+        if(b) subTxt = ' · ' + b.textContent.trim();
+      } else if(isTun){
+        const b = document.querySelector(`[data-lsub="${tunnelSubMode}"]`);
+        if(b) subTxt = ' · ' + b.textContent.trim();
+      } else if(isCbus){
+        const b = document.querySelector('#cbusSubSeg [aria-pressed="true"]');
+        if(b) subTxt = ' · ' + b.textContent.trim();
+      }
+      activeLensLbl.textContent = mainTxt + subTxt;
+    }
+
     const cbusFrame = document.getElementById('cbus-inline-frame');
     if(cbusFrame){
       if(isCbus){
@@ -4252,6 +4275,15 @@
       if(el) el.value = 'worm:' + curWorm.shot_id;
     });
 
+    const shmLink = document.getElementById('stb-shm-link');
+    if(shmLink && curWorm){
+      shmLink.href = `https://hartswf0.github.io/secondhand-motion/?shot=${encodeURIComponent(curWorm.shot_id)}`;
+    }
+    const doodleLink = document.getElementById('insp-doodle-link');
+    if(doodleLink && curWorm){
+      doodleLink.href = `abc-flix-secondhand-doodle.html?shot=${encodeURIComponent(curWorm.shot_id)}`;
+    }
+
     const cbusFrame = document.getElementById('cbus-inline-frame');
     if(cbusFrame && cbusFrame.contentWindow){
       try { cbusFrame.contentWindow.postMessage({ type: 'SCENE_SELECT', shotId: curWorm.shot_id, slug: curWorm.slug }, '*'); } catch(e){}
@@ -4353,7 +4385,12 @@
       if(cvStage) cvStage.style.display = 'block';
     }
     document.querySelectorAll('[data-icaro-sview]').forEach(b => {
-      b.setAttribute('aria-pressed', b.dataset.icaroSview === vMode ? 'true' : 'false');
+      const active = b.dataset.icaroSview === vMode;
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+      if(active){
+        const stageLbl = document.getElementById('stb-active-view-lbl');
+        if(stageLbl) stageLbl.textContent = b.textContent.trim();
+      }
     });
     renderAll();
   }
@@ -4528,6 +4565,7 @@
       btn.addEventListener('click', ()=>{
         tunnelSubMode = btn.dataset.lsub;
         document.querySelectorAll('[data-lsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        syncSubModeToolbars();
         renderAll();
       });
     });
@@ -4535,6 +4573,7 @@
     document.querySelectorAll('[data-tsub]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         document.querySelectorAll('[data-tsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        syncSubModeToolbars();
         const cbusFrame = document.getElementById('cbus-inline-frame');
         const sub = btn.dataset.tsub;
         if(cbusFrame && cbusFrame.contentWindow){
@@ -4558,6 +4597,7 @@
       btn.addEventListener('click', ()=>{
         parallelSubMode = btn.dataset.psub;
         document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
+        syncSubModeToolbars();
         renderAll();
       });
     });
@@ -4641,11 +4681,20 @@
       }
     });
 
-    // Default to Composite stage + 1 · 3D Butter bottom view on Giraffe Walks Past!
+    // Default to Composite stage + 1 · 3D Butter bottom view on Giraffe Walks Past (or ?shot= param)!
     syncSubModeToolbars();
     setStageViewMode('composite');
     if(WORMS.length){
-      selectShotByIdx(0);
+      let initIdx = 0;
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const qShot = params.get('shot') || params.get('lot') || '';
+        if(qShot){
+          const found = WORMS.findIndex(w => w.shot_id === qShot || w.slug === qShot || (w.lot && w.lot.toLowerCase() === qShot.toLowerCase()));
+          if(found >= 0) initIdx = found;
+        }
+      } catch(e){}
+      selectShotByIdx(initIdx);
     }
   }
 
