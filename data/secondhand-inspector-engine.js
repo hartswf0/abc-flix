@@ -4558,6 +4558,8 @@
         document.querySelectorAll('[data-wmode]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         syncSubModeToolbars();
         renderAll();
+        const hasSub = (wormMode === 'parallel' || wormMode === 'all' || wormMode === 'tunnel' || wormMode === 'cbus');
+        if(!hasSub && typeof window.closeAllFloatingMenus === 'function') window.closeAllFloatingMenus();
       });
     });
 
@@ -4567,6 +4569,7 @@
         document.querySelectorAll('[data-lsub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         syncSubModeToolbars();
         renderAll();
+        if(typeof window.closeAllFloatingMenus === 'function') window.closeAllFloatingMenus();
       });
     });
 
@@ -4590,6 +4593,7 @@
             }
           } catch(e){}
         }
+        if(typeof window.closeAllFloatingMenus === 'function') window.closeAllFloatingMenus();
       });
     });
 
@@ -4599,6 +4603,7 @@
         document.querySelectorAll('[data-psub]').forEach(b=>b.setAttribute('aria-pressed', b===btn?'true':'false'));
         syncSubModeToolbars();
         renderAll();
+        if(typeof window.closeAllFloatingMenus === 'function') window.closeAllFloatingMenus();
       });
     });
 
@@ -4611,7 +4616,10 @@
     }
 
     document.querySelectorAll('[data-icaro-sview]').forEach(btn=>{
-      btn.addEventListener('click', ()=> setStageViewMode(btn.dataset.icaroSview));
+      btn.addEventListener('click', ()=>{
+        setStageViewMode(btn.dataset.icaroSview);
+        if(typeof window.closeAllFloatingMenus === 'function') window.closeAllFloatingMenus();
+      });
     });
 
     if(zoomCrumbBtn){
